@@ -1,0 +1,18 @@
+numpy>=1.16.*
+pandas>=0.25.*
+#scipy>=1.3.*  # Will be automatically installed as a dep of scikit-learn
+scikit-learn>=0.21.*
+statsmodels>=0.10.*
+patsy>=0.5.*
+
+#python-snappy  # Compression for fastparquet (gzip is always available)
+fastparquet  # "conda install -c conda-forge fastparquet"
+lightgbm>=2.3.*  # For Linux, glibc >= 2.14 is required. "conda install -c conda-forge lightgbm"
+
+apscheduler  # "conda install -c conda-forge apscheduler"
+python-binance  # "pip install python-binance". It has to executed from Anaconda prompt.
+
+#
+# Utilities
+#
+tenacity
