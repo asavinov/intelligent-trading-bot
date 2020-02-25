@@ -182,7 +182,8 @@ class Database:
         path.mkdir(parents=True, exist_ok=True)  # Ensure that dir exists
 
         now = datetime.utcnow()
-        rotate_suffix = f"{now:%Y}{now:%m}{now:%d}"
+        #rotate_suffix = f"{now:%Y}{now:%m}{now:%d}"  # Daily files
+        rotate_suffix = f"{now:%Y}{now:%m}"  # Monthly files
 
         #
         # Get all the data from the queue and store in file

@@ -33,11 +33,12 @@ if script_name == "collect_data_ws":
     # CHECK:
     # - in Database.py::store_queue, rotate_suffix has to store in monthly files (not daily or hourly or whatever was used for debugging)
     # - in App.py, check list of symbols and depth of order book (20 and not 5 or whatever was used for debugging)
-    # - in App.py, check frequency of flushes and set it to 60 seconds or 300 seconds.
-    # - start command: python start.py collect_data_ws
+    # - in App.py, check frequency of flushes and set it to 300 seconds or 60 seconds.
+    # - start command: python start.py collect_data_ws &
     from trade.collect_ws import *
-    #import trade.collect_ws
     exitcode = start_collect_ws()
+    #import trade.collect_ws
+    #exitcode = trade.collect_ws.start_collect_ws()
 
 if script_name == "generate_features":
     import scripts.generate_features

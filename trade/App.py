@@ -55,7 +55,7 @@ class App:
 
         "collect": {
             "folder": "DATA",
-            "flush_period": 30,  # seconds
+            "flush_period": 300,  # seconds
             "depth": {
                 "folder": "DEPTH",
                 "symbols": ["BTCUSDT", "ETHBTC", "ETHUSDT", "IOTAUSDT", "IOTABTC", "IOTAETH"],
