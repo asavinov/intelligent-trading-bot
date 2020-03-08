@@ -8,12 +8,33 @@ Also, add new *independent* data like bitcoin future prices or cross-prices (bcn
 Conceptually, focus on concept drift and adaptation to nearest trends and behavioral patterns, e.g., using short-middle-long windows.
 
 #### Simple 1 minute trading strategy
-Principles
-* [buy mode] entering market (buy market order executed immediately) immediately followed by a limit sell order
-* [sell mode] regularly checking the execution state of the limit order
-  * possibly update its limit price
-  * force cell because of (strong) sell signal (essentially means that the limit price is equal or lower than the market price)
-  * force sell after time out by converting into a market order
+Modes:
+
+* [not in market - buy mode] Ready and try to enter the market.
+  * If there is a buy signal, then generate market order or limit buy order.
+  * Check for execution of the order. For market order immediately. For limit order regularly.
+  * After buy order executed, create limit sell order and store its id or otherwise remember that we are are in sell mode.
+
+* [in market - sell mode] Check the execution status of the existing limit order
+  * If not executed then
+    * do nothing (continue waiting)
+    * possibly update its limit price
+    * if time out, then force sell by converting it to market order or makring limit price very low and confirm its execution
+    * if (strong) sell signal, the force sell
+  * If executed:
+    * Log transaction
+    * Switch to buy mode and execute the logic of buy mode
+
+Principles of our strategy:
+
+* Buy order is market order, sell order is a limit order
+* Only 3 cases: buy order running, sell order running, no orders running (buy and sell orders running is impossible)
+  * if running orders,
+      * buy order is running: no-op (wait for the result by checking order status regularly maybe more frequently), maybe price adjustment
+      * sell order running: check if adjustment is needed, time out with (market price *adjustment*), or cancel
+  * if no running orders then two situations:
+    * we have money (and can buy), if buy signal, then immediately new *buy* order (for market price), otherwise no-op
+    * we have coins (and can sell), immediately new limit *sell* order ideally right after buy order executed (everything else is controlled via its limit price)
 
 Define independent functions executed synchronously or awaited:
 * buy order immediately executed as either market order or with very small limit (which means that there is probability that it will not be executed immediatelly and hence has to be cancelled)

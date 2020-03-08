@@ -34,7 +34,7 @@ class App:
 
         "trade": {
             "folder": "DATA",
-            "symbols": ["BTCUSDT"],  # Symbols to be traded
+            "symbols": ["BTCUSDT"],  # Symbols to be traded. Currently only one (the first symbol will be traded)
             "analysis": {  # Same for all symbols
                 "folder": "MODELS",
                 "features": [],
@@ -45,6 +45,7 @@ class App:
                 "sell_timeout": 90,  # Seconds
             },
             "state": {  # Current state updated after each trade session
+                "in_market": False,  # If True then we bought symbol and there is sell order. If False then we have money.
                 "buy_signal": False,
                 "sell_signal": False,
                 "buy_order": None,
