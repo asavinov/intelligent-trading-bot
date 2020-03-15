@@ -217,3 +217,7 @@ Our system is then sychronized with the service and is driven by the service dat
 Java WebSocket: client.onCandlestickEvent("ethbtc", CandlestickInterval.ONE_MINUTE, response -> System.out.println(response));
 Python WebSocket: conn_key = bm.start_kline_socket('BNBBTC', process_message, interval=KLINE_INTERVAL_30MINUTE)
 Our processing logic should remain the same but now it is triggered not by the local scheduler but rather by external events.
+
+#### Time synchronization
+
+https://www.digitalocean.com/community/tutorials/how-to-set-up-time-synchronization-on-ubuntu-16-04
