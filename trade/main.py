@@ -57,8 +57,7 @@ async def hello():
 
 loop = asyncio.get_event_loop()
 # print hello ten years after this answer was written
-loop.create_task(run_at(datetime.datetime(2028, 7, 11, 23, 36),
-                        hello()))
+loop.create_task(run_at(datetime.datetime(2028, 7, 11, 23, 36), hello()))
 loop.run_forever()
 """
 

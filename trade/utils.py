@@ -135,6 +135,167 @@ def volume_to_price(side, depth, volume_limit):
     orders = [o for o in orders if o[1] <= volume_limit]
     return orders[-1][0]  # Last element contains cumulative volume
 
+def klines_to_df(klines: list):
+    """
+    Convert a list of klines to a data frame.
+    """
+
+    df = pd.DataFrame(klines, columns=['timestamp', 'open', 'high', 'low', 'close', 'volume', 'close_time', 'quote_av',
+                                       'trades', 'tb_base_av', 'tb_quote_av', 'ignore'])
+
+    df['timestamp'] = pd.to_datetime(df['timestamp'], unit='ms')
+
+    df.set_index('timestamp', inplace=True)
+
+    return df
+
+#
+# Feature/label generation utilities
+#
+
+def to_diff_NEW(sr):
+    # TODO: Use an existing library function to compute difference
+    #   We used it in fast hub for computing datetime difference - maybe we can use it for numeric diffs
+    pass
+
+def to_diff(sr):
+    """
+    Convert the specified input column to differences.
+    Each value of the output series is equal to the difference between current and previous values divided by the current value.
+    """
+
+    def diff_fn(x):  # ndarray. last element is current row and first element is most old historic value
+        return 100 * (x[1] - x[0]) / x[0]
+
+    diff = sr.rolling(window=2, min_periods=2).apply(diff_fn, raw=True)
+    return diff
+
+def add_past_aggregations(df, column_name: str, fn, windows: Union[int, list[int]], suffix=None,
+                          rel_column_name: str = None, rel_factor: float = 1.0):
+    return _add_aggregations(df, False, column_name, fn, windows, suffix, rel_column_name, rel_factor)
+
+def add_future_aggregations(df, column_name: str, fn, windows: Union[int, list[int]], suffix=None,
+                            rel_column_name: str = None, rel_factor: float = 1.0):
+    return _add_aggregations(df, True, column_name, fn, windows, suffix, rel_column_name, rel_factor)
+
+def _add_aggregations(df, is_future: bool, column_name: str, fn, windows: Union[int, list[int]], suffix=None,
+                      rel_column_name: str = None, rel_factor: float = 1.0):
+    """
+    Compute moving aggregations over past or future values of the specified base column using the specified windows.
+
+    Windowing. Window size is the number of elements to be aggregated.
+    For past aggregations, the current value is always included in the window.
+    For future aggregations, the current value is not included in the window.
+
+    Naming. The result columns will start from the base column name then suffix is used and then window size is appended (separated by underscore).
+    If suffix is not provided then it is function name.
+    The produced names will be returned as a list.
+
+    Relative values. If the base column is provided then the result is computed as a relative change.
+    If the coefficient is provided then the result is multiplied by it.
+
+    The result columns are added to the data frame (and their names are returned).
+    The length of the data frame is not changed even if some result values are None.
+    """
+
+    column = df[column_name]
+
+    if isinstance(windows, int):
+        windows = [windows]
+
+    if rel_column_name:
+        rel_column = df[rel_column_name]
+
+    if suffix is None:
+        suffix = "_" + fn.__name__
+
+    features = []
+    for w in windows:
+        # Aggregate
+        ro = column.rolling(window=w, min_periods=max(1, w // 10))
+        feature = ro.apply(fn, raw=True)
+
+        # Convert past aggregation to future aggregation
+        if is_future:
+            feature = feature.shift(periods=-w)
+
+        # Normalize
+        feature_name = column_name + suffix + '_' + str(w)
+        features.append(feature_name)
+        if rel_column_name:
+            df[feature_name] = rel_factor * (feature - rel_column) / rel_column
+        else:
+            df[feature_name] = rel_factor * feature
+
+    return features
+
+def add_threshold_feature(df, column_name: str, thresholds: list, out_names: list):
+    """
+
+    :param df:
+    :param column_name: Column with values to compare with the thresholds
+    :param thresholds: List of thresholds. For each of them an output column will be generated
+    :param out_names: List of output column names (same length as thresholds)
+    :return: List of output column names
+    """
+
+    for i, threshold in enumerate(thresholds):
+        out_name = out_names[i]
+        if threshold > 0.0:  # Max high
+            if abs(threshold) >= 0.75:  # Large threshold
+                df[out_name] = df[column_name] >= threshold  # At least one high is greater than the threshold
+            else:  # Small threshold
+                df[out_name] = df[column_name] <= threshold  # All highs are less than the threshold
+        else:  # Min low
+            if abs(threshold) >= 0.75:  # Large negative threshold
+                df[out_name] = df[column_name] <= threshold  # At least one low is less than the (negative) threshold
+            else:  # Small threshold
+                df[out_name] = df[column_name] >= threshold  # All lows are greater than the (negative) threshold
+
+    return out_names
+
+# TODO: DEPRCATED: check that it is not used. Or refactor by using no apply (direct computation of relative) and remove row filter
+def ___add_label_column(df, window, threshold, max_column_name='<HIGH>', ref_column_name='<CLOSE>',
+                        out_column_name='label'):
+    """
+    Add a goal column to the dataframe which stores a label computed from future data.
+    We take the column with maximum values and find its maximum for the specified window.
+    Then we find relative deviation of this maximum from the value in the reference column.
+    Finally, we compare this relative deviation with the specified threashold and write either 1 or 0 into the output.
+    The resulted column with 1s and 0s is attached to the dataframe.
+    """
+
+    ro = df[max_column_name].rolling(window=window, min_periods=window)
+
+    max = ro.max()  # Aggregate
+
+    df['max'] = max.shift(periods=-window)  # Make it future max value (will be None if not enough history)
+
+    # count = df.count()
+    # labelnacount = df['label'].isna().sum()
+    # nacount =  df.isna().sum()
+    df.dropna(subset=['max', ref_column_name], inplace=True)  # Number of nans (at the end) is equal to the window size
+
+    # Compute relative max value
+    def relative_max_fn(row):
+        # if np.isnan(row['max']) or np.isnan(row['<CLOSE>']):
+        #    return None
+        return 100 * (row['max'] - row[ref_column_name]) / row[ref_column_name]  # Percentage
+
+    df['max'] = df.apply(relative_max_fn, axis=1)
+
+    # Whether it exceeded the threshold
+    df[out_column_name] = df.apply(
+        lambda row: 1 if row['max'] > threshold else (0 if row['max'] <= threshold else None), axis=1)
+
+    # Uncomment to use relative max as a numeric label
+    # df['label'] = df['max']
+
+    # df.drop(columns=['max'], inplace=True)  # Not needed anymore
+
+    return df
+
+
 if __name__ == "__main__":
 
     print(now_timestamp())

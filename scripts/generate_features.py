@@ -10,6 +10,7 @@ import pandas as pd
 
 from trade.utils import *
 from trade.feature_generation import *
+from trade.label_generation import *
 
 """
 Compute derived features from source data and store then in an output file.

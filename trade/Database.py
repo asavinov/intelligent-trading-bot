@@ -15,7 +15,7 @@ from trade.feature_generation import *
 from trade.signal_generation import *
 
 import logging
-log = logging.getLogger('database')
+log = logging.getLogger('DB')
 
 class Database:
     """
@@ -38,7 +38,11 @@ class Database:
         #
         # Data state
         #
-        self.klines = {}  # It is a dict of lists where key is a symbol and the list is a list of latest kline records
+
+        # Klines are stored as a dict of lists. Key is a symbol and the list is a list of latest kline records
+        # One kline record is a list of values (not dict) as returned by API: open time, open, high, low, close, volume etc.
+        self.klines = {}
+
         self.queue = queue.Queue()
 
         #
@@ -59,9 +63,20 @@ class Database:
         else:
             return None
 
+    def get_last_kline_ts(self, symbol):
+        """Open time of the last kline. It is simultaniously kline id. Add 1m if the end is needed."""
+        last_kline = self.get_last_kline(symbol=symbol)
+        last_kline_ts = last_kline[0]
+        return last_kline_ts
+
     def get_missing_klines_count(self, symbol):
-        # TODO: Depending on the now time, return how many klines are needed
-        return 1
+        now_ts = now_timestamp()
+        last_kline_ts = self.get_last_kline_ts(symbol)
+        end_of_last_kline = last_kline_ts + 60_000  # Plus 1m
+
+        minutes = (now_ts - end_of_last_kline) / 60_000
+        minutes += 2
+        return int(minutes)
 
     def store_klines(self, data: dict):
         """
@@ -72,6 +87,8 @@ class Database:
             Example: { 'BTCUSDT': [ [], [], [] ] }
         :type dict:
         """
+        now_ts = now_timestamp()
+
         for symbol, klines in data.items():
             # If symbol does not exist then create
             klines_data = self.klines.get(symbol)
@@ -97,13 +114,22 @@ class Database:
             # Append new klines
             klines_data.extend(klines)
 
-            # Check validity. It has to be a time series with certain frequency
+            # Remove too old klines
+            kline_window = App.config["trade"]["analysis"]["kline_window"]
+            to_delete = len(klines_data) - kline_window
+            if to_delete > 0:
+                del klines_data[:to_delete]
+
+            # Check validity. It has to be an ordered time series with certain frequency
             for i, kline in enumerate(self.klines.get(symbol)):
                 ts = kline[0]
                 if i > 0:
                     if ts - prev_ts != 60_000:
                         log.error("Wrong sequence of klines. They are expected to be a regular time series with 1m frequency.")
                 prev_ts = kline[0]
+
+            # Debug message about the last received kline end and current ts (which must be less than 1m - rather small delay)
+            log.debug(f"Stored klines. Total {len(klines_data)} in db. Last kline end: {self.get_last_kline_ts(symbol)+60_000}. Current time: {now_ts}")
 
     def store_depth(self, depths: list, freq):
         """
@@ -207,13 +233,14 @@ class Database:
     def analyze(self, symbol):
         """
         1. Convert klines to df
-        2. Derive (compute) features (same as for model training)
-        3. Derive (predict) labels by applying a model trained for each label
-        4. Generate buy/sell signals
+        2. Derive (compute) features (use same function as for model training)
+        3. Derive (predict) labels by applying models trained for each label
+        4. Generate buy/sell signals by applying rule models trained for best overall trade performance
         """
         klines = self.klines.get(symbol)
+        last_kline_ts = self.get_last_kline_ts(symbol)
 
-        print(f"===>>> Analyze {symbol}. {len(klines)} klines in the database. Last timestamp: {klines[-1][0]}")
+        print(f"===>>> Analyze {symbol}. {len(klines)} klines in the database. Last kline: {last_kline_ts}")
 
         #
         # 1.
@@ -272,6 +299,9 @@ class Database:
             models[label] = model
 
         signals_out = generate_signals(df, models)
+
+        # TODO: Store buy signal for this symbol
+        App.config["trade"]["state"]["buy_signal"] = False
 
 
 if __name__ == "__main__":

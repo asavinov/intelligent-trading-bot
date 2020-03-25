@@ -25,34 +25,80 @@ params = {
 for key, value in params.items():
     os.environ[key] = str(value)
 
+# === TRADE SERVER ===
+#
+if script_name == "trade_server":
+    # Regularly (1m) request data, analyze (feature, predictions, signals), trade (buy or check sold)
+    # - start command: python start.py trade_server &
+    # CHECK:
+    # In "config"|"trade"
+    # - "analysis", "kline_window" must be >300 (base window), e.g., 400 or 600
+    # - "analysis", "features" copy all derived feature names
+    # - "analysis", "labels" copy all predicted labels (one for each trained model used)
+    # - "parameters": check all parameters of trade logic
+    from trade.buysell import *
+    exitcode = start_trade()
+    #import trade.buysell
+    #exitcode = trade.buysell.start_trade()
+
+# === DATA COLLECTION SERVER ===
+#
 if script_name == "collect_data":
+    # Regularly (1m) request new data: depth
+    # - start command: python start.py collect_data &
+    # CHECK:
+    # - In "collect"-"depth": symbols, depth (how may items in order book), freq (1m)
     from trade.main import *
     exitcode = main(sys.argv[1:])
 
 if script_name == "collect_data_ws":
+    # Subscribing to WebSocket data feed and receiving two types of streams: klines and depth
+    # - start command: python start.py collect_data_ws &
     # CHECK:
     # - in Database.py::store_queue, rotate_suffix has to store in monthly files (not daily or hourly or whatever was used for debugging)
     # - in App.py, check list of symbols and depth of order book (20 and not 5 or whatever was used for debugging)
     # - in App.py, check frequency of flushes and set it to 300 seconds or 60 seconds.
-    # - start command: python start.py collect_data_ws &
     from trade.collect_ws import *
     exitcode = start_collect_ws()
     #import trade.collect_ws
     #exitcode = trade.collect_ws.start_collect_ws()
 
+# === BATCH SCRIPTS ===
+#
 if script_name == "generate_features":
+    # Generate feature matrix file from source data: Read input file, generate features, generate labels, store the result
     import scripts.generate_features
     exitcode = scripts.generate_features.main(sys.argv[1:])
 
     #from scripts.generate_features import main
     #exitcode = main(sys.argv[1:])
 
-elif script_name == "generate_predictions":
+if script_name == "generate_predictions":
+    # In a loop with increasing history (we add more and more new data):
+    # - train model using the current historic data
+    # - apply this model to next horizon and store prediction
+    # - repeat by adding the horizon to history
+    # Finally, store the sequentially generated predictions along with the data and features in a file (to train signal models)
+    # Output: file with source data, features/labels, and (generated) sequential trains and predictions
     import scripts.generate_predictions
     exitcode = scripts.generate_predictions.main(sys.argv[1:])
 
     #from scripts.generate_predictions import main
     #exitcode = main(sys.argv[1:])
+
+if script_name == "generate_predict_models":
+    # Load (latest) input data, generate features, generate labels, train models and store them
+    # This procedure is used to prediodically update models and upload them to the server
+    # Output: predict models
+    # TODO
+    pass
+
+if script_name == "generate_signal_models":
+    # Load (latest) input data, generate features, generate labels, sequential predictions
+    # And then train signal parameters to ensure optimal performance
+    # Output: signal models
+    # TODO
+    pass
 
 else:
     print(f"ERROR: Unknown script name {script_name}")

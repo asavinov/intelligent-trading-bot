@@ -89,13 +89,36 @@ Maybe for short histories in order to take into account drift or local dependenc
 
 ## How to
 
+#### Train prediction models using new data
+
+* Ensure that file with historic data is located here: 
+
+
+#### Configure OS
+
+TODO: Ensure that OS uses UTC time
+TODO: Ensure regular time synchronization
+
+#### Create virtual environment
+
+```
+$ python3.7 -m pip install --user pip --upgrade
+$ python3.7 -m pip install --user virtualenv --upgrade
+```
+
+```
+$ python3.7 -m virtualenv --version
+virtualenv 20.0.13
+$ python3.7 -m virtualenv venv
+```
+
 #### Start from Linux
 
 Modify start.py by entering data collection command. Alternatively, pass the desired command as an argument.
 See the file for additional comments. For example:
 * `collect_data` is used to collect depth data by making the corresponding requests.
   * It is possible to specify frequency 1m, 5s etc.
-  * It is possible to specifiy depth (high depth will decrease weight of the request)
+  * It is possible to specify depth (high depth will decrease weight of the request)
 * `collect_data_ws` is used to collect stream data like klines 1m and depth.
   * klines will get update every 1 or 2 seconds for the current 1m kline
   * Depth stream will send new depth information (limited depth) every 1 second
@@ -107,6 +130,7 @@ $ source venv/bin/activate OR source ../trade/venv/bin/activate
 (venv) $ python3.7 --version
 Python 3.7.3
 (venv) $ nohup python3.7 start.py &
+(venv) $ nohup python3.7 start.py collect_data_ws &
 <Enter>
 $ logout
 ```
@@ -116,7 +140,6 @@ login
 ps -ef | grep python3.7
 kill pid_no
 ```
-
 #### Compress and download collected data files
 
 Zip into multiple files with low priority one file:
