@@ -8,7 +8,6 @@ import pickle
 import numpy as np
 import pandas as pd
 
-from trade.utils import *
 from trade.feature_generation import *
 from trade.label_generation import *
 
@@ -21,15 +20,15 @@ This file can be then used to train models and tune hyper-parameters.
 # Parameters
 #
 class P:
-    in_path_name = r"C:\DATA2\BITCOIN"
+    in_path_name = r"C:\DATA2\BITCOIN\KLINES"
     in_file_name = r"BTCUSDT-1m-data.csv"
     in_nrows = 100_000_000
 
     out_path_name = r"_TEMP_FEATURES"
-    out_file_name = r"_BTCUSDT-1m-data-features_1"
+    out_file_name = r"_BTCUSDT-1m-data-features"
 
-    features_horizon = 300  # Features are generated using this past window length
-    labels_horizon = 60  # Labels are generated using this number of steps ahead
+    features_horizon = 300  # Maximum past history used by features
+    labels_horizon = 60  # Maximum future horizon used by labels
 
 def main(args=None):
     in_df = None

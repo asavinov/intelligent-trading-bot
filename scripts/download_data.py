@@ -8,18 +8,22 @@ from datetime import timedelta, datetime
 from dateutil import parser
 from tqdm import tqdm_notebook #(Optional, used for progress-bars)
 
-import aiohttp
+#import aiohttp
 import asyncio
 
 from binance.client import Client
 from binance.websockets import BinanceSocketManager
 from binance.enums import *
 
+# DO NOT INCLUDE because it has function klines_to_df with the same name but different implementation (name conflict)
+#from trade.utils import *
+
 """
+The script is intended for retrieving data from binance server: klines, server info etc.
+
 Links:
 https://sammchardy.github.io/binance/2018/01/08/historical-data-download-binance.html
 https://sammchardy.github.io/kucoin/2018/01/14/historical-data-download-kucoin.html
-
 """
 
 ### API
@@ -35,8 +39,88 @@ symbols = ["XBTUSD", "ETHUSD", "XRPZ18", "LTCZ18", "EOSZ18", "BCHZ18", "ADAZ18",
 client = Client(api_key=binance_api_key, api_secret=binance_api_secret)
 
 #
+# Historic data
+#
+
+def get_klines_all(symbol, freq, save=False):
+    """
+    Retrieving historic klines from binance server.
+
+    Client.get_historical_klines
+    """
+    # ---
+    # Uncomment this to get futures:
+    # ---
+    client.API_URL = "https://fapi.binance.com/fapi"
+    client.PRIVATE_API_VERSION = "v1"
+    client.PUBLIC_API_VERSION = "v1"
+    # ---
+
+    filename = f"{symbol}-{freq}-data.csv"
+
+    if os.path.isfile(filename):
+        data_df = pd.read_csv(filename)
+    else:
+        data_df = pd.DataFrame()
+
+    oldest_point, newest_point = minutes_of_new_data(symbol, freq, data_df)
+
+    delta_min = (newest_point - oldest_point).total_seconds() / 60
+
+    available_data = math.ceil(delta_min / binsizes[freq])
+
+    if oldest_point == datetime.strptime('1 Jan 2017', '%d %b %Y'):
+        print('Downloading all available %s data for %s. Be patient..!' % (freq, symbol))
+    else:
+        print('Downloading %d minutes of new data available for %s, i.e. %d instances of %s data.' % (
+        delta_min, symbol, available_data, freq))
+
+    klines = client.get_historical_klines(
+        symbol,
+        freq,
+        oldest_point.strftime("%d %b %Y %H:%M:%S"),
+        newest_point.strftime("%d %b %Y %H:%M:%S")
+    )
+
+    data_df = klines_to_df(klines, data_df)
+
+    if save:
+        data_df.to_csv(filename)
+
+    print('All caught up..!')
+
+    return data_df
+
+#
+# Static data
+#
+
+def get_exchange_info():
+    """
+    Client.get_exchange_info
+    /api/v1/exchangeInfo
+    """
+    exchange_info = client.get_exchange_info()
+
+    with open("exchange_info.json", "w") as file:
+        json.dump(exchange_info, file, indent=4)  # , sort_keys=True
+
+    return
+
+def get_account_info():
+    orders = client.get_all_orders(symbol='BTCUSDT')
+    trades = client.get_my_trades(symbol='BTCUSDT')
+    info = client.get_account()
+    status = client.get_account_status()
+    details = client.get_asset_details()
+
+def get_market_info():
+    depth = client.get_order_book(symbol='BTCUSDT')
+
+#
 # Utility
 #
+
 def minutes_of_new_data(symbol, freq, data):
     if len(data) > 0:  
         old = parser.parse(data["timestamp"].iloc[-1])
@@ -50,6 +134,7 @@ def minutes_of_new_data(symbol, freq, data):
     
     return old, new
 
+# NOTE: this function is different from same in trade.utils
 def klines_to_df(klines, df):
 
     data = pd.DataFrame(klines, columns = ['timestamp', 'open', 'high', 'low', 'close', 'volume', 'close_time', 'quote_av', 'trades', 'tb_base_av', 'tb_quote_av', 'ignore' ])
@@ -66,51 +151,10 @@ def klines_to_df(klines, df):
     return df
 
 #
-# Historic data
+# Streaming functions (do not work - for test purposes)
 #
-def get_klines_all(symbol, freq, save = False):
-    """
-    Client.get_historical_klines
-    """
-    # Uncomment this to get futures:
-    #client.API_URL = "https://fapi.binance.com/fapi"
-    #client.PRIVATE_API_VERSION = "v1"
-    #client.PUBLIC_API_VERSION = "v1"
 
-    filename = f"{symbol}-{freq}-data.csv"
-
-    if os.path.isfile(filename): 
-        data_df = pd.read_csv(filename)
-    else: 
-        data_df = pd.DataFrame()
-
-    oldest_point, newest_point = minutes_of_new_data(symbol, freq, data_df)
-
-    delta_min = (newest_point - oldest_point).total_seconds()/60
-    
-    available_data = math.ceil(delta_min/binsizes[freq])
-
-    if oldest_point == datetime.strptime('1 Jan 2017', '%d %b %Y'): 
-        print('Downloading all available %s data for %s. Be patient..!' % (freq, symbol))
-    else: 
-        print('Downloading %d minutes of new data available for %s, i.e. %d instances of %s data.' % (delta_min, symbol, available_data, freq))
-
-    klines = client.get_historical_klines(
-        symbol, 
-        freq, 
-        oldest_point.strftime("%d %b %Y %H:%M:%S"), 
-        newest_point.strftime("%d %b %Y %H:%M:%S")
-        )
-
-    data_df = klines_to_df(klines, data_df)
-
-    if save: 
-        data_df.to_csv(filename)
-
-    print('All caught up..!')
-
-    return data_df
-
+# !!! DOES NOT WORK - do not use
 async def get_futures_klines_all(symbol, freq, save = False):
     """
     https://binance-docs.github.io/apidocs/testnet/en/#kline-candlestick-data
@@ -189,32 +233,6 @@ async def get_futures_klines_all(symbol, freq, save = False):
         data_df.to_csv(filename)
 
     pass
-
-#
-# Static data
-#
-
-def get_exchange_info():
-    """
-    Client.get_exchange_info
-    /api/v1/exchangeInfo
-    """
-    exchange_info = client.get_exchange_info()
-
-    with open("exchange_info.json", "w") as file:
-        json.dump(exchange_info, file, indent=4)  # , sort_keys=True
-
-    return
-
-def get_account_info():
-    orders = client.get_all_orders(symbol='BTCUSDT')
-    trades = client.get_my_trades(symbol='BTCUSDT')
-    info = client.get_account()
-    status = client.get_account_status()
-    details = client.get_asset_details()
-
-def get_market_info():
-    depth = client.get_order_book(symbol='BTCUSDT')
 
 def test_market_stream():
     """
@@ -310,9 +328,7 @@ def user_message_fn(msg):
     print(msg)
 
 
-
 if __name__ == '__main__':
-
     #loop = asyncio.get_event_loop()
     #loop.run_until_complete(get_futures_klines_all("BTCUSDT", "1m", save=True))
    
@@ -322,7 +338,7 @@ if __name__ == '__main__':
 
     # BTCUSDT ETHBTC IOTAUSDT
     # IOTABTC IOTAETH
-    get_klines_all("IOTAUSDT", "1m", save=True)
+    get_klines_all("BTCUSDT", "1m", save=True)
 
     #for symbol in symbols
     #    get_all_binance(symbol, "1m", save=True)

@@ -1,3 +1,4 @@
+from __future__ import annotations  # Eliminates problem with type annotations like list[int] and error "'type' object is not subscriptable"
 import dateparser
 import pytz
 from datetime import datetime, timezone, timedelta
@@ -170,16 +171,13 @@ def to_diff(sr):
     diff = sr.rolling(window=2, min_periods=2).apply(diff_fn, raw=True)
     return diff
 
-def add_past_aggregations(df, column_name: str, fn, windows: Union[int, list[int]], suffix=None,
-                          rel_column_name: str = None, rel_factor: float = 1.0):
+def add_past_aggregations(df, column_name: str, fn, windows: Union[int, list[int]], suffix=None, rel_column_name: str = None, rel_factor: float = 1.0):
     return _add_aggregations(df, False, column_name, fn, windows, suffix, rel_column_name, rel_factor)
 
-def add_future_aggregations(df, column_name: str, fn, windows: Union[int, list[int]], suffix=None,
-                            rel_column_name: str = None, rel_factor: float = 1.0):
+def add_future_aggregations(df, column_name: str, fn, windows: Union[int, list[int]], suffix=None, rel_column_name: str = None, rel_factor: float = 1.0):
     return _add_aggregations(df, True, column_name, fn, windows, suffix, rel_column_name, rel_factor)
 
-def _add_aggregations(df, is_future: bool, column_name: str, fn, windows: Union[int, list[int]], suffix=None,
-                      rel_column_name: str = None, rel_factor: float = 1.0):
+def _add_aggregations(df, is_future: bool, column_name: str, fn, windows: Union[int, list[int]], suffix=None, rel_column_name: str = None, rel_factor: float = 1.0):
     """
     Compute moving aggregations over past or future values of the specified base column using the specified windows.
 

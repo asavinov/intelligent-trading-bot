@@ -11,6 +11,8 @@ from trade.utils import *
 from trade.feature_generation import *
 
 """
+Experimental.
+Errors. Function names need to be adapted to (new) existing functions.
 Classify time series using gradient boosting.
 """
 

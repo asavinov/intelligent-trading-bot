@@ -14,6 +14,7 @@ from sklearn import neighbors
 import lightgbm as lgbm
 
 from trade.feature_generation import *
+from trade.label_generation import *
 
 """
 Feature prediction.
@@ -176,4 +177,3 @@ def predict_model_knn(X, model):
     y_hat = model.predict_proba(X)  # Returns probabilities for 2 classes as a matrix
     y_hat = y_hat[:,1]  # Get second columns. It represents probabilities of second class
     return y_hat
-

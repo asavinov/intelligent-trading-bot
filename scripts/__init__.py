@@ -1,1 +1,1 @@
-from scripts.generate_features import main
+#from scripts.generate_features import main

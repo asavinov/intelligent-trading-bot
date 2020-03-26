@@ -1,4 +1,3 @@
-from __future__ import annotations  # Eliminates problem with type annotations like list[int]
 import os
 from datetime import datetime, timezone, timedelta
 from typing import Union

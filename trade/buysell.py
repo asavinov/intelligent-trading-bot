@@ -28,6 +28,14 @@ log = logging.getLogger('TRADE')
 # - run in data collection, analysis, signal generation mode only, excluding real trade (maybe only test orders) but reporting signals (and maybe timeouts of sells)
 #   goals: check data collection/updates/discards work, check stream processing works with new data periodic analyses.
 #   TODO:
+#   - DONE: script for generating a feature matrix file from source data file (parameters: start, end, (or size), two paths
+#     the result includes all source columns, features, labels
+#   - script for training (latest) models using a feature matrix. parameters: paths, model hyper-parametes (maybe hard-coded)
+#     the result is a number of model files (one file for each label), maybe accuracy, file with predictions is not needed
+#     note that gb models should be trained with validation set chosen after train set
+#   - script for rolling predictions. input is feature matrix. in a rolling loop: train model on history, predict future labels for horizon, iterate (add horizon to history)
+
+
 #   - train model(s) and copy them to the folder - document the steps and develop standard procedures
 #   - train signal model and copy to the folder (so that we can re-train it later) - document the steps and develop standard procedures
 #   - configure App.config: feature list, label list etc.

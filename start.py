@@ -25,21 +25,48 @@ params = {
 for key, value in params.items():
     os.environ[key] = str(value)
 
-# === TRADE SERVER ===
+# === BATCH SCRIPTS ===
 #
-if script_name == "trade_server":
-    # Regularly (1m) request data, analyze (feature, predictions, signals), trade (buy or check sold)
-    # - start command: python start.py trade_server &
-    # CHECK:
-    # In "config"|"trade"
-    # - "analysis", "kline_window" must be >300 (base window), e.g., 400 or 600
-    # - "analysis", "features" copy all derived feature names
-    # - "analysis", "labels" copy all predicted labels (one for each trained model used)
-    # - "parameters": check all parameters of trade logic
-    from trade.buysell import *
-    exitcode = start_trade()
-    #import trade.buysell
-    #exitcode = trade.buysell.start_trade()
+if script_name == "generate_features":
+    # Generate feature matrix file from source data: Read input file, generate features, generate labels, store the result
+    import scripts.generate_features
+    exitcode = scripts.generate_features.main(sys.argv[1:])
+
+    #from scripts.generate_features import main
+    #exitcode = main(sys.argv[1:])
+
+if script_name == "train_predict_models":
+    # Use feature matrix to train several predict models one for each label and algorithm.
+    # This procedure is used to periodically update models and upload them to the server
+    # If models are needed for different data ranges (say, shorter latest data) then new run is needed with other parameters
+    # Output: model files (one per label and algorithm)
+    # NOTE: many NaN rows will be dropped because we include features with take/maker which have no data at the beginning of history
+    #   Check quality of predictions and overall performance if we exclude initial history (with no take/maker data)
+    import scripts.train_predict_models
+    exitcode = scripts.train_predict_models.main(sys.argv[1:])
+
+    #from scripts.train_predict_models import main
+    #exitcode = main(sys.argv[1:])
+
+if script_name == "generate_predictions":
+    # In a loop with increasing history (we add more and more new data):
+    # - train model using the current historic data
+    # - apply this model to next horizon and store prediction
+    # - repeat by adding the horizon to history
+    # Finally, store the sequentially generated predictions along with the data and features in a file (to train signal models)
+    # Output: file with source data, features/labels, and (generated) sequential trains and predictions
+    import scripts.generate_predictions
+    exitcode = scripts.generate_predictions.main(sys.argv[1:])
+
+    #from scripts.generate_predictions import main
+    #exitcode = main(sys.argv[1:])
+
+if script_name == "generate_signal_models":
+    # Load (latest) input data, generate features, generate labels, sequential predictions
+    # And then train signal parameters to ensure optimal performance
+    # Output: signal models
+    # TODO
+    pass
 
 # === DATA COLLECTION SERVER ===
 #
@@ -63,42 +90,18 @@ if script_name == "collect_data_ws":
     #import trade.collect_ws
     #exitcode = trade.collect_ws.start_collect_ws()
 
-# === BATCH SCRIPTS ===
+# === TRADE SERVER ===
 #
-if script_name == "generate_features":
-    # Generate feature matrix file from source data: Read input file, generate features, generate labels, store the result
-    import scripts.generate_features
-    exitcode = scripts.generate_features.main(sys.argv[1:])
-
-    #from scripts.generate_features import main
-    #exitcode = main(sys.argv[1:])
-
-if script_name == "generate_predictions":
-    # In a loop with increasing history (we add more and more new data):
-    # - train model using the current historic data
-    # - apply this model to next horizon and store prediction
-    # - repeat by adding the horizon to history
-    # Finally, store the sequentially generated predictions along with the data and features in a file (to train signal models)
-    # Output: file with source data, features/labels, and (generated) sequential trains and predictions
-    import scripts.generate_predictions
-    exitcode = scripts.generate_predictions.main(sys.argv[1:])
-
-    #from scripts.generate_predictions import main
-    #exitcode = main(sys.argv[1:])
-
-if script_name == "generate_predict_models":
-    # Load (latest) input data, generate features, generate labels, train models and store them
-    # This procedure is used to prediodically update models and upload them to the server
-    # Output: predict models
-    # TODO
-    pass
-
-if script_name == "generate_signal_models":
-    # Load (latest) input data, generate features, generate labels, sequential predictions
-    # And then train signal parameters to ensure optimal performance
-    # Output: signal models
-    # TODO
-    pass
-
-else:
-    print(f"ERROR: Unknown script name {script_name}")
+if script_name == "trade_server":
+    # Regularly (1m) request data, analyze (feature, predictions, signals), trade (buy or check sold)
+    # - start command: python start.py trade_server &
+    # CHECK:
+    # In "config"|"trade"
+    # - "analysis", "kline_window" must be >300 (base window), e.g., 400 or 600
+    # - "analysis", "features" copy all derived feature names
+    # - "analysis", "labels" copy all predicted labels (one for each trained model used)
+    # - "parameters": check all parameters of trade logic
+    from trade.buysell import *
+    exitcode = start_trade()
+    #import trade.buysell
+    #exitcode = trade.buysell.start_trade()

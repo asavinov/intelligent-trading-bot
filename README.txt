@@ -89,15 +89,64 @@ Maybe for short histories in order to take into account drift or local dependenc
 
 ## How to
 
-#### Train prediction models using new data
+#### Load new historic (klines) data
 
-* Ensure that file with historic data is located here: 
+Script: scripts/download_data.py
 
+Get symbol klines:
+* Edit main in binance-data.py by setting necessary symbol
+* Run script binance-data.py which will directly call get_klines_all()
 
-#### Configure OS
+Get klines for futures:
+* Use the same function get_klines_all() but uncomment the section at the beginning.
 
-TODO: Ensure that OS uses UTC time
-TODO: Ensure regular time synchronization
+#### Generate feature matrix
+
+The goal here is to load source (kline) data, generate dervied features and labels, and store the result in output file.
+The output is supposed to be used for other procedures like training prediction models.
+
+Execute from project root:
+```
+$ python start.py generate_features
+```
+
+* Ensure that latest source data has been downloaded from binance server
+* Max past window and max future horizon are currently not used (None will be stored)
+* Future horizon for labels is hard-coded (currently 60). Change if necessary
+* If necessary, uncomment line with storing to parquet (install the packages)
+* Output file will store features and labels as they are implemented in the trade module. Copy the header line to get the list.
+* Same number of lines in output as in input file
+* Approximate time: ~10 minutes (on YOGA)
+
+#### Train predict models
+
+See start.py
+
+#### Time synchronization in OS and time zones
+
+https://www.digitalocean.com/community/tutorials/how-to-set-up-time-synchronization-on-ubuntu-16-04
+
+Check synchronization status:
+```
+$ timedatectl
+```
+
+"Network time on: yes" means synchronization is enabled. "NTP synchronized: yes" means time has been synchronized.
+
+If timesyncd isn’t enabled, turn it on with timedatectl:
+```
+$ sudo timedatectl set-ntp on
+```
+
+Using chrony:
+
+https://www.fosslinux.com/4059/how-to-sync-date-and-time-from-the-command-line-in-ubuntu.htm
+
+```
+$ sudo apt install chrony
+chronyd  # One-shot time check without setting the time
+chronyd -q  # One-shot sync
+```
 
 #### Create virtual environment
 
@@ -240,7 +289,3 @@ Our system is then sychronized with the service and is driven by the service dat
 Java WebSocket: client.onCandlestickEvent("ethbtc", CandlestickInterval.ONE_MINUTE, response -> System.out.println(response));
 Python WebSocket: conn_key = bm.start_kline_socket('BNBBTC', process_message, interval=KLINE_INTERVAL_30MINUTE)
 Our processing logic should remain the same but now it is triggered not by the local scheduler but rather by external events.
-
-#### Time synchronization
-
-https://www.digitalocean.com/community/tutorials/how-to-set-up-time-synchronization-on-ubuntu-16-04

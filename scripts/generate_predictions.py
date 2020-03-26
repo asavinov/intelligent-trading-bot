@@ -34,7 +34,7 @@ Note that since we need some significant past data to train the very first model
 #
 class P:
     in_path_name = r"_TEMP_FEATURES"
-    in_file_name = r"_BTCUSDT-1m-data-features_1.csv"
+    in_file_name = r"_BTCUSDT-1m-data-features.csv"
     in_nrows = 10_000_000
 
     out_path_name = r"_TEMP_FEATURES"
