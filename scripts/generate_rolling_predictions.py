@@ -18,15 +18,12 @@ from trade.feature_generation import *
 from trade.feature_prediction import *
 
 """
-Generate predicted features by training a model and using its parameters to generate values (for some next intervals).
-Note that in contrast to simple feature generation where we use fixed (constant) parameters,
-the parameters of this approach change as we move in time because previous values are used to tune the model and then this model is used to generate features.
-One general parameter of this approach is how frequently we update (re-train) the model used to generate a feature, that is, which data is used for that purpose.
-For example, we could re-train a model for each next moment or do it less frequently. Also, we could use only some limited past window to re-train a model.
-
-Store the results of prediction in the output file along with original features and labels.
-This file can be then used for simulation and optimizing signal parameters.
-Note that since we need some significant past data to train the very first model, the output will be normally shorter than the source input data (or at least only the last generated values will be meaningful).
+Generate label predictions for the whole input feature matrix by iteratively training models using historic data and predicting labels for some future horizon.
+The main parameter is the step of iteration, that is, the future horizon for prediction.
+As usual, we can specify past history length used to train a model.
+The output file will store predicted labels in addition to all input columns (generated features and true labels).
+This file is intended for training signal models (by simulating trade process and computing overall performance for some long period).
+The output predicted labels will cover shorter period of time because we need some relatively long history to train the very first model.
 """
 
 #
@@ -34,33 +31,42 @@ Note that since we need some significant past data to train the very first model
 #
 class P:
     in_path_name = r"_TEMP_FEATURES"
-    in_file_name = r"_BTCUSDT-1m-data-features.csv"
-    in_nrows = 10_000_000
+    in_file_name = r"_BTCUSDT-1m-features.csv"
 
     out_path_name = r"_TEMP_FEATURES"
-    out_file_name = r"_BTCUSDT-1m-data-predictions"
+    out_file_name = r"_BTCUSDT-1m-rolling-predictions"
 
     features_horizon = 300  # Features are generated using this past window length
     labels_horizon = 60  # Labels are generated using this number of steps ahead
 
-    # Debug:
+    # Offsets
     # 2017-08-18 00:00:00 = 1200
     # 2017-08-21 00:00:00 = 5520
     # 2017-10-02 00:00:00 = 65580
-    #train_start_str = "2018-01-01 00:00:00"  # First row to include in train data sets
-    #prediction_start_str = "2018-02-01 00:00:00"  # First row for predictions
-
-    # Production:
+    # 2017-12-04 06:00:20.799 = 156663 - start of anomaly with 0.0 in maker/taker and time alignment
+    # 2017-12-04 06:47:20.799 = 156710 - end of anomaly (last record) with zeros
+    # 2017-12-18 10:00:20.799 = 177063 - end of anomaly (last record) with time alignment
     # 2018-01-01 00:00:00 = 196_546
     # 2019-01-01 00:00:00 = 718_170
     # 2019-05-01 00:00:00 = 890_610
+
+    # ---
+    # Debug:
+    in_nrows = 500_000
     train_start_str = "2018-01-01 00:00:00"  # First row to include in train data sets
-    prediction_start_str = "2019-01-01 00:00:00"  # First row for starting predictions
+    prediction_start_str = "2018-02-01 00:00:00"  # First row for predictions
+    train_step = 60  # 1 hour: 60, 1 day: 1_440 = 60 * 24, one week: 10_080
+    train_count = 2  # How many prediction steps. If None or 0, then from prediction start till the data end
+    train_max_length = 43_200  # 1 year: 525_600, 6 months: 262_800, 3 months: 131_400, 1 month: 43_200 (30 days)
 
-    train_step = 1_440  # 1_440 = 60 * 24 Re-train after each day, 10_080 - one week
-    train_count = None  # How many prediction steps. If None or 0, then all data from prediction start to the data end
-
-    train_max_length = 10_000_000  # 1 year: 525600, 6 months: 262800, 3 months: 131400, 3 months: 43800
+    # ---
+    # Production:
+    #in_nrows = 10_000_000
+    #train_start_str = "2018-01-01 00:00:00"  # First row to include in train data sets
+    #prediction_start_str = "2019-01-01 00:00:00"  # First row for starting predictions
+    #train_step = 1_440  # 1 day: 1_440 = 60 * 24, one week: 10_080
+    #train_count = None  # How many prediction steps. If None or 0, then from prediction start till the data end
+    #train_max_length = 10_000_000  # 1 year: 525600, 6 months: 262800, 3 months: 131400, 3 months: 43800
 
     features_0 = [
         'close_1','close_2','close_5','close_20','close_60','close_180',
@@ -117,17 +123,17 @@ def main(args=None):
     #
     # Algorithm parameters
     #
-    max_depth = os.getenv("max_depth", "DEFAULT")
-    learning_rate = os.getenv("learning_rate", "DEFAULT")
-    num_boost_round = os.getenv("num_boost_round", "DEFAULT")
+    max_depth = os.getenv("max_depth", None)
+    learning_rate = os.getenv("learning_rate", None)
+    num_boost_round = os.getenv("num_boost_round", None)
     params_gb = {
         "max_depth": max_depth,
         "learning_rate": learning_rate,
         "num_boost_round": num_boost_round,
     }
 
-    n_neighbors = int(os.getenv("n_neighbors", 20))
-    weights = os.getenv("weights", "distance")  # ['uniform', 'distance']
+    n_neighbors = os.getenv("n_neighbors", None)
+    weights = os.getenv("weights", None)
     params_knn = {
         "n_neighbors": n_neighbors,
         "weights": weights,
@@ -153,7 +159,7 @@ def main(args=None):
     #
     # Predict loop
     #
-    print(f"Starting train-predict loop with {P.train_count} predictions...")
+    print(f"Starting train-predict loop with {P.train_count} prediction steps. Each step with {P.train_step} horizon...")
 
     i_start = 0
     prediction_start += (i_start * P.train_step)
@@ -195,14 +201,14 @@ def main(args=None):
             model = train_model_gb_classifier(X, y, params=params_gb)
             models_gb[label] = model
 
-        X = train_df[P.features_knn].values
-        models_knn = {}
-        for label in P.labels:
-            print(f"Train knn model for label '{label}' {len(train_df)} records...")
-            y = train_df[label].values
-            y = y.reshape(-1)
-            model = train_model_knn_classifier(X, y, params=params_knn)
-            models_knn[label] = model
+        #X = train_df[P.features_knn].values
+        #models_knn = {}
+        #for label in P.labels:
+        #    print(f"Train knn model for label '{label}' {len(train_df)} records...")
+        #    y = train_df[label].values
+        #    y = y.reshape(-1)
+        #    model = train_model_knn_classifier(X, y, params=params_knn)
+        #    models_knn[label] = model
 
         #
         # Use the models to predict future values within some horizon
@@ -221,10 +227,10 @@ def main(args=None):
             predict_labels_df[label+"_gb"] = y_hat
 
         # Predict labels using knn models
-        X = predict_df[P.features_knn].values
-        for label, model in models_knn.items():
-            y_hat = predict_model_knn(X, model)
-            predict_labels_df[label+"_knn"] = y_hat
+        #X = predict_df[P.features_knn].values
+        #for label, model in models_knn.items():
+        #    y_hat = predict_model_knn(X, model)
+        #    predict_labels_df[label+"_knn"] = y_hat
 
         # Append predicted rows to the end of previous predicted rows
         labels_hat_df = labels_hat_df.append(predict_labels_df)
@@ -248,7 +254,10 @@ def main(args=None):
     # For gb
     aucs_gb = []
     for label in P.labels:
-        label_auc = metrics.roc_auc_score(out_df[label].astype(int), out_df[label+"_gb"])
+        try:
+            label_auc = metrics.roc_auc_score(out_df[label].astype(int), out_df[label+"_gb"])
+        except ValueError:
+            label_auc = 0.0  # Only one class is present (if dataset is too small, e.g,. when debugging)
         aucs_gb.append(label_auc)
 
     aucs_gb_str = [f"{x:.2f}" for x in aucs_gb]
@@ -256,14 +265,17 @@ def main(args=None):
     print(f"Average gb AUC: {auc_gb_mean:.2f}: {aucs_gb_str}")
 
     # For knn
-    aucs_knn = []
-    for label in P.labels:
-        label_auc = metrics.roc_auc_score(out_df[label].astype(int), out_df[label+"_knn"])
-        aucs_knn.append(label_auc)
-
-    aucs_knn_str = [f"{x:.2f}" for x in aucs_knn]
-    auc_knn_mean = np.mean(aucs_knn)
-    print(f"Average knn AUC: {auc_knn_mean:.2f}: {aucs_knn_str}")
+    #aucs_knn = []
+    #for label in P.labels:
+    #    try:
+    #        label_auc = metrics.roc_auc_score(out_df[label].astype(int), out_df[label+"_knn"])
+    #    except ValueError:
+    #        label_auc = 0.0  # Only one class is present (if dataset is too small, e.g,. when debugging)
+    #    aucs_knn.append(label_auc)
+    #
+    #aucs_knn_str = [f"{x:.2f}" for x in aucs_knn]
+    #auc_knn_mean = np.mean(aucs_knn)
+    #print(f"Average knn AUC: {auc_knn_mean:.2f}: {aucs_knn_str}")
 
     #
     # Store hyper-parameters and scores
@@ -279,14 +291,14 @@ def main(args=None):
     out_str += f"{max_depth}, {learning_rate}, {num_boost_round}, "
     out_str += f"{n_neighbors}, {weights}, "
     out_str += f"{auc_gb_mean:.2f}, {str(aucs_gb_str)}, "
-    out_str += f"{auc_knn_mean:.2f}, {str(aucs_knn_str)}, "
+    #out_str += f"{auc_knn_mean:.2f}, {str(aucs_knn_str)}, "
 
     header_str = \
         f"train_max_length," \
         f"max_depth,learning_rate,num_boost_round," \
         f"n_neighbors,weights," \
-        f"auc_gb,aucs_gb," \
-        f"auc_knn,aucs_knn"
+        f"auc_gb,aucs_gb,"
+        #f"auc_knn,aucs_knn"
 
     if out_path.with_suffix('.txt').is_file():
         add_header = False

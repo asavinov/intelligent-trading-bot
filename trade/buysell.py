@@ -30,10 +30,13 @@ log = logging.getLogger('TRADE')
 #   TODO:
 #   - DONE: script for generating a feature matrix file from source data file (parameters: start, end, (or size), two paths
 #     the result includes all source columns, features, labels
-#   - script for training (latest) models using a feature matrix. parameters: paths, model hyper-parametes (maybe hard-coded)
+#   - DONE: script for training (latest) models using a feature matrix. parameters: paths, model hyper-parametes (maybe hard-coded)
 #     the result is a number of model files (one file for each label), maybe accuracy, file with predictions is not needed
 #     note that gb models should be trained with validation set chosen after train set
-#   - script for rolling predictions. input is feature matrix. in a rolling loop: train model on history, predict future labels for horizon, iterate (add horizon to history)
+#   - script for rolling predictions.
+#     input is feature matrix.
+#     in a rolling loop: train models on current history, predict future labels for horizon, store predictions, iterate (add horizon to history)
+#     we use this script to generate feature matrix for signal training
 
 
 #   - train model(s) and copy them to the folder - document the steps and develop standard procedures

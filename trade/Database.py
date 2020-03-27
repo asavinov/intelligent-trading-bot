@@ -259,7 +259,7 @@ class Database:
 
         #
         # 3.
-        # generate_predictions(): get df with feature matrix, apply models and generate predictive features, and return a df
+        # predict_labels(): get df with feature matrix, apply models and generate predictive features, and return a df
         # the data frame will get additional columns with predicted features
         #
 

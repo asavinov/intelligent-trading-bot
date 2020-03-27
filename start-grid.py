@@ -45,8 +45,8 @@ for params in grid:
     #
     # Generate predictions
     #
-    #import scripts.generate_predictions
-    #exitcode = scripts.generate_predictions.main([sys.argv[0], "generate_predictions"])
+    #import scripts.generate_rolling_predictions
+    #exitcode = scripts.generate_rolling_predictions.main([sys.argv[0], "generate_rolling_predictions"])
 
     #
     # Generate signals

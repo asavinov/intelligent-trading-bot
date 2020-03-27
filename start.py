@@ -48,17 +48,17 @@ if script_name == "train_predict_models":
     #from scripts.train_predict_models import main
     #exitcode = main(sys.argv[1:])
 
-if script_name == "generate_predictions":
+if script_name == "generate_rolling_predictions":
     # In a loop with increasing history (we add more and more new data):
     # - train model using the current historic data
     # - apply this model to next horizon and store prediction
     # - repeat by adding the horizon to history
     # Finally, store the sequentially generated predictions along with the data and features in a file (to train signal models)
     # Output: file with source data, features/labels, and (generated) sequential trains and predictions
-    import scripts.generate_predictions
-    exitcode = scripts.generate_predictions.main(sys.argv[1:])
+    import scripts.generate_rolling_predictions
+    exitcode = scripts.generate_rolling_predictions.main(sys.argv[1:])
 
-    #from scripts.generate_predictions import main
+    #from scripts.generate_rolling_predictions import main
     #exitcode = main(sys.argv[1:])
 
 if script_name == "generate_signal_models":

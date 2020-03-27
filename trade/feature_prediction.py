@@ -86,9 +86,9 @@ def train_model_gb_classifier(X, y, params={}):
     #
     # Hyper-parameters
     #
-    max_depth = params.get("max_depth", 1)  # 10 (long, production)
-    learning_rate = params.get("learning_rate", 0.1)
-    num_boost_round = int(params.get("num_boost_round", 1_000))  # 20_000
+    max_depth = params.get("max_depth") if params.get("max_depth") else 1  # 10 (long, production)
+    learning_rate = params.get("learning_rate") if params.get("learning_rate") else 0.1
+    num_boost_round = int(params.get("num_boost_round")) if params.get("num_boost_round") else 1_000  # 20_000
 
     params_classifier = {
         'boosting_type': 'gbdt',  # dart (slow but best, worse than gbdt), goss, gbdt
@@ -160,8 +160,8 @@ def train_model_knn_classifier(X, y, params={}):
     #
     # Hyper-parameters
     #
-    n_neighbors = int(params.get("n_neighbors", 20))
-    weights = params.get("weights", "distance")  # ['uniform', 'distance']
+    n_neighbors = int(params.get("n_neighbors")) if params.get("n_neighbors") else 20
+    weights = params.get("weights") if params.get("weights") else "distance"  # ['uniform', 'distance']
     n_jobs = -1
 
     model = neighbors.KNeighborsClassifier(n_neighbors, weights=weights, n_jobs=n_jobs)

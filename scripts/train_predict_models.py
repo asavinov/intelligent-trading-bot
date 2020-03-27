@@ -107,17 +107,17 @@ def main(args=None):
     #
     # Algorithm parameters
     #
-    max_depth = os.getenv("max_depth", 1)  # 10 (long, production)
-    learning_rate = os.getenv("learning_rate", 0.1)
-    num_boost_round = os.getenv("num_boost_round", 1_000)  # 20_000
+    max_depth = os.getenv("max_depth", None)
+    learning_rate = os.getenv("learning_rate", None)
+    num_boost_round = os.getenv("num_boost_round", None)
     params_gb = {
         "max_depth": max_depth,
         "learning_rate": learning_rate,
         "num_boost_round": num_boost_round,
     }
 
-    n_neighbors = int(os.getenv("n_neighbors", 20))
-    weights = os.getenv("weights", "distance")  # ['uniform', 'distance']
+    n_neighbors = int(os.getenv("n_neighbors", 0))
+    weights = os.getenv("weights", None)
     params_knn = {
         "n_neighbors": n_neighbors,
         "weights": weights,
@@ -157,11 +157,14 @@ def main(args=None):
 
         # Accuracy for training set
         y_hat = model.predict(X)
-        auc = metrics.roc_auc_score(y, y_hat)  # maybe y.astype(int)
+        try:
+            auc = metrics.roc_auc_score(y, y_hat)  # maybe y.astype(int)
+        except ValueError:
+            auc = 0.0  # Only one class is present (if dataset is too small, e.g,. when debugging)
         accuracies_gb[label] = auc
         print(f"Model training finished. AUC: {auc:.2f}")
 
-        model_file = out_path.joinpath("gb_"+label).with_suffix('.pkl')
+        model_file = out_path.joinpath(label+"_gb").with_suffix('.pkl')
         with open(model_file, 'wb') as f:
             pickle.dump(model, f, pickle.HIGHEST_PROTOCOL)
         print(f"Model stored in file: {model_file}")
