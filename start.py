@@ -12,7 +12,7 @@ if len(sys.argv) > 1:
 
 # Generate predictions params
 params = {
-    'train_max_length': 525_600,  # [43_800, 131_400, 262_800, 525_600, 10_000_000]
+    'train_max_length': 525_600,  # [43_920, 131_400, 262_800, 525_600, 10_000_000]
 
     'max_depth': 5,  # [1, 2, 3, 4, 5]
     'learning_rate': 0.05,  # [0.01, 0.05, 0.1]
@@ -61,12 +61,12 @@ if script_name == "generate_rolling_predictions":
     #from scripts.generate_rolling_predictions import main
     #exitcode = main(sys.argv[1:])
 
-if script_name == "generate_signal_models":
-    # Load (latest) input data, generate features, generate labels, sequential predictions
-    # And then train signal parameters to ensure optimal performance
-    # Output: signal models
-    # TODO
-    pass
+if script_name == "train_signal_models":
+    import scripts.train_signal_models
+    exitcode = scripts.train_signal_models.main(sys.argv[1:])
+
+    #from scripts.generate_rolling_predictions import main
+    #exitcode = main(sys.argv[1:])
 
 # === DATA COLLECTION SERVER ===
 #

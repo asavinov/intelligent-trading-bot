@@ -74,7 +74,7 @@ class P:
     prediction_start_str = "2018-02-01 00:00:00"  # First row for predictions
     train_step = 60  # 1 hour: 60, 1 day: 1_440 = 60 * 24, one week: 10_080
     train_count = 2  # How many prediction steps. If None or 0, then from prediction start till the data end
-    train_max_length = 43_200  # 1 year: 525_600, 6 months: 262_800, 3 months: 131_400, 1 month: 43_200 (30 days)
+    train_max_length = 43_920  # 1 year: 525_600, 6 months: 262_800, 3 months: 131_400, 1 month: 43_920 (30.5 days)
 
     # ---
     # Production:
@@ -83,7 +83,7 @@ class P:
     #prediction_start_str = "2019-01-01 00:00:00"  # First row for starting predictions
     #train_step = 1_440  # 1 day: 1_440 = 60 * 24, one week: 10_080
     #train_count = None  # How many prediction steps. If None or 0, then from prediction start till the data end
-    #train_max_length = 10_000_000  # 1 year: 525600, 6 months: 262800, 3 months: 131400, 3 months: 43800
+    #train_max_length = 10_000_000  # 1 year: 525600, 6 months: 262800, 3 months: 131400, 1 month: 43_920
 
     features_0 = [
         'close_1','close_2','close_5','close_20','close_60','close_180',

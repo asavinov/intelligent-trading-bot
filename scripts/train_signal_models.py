@@ -19,45 +19,23 @@ from trade.utils import *
 In fact, it training a hyper-model while the model itself is not trained - it is a rule-based model.
 Find best signal generation models using pre-computed (rolling) predict label scores and searching through the threshold grid.
 The output is an ordered list of best performing threshold-based signal generation models.
-
-#     - Use rolling predictions as input with scores for each label and algorithm
-#     - Parameters: grid of comparison thresholds. each element in the grid defines a binary column of true signal (buy signal)
-#     - for each grid element, generate a column of signals, then determine performance
-#     - performance is computed by looping through the dataset, determining buy points, then finding sell point using high in klines or close in case of time out, and computing profit for transaction
-#     - alternatively, we could store a column of future high along with its id, and a column of future close price (both for our horizon)
 """
-# !!! The code below is supposed to be called from outside driver and accepts envvars as hyper-parameters for signals (rules)
-#   All other parameters are static
-# Approach 1:
-# We might modify this procedure as a function which takes P parameters including the hyper-parameters so it can run independently (we will not use this - it is simpler to modify)
-#   Note that this function will load the source file and append its result (for hyper-parameter performance) in output file.
-#   Then we use this function from the grid driver which will modify hyper-parameters in P
-# Approach 2:
-# Alternatively, this function could take also input df with (only) necessary columns as input (along with other parameers, so that we avoid loading the same input data)
-#   It then does simulation in-memory: input df and output dict with results
-#   It will append a column with signals computed from current params but it will be overwritten in next calls
-#   The grid driver will make such in-memory calls for each cell by collecting, filtering and storing results.
-
-# Develop a separate function which takes a df with necessary columns as well as trade model (thresholds etc.)
-# It returns a dict with trade performance
-# Develop a grid driver which will load and prepare data, loop through all trade models by collecting results, store the best models in an output file.
-
 
 grid_signals = [
     # Production
-    #{
-    #    'threshold_buy_10': [0.25, 0.26, 0.27, 0.28, 0.29, 0.31, 0.32, 0.33, 0.34, 0.35],
-    #    'threshold_buy_20': [0.0],
-    #    'percentage_sell_price': [1.017, 1.018, 1.019, 1.02],
-    #    'sell_timeout': [80, 90, 100],
-    #},
-    # Debug
     {
-        'threshold_buy_10': [0.29, 0.31],
-        'threshold_buy_20': [0.0],
-        'percentage_sell_price': [1.015, 1.020],
-        'sell_timeout': [60],
+        'threshold_buy_10': [0.20, 0.21, 0.22, 0.23, 0.24, 0.25, 0.26, 0.27, 0.28, 0.29, 0.30, 0.31, 0.32, 0.33, 0.34, 0.35],
+        'threshold_buy_20': [0.06, 0.065, 0.07, 0.075, 0.08],
+        'percentage_sell_price': [1.016, 1.017, 1.018, 1.019],
+        'sell_timeout': [65, 70, 75],
     },
+    # Debug
+    #{
+    #    'threshold_buy_10': [0.2, 0.2, 0.2, 0.2, 0.2],
+    #    'threshold_buy_20': [0.0],
+    #    'percentage_sell_price': [1.015, 1.020],
+    #    'sell_timeout': [60],
+    #},
 ]
 
 #
@@ -77,8 +55,7 @@ class P:
     #
     # Parameters of the whole optimization
     #
-    initial_amount = 1_000.0
-    performance_weight = 2.0  # 1.0 means all are equal, 2.0 means last has 2 times more weight than first
+    performance_weight = 12.0  # Per year. 1.0 means all are equal, 3.0 means last has 3 times more weight than first
 
 def main(args=None):
 
@@ -118,12 +95,13 @@ def main(args=None):
     models = list(grid)  # List of model dicts
     performances = []
 
-    for model in models:
+    for i, model in enumerate(models):
         # Set parameters of the model
 
-        print(f"Starting simulation...")
-        performance = simulate_trade(in_df, model, P.performance_weight, P.initial_amount)
-        print(f"Simulation finished:")
+        start_dt = datetime.now()
+        performance = simulate_trade(in_df, model, P.performance_weight)
+        elapsed = datetime.now() - start_dt
+        print(f"Finished simulation {i} / {len(models)} in {elapsed.total_seconds():.1f} seconds.")
 
         performances.append(performance)
 
@@ -134,11 +112,11 @@ def main(args=None):
     # Column names
     model_keys = models[0].keys()
     performance_keys = performances[0].keys()
-    header_str = ",".join(model_keys + performance_keys)
+    header_str = ",".join(list(model_keys) + list(performance_keys))
 
     lines = []
     for i, model in enumerate(models):
-        model_values = [f"{v:.2f}" for v in model.values()]
+        model_values = [f"{v:.3f}" for v in model.values()]
         performance_values = [f"{v:.2f}" for v in performances[i].values()]
         line_str = ",".join(model_values + performance_values)
         lines.append(line_str)
@@ -159,10 +137,11 @@ def main(args=None):
             f.write(header_str + "\n")
         #f.writelines(lines)
         f.write("\n".join(lines))
+        f.write("\n")
 
     pass
 
-def simulate_trade(df, model: dict, performance_weight: float, amount: float):
+def simulate_trade(df, model: dict, performance_weight: float):
     """
     It will use 1.0 as initial trade amount and overall performance will be the end amount with respect to the initial one.
     It will always use 1.0 to enter market (for buying) independent of the available (earned or lost) funds.
@@ -174,12 +153,8 @@ def simulate_trade(df, model: dict, performance_weight: float, amount: float):
         threshold_buy_20 - Buy only if score is higher
         percentage_sell_price - how much increase sell price in comparision to buy price (it is our planned profit)
         sell_timeout - Sell using latest close price after this time
-    :param amount: initial amount for trade
-    :return: Performance record which includes
-      overall (weighted) performance,
-      sequence of segment performances,
-      variance,
-      number of plus and minus transactions, number of forced sells etc.
+    :param performance_weight: weight for the last time point for the 1 year period. for the first point it is 1.0
+    :return: Performance record
     """
     #
     # Model parameters
@@ -190,137 +165,148 @@ def simulate_trade(df, model: dict, performance_weight: float, amount: float):
     percentage_sell_price = float(model.get("percentage_sell_price"))
     sell_timeout = int(model.get("sell_timeout"))
 
-    #
-    # Trade parameters variables
-    #
-    trade_amount = amount
-    base_amount = 0.0  # Coins
-    quote_amount = trade_amount  # Money
-
-    # TODO: Always invest same amount (constant).
-    #  All profits and losses are collected in a separate variable after each sale which determines overall performance.
-    #  Separately, accumulate profits/losses also for each segment depending on the current time i (which needs to be partitioned)
-
-    # TODO: Collect all transactions in order to analyze their stats including weighted average profit
+    # All transactions will be collected in this list for later analysis
     transactions = []  # List of dicts like dict(i=23, is_forced_sell=False, profit=-0.123)
 
-    #
-    # Output parameters (statistics)
-    #
     total_buy_signal_count = 0  # How many rows satisfy buy signal criteria independent of mode
 
-    buy_count = 0  # Really bought (in this approach, equal to buy signals and equal to number of transactions)
-    limit_sell_count = 0  # Really sold using limit price (before timeout)
-    forced_sell_count = 0  # Really sold on timeout
 
-    limit_sell_fill_time = 0  # Total (accumulated) time till filled of limit orders
-    forced_sell_fill_time = 0  # Total (accumulated) time till filled of forced sell (can be computed using timeout parameter)
-
-    loss_transaction_count = 0  # Number of transactions with losses (can be compared to all transactions)
-    loss_transaction_amount = 0.0  # Absolute losses
+    # Selecting only needed rows increases performance by several times (~4 times)
+    df = df[["high", "close", "high_60_10_gb", "high_60_20_gb"]]
 
     #
     # Main loop over trade sessions
     #
-    buy_price = None
-    buy_time = None
-    sell_price = None
-    for i in range(0, len(df)):
+    #
+    # Main loop over trade sessions
+    #
 
-        if i % 10_000 == 0:
-            print(f"Processed {i} of {len(df)} records.")
+    i = 0
+    for row in df.itertuples(index=True, name="Row"):
+        i += 1
+        # Objects parameters
+        close_price = row.close
+        high_price = row.high
+        # Model parameters
+        high_60_10_gb = row.high_60_10_gb
+        high_60_20_gb = row.high_60_20_gb
 
-        row = df.iloc[i]
-        close_price = row["close"]
-        high_price = row["high"]
-
-        # Check buy criteria for any row (for both buy and sell modes)
-        if row["high_60_10_gb"] >= threshold_buy_10 and row["high_60_20_gb"] >= threshold_buy_20:
+        #
+        # Apply model parameters and generate a signal for the current row
+        #
+        if high_60_10_gb >= threshold_buy_10 and high_60_20_gb >= threshold_buy_20:
             is_buy_signal = True
             total_buy_signal_count += 1
         else:
             is_buy_signal = False
 
-        if base_amount == 0:  # Buy mode: no coins - trying to buy
-            # Generate buy signal
-            if is_buy_signal:
-                # Execute buy signal by doing trade
-                base_amount += trade_amount / close_price  # Increase coins
-                quote_amount -= trade_amount  # Decrease money
-                buy_count += 1
-
-                buy_price = close_price
-                buy_time = i
-                sell_price = buy_price * percentage_sell_price
-
-        elif base_amount > 0:  # Sell mode: there are coins - trying to sell
-            # Determine if it was sold for our desired price
-            if high_price >= sell_price:
-                # Execute sell signal by doing trade
-                quote_amount += base_amount * sell_price  # Increase money by selling all coins
-                base_amount = 0.0
-                limit_sell_count += 1
-                limit_sell_fill_time += (i - buy_time)
-            elif (i - buy_time) > sell_timeout:  # Sell time out. Force sell
-                # Execute sell signal by doing trade
-                quote_amount += base_amount * close_price  # Increase money by selling all coins
-                base_amount = 0.0
-                forced_sell_count += 1
-                forced_sell_fill_time += sell_timeout
-
-                if close_price < buy_price:  # If losses
-                    loss_transaction_count += 1
-                    loss_transaction_amount += (buy_price - close_price)
-
+        #
+        # Determine trade mode
+        #
+        if not transactions or transactions[-1]["is_filled"]:
+            is_buy_mode = True
         else:
-            print(f"Inconsistent state: both base and quote assets are zeros.")
-            return
+            is_buy_mode = False
+
+        if is_buy_mode:  # Buy mode: in cash - trying to buy
+            transaction = {}
+            if is_buy_signal:
+                transaction["buy_time"] = i
+                transaction["buy_price"] = close_price
+                transaction["sell_price"] = close_price * percentage_sell_price
+                transaction["is_filled"] = False
+
+                # Compute weight of this transaction which linearly
+                # Weight changes with i from 1.0 to specified parameters, say, from 1.0 to 2.0 at the end if parameter is 2.0
+                # f(i)=i * (e-s)/(n-1) + s - [s=f(0),e=f(n-1)]
+                # if s=1.0 then f(i)=1.0 + i * (e-1)/(n-1)
+                #transaction["weight"] = 1.0 + i * (performance_weight - 1.0) / (len(df)-1)
+                # 1 year has 525_600 transactions. if for 525_600, x times more, then for 1 minute x/525_600 times more, and for i minutes i/525_600
+                transaction["weight"] = 1.0 + i * (performance_weight-1.0) / 525_600
+
+                transactions.append(transaction)
+
+        else:  # Sell mode: in market - trying to sell
+            transaction = transactions[-1]
+            if high_price >= transaction["sell_price"]:  # Determine if it was filled for the desired price
+                transaction["sell_time"] = i
+                transaction["fill_time"] = transaction["sell_time"] - transaction["buy_time"]
+                transaction["is_timeout"] = False
+                transaction["profit"] = transaction["sell_price"] - transaction["buy_price"]
+                transaction["has_profit"] = True
+                transaction["is_filled"] = True
+            elif (i - transaction["buy_time"]) > sell_timeout:  # Sell time out. Forced sell
+                transaction["sell_price"] = close_price
+                transaction["sell_time"] = i
+                transaction["fill_time"] = transaction["sell_time"] - transaction["buy_time"]
+                transaction["is_timeout"] = True
+                transaction["profit"] = transaction["sell_price"] - transaction["buy_price"]
+                transaction["has_profit"] = False if transaction["profit"] <= 0.0 else True
+                transaction["is_filled"] = True
+
+    if not transactions:
+        return {}
 
     #
-    # Close. Sell rest base asset if available for the last price
+    # Remove last transaction if not filled
     #
-    i = P.simulation_end
-    if base_amount > 0.0:  # Check base asset like BTC (we will spend it)
-        # Execute buy signal by doing trade
-        quote_amount += base_amount * close_price  # Increase money by selling all coins
-        base_amount = 0.0
-        forced_sell_count += 1
-        forced_sell_fill_time += (i - buy_time)
+    transaction = transactions[-1]
+    if not transaction["is_filled"]:
+        del transactions[-1]
 
     #
-    # Dervied performance parameters
+    # Compute performance parameters from the list of transactions
     #
 
-    # TODO: Weighted average performance
+    # total_buy_signal_count
+    t_count = len(transactions)  # No transactions - we need no transactions relative to time, that is, transaction frequency, say, per day or month
 
-    total_performance = 100.0 * (quote_amount - trade_amount) / trade_amount
-    performance_per_trade = total_performance / buy_count if buy_count != 0 else 0.0
+    # Frequency of transactions
+    no_months = len(df) / 43_920
+    t_per_month = t_count / no_months
 
-    mean_fill_time = limit_sell_fill_time / limit_sell_count if limit_sell_count != 0 else sell_timeout
-    mean_loss_sale = loss_transaction_amount / loss_transaction_count if loss_transaction_count > 0.0 else 0.0
+    # All absolute
+    profit_per_transaction = np.sum([t["profit"] for t in transactions]) / t_count
+    profit_per_month = profit_per_transaction * t_per_month
 
-    limit_sell_portion = limit_sell_count / buy_count if buy_count != 0 else 0.0
-    forced_sell_portion = forced_sell_count / buy_count if buy_count != 0 else 0.0
+    # All weighted
+    sum_of_weights = np.sum([t["weight"] for t in transactions])
+    sum_of_weighted_profits = np.sum([t["weight"]*t["profit"] for t in transactions])
+    weighted_profit_per_transaction = sum_of_weighted_profits / sum_of_weights
+    weighted_profit_per_month = weighted_profit_per_transaction * t_per_month  # TODO: Not sure that this is correct
+
+    # Limit (profitable) transactions
+    t_limit_percentage = len([t for t in transactions if not t["is_timeout"]]) * 100.0 / t_count
+    limit_fill_times = [t["fill_time"] for t in transactions if not t["is_timeout"]]
+    limit_fill_time = np.mean(limit_fill_times)  # Average fill time for limit transactions
+    limit_fill_time_std = np.std(limit_fill_times)  # Deviation fill time for limit transactions
+
+    # Timeout transactions
+    t_timeout_percentage = len([t for t in transactions if t["is_timeout"]]) * 100.0 / t_count
+
+    # Loss transactions
+    t_loss_percentage = len([t for t in transactions if not t["has_profit"]]) * 100.0 / t_count
+    loss_per_transaction = np.sum([t["profit"] for t in transactions if not t["has_profit"]]) / t_count
+    loss_per_month = loss_per_transaction * t_per_month
 
     performance = dict(
-        total_buy_signal_count=total_buy_signal_count,
-        buy_count=buy_count,
-        limit_sell_count=limit_sell_count,
-        forced_sell_count=forced_sell_count,
-        limit_sell_fill_time=limit_sell_fill_time,
-        forced_sell_fill_time=forced_sell_fill_time,
-        loss_transaction_count=loss_transaction_count,
-        loss_transaction_amount=loss_transaction_amount,
+        t_per_month=t_per_month,
 
-        # Derived parameters
-        total_performance=total_performance,
-        performance_per_trade=performance_per_trade,
+        profit_per_transaction=profit_per_transaction,
+        profit_per_month=profit_per_month,
 
-        mean_fill_time = mean_fill_time,
-        mean_loss_sale = mean_loss_sale,
+        weighted_profit_per_transaction=weighted_profit_per_transaction,
+        weighted_profit_per_month=weighted_profit_per_month,
 
-        limit_sell_portion=limit_sell_portion,
-        forced_sell_portion=forced_sell_portion,
+        t_limit_percentage=t_limit_percentage,
+        limit_fill_time=limit_fill_time,
+        limit_fill_time_std=limit_fill_time_std,
+
+        t_timeout_percentage=t_timeout_percentage,
+
+        t_loss_percentage=t_loss_percentage,
+        loss_per_transaction=loss_per_transaction,
+        loss_per_month=loss_per_month,
     )
 
     return performance
