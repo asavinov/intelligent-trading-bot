@@ -17,6 +17,9 @@ from trade.feature_generation import *
 from trade.feature_prediction import *
 
 """
+OBSOLETE: No grid search, no pre-computed rolling predictions - simply one pass with rolling predictions and trade simulation.
+  Probably, this script was controlled from another (driver) script for grid search
+
 GOAL: Store a (source) file with attached predicted labels, so that this file can be then used for testing trade strategies.
 - the file has to container all labels which are used for signaling, making buy/sell decisions and measuring performance.
 - ideally, simply add new columns to the source file so that all source columns and timestamps are retained.

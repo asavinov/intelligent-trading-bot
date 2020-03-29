@@ -2,6 +2,8 @@ import os
 import sys
 from sklearn.model_selection import ParameterGrid
 
+# OBSOLETE: Use scripts.train_signal_models instead for grid search and finding best trade model
+
 grid_predictions = [
     {
         'train_max_length': [262_800],

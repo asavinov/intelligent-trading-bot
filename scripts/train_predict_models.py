@@ -18,9 +18,11 @@ from trade.feature_generation import *
 from trade.feature_prediction import *
 
 """
-Use input feature matrix to train prediction models for its labels.
-The output is a number of prediction models - one for each label and predictoin algorithm (like gb or svm)
+Use input feature matrix to train *one* label predict model for each label using all specified historic data.
+The output is a number of prediction models - one for each label and prediction algorithm (like gb or svm)
 The script will train models by using only one specified data range. For other (shorter or longer) data ranges, several runs with other parameters are needed.
+Accuracy (for the train data set) will be reported.
+No grid search or hyper-parameter optimization is done - use generate_rolling_predictions for that purpose (from some grid search driver).
 
 Parameters:
 - the data range always ends with last loaded (non-null) record

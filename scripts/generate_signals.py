@@ -15,6 +15,9 @@ from sklearn import metrics
 from trade.utils import *
 
 """
+OBSOLETE: Use train_signal_models.py instead for grid search and finding best signal model by loading pre-computed rolling predictions.
+  Previously, it was used from the driver start-grid.py. 
+
 This script uses fixed signal parameters (thresholds etc.) to make one pass through the predictions by generating buy/sell signals for each row.
 Yet, it does not store signals as new signals but rather uses these signals for trading and evaluating overall performance.
 The result of performance evaluation is appended as one line to the output file.

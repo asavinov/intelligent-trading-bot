@@ -15,6 +15,8 @@ import lightgbm as lgbm
 from trade.utils import *
 
 """
+OBSOLETE:
+
 GOAL:
 - Simulate by choose best buy moment and then virtually create sell order with some sell price.
   So instead of generating sell signals, we need to generate sell price.

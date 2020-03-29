@@ -26,6 +26,23 @@ This file is intended for training signal models (by simulating trade process an
 The output predicted labels will cover shorter period of time because we need some relatively long history to train the very first model.
 """
 
+# TODO: Grid search for best hyper-parameters. Either here as a function, or as a driver script calling rolling predictions.
+#   We need to write a driver which will execute rolling predictions for a grid of parameters by storing the resulting performance
+grid_predictions = [
+    {
+        'train_max_length': [262_800],
+        'max_depth': [1, 2, 3, 4, 5], 'learning_rate': [0.01, 0.05, 0.1], 'num_boost_round': [500],
+        'n_neighbors': [5, 10, 20], 'weights': ['uniform', 'distance'],
+    },
+    # Debug
+    #{
+    #    'train_max_length': [262_800],
+    #    'max_depth': [3], 'learning_rate': [0.05], 'num_boost_round': [500],
+    #    'n_neighbors': [1000, 2000], 'weights': ['uniform', 'distance'],
+    #},
+]
+
+
 #
 # Parameters
 #

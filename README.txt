@@ -89,6 +89,39 @@ Maybe for short histories in order to take into account drift or local dependenc
 
 ## How to
 
+#### Structure of functions
+
+General sequence:
+* Update klines data set from the binance server: "python start.py download_data"
+* Compute features and labels (lists are hard-coded but not all of them have to be used): "python start.py generate_features.py
+* Generate rolling predictions (specify hyper-model parameters as well as features to use and labels to predict): "python start.py generate_rolling_predictions.py"
+* Train signal (trade) models: "python start.py train_signal_models.py"
+
+Regular updates of the trade server:
+* Load (update) source data (currently klines but in future other data sources could be used like futures)
+* Generate features and labels for the new data set (it is needed for model training)
+* Re-train label prediction models using new data and fixed (previously optimized) hyper-parametes
+  * Upload these models to the trade server
+
+Optimizing hyper-parameters of the prediction models:
+* Update data set
+* Compute features and labels
+* TODO: In grid search for possible gb hyper-parameters execute:
+  * Compute rolling predictions with the current grid parameters
+  * Store average accuracy in a file
+  * (In future, instead of computing average accuracy for all rolling segments, we can give higher weight to last rolling segments.)
+* Choose hyper-parameters with best mean accuracy and use them for further model training
+
+Optimizing hyper-parameters of the trade models:
+* Update data set
+* Compute features and labels
+* Compute rolling predictions using the chosen (best) hyper-parameters for prediction models
+* In grid search for possible threshold parameters execute:
+  * Compute overall performance by simulating trades for the whole time interval
+  * Store average performance in a file
+  * (In future, instead of computing average performance for all rolling segments, we can give higher weight to last rolling segments. As segments, we can use any interval like month.)
+* Choose hyper-parameters of the signal model with best mean performance and use them for further signal generation.
+
 #### Load new historic (klines) data
 
 Script: scripts/download_data.py
