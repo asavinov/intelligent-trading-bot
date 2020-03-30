@@ -184,10 +184,10 @@ def simulate_trade(df, model: dict, performance_weight: float):
     i = 0
     for row in df.itertuples(index=True, name="Row"):
         i += 1
-        # Objects parameters
+        # Object parameters
         close_price = row.close
         high_price = row.high
-        # Model parameters
+        # Object parameters (label prediction scores)
         high_60_10_gb = row.high_60_10_gb
         high_60_20_gb = row.high_60_20_gb
 

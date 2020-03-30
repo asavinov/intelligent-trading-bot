@@ -96,17 +96,29 @@ class App:
             "quote_asset": "USDT",
 
             "analysis": {  # Same for all symbols
-                "folder": "MODELS",
-                "kline_window": 10,  # How many klines store before discard too old klines
-                "features": [],
-                "labels": [],
+                "folder": "_TEMP_MODELS",
+                "kline_window": 400,  # History needed to compute derived features
+                "features": [  # Ensure (copy-paste) that these are same features and labels as in training models
+                    'close_1', 'close_2', 'close_5', 'close_20', 'close_60', 'close_180',
+                    'close_std_1', 'close_std_2', 'close_std_5', 'close_std_20', 'close_std_60', 'close_std_180',
+                    'volume_1', 'volume_2', 'volume_5', 'volume_20', 'volume_60', 'volume_180',
+                    'trades_1', 'trades_2', 'trades_5', 'trades_20', 'trades_60', 'trades_180',
+                    'tb_base_1', 'tb_base_2', 'tb_base_5', 'tb_base_20', 'tb_base_60', 'tb_base_180',
+                    'tb_quote_1', 'tb_quote_2', 'tb_quote_5', 'tb_quote_20', 'tb_quote_60', 'tb_quote_180',
+                ],
+                "labels": ['high_60_10', 'high_60_20'],
             },
 
             "parameters": {
+                # For debugging: determine what parts of code will be executed
+                "no_trades_only_data_processing": True,  # in market or out of market processing is excluded (all below parameters ignored)
+                "simulate_order_execution": True,  # Instead of real orders, simulate their execution (immediate buy/sell market orders and use high price of klines for limit orders)
                 "test_order_before_submit": True,  # Send test submit to the server as part of validation
-                "simulate_order_execution": False,  # Instead of real orders, simulate their execution (immediate buy/sell market orders and use high price of klines for limit orders)
-                "sell_timeout": 90,  # Seconds
+
                 "percentage_used_for_trade": 90,  # in % to the available USDT quantity, that is, we will derive how much BTC to buy using this percentage
+
+                # Signal model (trade strategy)
+                "sell_timeout": 90,  # Seconds
                 "percentage_sell_price": 1.0,  # in % to the buy price, that is, our planned profit per trade
             },
 
@@ -126,6 +138,7 @@ class App:
 
                 # Set by analysis procedure like signals
                 "buy_signal": 0,
+                "buy_signal_scores": [],
                 "sell_signal": 0,
 
                 # State. Can be initialized (if necessary), e.g., by sync function

@@ -41,7 +41,7 @@ Parameters:
 #
 class P:
     in_path_name = r"_TEMP_FEATURES"
-    in_file_name = r"_BTCUSDT-1m-data-features.csv"
+    in_file_name = r"_BTCUSDT-1m-features.csv"
     in_nrows = 10_000_000  # <-- PARAMETER
 
     out_path_name = r"_TEMP_MODELS"
@@ -50,7 +50,7 @@ class P:
     features_horizon = 300  # Features are generated using this past window length
     labels_horizon = 60  # Labels are generated using this number of steps ahead
 
-    train_max_length = 10_000_000  # <-- PARAMETER: 1 year: 10_000_000, 525_600, 6 months: 262_800, 3 months: 131_400, 3 months: 43_800
+    train_max_length = 525_600  # <-- PARAMETER: 1 year: 525_600, 6 months: 262_800, 3 months: 131_400, 3 months: 43_800
 
     features_0 = [
         'close_1','close_2','close_5','close_20','close_60','close_180',

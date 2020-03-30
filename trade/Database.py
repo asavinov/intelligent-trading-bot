@@ -59,19 +59,23 @@ class Database:
 
     def get_last_kline(self, symbol):
         if self.get_klines_count(symbol) > 0:
-            self.klines.get(symbol)[-1]
+            return self.klines.get(symbol)[-1]
         else:
             return None
 
     def get_last_kline_ts(self, symbol):
         """Open time of the last kline. It is simultaniously kline id. Add 1m if the end is needed."""
         last_kline = self.get_last_kline(symbol=symbol)
+        if not last_kline:
+            return 0
         last_kline_ts = last_kline[0]
         return last_kline_ts
 
     def get_missing_klines_count(self, symbol):
         now_ts = now_timestamp()
         last_kline_ts = self.get_last_kline_ts(symbol)
+        if not last_kline_ts:
+            return App.config["trade"]["analysis"]["kline_window"]
         end_of_last_kline = last_kline_ts + 60_000  # Plus 1m
 
         minutes = (now_ts - end_of_last_kline) / 60_000
@@ -240,7 +244,7 @@ class Database:
         klines = self.klines.get(symbol)
         last_kline_ts = self.get_last_kline_ts(symbol)
 
-        print(f"===>>> Analyze {symbol}. {len(klines)} klines in the database. Last kline: {last_kline_ts}")
+        log.info(f"Analyze {symbol}. {len(klines)} klines in the database. Last kline timestamp: {last_kline_ts}")
 
         #
         # 1.
@@ -263,27 +267,31 @@ class Database:
         # the data frame will get additional columns with predicted features
         #
 
-        # Prepare (load) models (models are identified by label names)
+        # Prepare (load) models (models are identified by label names and algorithm name)
         labels = App.config["trade"]["analysis"]["labels"]
         model_path = App.config["trade"]["analysis"]["folder"]
         models = {}
         for label in labels:
-            model_file_name = label
+            model_file_name = label + "_gb"
             model_file = Path(model_path, model_file_name).with_suffix(".pkl")
             if not Path(model_file).exists():
                 log.error(f"Model file does not exist: {model_file}")
                 return
 
-            model = pickle.load(model_file)
+            with open(model_file, 'rb') as f:
+                model = pickle.load(f)
 
-            models[label] = model
+            models[label + "_gb"] = model
 
         # Prepare input
         features = App.config["trade"]["analysis"]["features"]
-        df = df[features].dropna(subset=features, inplace=True)
+        df = df[features]
+        # Drop NaN because of limited history and many empty values
+        df = df.dropna(subset=features)
 
-        # Do prediction by applying models
-        labels_out = predict_labels(df, models)
+        # Do prediction by applying models.
+        # New, predicted columns will be added to features. They will be named as in dict
+        labels_df = predict_labels(df, models)
 
         # Now df will have additionally as many new columns as we have defined labels (and corresponding models)
 
@@ -292,16 +300,26 @@ class Database:
         # generate_signals(): get prediction features and return buy/sell signals with asset symbol and amount
         # get a dict with the decisions based on the last row of the data frame
         #
-        signals = App.config["trade"]["analysis"]["signals"]
-        models = {}
-        for signal in signals:
-            model = {"param1": 0.0, "param2": 0.0}
-            models[label] = model
+        # Currently signals are generated manually for the last row only so we do not use this function
+        #signals_out = generate_signals(df, models)
 
-        signals_out = generate_signals(df, models)
+        # Currently the best model is hard-coded. In future, it will be loaded from file
+        model = {"threshold_buy_10": 0.26, "threshold_buy_20": 0.07, "percentage_sell_price": 1.018, "sell_timeout": 70}
+        threshold_buy_10 = model["threshold_buy_10"]
+        threshold_buy_20 = model["threshold_buy_20"]
+        # Object parameters (label prediction scores)
+        row = labels_df.iloc[-1]
+        high_60_10_gb = row["high_60_10_gb"]
+        high_60_20_gb = row["high_60_20_gb"]
 
-        # TODO: Store buy signal for this symbol
-        App.config["trade"]["state"]["buy_signal"] = False
+        # Apply model parameters and generate a signal for the current row
+        if high_60_10_gb >= threshold_buy_10 and high_60_20_gb >= threshold_buy_20:
+            is_buy_signal = True
+        else:
+            is_buy_signal = False
+
+        App.config["trade"]["state"]["buy_signal_scores"] = [high_60_10_gb, high_60_20_gb]
+        App.config["trade"]["state"]["buy_signal"] = is_buy_signal
 
 
 if __name__ == "__main__":

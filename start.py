@@ -5,7 +5,7 @@ import sys
 #from trade.analysis import *
 #from trade.main import *
 
-script_name = "collect_data_ws"  # Default value
+script_name = "trade_server"  # Default value
 
 if len(sys.argv) > 1:
     script_name = sys.argv[1]
@@ -101,7 +101,7 @@ if script_name == "trade_server":
     # - "analysis", "features" copy all derived feature names
     # - "analysis", "labels" copy all predicted labels (one for each trained model used)
     # - "parameters": check all parameters of trade logic
-    from trade.buysell import *
+    from trade.trade_server import *
     exitcode = start_trade()
-    #import trade.buysell
-    #exitcode = trade.buysell.start_trade()
+    #import trade.trade_server
+    #exitcode = trade.trade_server^.start_trade()

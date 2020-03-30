@@ -21,12 +21,16 @@ from trade.Database import *
 
 import logging
 log = logging.getLogger('TRADE')
+logging.basicConfig(filename='temp.log', level=logging.DEBUG)  # filename='example.log', - parameter in App
 
 # TODO: after analysis: set buy signal true or false, actually it has to be stored in dataframe and we can retrieve it and store in the config field
 
 # test runs:
-# - run in data collection, analysis, signal generation mode only, excluding real trade (maybe only test orders) but reporting signals (and maybe timeouts of sells)
+# - run in data collection, analysis, signal generation only, excluding real trade (maybe only test orders) but reporting signals (and maybe timeouts of sells)
 #   goals: check data collection/updates/discards work, check stream processing works with new data periodic analyses.
+#   no trades (order creation etc.) - only analysis logic
+
+# TODO: Add high level exception catchers too all calls where we have binance client calls (which may well fail so that they do not crash the server - see main, e.g., IP wrong)
 
 #   - train model(s) and copy them to the folder - document the steps and develop standard procedures
 #   - train signal model and copy to the folder (so that we can re-train it later) - document the steps and develop standard procedures
@@ -46,9 +50,11 @@ async def sync_trade_task():
     """
     It is a highest level task which is added to the event loop and executed normally every 1 minute and then it calls other tasks.
     """
-    log.info(f"===> Start trade task.")
-
     symbol = App.config["trade"]["symbol"]
+    startTime, endTime = get_interval("1m")
+    now_ts = now_timestamp()
+
+    log.info(f"===> Start trade task. Timestamp {now_ts}. Interval [{startTime},{endTime}].")
 
     #
     # 0. Check server state (if necessary)
@@ -92,21 +98,35 @@ async def sync_trade_task():
         App.config["trade"]["state"]["in_market"] = False
         in_market = False
 
+    last_kline_ts = App.database.get_last_kline_ts(symbol)
+    if last_kline_ts + 60_000 != startTime:
+        log.error(f"Problem during analysis. Last kline end ts {last_kline_ts + 60_000} not equal to start of current interval {startTime}.")
+
+    is_buy_signal = App.config["trade"]["state"]["buy_signal"]
+    buy_signal_scores = App.config["trade"]["state"]["buy_signal_scores"]
+    log.debug(f"Analysis finished. BTC: {base_quantity:.8f}. USDT: {quote_quantity:.8f}. In market {in_market}. Buy signal: {is_buy_signal} with scores {buy_signal_scores}")
+    if is_buy_signal:
+        log.debug(f"\n==============  BUY SIGNAL  ==============. Scores: {buy_signal_scores}\n")
+
+    if App.config["trade"]["parameters"]["no_trades_only_data_processing"]:
+        log.info(f"<=== End trade task. Only data operations performed (trading is disabled).")
+        return
+
     #
     # 4. In market. Trying to sell. An active limit order is supposed to exist (and hence low funds)
     #
     if in_market:
-        in_market_trade()  # Check status of an existing limit sell order
+        await in_market_trade()  # Check status of an existing limit sell order
 
     #
     # 5. In money. Try to buy (more) because there are funds
     #
     if not in_market:
-        out_of_market_trade()
+        await out_of_market_trade()
 
     log.info(f"<=== End trade task.")
 
-def in_market_trade():
+async def in_market_trade():
     """Check the existing limit sell order if it has been filled."""
 
     # ---
@@ -177,7 +197,7 @@ def in_market_trade():
                 # TODO (ERROR, suspend)
                 pass
 
-def out_of_market_trade():
+async def out_of_market_trade():
     """If buy signal, then enter the market and immediately creating a limit sell order."""
 
     # Result of analysis
@@ -219,10 +239,10 @@ def out_of_market_trade():
 async def update_account_state():
 
     balance = App.client.get_asset_balance(asset=App.config["trade"]["base_asset"])
-    App.config["trade"]["state"]["base_quantity"] = balance.get("free", "0.00000000")
+    App.config["trade"]["state"]["base_quantity"] = Decimal(balance.get("free", "0.00000000"))
 
     balance = App.client.get_asset_balance(asset=App.config["trade"]["quote_asset"])
-    App.config["trade"]["state"]["quote_quantity"] = balance.get("free", "0.00000000")
+    App.config["trade"]["state"]["quote_quantity"] = Decimal(balance.get("free", "0.00000000"))
 
     pass
 
@@ -273,11 +293,11 @@ async def update_state_and_health_check():
     # Get current balances (available funds)
     #balance = App.client.get_asset_balance(asset=App.config["trade"]["base_asset"])
     balance = next((b for b in account_info.get("balances", []) if b.get("asset") == App.config["trade"]["base_asset"]), {})
-    App.config["trade"]["state"]["base_quantity"] = balance.get("free", "0.00000000")
+    App.config["trade"]["state"]["base_quantity"] = Decimal(balance.get("free", "0.00000000"))
 
     #balance = App.client.get_asset_balance(asset=App.config["trade"]["quote_asset"])
     balance = next((b for b in account_info.get("balances", []) if b.get("asset") == App.config["trade"]["quote_asset"]), {})
-    App.config["trade"]["state"]["quote_quantity"] = balance.get("free", "0.00000000")
+    App.config["trade"]["state"]["quote_quantity"] = Decimal(balance.get("free", "0.00000000"))
 
     # Get current active orders
     #orders = App.client.get_all_orders(symbol=symbol, limit=10)  # All orders
@@ -523,7 +543,7 @@ async def new_market_buy_order():
     App.config["trade"]["state"]["in_market"] = True
 
     App.config["trade"]["state"]["buy_order"] = order
-    App.config["trade"]["state"]["buy_order_price"] = order.get("price", None)
+    App.config["trade"]["state"]["buy_order_price"] = Decimal(order.get("price", "0.00000000"))
 
     App.config["trade"]["state"]["base_quantity"] += quantity  # Increase BTC
     App.config["trade"]["state"]["quote_quantity"] -= percentage_used_for_trade  # Decrease USDT
@@ -719,11 +739,11 @@ async def force_sell():
 # Test procedures
 #
 
-async def test_limit_sell_order():
+async def check_limit_sell_order():
     """It will really create a limit sell order and then immedialtely cancel this order."""
 
     App.config["trade"]["state"]["base_quantity"] = 0.001  # How much
-    App.config["trade"]["state"]["buy_order_price"] = 10_000.0  # Some percent will be added to this price to compute limit
+    App.config["trade"]["state"]["buy_order_price"] = Decimal("10_000.00000000")  # Some percent will be added to this price to compute limit
 
     # Create limit sell order (with high price)
     # Store what it returns and whether it has important information
@@ -801,14 +821,18 @@ def start_trade():
     #
     symbol = App.config["trade"]["symbol"]
 
+    log.info(f"Initializing trade server. Trade symbol {symbol}. ")
+
     #
     # Connect to the server and update/initialize our system state
     #
     App.client = Client(api_key=App.config["api_key"], api_secret=App.config["api_secret"])
 
+    App.database = Database(None)
 
     App.loop = asyncio.get_event_loop()
 
+    # Do one time server check and state update
     try:
         App.loop.run_until_complete(update_state_and_health_check())
     except:
@@ -817,11 +841,18 @@ def start_trade():
         log.error(f"Problems found. Check server, symbol, account or system state.")
         return
 
-    #
-    # Initialize data state
-    #
-    App.database = Database(None)
-    # TODO: Load available historic klines either from file or from service (cold start, that is, history needed for forecasting)
+    log.info(f"Finished updating state and health check.")
+
+    # Do one time data update (cold start)
+    try:
+        App.loop.run_until_complete(sync_data_collect_task())
+    except:
+        pass
+    if problems_exist():
+        log.error(f"Problems found. Check server, symbol, account or system state.")
+        return
+
+    log.info(f"Finished updating data.")
 
     #
     # Register schedulers
@@ -853,18 +884,21 @@ def start_trade():
 
     App.sched.start()  # Start scheduler (essentially, start the thread)
 
+    log.info(f"Scheduler started.")
+
     #
     # Start event loop
     #
     try:
-        #App.loop.run_until_complete(work())
         App.loop.run_forever()  # Blocking. Run until stop() is called
     except KeyboardInterrupt:
+        log.info(f"KeyboardInterrupt.")
         pass
     finally:
-        print("===> Closing Loop")
         App.loop.close()
+        log.info(f"Event loop closed.")
         App.sched.shutdown()
+        log.info(f"Scheduler shutdown.")
 
     return 0
 
@@ -874,16 +908,29 @@ if __name__ == "__main__":
     App.client = Client(api_key=App.config["api_key"], api_secret=App.config["api_secret"])
     App.loop = asyncio.get_event_loop()
     try:
+        log.debug("Start in debug mode.")
+        log.info("Start testing in main.")
         App.loop.run_until_complete(update_state_and_health_check())
 
-        App.loop.run_until_complete(test_limit_sell_order())
+        #App.loop.run_until_complete(check_limit_sell_order())
+
+        App.loop.run_until_complete(sync_data_collect_task())
+
+        App.database.analyze("BTCUSDT")
 
         #App.loop.run_until_complete(sync_trade_task())
+    except BinanceAPIException as be:
+        # IP is not registred in binance
+        # BinanceAPIException: APIError(code=-2015): Invalid API-key, IP, or permissions for action
+        # APIError(code=-1021): Timestamp for this request was 1000ms ahead of the server's time.
+        print(be)
     except KeyboardInterrupt:
         pass
+    except Exception as e:
+        log.error(f"Exception {e}")
     finally:
-        print("===> Closing Loop")
+        log.info(f"Finished.")
         App.loop.close()
-        App.sched.shutdown()
+        #App.sched.shutdown()
 
     pass
