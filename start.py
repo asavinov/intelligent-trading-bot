@@ -5,7 +5,7 @@ import sys
 #from trade.analysis import *
 #from trade.main import *
 
-script_name = "trade_server"  # Default value
+script_name = "train_signal_models"  # Default value
 
 if len(sys.argv) > 1:
     script_name = sys.argv[1]

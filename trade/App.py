@@ -118,8 +118,8 @@ class App:
                 "percentage_used_for_trade": 90,  # in % to the available USDT quantity, that is, we will derive how much BTC to buy using this percentage
 
                 # Signal model (trade strategy)
-                "sell_timeout": 90,  # Seconds
-                "percentage_sell_price": 1.0,  # in % to the buy price, that is, our planned profit per trade
+                "sell_timeout": 70,  # Seconds
+                "percentage_sell_price": 1.018,  # our planned profit per trade via limit sell order (part of the model)
             },
 
             #

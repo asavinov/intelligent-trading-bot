@@ -179,7 +179,7 @@ async def in_market_trade():
         sell_timeout = App.config["trade"]["parameters"]["sell_timeout"]  # Seconds
         creation_ts = App.config["trade"]["state"]["sell_order_time"]
 
-        if now_ts - creation_ts >= (sell_timeout * 1_000):
+        if (now_ts - creation_ts) >= (sell_timeout * 1_000):
             is_timeout = True
         else:
             is_timeout = False
@@ -596,7 +596,7 @@ async def new_limit_sell_order():
     quantity = to_decimal(quantity)
 
     buy_order_price = App.config["trade"]["state"]["buy_order_price"]
-    price = buy_order_price * (100.0 + App.config["trade"]["parameters"]["percentage_sell_price"]) / 100.0
+    price = buy_order_price * App.config["trade"]["parameters"]["percentage_sell_price"]
     price = to_decimal(price)
 
     #

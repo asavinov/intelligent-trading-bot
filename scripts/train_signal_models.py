@@ -24,16 +24,22 @@ The output is an ordered list of best performing threshold-based signal generati
 grid_signals = [
     # Production
     {
-        'threshold_buy_10': [0.20, 0.21, 0.22, 0.23, 0.24, 0.25, 0.26, 0.27, 0.28, 0.29, 0.30, 0.31, 0.32, 0.33, 0.34, 0.35],
-        'threshold_buy_20': [0.06, 0.065, 0.07, 0.075, 0.08],
-        'percentage_sell_price': [1.016, 1.017, 1.018, 1.019],
-        'sell_timeout': [65, 70, 75],
+        'threshold_buy_10': [0.20, 0.21, 0.22, 0.23, 0.24, 0.25, 0.26, 0.27, 0.28, 0.29, 0.30],
+        'threshold_buy_10_prev': [0.10, 0.11, 0.12, 0.13, 0.14, 0.15, 0.16, 0.17, 0.18, 0.19, 0.20, 0.21, 0.22, 0.23, 0.24, 0.25],#
+
+        'threshold_buy_20': [0.01, 0.02, 0.03, 0.04, 0.05, 0.06, 0.07, 0.08],
+        'threshold_buy_20_prev': [0.01, 0.02, 0.03, 0.04, 0.05],
+
+        'percentage_sell_price': [1.019],
+        'sell_timeout': [70],
     },
     # Debug
     #{
-    #    'threshold_buy_10': [0.2, 0.2, 0.2, 0.2, 0.2],
-    #    'threshold_buy_20': [0.0],
-    #    'percentage_sell_price': [1.015, 1.020],
+    #    'threshold_buy_10': [0.2],
+    #    'threshold_buy_10_prev': [0.02],
+    #    'threshold_buy_20': [0.1],
+    #    'threshold_buy_20_prev': [0.01],
+    #    'percentage_sell_price': [1.015],
     #    'sell_timeout': [60],
     #},
 ]
@@ -56,6 +62,7 @@ class P:
     # Parameters of the whole optimization
     #
     performance_weight = 12.0  # Per year. 1.0 means all are equal, 3.0 means last has 3 times more weight than first
+    use_previous_scores = True
 
 def main(args=None):
 
@@ -78,6 +85,18 @@ def main(args=None):
     else:
         print(f"ERROR: Unknown input file extension. Only csv and parquet are supported.")
 
+    # Generate columns with previous scores
+    # Existing scores: "high_60_10_gb", "high_60_20_gb". Shift them down
+    if P.use_previous_scores:
+        in_df["high_60_10_gb_prev"] = in_df["high_60_10_gb"].shift(1)
+        in_df["high_60_20_gb_prev"] = in_df["high_60_20_gb"].shift(1)
+
+    # Selecting only needed rows increases performance in several times (~4 times)
+    if P.use_previous_scores:
+        in_df = in_df[["high", "close", "high_60_10_gb", "high_60_20_gb", "high_60_10_gb_prev", "high_60_20_gb_prev"]]
+    else:
+        in_df = in_df[["high", "close", "high_60_10_gb", "high_60_20_gb"]]
+
     # Select the necessary interval of data
     if not P.simulation_start:
         P.simulation_start = 0
@@ -94,7 +113,6 @@ def main(args=None):
     grid = ParameterGrid(grid_signals)
     models = list(grid)  # List of model dicts
     performances = []
-
     for i, model in enumerate(models):
         # Set parameters of the model
 
@@ -161,6 +179,8 @@ def simulate_trade(df, model: dict, performance_weight: float):
     #
     threshold_buy_10 = float(model.get("threshold_buy_10"))
     threshold_buy_20 = float(model.get("threshold_buy_20"))
+    threshold_buy_10_prev = float(model.get("threshold_buy_10_prev", 0.0))
+    threshold_buy_20_prev = float(model.get("threshold_buy_20_prev", 0.0))
 
     percentage_sell_price = float(model.get("percentage_sell_price"))
     sell_timeout = int(model.get("sell_timeout"))
@@ -170,17 +190,9 @@ def simulate_trade(df, model: dict, performance_weight: float):
 
     total_buy_signal_count = 0  # How many rows satisfy buy signal criteria independent of mode
 
-
-    # Selecting only needed rows increases performance by several times (~4 times)
-    df = df[["high", "close", "high_60_10_gb", "high_60_20_gb"]]
-
     #
     # Main loop over trade sessions
     #
-    #
-    # Main loop over trade sessions
-    #
-
     i = 0
     for row in df.itertuples(index=True, name="Row"):
         i += 1
@@ -196,9 +208,20 @@ def simulate_trade(df, model: dict, performance_weight: float):
         #
         if high_60_10_gb >= threshold_buy_10 and high_60_20_gb >= threshold_buy_20:
             is_buy_signal = True
-            total_buy_signal_count += 1
         else:
             is_buy_signal = False
+
+        # Check addition criteria
+        if is_buy_signal and P.use_previous_scores:
+            high_60_10_gb_prev = row.high_60_10_gb_prev
+            high_60_20_gb_prev = row.high_60_20_gb_prev
+            if high_60_10_gb_prev >= threshold_buy_10_prev and high_60_20_gb_prev >= threshold_buy_20_prev:
+                is_buy_signal = True
+            else:
+                is_buy_signal = False
+
+        if is_buy_signal:
+            total_buy_signal_count += 1
 
         #
         # Determine trade mode
