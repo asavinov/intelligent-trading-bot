@@ -293,6 +293,14 @@ class Database:
         # New, predicted columns will be added to features. They will be named as in dict
         labels_df = predict_labels(df, models)
 
+        # Shift each score column
+        if App.config["trade"]["parameters"]["use_previous_scores"]:
+            for label in labels:
+                label_prev = label + "_prev"
+                labels_df[label_prev] = labels_df[label].shift(1)
+
+        labels_df = labels_df.iloc[1:]  # Drop first row which has NaN for previous (absent) scores
+
         # Now df will have additionally as many new columns as we have defined labels (and corresponding models)
 
         #
@@ -307,6 +315,8 @@ class Database:
         model = {"threshold_buy_10": 0.26, "threshold_buy_20": 0.07, "percentage_sell_price": 1.018, "sell_timeout": 70}
         threshold_buy_10 = model["threshold_buy_10"]
         threshold_buy_20 = model["threshold_buy_20"]
+        threshold_buy_10_prev = float(model.get("threshold_buy_10_prev", 0.0))
+        threshold_buy_20_prev = float(model.get("threshold_buy_20_prev", 0.0))
         # Object parameters (label prediction scores)
         row = labels_df.iloc[-1]
         high_60_10_gb = row["high_60_10_gb"]
@@ -317,6 +327,14 @@ class Database:
             is_buy_signal = True
         else:
             is_buy_signal = False
+
+        if is_buy_signal and App.config["trade"]["parameters"]["use_previous_scores"]:
+            high_60_10_gb_prev = row["high_60_10_gb_prev"]
+            high_60_20_gb_prev = row["high_60_20_gb_prev"]
+            if high_60_10_gb_prev >= threshold_buy_10_prev and high_60_20_gb_prev >= threshold_buy_20_prev:
+                is_buy_signal = True
+            else:
+                is_buy_signal = False
 
         App.config["trade"]["state"]["buy_signal_scores"] = [high_60_10_gb, high_60_20_gb]
         App.config["trade"]["state"]["buy_signal"] = is_buy_signal

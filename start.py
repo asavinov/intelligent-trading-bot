@@ -5,15 +5,13 @@ import sys
 #from trade.analysis import *
 #from trade.main import *
 
-script_name = "train_signal_models"  # Default value
+script_name = "generate_rolling_predictions"  # Default value
 
 if len(sys.argv) > 1:
     script_name = sys.argv[1]
 
 # Generate predictions params
 params = {
-    'train_max_length': 525_600,  # [43_920, 131_400, 262_800, 525_600, 10_000_000]
-
     'max_depth': 5,  # [1, 2, 3, 4, 5]
     'learning_rate': 0.05,  # [0.01, 0.05, 0.1]
     'num_boost_round': 1_000,  # [500, 1_000, 2_000, 5_000]

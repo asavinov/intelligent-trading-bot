@@ -26,8 +26,6 @@ No grid search or hyper-parameter optimization is done - use generate_rolling_pr
 
 Parameters:
 - the data range always ends with last loaded (non-null) record
-- !!! the size of the training data is specified by the "train_max_length" parameter - it is used to find the start record
-  If specified, the value from env will overwrite this parameter
 - the algorithm will select and use for training features listed in "features_gb" (for GB) and "features_knn" (for KNN)
   (same features must be used later for prediction so ensure that these lists are identical)
 - models (for each algorithm) will be trained separately for the labels specified in the list "labels"
@@ -49,8 +47,16 @@ class P:
 
     features_horizon = 300  # Features are generated using this past window length
     labels_horizon = 60  # Labels are generated using this number of steps ahead
+    label_histories = {"12": 525_600, "06": 262_800, "03": 131_400}
 
-    train_max_length = 525_600  # <-- PARAMETER: 1 year: 525_600, 6 months: 262_800, 3 months: 131_400, 3 months: 43_800
+    labels = ['high_60_10', 'high_60_20']  # Target columns with true values
+
+    class_labels_all = [
+        'high_60_10', 'high_60_15', 'high_60_20', 'high_60_25',
+        'high_60_01', 'high_60_02', 'high_60_03', 'high_60_04',
+        'low_60_01', 'low_60_02', 'low_60_03', 'low_60_04',
+        'low_60_10', 'low_60_15', 'low_60_20', 'low_60_25',
+        ]
 
     features_0 = [
         'close_1','close_2','close_5','close_20','close_60','close_180',
@@ -65,21 +71,10 @@ class P:
         'tb_base_1','tb_base_2','tb_base_5','tb_base_20','tb_base_60','tb_base_180',
         'tb_quote_1','tb_quote_2','tb_quote_5','tb_quote_20','tb_quote_60','tb_quote_180',
         ]
-    regression_labels_all = [
-        'high_60_max', 
-        'low_60_min',
-        ]
-    class_labels_all = [
-        'high_60_10', 'high_60_15', 'high_60_20', 'high_60_25', 
-        'high_60_01', 'high_60_02', 'high_60_03', 'high_60_04', 
-        'low_60_01', 'low_60_02', 'low_60_03', 'low_60_04', 
-        'low_60_10', 'low_60_15', 'low_60_20', 'low_60_25',
-        ]
 
     features_gb = features_1
     features_knn = features_0
 
-    labels = ['high_60_10', 'high_60_20']
 
 def main(args=None):
     in_df = None
@@ -125,71 +120,67 @@ def main(args=None):
         "weights": weights,
     }
 
-    if os.getenv("train_max_length"):
-        P.train_max_length = int(os.getenv("train_max_length"))
-
     #
     # Prepare train data with past values
     #
     print(f"Prepare training data set. Loaded size: {len(in_df)}...")
 
     full_length = len(in_df)
-    train_df = in_df.dropna()
-    new_length = len(train_df)
-    print(f"Number of NaN records dropped from the loaded data: {full_length - new_length}. New length: {new_length}")
-
     pd.set_option('use_inf_as_na', True)
-    if new_length > P.train_max_length:
-        train_df = train_df.tail(P.train_max_length)
-        new_length = len(train_df)
-        print(f"Select last {P.train_max_length} rows. New length: {new_length}")
+    in_df = in_df.dropna()
+    full_length = len(in_df)
 
-    #
-    # Train gb models for all labels
-    #
-    X = train_df[P.features_gb].values
     models_gb = {}
     accuracies_gb = {}
-    for label in P.labels:
-        print(f"Train gb model for label '{label}' {len(train_df)} records and {len(P.features_gb)} features...")
-        y = train_df[label].values
-        y = y.reshape(-1)
-        model = train_model_gb_classifier(X, y, params=params_gb)
-        models_gb[label] = model
+    for history_name, history_length in P.label_histories.items():  # Example: {"12": 525_600, "06": 262_800, "03": 131_400}
 
-        # Accuracy for training set
-        y_hat = model.predict(X)
-        try:
-            auc = metrics.roc_auc_score(y, y_hat)  # maybe y.astype(int)
-        except ValueError:
-            auc = 0.0  # Only one class is present (if dataset is too small, e.g,. when debugging)
-        accuracies_gb[label] = auc
-        print(f"Model training finished. AUC: {auc:.2f}")
+        train_df = in_df.tail(history_length)  # Latest history
+        train_length = len(train_df)
 
-        model_file = out_path.joinpath(label+"_gb").with_suffix('.pkl')
-        with open(model_file, 'wb') as f:
-            pickle.dump(model, f, pickle.HIGHEST_PROTOCOL)
-        print(f"Model stored in file: {model_file}")
+        #
+        # Train gb models for all labels
+        #
+        X = train_df[P.features_gb].values
+        for label in P.labels:
+            print(f"Train gb model: label '{label}', history {history_name}, rows {len(train_df)}, features {len(P.features_gb)}...")
+            y = train_df[label].values
+            y = y.reshape(-1)
+            model = train_model_gb_classifier(X, y, params=params_gb)
+            models_gb[label+"_gb_"+history_name] = model
 
-    #
-    # Train knn models for all labels
-    #
-    #X = train_df[P.features_knn].values
-    #models_knn = {}
-    #accuracies_knn = {}
-    #for label in P.labels:
-    #    print(f"Train knn model for label '{label}' {len(train_df)} records and {len(P.features_gb)} features...")
-    #    y = train_df[label].values
-    #    y = y.reshape(-1)
-    #    model = train_model_knn_classifier(X, y, params=params_knn)
-    #    models_knn[label] = model
+            # Accuracy for training set
+            y_hat = model.predict(X)
+            try:
+                auc = metrics.roc_auc_score(y, y_hat)  # maybe y.astype(int)
+            except ValueError:
+                auc = 0.0  # Only one class is present (if dataset is too small, e.g,. when debugging)
+            accuracies_gb[label+"_"+history_name] = auc
+            print(f"Model training finished. AUC: {auc:.2f}")
 
-    #
-    # End
-    #
-    elapsed = datetime.now() - start_dt
+            model_file = out_path.joinpath(label+"_gb_"+history_name).with_suffix('.pkl')
+            with open(model_file, 'wb') as f:
+                pickle.dump(model, f, pickle.HIGHEST_PROTOCOL)
+            print(f"Model stored in file: {model_file}")
 
-    print(f"Finished feature prediction in {int(elapsed.total_seconds())} seconds.")
+        #
+        # Train knn models for all labels
+        #
+        #X = train_df[P.features_knn].values
+        #models_knn = {}
+        #accuracies_knn = {}
+        #for label in P.labels:
+        #    print(f"Train knn model for label '{label}' {len(train_df)} records and {len(P.features_gb)} features...")
+        #    y = train_df[label].values
+        #    y = y.reshape(-1)
+        #    model = train_model_knn_classifier(X, y, params=params_knn)
+        #    models_knn[label] = model
+
+        #
+        # End
+        #
+        elapsed = datetime.now() - start_dt
+
+    print(f"Finished in {int(elapsed.total_seconds())} seconds.")
 
 
 if __name__ == '__main__':
