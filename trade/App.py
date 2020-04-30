@@ -120,7 +120,6 @@ class App:
                 # Signal model (trade strategy)
                 "sell_timeout": 70,  # Seconds
                 "percentage_sell_price": 1.018,  # our planned profit per trade via limit sell order (part of the model)
-                "use_previous_scores": False,
             },
 
             #

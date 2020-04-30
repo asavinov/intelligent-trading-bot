@@ -5,14 +5,14 @@ import sys
 #from trade.analysis import *
 #from trade.main import *
 
-script_name = "generate_rolling_predictions"  # Default value
+script_name = "train_signal_models"  # Default value
 
 if len(sys.argv) > 1:
     script_name = sys.argv[1]
 
 # Generate predictions params
 params = {
-    'max_depth': 5,  # [1, 2, 3, 4, 5]
+    'max_depth': 4,  # [1, 2, 3, 4, 5]
     'learning_rate': 0.05,  # [0.01, 0.05, 0.1]
     'num_boost_round': 1_000,  # [500, 1_000, 2_000, 5_000]
 
@@ -25,6 +25,15 @@ for key, value in params.items():
 
 # === BATCH SCRIPTS ===
 #
+if script_name == "download_data":
+    # download data
+    # NOTE: Must be started from Anaconda console since some special (encription, certificate) libs are not otherwise found
+    import scripts.download_data
+    exitcode = scripts.download_data.main(sys.argv[1:])
+
+    #from scripts.download_data import main
+    #exitcode = main(sys.argv[1:])
+
 if script_name == "generate_features":
     # Generate feature matrix file from source data: Read input file, generate features, generate labels, store the result
     import scripts.generate_features

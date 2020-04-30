@@ -35,8 +35,9 @@ def generate_features(df, use_differences=False):
         df['trades'] = to_diff(df['trades'])
 
     # close mean
-    to_drop += add_past_aggregations(df, 'close', np.mean, base_window, suffix='')  # Base column
-    features += add_past_aggregations(df, 'close', np.mean, windows, '', to_drop[-1], 100.0)
+    weight_column_name = 'volume'  # Set None to use no weighting or 'volume' for volume average
+    to_drop += add_past_weighted_aggregations(df, 'close', weight_column_name, np.mean, base_window, suffix='')  # Base column
+    features += add_past_weighted_aggregations(df, 'close', weight_column_name, np.mean, windows, '', to_drop[-1], 100.0)
     # ['close_1', 'close_2', 'close_5', 'close_20', 'close_60', 'close_180']
 
     # close std

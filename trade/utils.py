@@ -189,11 +189,15 @@ def to_diff(sr):
     diff = sr.rolling(window=2, min_periods=2).apply(diff_fn, raw=True)
     return diff
 
+def add_past_weighted_aggregations(df, column_name: str, weight_column_name: str, fn, windows: Union[int, list[int]], suffix=None, rel_column_name: str = None, rel_factor: float = 1.0):
+    return _add_weighted_aggregations(df, False, column_name, weight_column_name, fn, windows, suffix, rel_column_name, rel_factor)
+
 def add_past_aggregations(df, column_name: str, fn, windows: Union[int, list[int]], suffix=None, rel_column_name: str = None, rel_factor: float = 1.0):
     return _add_aggregations(df, False, column_name, fn, windows, suffix, rel_column_name, rel_factor)
 
 def add_future_aggregations(df, column_name: str, fn, windows: Union[int, list[int]], suffix=None, rel_column_name: str = None, rel_factor: float = 1.0):
     return _add_aggregations(df, True, column_name, fn, windows, suffix, rel_column_name, rel_factor)
+    #return _add_weighted_aggregations(df, True, column_name, None, fn, windows, suffix, rel_column_name, rel_factor)
 
 def _add_aggregations(df, is_future: bool, column_name: str, fn, windows: Union[int, list[int]], suffix=None, rel_column_name: str = None, rel_factor: float = 1.0):
     """
@@ -230,6 +234,58 @@ def _add_aggregations(df, is_future: bool, column_name: str, fn, windows: Union[
         # Aggregate
         ro = column.rolling(window=w, min_periods=max(1, w // 10))
         feature = ro.apply(fn, raw=True)
+
+        # Convert past aggregation to future aggregation
+        if is_future:
+            feature = feature.shift(periods=-w)
+
+        # Normalize
+        feature_name = column_name + suffix + '_' + str(w)
+        features.append(feature_name)
+        if rel_column_name:
+            df[feature_name] = rel_factor * (feature - rel_column) / rel_column
+        else:
+            df[feature_name] = rel_factor * feature
+
+    return features
+
+def _add_weighted_aggregations(df, is_future: bool, column_name: str, weight_column_name: str, fn, windows: Union[int, list[int]], suffix=None, rel_column_name: str = None, rel_factor: float = 1.0):
+    """
+    Weighted aggregation. Normally using np.sum function.
+    """
+
+    column = df[column_name]
+
+    if weight_column_name:
+        weight_column = df[weight_column_name]
+    else:
+        # If weight column is not specified then it is equal to constant 1.0
+        weight_column = pd.Series(data=1.0, index=column.index)
+
+    products_column = column * weight_column
+
+    if isinstance(windows, int):
+        windows = [windows]
+
+    if rel_column_name:
+        rel_column = df[rel_column_name]
+
+    if suffix is None:
+        suffix = "_" + fn.__name__
+
+    features = []
+    for w in windows:
+
+        # Sum of products
+        ro = products_column.rolling(window=w, min_periods=max(1, w // 10))
+        feature = ro.apply(fn, raw=True)
+
+        # Sum of weights
+        w_ro = weight_column.rolling(window=w, min_periods=max(1, w // 10))
+        weights = w_ro.apply(fn, raw=True)
+
+        # Weighted feature
+        feature = feature / weights
 
         # Convert past aggregation to future aggregation
         if is_future:

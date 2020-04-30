@@ -39,7 +39,7 @@ Parameters:
 #
 class P:
     in_path_name = r"_TEMP_FEATURES"
-    in_file_name = r"_BTCUSDT-1m-features.csv"
+    in_file_name = r"_BTCUSDT-1m-features-with-weights.csv"
     in_nrows = 10_000_000  # <-- PARAMETER
 
     out_path_name = r"_TEMP_MODELS"
@@ -47,15 +47,18 @@ class P:
 
     features_horizon = 300  # Features are generated using this past window length
     labels_horizon = 60  # Labels are generated using this number of steps ahead
-    label_histories = {"12": 525_600, "06": 262_800, "03": 131_400}
+    label_histories = {"03": 131_400}
 
-    labels = ['high_60_10', 'high_60_20']  # Target columns with true values
+    labels = [  # Target columns with true values which will be predicted
+        'high_60_10', 'high_60_15', 'high_60_20',
+        'low_60_10', 'low_60_15', 'low_60_20',
+    ]
 
-    class_labels_all = [
-        'high_60_10', 'high_60_15', 'high_60_20', 'high_60_25',
-        'high_60_01', 'high_60_02', 'high_60_03', 'high_60_04',
-        'low_60_01', 'low_60_02', 'low_60_03', 'low_60_04',
-        'low_60_10', 'low_60_15', 'low_60_20', 'low_60_25',
+    class_labels_all = [  # All existing target labels generated from feature generation procedure
+        'high_60_10', 'high_60_15', 'high_60_20', 'high_60_25',  # At least one time above
+        'high_60_01', 'high_60_02', 'high_60_03', 'high_60_04',  # Always below
+        'low_60_01', 'low_60_02', 'low_60_03', 'low_60_04',  # Always above
+        'low_60_10', 'low_60_15', 'low_60_20', 'low_60_25',  # At least one time below
         ]
 
     features_0 = [

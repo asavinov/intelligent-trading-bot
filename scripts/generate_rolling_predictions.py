@@ -46,17 +46,26 @@ grid_predictions = [
 #
 class P:
     in_path_name = r"_TEMP_FEATURES"
-    in_file_name = r"_BTCUSDT-1m-features.csv"
+    in_file_name = r"_BTCUSDT-1m-features-with-weights.csv"
 
     out_path_name = r"_TEMP_FEATURES"
-    out_file_name = r"_BTCUSDT-1m-rolling-predictions"
+    out_file_name = r"_BTCUSDT-1m-rolling-predictions-all"
 
     features_horizon = 300  # Features are generated using this past window length
     labels_horizon = 60  # Labels are generated using this number of steps ahead
-    label_histories = {"12": 525_600, "06": 262_800, "03": 131_400, "01": 43_920}
-    #label_histories = {"03": 131_400, "01": 43_800}
 
-    labels = ['high_60_10', 'high_60_15', 'high_60_20']  # Target columns with true values
+    label_histories = {"18": 788_400, "12": 525_600, "06": 262_800, "04": 175_200, "03": 131_400, "02": 87_600}
+    #label_histories = {"18": 788_400, "12": 525_600, "06": 262_800}
+    #label_histories = {"04": 175_200, "03": 131_400, "02": 87_600}
+    #label_histories = {"12": 525_600}
+
+    labels = [  # Target columns with true values which will be predicted
+        'high_60_10', 'high_60_15', 'high_60_20', 'high_60_25',
+        'high_60_01', 'high_60_02', 'high_60_03', 'high_60_04',
+        'low_60_01', 'low_60_02', 'low_60_03', 'low_60_04',
+        'low_60_10', 'low_60_15', 'low_60_20', 'low_60_25',
+    ]
+    #labels = ['high_60_15']  # Target columns with true values
 
     # Offsets
     # 2017-08-18 00:00:00 = 1200
@@ -83,12 +92,19 @@ class P:
     prediction_length = 1_440  # 1 day: 1_440 = 60 * 24, one week: 10_080
     prediction_count = None  # How many prediction steps. If None or 0, then from prediction start till the data end
 
-    class_labels_all = [
-        'high_60_10', 'high_60_15', 'high_60_20', 'high_60_25',
-        'high_60_01', 'high_60_02', 'high_60_03', 'high_60_04',
-        'low_60_01', 'low_60_02', 'low_60_03', 'low_60_04',
-        'low_60_10', 'low_60_15', 'low_60_20', 'low_60_25',
+    class_labels_all = [  # All existing target labels generated from feature generation procedure
+        'high_60_10', 'high_60_15', 'high_60_20', 'high_60_25',  # At least one time above
+        'high_60_01', 'high_60_02', 'high_60_03', 'high_60_04',  # Always below
+        'low_60_01', 'low_60_02', 'low_60_03', 'low_60_04',  # Always above
+        'low_60_10', 'low_60_15', 'low_60_20', 'low_60_25',  # At least one time below
         ]
+
+    in_features = [
+        "timestamp",
+        "open","high","low","close","volume",
+        "close_time",
+        "quote_av","trades","tb_base_av","tb_quote_av","ignore"
+    ]
 
     features_0 = [
         'close_1','close_2','close_5','close_20','close_60','close_180',
@@ -105,7 +121,6 @@ class P:
         ]
 
     features_gb = features_1
-    features_knn = features_0
 
 def main(args=None):
     pd.set_option('use_inf_as_na', True)
@@ -131,7 +146,8 @@ def main(args=None):
         print(f"ERROR: Unknown input file extension. Only csv and parquet are supported.")
 
     pd.set_option('use_inf_as_na', True)
-    in_df = in_df.dropna()
+    #in_df = in_df.dropna()
+    in_df = in_df.reset_index(drop=True)  # We must reset index after removing rows
 
     #
     # Algorithm parameters
@@ -174,7 +190,7 @@ def main(args=None):
             #
             # Prepare train data of the necessary history length
             #
-            train_df = in_df.iloc[train_start:train_end]
+            train_df = in_df.iloc[train_start:train_end]  # We assume that iloc is equal to index
             train_length = len(train_df)
 
             #
@@ -192,7 +208,7 @@ def main(args=None):
         # Use just trained models to predict future values within the horizon
         #
         prediction_end = prediction_start + P.prediction_length
-        predict_df = in_df.iloc[prediction_start:prediction_end]
+        predict_df = in_df.iloc[prediction_start:prediction_end]  # We assume that iloc is equal to index
 
         predict_labels_df = pd.DataFrame(index=predict_df.index)
 
@@ -216,7 +232,8 @@ def main(args=None):
     #
 
     # Append all features including true labels to the predicted labels
-    out_df = labels_hat_df.join(in_df)
+    out_columns = P.in_features + P.class_labels_all
+    out_df = labels_hat_df.join(in_df[out_columns])
 
     #
     # Compute accuracy for the whole data set (all segments)
@@ -257,7 +274,6 @@ def main(args=None):
     #out_df.to_parquet(out_path.with_suffix('.parq'), engine='auto', compression=None, index=None, partition_cols=None)
 
     elapsed = datetime.now() - start_dt
-
     print(f"Finished feature prediction in {int(elapsed.total_seconds())} seconds.")
 
 

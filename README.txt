@@ -232,11 +232,63 @@ nice -n 20 zip -s 10m -7 dest.zip source.txt
 Information about zip and nice (priority):
 ```
 zip -s 100m archivename.zip filename1.txt
+zip -s 100m -r archivename.zip my_folder  # folder and all files recursively
 nice -10 perl test.pl - run with niceness 10 (lower priority) (- is hyphen - not negative).
 nice --10 perl test.pl - start with high priority (negative niceness)
 nice -n -5 perl test.pl - increase priority
 nice -n 5 perl test.pl - decrease priority
 nice -n 10 apt-get upgrade - start with lower priority (lower values of niceness mean higher priority, so we need higher values)
+```
+
+#### Sudden reboots
+
+Information about last reboot:
+```
+last reboot
+
+tail /var/log/syslog or less /var/log/syslog
+```
+
+System wide logger:
+```
+tail /var/log/syslog
+less /var/log/syslog
+```
+Kernel log:
+```
+tail /var/log/kern.log
+```
+
+Example automatic reboot:
+
+```
+last reboot
+reboot   system boot  4.15.0           Thu Apr 30 08:55   still running
+reboot   system boot  4.15.0           Thu Apr 30 08:21   still running
+```
+
+```
+syslog
+Apr 30 06:03:01 linux CRON[23790]: (root) CMD (cd / && run-parts --report /etc/cron.hourly)
+Apr 30 06:40:33 linux systemd[1]: Starting Daily apt upgrade and clean activities...
+Apr 30 06:40:34 linux systemd[1]: Started Daily apt upgrade and clean activities.
+Apr 30 06:55:06 linux systemd[1]: getty@tty2.service: Service has no hold-off time, scheduling restart.
+Apr 30 06:55:06 linux systemd[1]: getty@tty2.service: Scheduled restart job, restart counter is at 876.
+```
+
+Check available timers, particularly, daily upgrade timer:
+```
+sudo systemctl list-timers
+Fri 2020-05-01 06:14:53 UTC  19h left      Thu 2020-04-30 06:40:33 UTC  3h 58min ago apt-daily-upgrade.timer      apt
+```
+Solutions (https://superuser.com/questions/1327884/how-to-disable-daily-upgrade-and-clean-on-ubuntu-16-04):
+* simply remove package unattended-upgrades: apt-get remove unattended-upgrades (but it might be insufficient)
+* disable:
+```
+systemctl stop apt-daily-upgrade.timer
+systemctl disable apt-daily-upgrade.timer
+(systemctl disable apt-daily.service) - not clear if necessary
+systemctl daemon-reload
 ```
 
 ## Additional information

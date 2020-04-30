@@ -51,9 +51,9 @@ def get_klines_all(symbol, freq, save=False):
     # ---
     # Uncomment this to get futures:
     # ---
-    client.API_URL = "https://fapi.binance.com/fapi"
-    client.PRIVATE_API_VERSION = "v1"
-    client.PUBLIC_API_VERSION = "v1"
+    #client.API_URL = "https://fapi.binance.com/fapi"
+    #client.PRIVATE_API_VERSION = "v1"
+    #client.PUBLIC_API_VERSION = "v1"
     # ---
 
     filename = f"{symbol}-{freq}-data.csv"
@@ -234,7 +234,7 @@ async def get_futures_klines_all(symbol, freq, save = False):
 
     pass
 
-def test_market_stream():
+def check_market_stream():
     """
     Streams: 
     - depth (order book): 
@@ -301,7 +301,7 @@ def message_fn(msg):
     #print(f"Message type: {msg['e']}")
     print(msg)
 
-def test_market_stream_multiplex():
+def check_market_stream_multiplex():
     """
     Symbols in socket name must be lowercase i.e bnbbtc@aggTrade, neobtc@ticker
     """
@@ -311,7 +311,7 @@ def test_market_stream_multiplex():
 def multiples_fn(msg):
     print("stream: {} data: {}".format(msg['stream'], msg['data']))
 
-def test_user_stream():
+def check_user_stream():
     """
     User streams (requires extra authentication): 
     - Account Update Event - Return account updates
@@ -327,12 +327,22 @@ def user_message_fn(msg):
     print(f"Message type: {msg['e']}")
     print(msg)
 
+def main(args=None):
+
+    start_dt = datetime.now()
+    print(f"Start downloading klines...")
+
+    get_klines_all("BTCUSDT", "1m", save=True)
+
+    elapsed = datetime.now() - start_dt
+    print(f"Finished downloading data in {int(elapsed.total_seconds())} seconds.")
+
 
 if __name__ == '__main__':
     #loop = asyncio.get_event_loop()
     #loop.run_until_complete(get_futures_klines_all("BTCUSDT", "1m", save=True))
    
-    #test_market_stream()
+    #check_market_stream()
     
     #get_exchange_info()
 

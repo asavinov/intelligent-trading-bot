@@ -23,25 +23,31 @@ The output is an ordered list of best performing threshold-based signal generati
 
 grid_signals = [
     # Production
-    {
-        'threshold_buy_10': [0.255, 0.26, 0.265],
-    #    'threshold_buy_10_prev': [0.0],
-
-        'threshold_buy_20': [0.065, 0.07, 0.075],
-    #    'threshold_buy_20_prev': [0.0],
-
-        'percentage_sell_price': [1.017, 1.018, 1.019],
-        'sell_timeout': [65, 70, 75],
-    },
-    # Debug
     #{
-    #    'threshold_buy_10': [0.2],
-    #    'threshold_buy_10_prev': [0.02],
-    #    'threshold_buy_20': [0.1],
-    #    'threshold_buy_20_prev': [0.01],
-    #    'percentage_sell_price': [1.015],
-    #    'sell_timeout': [60],
+    #    'threshold_high_10': [0.24, 0.25, 0.26, 0.27, 0.28, 0.29, 0.30, 0.31],
+    #    'threshold_high_15': [0.05, 0.06, 0.07, 0.08, 0.09, 0.10, 0.11, 0.12, 0.13, 0.14, 0.15],
+    #    'threshold_high_20': [0.00, 0.01, 0.015, 0.02, 0.025, 0.03, 0.04],
+    #
+    #    'threshold_low_10': [0.24, 0.25, 0.26, 0.27, 0.28, 0.29, 0.30, 0.31],
+    #    'threshold_low_15': [0.05, 0.06, 0.07, 0.08, 0.09, 0.10, 0.11, 0.12, 0.13, 0.14, 0.15],
+    #    'threshold_low_20': [0.00, 0.01, 0.015, 0.02, 0.025, 0.03, 0.04],
+    #
+    #    'percentage_sell_price': [1.017, 1.018, 1.019],
+    #    'sell_timeout': [30],
     #},
+    # Debug
+    {
+        'threshold_high_10': [0.0],
+        'threshold_high_15': [0.0, 0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9],
+        'threshold_high_20': [0.0],
+
+        'threshold_low_10': [1.0],
+        'threshold_low_15': [0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 1.0],
+        'threshold_low_20': [1.0],
+
+        'percentage_sell_price': [1.018],
+        'sell_timeout': [60],
+    },
 ]
 
 #
@@ -49,7 +55,9 @@ grid_signals = [
 #
 class P:
     in_path_name = r"_TEMP_FEATURES"
-    in_file_name = r"_BTCUSDT-1m-rolling-predictions.csv"
+    #in_file_name = r"_BTCUSDT-1m-rolling-predictions-no-weights.csv"
+    #in_file_name = r"_BTCUSDT-1m-rolling-predictions-with-weights.csv"
+    in_file_name = r"_BTCUSDT-1m-rolling-predictions-02-03-04.csv"
     in_nrows = 100_000_000
 
     out_path_name = r"_TEMP_FEATURES"
@@ -62,7 +70,6 @@ class P:
     # Parameters of the whole optimization
     #
     performance_weight = 12.0  # Per year. 1.0 means all are equal, 3.0 means last has 3 times more weight than first
-    use_previous_scores = True
 
 def main(args=None):
 
@@ -85,17 +92,30 @@ def main(args=None):
     else:
         print(f"ERROR: Unknown input file extension. Only csv and parquet are supported.")
 
-    # Generate columns with previous scores
-    # Existing scores: "high_60_10_gb", "high_60_20_gb". Shift them down
-    if P.use_previous_scores:
-        in_df["high_60_10_gb_prev"] = in_df["high_60_10_gb"].shift(1)
-        in_df["high_60_20_gb_prev"] = in_df["high_60_20_gb"].shift(1)
+    # Compute average over all histories
+    in_df["high_60_10_gb"] = (in_df["high_60_10_gb_04"] + in_df["high_60_10_gb_03"] + in_df["high_60_10_gb_02"]) / 3.0
+    in_df["high_60_15_gb"] = (in_df["high_60_15_gb_04"] + in_df["high_60_15_gb_03"] + in_df["high_60_15_gb_02"]) / 3.0
+    in_df["high_60_20_gb"] = (in_df["high_60_20_gb_04"] + in_df["high_60_20_gb_03"] + in_df["high_60_20_gb_02"]) / 3.0
+
+    in_df["low_60_10_gb"] = (in_df["low_60_10_gb_04"] + in_df["low_60_10_gb_03"] + in_df["low_60_10_gb_02"]) / 3.0
+    in_df["low_60_15_gb"] = (in_df["low_60_15_gb_04"] + in_df["low_60_15_gb_03"] + in_df["low_60_15_gb_02"]) / 3.0
+    in_df["low_60_20_gb"] = (in_df["low_60_20_gb_04"] + in_df["low_60_20_gb_03"] + in_df["low_60_20_gb_02"]) / 3.0
+
+    # Choose some history
+    #in_df["high_60_10_gb"] = in_df["high_60_10_gb_03"]
+    #in_df["high_60_15_gb"] = in_df["high_60_15_gb_03"]
+    #in_df["high_60_20_gb"] = in_df["high_60_20_gb_03"]
+
+    #in_df["low_60_10_gb"] = in_df["low_60_10_gb_03"]
+    #in_df["low_60_15_gb"] = in_df["low_60_15_gb_03"]
+    #in_df["low_60_20_gb"] = in_df["low_60_20_gb_03"]
 
     # Selecting only needed rows increases performance in several times (~4 times)
-    if P.use_previous_scores:
-        in_df = in_df[["high", "close", "high_60_10_gb", "high_60_20_gb", "high_60_10_gb_prev", "high_60_20_gb_prev"]]
-    else:
-        in_df = in_df[["high", "close", "high_60_10_gb", "high_60_20_gb"]]
+    in_df = in_df[[
+        "high", "close",
+        "high_60_10_gb", "high_60_15_gb", "high_60_20_gb",
+        "low_60_10_gb", "low_60_15_gb", "low_60_20_gb",
+    ]]
 
     # Select the necessary interval of data
     if not P.simulation_start:
@@ -167,8 +187,8 @@ def simulate_trade(df, model: dict, performance_weight: float):
 
     :param df:
     :param model:
-        threshold_buy_10 - Buy only if score is higher
-        threshold_buy_20 - Buy only if score is higher
+        threshold_high_10 - Buy only if score is higher
+        threshold_high_20 - Buy only if score is higher
         percentage_sell_price - how much increase sell price in comparision to buy price (it is our planned profit)
         sell_timeout - Sell using latest close price after this time
     :param performance_weight: weight for the last time point for the 1 year period. for the first point it is 1.0
@@ -177,10 +197,13 @@ def simulate_trade(df, model: dict, performance_weight: float):
     #
     # Model parameters
     #
-    threshold_buy_10 = float(model.get("threshold_buy_10"))
-    threshold_buy_20 = float(model.get("threshold_buy_20"))
-    threshold_buy_10_prev = float(model.get("threshold_buy_10_prev", 0.0))
-    threshold_buy_20_prev = float(model.get("threshold_buy_20_prev", 0.0))
+    threshold_high_10 = float(model.get("threshold_high_10"))
+    threshold_high_15 = float(model.get("threshold_high_15"))
+    threshold_high_20 = float(model.get("threshold_high_20"))
+
+    threshold_low_10 = float(model.get("threshold_low_10"))
+    threshold_low_15 = float(model.get("threshold_low_15"))
+    threshold_low_20 = float(model.get("threshold_low_20"))
 
     percentage_sell_price = float(model.get("percentage_sell_price"))
     sell_timeout = int(model.get("sell_timeout"))
@@ -199,39 +222,23 @@ def simulate_trade(df, model: dict, performance_weight: float):
         # Object parameters
         close_price = row.close
         high_price = row.high
-        # Object parameters (label prediction scores)
-        high_60_10_gb = row.high_60_10_gb
-        high_60_20_gb = row.high_60_20_gb
 
         #
         # Apply model parameters and generate a signal for the current row
         #
-        if high_60_10_gb >= threshold_buy_10 and high_60_20_gb >= threshold_buy_20:
+        if row.high_60_10_gb >= threshold_high_10 and row.high_60_15_gb >= threshold_high_15 and row.high_60_20_gb >= threshold_high_20:
             is_buy_signal = True
         else:
             is_buy_signal = False
 
-        # Use average values (experimental: does not improve performance)
-        use_average_scores = False
-        if use_average_scores:
-            high_60_10_gb_prev = row.high_60_10_gb_prev
-            high_60_20_gb_prev = row.high_60_20_gb_prev
-            if (high_60_10_gb+high_60_10_gb_prev)/2 >= threshold_buy_10 and (high_60_20_gb+high_60_20_gb_prev)/2 >= threshold_buy_20:
-                is_buy_signal = True
-            else:
-                is_buy_signal = False
-
-        # Use previous scores (does not improve performance)
-        if P.use_previous_scores and is_buy_signal:
-            high_60_10_gb_prev = row.high_60_10_gb_prev
-            high_60_20_gb_prev = row.high_60_20_gb_prev
-            if high_60_10_gb_prev >= threshold_buy_10_prev and high_60_20_gb_prev >= threshold_buy_20_prev:
-                is_buy_signal = True
-            else:
-                is_buy_signal = False
-
         if is_buy_signal:
             total_buy_signal_count += 1
+
+        if is_buy_signal:
+            if row.low_60_10_gb <= threshold_low_10 and row.low_60_15_gb <= threshold_low_15 and row.low_60_20_gb <= threshold_low_20:
+                is_buy_signal = True
+            else:
+                is_buy_signal = False
 
         #
         # Determine trade mode

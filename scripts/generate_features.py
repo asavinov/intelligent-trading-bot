@@ -25,7 +25,7 @@ class P:
     in_nrows = 100_000_000
 
     out_path_name = r"_TEMP_FEATURES"
-    out_file_name = r"_BTCUSDT-1m-features"
+    out_file_name = r"_BTCUSDT-1m-features-with-weights"
 
     features_horizon = 300  # Maximum past history used by features
     labels_horizon = 60  # Maximum future horizon used by labels
