@@ -31,8 +31,8 @@ class UtilsTestCase(unittest.TestCase):
 		self.assertListEqual([1,1,0], list(df["buy"]))
 		self.assertListEqual([0,0,1], list(df["sell"]))
 
-	def test_depth_integration(self):
-		# List of (price, volume) points
+	def test_depth_density(self):
+		# Example 1
 		depth = [
 			[1, 1],
 			[3, 1],
@@ -43,11 +43,18 @@ class UtilsTestCase(unittest.TestCase):
 		]
 
 		bins_ask = discretize_ask(depth=depth, bin_size=4.0, start=None)
-		bins_ask = discretize("ask", depth, bin_size=4.0, start=None)
+		bins = discretize("ask", depth, bin_size=4.0, start=None)
 
 		self.assertListEqual(bins_ask, [1, 1])
-		self.assertListEqual(bins_ask, [1, 1])
+		self.assertListEqual(bins, [1, 1])
 
+		depth = [[-x[0], x[1]] for x in depth]  # Invert price so that it decreases
+
+		bins = discretize("bid", depth, bin_size=4.0, start=None)
+
+		self.assertListEqual(bins, [1, 1])
+
+		# Example 2
 		depth = [
 			[1, 1],
 			[3, 1],
@@ -63,6 +70,13 @@ class UtilsTestCase(unittest.TestCase):
 		self.assertListEqual(bins_ask, [5.75, 5.75])
 		self.assertListEqual(bins, [5.75, 5.75])
 
+		depth = [[-x[0], x[1]] for x in depth]  # Invert price so that it decreases
+
+		bins = discretize("bid", depth=depth, bin_size=4.0, start=None)
+
+		self.assertListEqual(bins, [5.75, 5.75])
+
+		# Example 3
 		depth = [
 			# 0 Start (previous point volume assumed to be 0)
 			[1, 1],
@@ -78,8 +92,13 @@ class UtilsTestCase(unittest.TestCase):
 		self.assertListEqual(bins_ask, [0.5, 1.0, 1.5])
 		self.assertListEqual(bins, [0.5, 1.0, 1.5])
 
-		pass
+		depth = [[-x[0], x[1]] for x in depth]  # Invert price so that it decreases
 
+		bins = discretize("bid", depth=depth, bin_size=2.0, start=0.0)
+
+		self.assertListEqual(bins, [0.5, 1.0, 1.5])
+
+		pass
 
 if __name__ == '__main__':
 	unittest.main()

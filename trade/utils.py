@@ -168,7 +168,7 @@ def discretize(side: str, depth: list, bin_size: float, start: float):
     :param start:
     :return:
     """
-    if side in ["ask", "sell"]:
+    if side.startswith("ask") or side.startswith("sell"):
         price_increase = True
     elif side in ["bid", "buy"]:
         price_increase = False
@@ -236,6 +236,7 @@ def discretize(side: str, depth: list, bin_size: float, start: float):
 
     return bin_volumes
 
+# OBSOLETE: Because works only for increasing prices (ask). Use general version instead.
 def discretize_ask(depth: list, bin_size: float, start: float):
     """
     Find (volume) area between the specified interval (of prices) given the step function volume(price).
