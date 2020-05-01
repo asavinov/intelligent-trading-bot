@@ -153,27 +153,32 @@ def depth_accumulate(depth: list, start, end):
 
     return depth
 
-def discretize(depth: list, bin_size: float):
+def discretize(depth: list, bin_size: float, start: float):
     """
     Find (volume) area between the specified interval (of prices) given the step function volume(price).
 
     The step-function is represented as list of points (price,volume) ordered by price.
     Volume is the function value for the next step (next price delta - not previous one). A point specifies volume till the next point.
 
-    One bin has coefficient 1 and then all subintervals within one bin are coeffocients to volume
+    One bin has coefficient 1 and then all sub-intervals within one bin are coeffocients to volume
 
     Criterion: whole volume area computed for the input data and output data (for the same price interval) must be the same
-    """
-    # Add bin points on the bin borders with volume equal to the previous point
-    prev_point = depth[0]
 
-    bin_start = depth[0][0]
+    TODO: it does not work if start is after first point (only if before or equal/none)
+    """
+    if start is None:
+        start = depth[0][0]  # First point
+
+    prev_point = [start, 0.0]
+
+    bin_start = start
     bin_end = bin_start + bin_size
     bin_volume = 0.0
 
-    bins = []
+    bin_volumes = []
     for i, point in enumerate(depth):
-        if i == 0:
+        if point[0] <= bin_start:  # Point belongs to previous bin (when start is in the middle of series)
+            prev_point = point
             continue
 
         if point[0] >= bin_end:  # Point in the next bin
@@ -189,7 +194,7 @@ def discretize(depth: list, bin_size: float):
         # Iterate bin (if current is finished)
         if point[0] >= bin_end:  # Point in the next bin
             # Store current bin as finished
-            bins.append([bin_start, bin_volume])
+            bin_volumes.append(bin_volume)
             # Iterate to next bin
             bin_start = bin_end
             bin_end = bin_start + bin_size
@@ -216,9 +221,9 @@ def discretize(depth: list, bin_size: float):
     bin_volume += prev_point[1] * price_coeff  # Each point in the bin contributes to this bin final value
 
     # Store current bin as finished
-    bins.append([bin_start, bin_volume])
+    bin_volumes.append(bin_volume)
 
-    return bins
+    return bin_volumes
 
 #
 # Klnes processing
