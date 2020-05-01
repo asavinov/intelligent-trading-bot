@@ -110,19 +110,25 @@ def get_symbol_files(symbol):
 # Feature definitions
 #
 
-def mean_volume(depth: list, windows: list):
+def mean_volumes(depth: list, windows: list):
     """
     Density. Mean volume per price unit (bin) computed using the specified number of price bins.
     First, we discreteize and then find average value for the first element (all if length is not specified).
     Return a list of values each value being a mean volume for one aggregation window (number of bins)
     """
-    volumes = discretize(depth=depth, bin_size=bin_size, start=None)
-    if not windows:
-        windows = [len(volumes)]
 
-    ret = []
+    bid_volumes = discretize(side="bid", depth=depth.get("bids"), bin_size=bin_size, start=None)
+    ask_volumes = discretize(side="ask", depth=depth.get("asks"), bin_size=bin_size, start=None)
+
+    ret = {}
     for length in windows:
-        density = np.mean(volumes[0:min(length, len(volumes))])
+        density = np.mean(bid_volumes[0:min(length, len(bid_volumes))])
+        feature_name = f"bids_{length}"
+        ret[feature_name] = density
+
+        density = np.mean(ask_volumes[0:min(length, len(ask_volumes))])
+        feature_name = f"asks_{length}"
+        ret[feature_name] = density
 
     return ret
 
@@ -135,8 +141,12 @@ def depth_to_df(depth: list):
     Process input list of depth records and return a data frame with computed features.
     The list is supposed to loaded from a file so records are ordered but gaps are not excluded.
 
+    NOTE:
+    - Important: "timestamp" is real time of the depth data which corresponds to "close_time" in klines
+      "timestamp" in klines is 1m before current time
+      It has to be taken into account when matching/joining records, e.g., by shifting columns (if we match "timestamp" then the reslt will be wrong)
+
     # TODO Questions:
-    # !!! - what is depth timestamp: previous 1m interval start or end? - is it like kline identifier?
     # !!! - what is zone for our timestamps - ensure that it is the same as Binance server
     # - is it possible to create a data frame with a column containing json object or string?
     # - how to match json/string values with data frame index?
@@ -177,11 +187,12 @@ def depth_to_df(depth: list):
         asks = entry.get("asks")
 
         gap = asks[0][0] - bids[0][0]
+
         if gap < 0: gap = 0
         price = bids[0][0] + (gap/2)
 
-        # Asks densities for all windows
-        densities = mean_volume(depth=bids, windows=windows)
+        # Asks densities for bids and asks for all windows
+        densities = mean_volumes(depth=entry, windows=windows)
 
     pass
 

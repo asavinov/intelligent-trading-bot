@@ -135,7 +135,7 @@ Get klines for futures:
 
 #### Generate feature matrix
 
-The goal here is to load source (kline) data, generate dervied features and labels, and store the result in output file.
+The goal here is to load source (kline) data, generate derived features and labels, and store the result in output file.
 The output is supposed to be used for other procedures like training prediction models.
 
 Execute from project root:
@@ -370,7 +370,7 @@ We work synchronous to our local time every 1 minute.
 It is theoretically possible that when we request data (klines etc.) right after 1 local minute, the server is not yet ready.
 An alternative solution is to subscribe to the service and listen to its update.
 In this case, we trigger processing precisely when a new 1m-kline is received (independent of our local clocks).
-Our system is then sychronized with the service and is driven by the service data updates being them 1m-klines or order executions.
+Our system is then synchronized with the service and is driven by the service data updates being them 1m-klines or order executions.
 Java WebSocket: client.onCandlestickEvent("ethbtc", CandlestickInterval.ONE_MINUTE, response -> System.out.println(response));
 Python WebSocket: conn_key = bm.start_kline_socket('BNBBTC', process_message, interval=KLINE_INTERVAL_30MINUTE)
 Our processing logic should remain the same but now it is triggered not by the local scheduler but rather by external events.
