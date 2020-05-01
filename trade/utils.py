@@ -99,6 +99,10 @@ def find_index(df: pd.DataFrame, date_str: str, column_name: str= "timestamp"):
 
     return id
 
+#
+# Depth processing
+#
+
 def price_to_volume(side, depth, price_limit):
     """
     Given limit, compute the available volume from the depth data on the specified side.
@@ -135,6 +139,90 @@ def volume_to_price(side, depth, volume_limit):
 
     orders = [o for o in orders if o[1] <= volume_limit]
     return orders[-1][0]  # Last element contains cumulative volume
+
+def depth_accumulate(depth: list, start, end):
+    """
+    Convert a list of bid/ask volumes into an accumulated (monotonically increasing) volume curve.
+    The result is the same list but each volume value in the pair is the sum of all previous volumes.
+    For the very first bid/ask, the volume is that same.
+    """
+    prev_value = 0.0
+    for point in depth:
+        point[1] += prev_value
+        prev_value = point[1]
+
+    return depth
+
+def discretize(depth: list, bin_size: float):
+    """
+    Find (volume) area between the specified interval (of prices) given the step function volume(price).
+
+    The step-function is represented as list of points (price,volume) ordered by price.
+    Volume is the function value for the next step (next price delta - not previous one). A point specifies volume till the next point.
+
+    One bin has coefficient 1 and then all subintervals within one bin are coeffocients to volume
+
+    Criterion: whole volume area computed for the input data and output data (for the same price interval) must be the same
+    """
+    # Add bin points on the bin borders with volume equal to the previous point
+    prev_point = depth[0]
+
+    bin_start = depth[0][0]
+    bin_end = bin_start + bin_size
+    bin_volume = 0.0
+
+    bins = []
+    for i, point in enumerate(depth):
+        if i == 0:
+            continue
+
+        if point[0] >= bin_end:  # Point in the next bin
+            price = bin_end
+        else:  # Point within bin
+            price = point[0]
+
+        # Update current bin volume
+        price_delta = price - prev_point[0]
+        price_coeff = price_delta / bin_size  # Portion of this interval in bin
+        bin_volume += prev_point[1] * price_coeff  # Each point in the bin contributes to this bin final value
+
+        # Iterate bin (if current is finished)
+        if point[0] >= bin_end:  # Point in the next bin
+            # Store current bin as finished
+            bins.append([bin_start, bin_volume])
+            # Iterate to next bin
+            bin_start = bin_end
+            bin_end = bin_start + bin_size
+            bin_volume = 0.0
+
+            price = point[0]
+
+            # Initialize bin volume with the rest of current point
+            price_delta = price - bin_start
+            price_coeff = price_delta / bin_size  # Portion of this interval in bin
+            bin_volume += prev_point[1] * price_coeff  # Each point in the bin contributes to this bin final value
+
+        # Iterate point
+        prev_point = point
+
+    #
+    # Finalize by closing last bin which does not have enough points
+    #
+    price = bin_end
+
+    # Update current bin volume
+    price_delta = price - prev_point[0]
+    price_coeff = price_delta / bin_size  # Portion of this interval in bin
+    bin_volume += prev_point[1] * price_coeff  # Each point in the bin contributes to this bin final value
+
+    # Store current bin as finished
+    bins.append([bin_start, bin_volume])
+
+    return bins
+
+#
+# Klnes processing
+#
 
 def klines_to_df(klines: list):
     """

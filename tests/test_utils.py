@@ -1,7 +1,7 @@
 import unittest
 
 from trade.signal_generation import *
-
+from trade.utils import *
 
 class UtilsTestCase(unittest.TestCase):
 
@@ -30,6 +30,38 @@ class UtilsTestCase(unittest.TestCase):
 		# Check values of signal columns
 		self.assertListEqual([1,1,0], list(df["buy"]))
 		self.assertListEqual([0,0,1], list(df["sell"]))
+
+	def test_depth_integration(self):
+		# List of (price, volume) points
+		depth = [
+			[1, 1],
+			[3, 1],
+			[4, 1],
+			[5, 1], # Bin border
+			[6, 1],
+			[7, 1],
+		]
+
+		bins = discretize(depth=depth, bin_size=4.0)
+
+		self.assertListEqual(bins[0], [1, 1])
+		self.assertListEqual(bins[1], [5, 1])
+
+		depth = [
+			[1, 1],
+			[3, 1],
+			[4, 20],  # Will be split between two bins
+			# [5, 1], # Bin border
+			[6, 1],
+			[7, 1],
+		]
+
+		bins = discretize(depth=depth, bin_size=4.0)
+
+		self.assertListEqual(bins[0], [1, 5.75])
+		self.assertListEqual(bins[1], [5, 5.75])
+
+		pass
 
 
 if __name__ == '__main__':
