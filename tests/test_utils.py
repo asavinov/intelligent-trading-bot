@@ -42,9 +42,11 @@ class UtilsTestCase(unittest.TestCase):
 			[7, 1],
 		]
 
-		bins = discretize(depth=depth, bin_size=4.0, start=None)
+		bins_ask = discretize_ask(depth=depth, bin_size=4.0, start=None)
+		bins_ask = discretize("ask", depth, bin_size=4.0, start=None)
 
-		self.assertListEqual(bins, [1, 1])
+		self.assertListEqual(bins_ask, [1, 1])
+		self.assertListEqual(bins_ask, [1, 1])
 
 		depth = [
 			[1, 1],
@@ -55,8 +57,10 @@ class UtilsTestCase(unittest.TestCase):
 			[7, 1],
 		]
 
-		bins = discretize(depth=depth, bin_size=4.0, start=None)
+		bins_ask = discretize_ask(depth=depth, bin_size=4.0, start=None)
+		bins = discretize("ask", depth=depth, bin_size=4.0, start=None)
 
+		self.assertListEqual(bins_ask, [5.75, 5.75])
 		self.assertListEqual(bins, [5.75, 5.75])
 
 		depth = [
@@ -68,8 +72,10 @@ class UtilsTestCase(unittest.TestCase):
 			[5, 2],
 		]
 
-		bins = discretize(depth=depth, bin_size=2.0, start=0.0)
+		bins_ask = discretize_ask(depth=depth, bin_size=2.0, start=0.0)
+		bins = discretize("ask", depth=depth, bin_size=2.0, start=0.0)
 
+		self.assertListEqual(bins_ask, [0.5, 1.0, 1.5])
 		self.assertListEqual(bins, [0.5, 1.0, 1.5])
 
 		pass

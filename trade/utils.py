@@ -153,17 +153,103 @@ def depth_accumulate(depth: list, start, end):
 
     return depth
 
-def discretize(depth: list, bin_size: float, start: float):
+def discretize(side: str, depth: list, bin_size: float, start: float):
+    """
+    Main problem: current point can contribute to this bin (till bin end) and next bin (from bin end till next point)
+    Iterate over bins. For each iteration, initial function value must be provided which works till first point or end
+      With each bin iteration, iterate over points (global pointer).
+      If point within this bin, the set current volume instead of initial, and compute contribution of the previous value
+      If point in next bin, then still use current volume for the next bin, compute contribution till end only. Do not iterate point (it is needed when starting next bin)
+        When we start next bin, compute contribution
+
+    :param side:
+    :param depth:
+    :param bin_size:
+    :param start:
+    :return:
+    """
+    if side in ["ask", "sell"]:
+        price_increase = True
+    elif side in ["bid", "buy"]:
+        price_increase = False
+    else:
+        print("Wrong use. Side is either bid or ask.")
+
+    # Start is either explict or first point
+    if start is None:
+        start = depth[0][0]  # First point
+
+    # End covers the last point
+    bin_count = int(abs(depth[-1][0] - start) // bin_size) + 1
+    all_bins_length = bin_count * bin_size
+    end = start + all_bins_length if price_increase else start - all_bins_length
+
+    bin_volumes = []
+    for b in range(bin_count):
+        bin_start = start + b*bin_size if price_increase else start - b*bin_size
+        bin_end = bin_start + bin_size if price_increase else bin_start - bin_size
+
+        # Find point ids within this bin
+        if price_increase:
+            bin_point_ids = [i for i, x in enumerate(depth) if bin_start <= x[0] < bin_end]
+        else:
+            bin_point_ids = [i for i, x in enumerate(depth) if bin_end < x[0] <= bin_start]
+
+        if bin_point_ids:
+            first_point_id = min(bin_point_ids)
+            last_point_id = max(bin_point_ids)
+            prev_point = depth[first_point_id-1] if first_point_id >= 1 else None
+        else:
+            first_point_id = None
+            last_point_id = None
+            prev_point = None  # It is wrong if this bin is empty and there are previous points
+
+        #
+        # Iterate over points in this bin by collecting their contribution using previous interval
+        #
+        prev_price = bin_start
+        prev_volume = prev_point[1] if prev_point else 0.0
+        bin_volume = 0.0
+        for point_id in range(first_point_id, last_point_id+1):
+            point = depth[point_id]
+
+            # Update current bin volume
+            price = point[0]
+            price_delta = abs(price - prev_price)
+            price_coeff = price_delta / bin_size  # Portion of this interval in bin
+            bin_volume += prev_volume * price_coeff  # Each point in the bin contributes to this bin final value
+
+            # Iterate
+            prev_price = point[0]
+            prev_volume = point[1]
+        #
+        # Last point contributes till the end of this bin
+        #
+        # Update current bin volume
+        price = bin_end
+        price_delta = abs(price - prev_price)
+        price_coeff = price_delta / bin_size  # Portion of this interval in bin
+        bin_volume += prev_volume * price_coeff  # Each point in the bin contributes to this bin final value
+
+        # Store current bin as finished
+        bin_volumes.append(bin_volume)
+
+    return bin_volumes
+
+def discretize_ask(depth: list, bin_size: float, start: float):
     """
     Find (volume) area between the specified interval (of prices) given the step function volume(price).
 
     The step-function is represented as list of points (price,volume) ordered by price.
     Volume is the function value for the next step (next price delta - not previous one). A point specifies volume till the next point.
 
-    One bin has coefficient 1 and then all sub-intervals within one bin are coeffocients to volume
+    One bin has coefficient 1 and then all sub-intervals within one bin are coefficients to volume
 
     Criterion: whole volume area computed for the input data and output data (for the same price interval) must be the same
 
+    side: "ask" (prices in depth list increase) or "bid" (prices in depth list decrease)
+
+    TODO: It works only for increasing prices (asks). It is necessary to make it work also for decreasing prices.
     TODO: it does not work if start is after first point (only if before or equal/none)
     """
     if start is None:
@@ -187,7 +273,7 @@ def discretize(depth: list, bin_size: float, start: float):
             price = point[0]
 
         # Update current bin volume
-        price_delta = price - prev_point[0]
+        price_delta = abs(price - prev_point[0])
         price_coeff = price_delta / bin_size  # Portion of this interval in bin
         bin_volume += prev_point[1] * price_coeff  # Each point in the bin contributes to this bin final value
 
@@ -203,7 +289,7 @@ def discretize(depth: list, bin_size: float, start: float):
             price = point[0]
 
             # Initialize bin volume with the rest of current point
-            price_delta = price - bin_start
+            price_delta = abs(price - bin_start)
             price_coeff = price_delta / bin_size  # Portion of this interval in bin
             bin_volume += prev_point[1] * price_coeff  # Each point in the bin contributes to this bin final value
 
@@ -216,7 +302,7 @@ def discretize(depth: list, bin_size: float, start: float):
     price = bin_end
 
     # Update current bin volume
-    price_delta = price - prev_point[0]
+    price_delta = abs(price - prev_point[0])
     price_coeff = price_delta / bin_size  # Portion of this interval in bin
     bin_volume += prev_point[1] * price_coeff  # Each point in the bin contributes to this bin final value
 
