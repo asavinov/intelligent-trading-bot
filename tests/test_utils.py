@@ -98,6 +98,18 @@ class UtilsTestCase(unittest.TestCase):
 
 		self.assertListEqual(bins, [0.5, 1.0, 1.5])
 
+		# Example 4 - empty bin
+		depth = [
+			# 0 Start (previous point volume assumed to be 0)
+			[1, 1],
+			# 2 Bin border
+			# Empty bin
+			# 4 Bin border
+			[5, 2],
+		]
+
+		bins = discretize("ask", depth=depth, bin_size=2.0, start=0.0)
+
 		pass
 
 if __name__ == '__main__':

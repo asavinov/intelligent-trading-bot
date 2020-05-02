@@ -5,6 +5,7 @@ from datetime import datetime, timezone, timedelta
 from typing import Union
 import json
 
+import numpy as np
 import pandas as pd
 
 from binance.helpers import date_to_milliseconds, interval_to_milliseconds
@@ -202,7 +203,6 @@ def discretize(side: str, depth: list, bin_size: float, start: float):
         else:
             first_point_id = None
             last_point_id = None
-            prev_point = None  # It is wrong if this bin is empty and there are previous points
 
         #
         # Iterate over points in this bin by collecting their contribution using previous interval
@@ -210,6 +210,20 @@ def discretize(side: str, depth: list, bin_size: float, start: float):
         prev_price = bin_start
         prev_volume = prev_point[1] if prev_point else 0.0
         bin_volume = 0.0
+
+        if first_point_id is None:  # Bin is empty
+            # Update current bin volume
+            price = bin_end
+            price_delta = abs(price - prev_price)
+            price_coeff = price_delta / bin_size  # Portion of this interval in bin
+            bin_volume += prev_volume * price_coeff  # Each point in the bin contributes to this bin final value
+
+            # Store current bin as finished
+            bin_volumes.append(bin_volume)
+
+            continue
+
+        # Bin is not empty
         for point_id in range(first_point_id, last_point_id+1):
             point = depth[point_id]
 
@@ -222,6 +236,7 @@ def discretize(side: str, depth: list, bin_size: float, start: float):
             # Iterate
             prev_price = point[0]
             prev_volume = point[1]
+            prev_point = point
         #
         # Last point contributes till the end of this bin
         #
@@ -311,6 +326,28 @@ def discretize_ask(depth: list, bin_size: float, start: float):
     bin_volumes.append(bin_volume)
 
     return bin_volumes
+
+def mean_volumes(depth: list, windows: list, bin_size: 1.0):
+    """
+    Density. Mean volume per price unit (bin) computed using the specified number of price bins.
+    First, we discreteize and then find average value for the first element (all if length is not specified).
+    Return a list of values each value being a mean volume for one aggregation window (number of bins)
+    """
+
+    bid_volumes = discretize(side="bid", depth=depth.get("bids"), bin_size=bin_size, start=None)
+    ask_volumes = discretize(side="ask", depth=depth.get("asks"), bin_size=bin_size, start=None)
+
+    ret = {}
+    for length in windows:
+        density = np.mean(bid_volumes[0:min(length, len(bid_volumes))])
+        feature_name = f"bids_{length}"
+        ret[feature_name] = density
+
+        density = np.mean(ask_volumes[0:min(length, len(ask_volumes))])
+        feature_name = f"asks_{length}"
+        ret[feature_name] = density
+
+    return ret
 
 #
 # Klnes processing
