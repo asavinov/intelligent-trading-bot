@@ -11,6 +11,7 @@ from tqdm import tqdm_notebook #(Optional, used for progress-bars)
 import numpy as np
 
 from trade.utils import *
+from trade.feature_generation import *
 
 """
 Given a file with depth data, produce a time-series file with feature extracted from the depth data
@@ -83,15 +84,22 @@ asks - sell (higher prices), --> prices grow
 "asks": [["7186.47000000", "0.11475300"], ["7186.49000000", "0.04812900"], ["7186.52000000", "2.00000000"],
 [7186.47000000, 7198.31000000] = 11,84 price span
 
-Meaningful values of price bins: 0.5 (wo we will get >20 bins) or 1 USDT
-Meaningful values of price bin numbers for averaging: 1, 2, 5, 10
+Meaningful bin_size: 1 USDT or 2 USDT
+Meaningful windows: for 1 size: 1, 2, 5, 10, for 2 size: 1, 2, 5
+
+Bid spans: min=3.68, max=339.85, mean=18.37
+Ask spans: min=2.19, max=378.55, mean=17.23
+Bid lens: min=100.00, max=100.00, mean=100.00
+Ask lens: min=100.00, max=100.00, mean=100.00
+Bid vols: min=8.46, max=1141.25, mean=68.83
+Ask vols: min=5.92, max=915.25, mean=66.85
 
 """
 
 symbol = "BTCUSDT"  # BTCUSDT ETHBTC IOTAUSDT
-in_path_name = r"C:\DATA2\BITCOIN\COLLECTED\DEPTH"
-bin_size = 1.0  # In USDT
-windows = [1, 2, 5, 10, 20]  # No of price bins for aggregate/smoothing
+
+in_path_name = r"C:\DATA2\BITCOIN\COLLECTED\DEPTH\batch5"
+#in_path_name = r"C:\DATA2\BITCOIN\COLLECTED\DEPTH\_test_"
 
 #
 # Historic data
@@ -106,102 +114,93 @@ def get_symbol_files(symbol):
     paths = Path(in_path_name).rglob(file_pattern)
     return list(paths)
 
-#
-# Feature definitions
-#
+def find_depth_statistics():
+    """Utility to research the depth data by computing: price span (min, max, mean)"""
 
-def mean_volumes(depth: list, windows: list):
-    """
-    Density. Mean volume per price unit (bin) computed using the specified number of price bins.
-    First, we discreteize and then find average value for the first element (all if length is not specified).
-    Return a list of values each value being a mean volume for one aggregation window (number of bins)
-    """
+    paths = get_symbol_files(symbol)
+    bad_lines = 0
+    bid_spans = []
+    ask_spans = []
+    bid_lens = []
+    ask_lens = []
+    bid_vols = []
+    ask_vols = []
+    for path in paths:
 
-    bid_volumes = discretize(side="bid", depth=depth.get("bids"), bin_size=bin_size, start=None)
-    ask_volumes = discretize(side="ask", depth=depth.get("asks"), bin_size=bin_size, start=None)
+        with open(path, 'r') as f:
+            for line in f:
+                try:
+                    entry = json.loads(line)
+                except:
+                    bad_lines += 1
+                    continue
+                # File can contain error lines which we skip
+                if not entry.get("bids") or not entry.get("asks"):
+                    bad_lines += 1
+                    continue
+                # Replace all price-volume strings by floats
+                bids = [float(x[0]) for x in entry.get("bids")]
+                asks = [float(x[0]) for x in entry.get("asks")]
+                bid_spans.append(np.max(bids) - np.min(bids))
+                ask_spans.append(np.max(asks) - np.min(asks))
+                bid_lens.append(len(bids))
+                ask_lens.append(len(asks))
+                bid_vols.append(np.sum([float(x[1]) for x in entry.get("bids")]))
+                ask_vols.append(np.sum([float(x[1]) for x in entry.get("asks")]))
 
-    ret = {}
-    for length in windows:
-        density = np.mean(bid_volumes[0:min(length, len(bid_volumes))])
-        feature_name = f"bids_{length}"
-        ret[feature_name] = density
-
-        density = np.mean(ask_volumes[0:min(length, len(ask_volumes))])
-        feature_name = f"asks_{length}"
-        ret[feature_name] = density
-
-    return ret
-
-#
-# Data processing
-#
-
-def depth_to_df(depth: list):
-    """
-    Process input list of depth records and return a data frame with computed features.
-    The list is supposed to loaded from a file so records are ordered but gaps are not excluded.
-
-    NOTE:
-    - Important: "timestamp" is real time of the depth data which corresponds to "close_time" in klines
-      "timestamp" in klines is 1m before current time
-      It has to be taken into account when matching/joining records, e.g., by shifting columns (if we match "timestamp" then the reslt will be wrong)
-
-    # TODO Questions:
-    # !!! - what is zone for our timestamps - ensure that it is the same as Binance server
-    # - is it possible to create a data frame with a column containing json object or string?
-    # - how to match json/string values with data frame index?
-    """
-
-    #
-    # Find start and end dates
-    #
-    # NOTE: timestamp is request time (in our implementation) and hence it is end of 1m interval while kline id is start of 1m inteval
-    #  It is important for matching, so maybe align this difference here by shifting data
-    start_line = depth[0]
-    end_line = depth[-1]
-    start_ts = start_line.get("timestamp")
-    end_ts = end_line.get("timestamp")
-
-    #
-    # Create index for this interval of timestamps
-    #
-    # NOTE: Add utc=True to get tz-aware object (with tz="UTC" instead of tz-unaware object with tz=None), so it seems that no tz means UTC
-    start = pd.to_datetime(start_ts, unit='ms')
-    end = pd.to_datetime(end_ts, unit='ms')
-
-    # Alternatively:
-    # If tz is not specified then 1 hour difference will be added so it seems that no tz means locale tz
-    #datetime.fromtimestamp(float(start_ts) / 1e3, tz=pytz.UTC)
-
-    # Create DatetimeIndex
-    # NOTE: if tz is not specified then the index is tz-naive
-    #   closed can be specified (which side to include/exclude: left, right or both). it influences if we want ot include/exclude start or end of the interval
-    index = pd.date_range(start, end, freq="T")
-
-    #
-    # For each depth record from the list, compute features from its depth data
-    #
-    for entry in depth:
-        ts = entry.get("timestamp")
-        bids = entry.get("bids")
-        asks = entry.get("asks")
-
-        gap = asks[0][0] - bids[0][0]
-
-        if gap < 0: gap = 0
-        price = bids[0][0] + (gap/2)
-
-        # Asks densities for bids and asks for all windows
-        densities = mean_volumes(depth=entry, windows=windows)
-
-    pass
+    print(f"Bid spans: min={np.min(bid_spans):.2f}, max={np.max(bid_spans):.2f}, mean={np.mean(bid_spans):.2f}")
+    print(f"Ask spans: min={np.min(ask_spans):.2f}, max={np.max(ask_spans):.2f}, mean={np.mean(ask_spans):.2f}")
+    print(f"Bid lens: min={np.min(bid_lens):.2f}, max={np.max(bid_lens):.2f}, mean={np.mean(bid_lens):.2f}")
+    print(f"Ask lens: min={np.min(ask_lens):.2f}, max={np.max(ask_lens):.2f}, mean={np.mean(ask_lens):.2f}")
+    print(f"Bid vols: min={np.min(bid_vols):.2f}, max={np.max(bid_vols):.2f}, mean={np.mean(bid_vols):.2f}")
+    print(f"Ask vols: min={np.min(ask_vols):.2f}, max={np.max(ask_vols):.2f}, mean={np.mean(ask_vols):.2f}")
+    print(f"Bad lines: {bad_lines}")
 
 def main(args=None):
 
     start_dt = datetime.now()
     print(f"Start processing...")
 
-    pass  # Do processing
+    paths = get_symbol_files(symbol)
+    for path in paths:
+
+        # Load file as a list of dict records
+        bad_lines = 0
+        table = []
+        with open(path, 'r') as f:
+            for line in f:
+                try:
+                    entry = json.loads(line)
+                except:
+                    bad_lines += 1
+                    continue
+                # File can contain error lines which we skip
+                if not entry.get("bids") or not entry.get("asks"):
+                    bad_lines += 1
+                    continue
+                # If it is not 1m data then skip
+                timestamp = entry.get("timestamp")
+                if timestamp % 60_000 != 0:
+                    continue
+                # Replace all price-volume strings by floats
+                bids = [[float(x[0]), float(x[1])] for x in entry.get("bids")]
+                asks = [[float(x[0]), float(x[1])] for x in entry.get("asks")]
+                entry["bids"] = bids
+                entry["asks"] = asks
+                table.append(entry)
+
+        # Transform json table to data frame with features
+        df = depth_to_df(table)
+        df = df.reset_index().rename(columns={'index': 'timestamp'})
+
+        # Store file with features
+        df.to_csv(path.with_suffix('.csv').name, index=False, float_format="%.4f")
+
+        print(f"Finished processing file: {path}")
+
+        print(f"Bad lines: {bad_lines}")
+
+        pass
 
     elapsed = datetime.now() - start_dt
     print(f"Finished processing in {int(elapsed.total_seconds())} seconds.")
@@ -209,11 +208,10 @@ def main(args=None):
 
 if __name__ == '__main__':
 
-    start = pd.to_datetime(1576324740000, unit='ms')
+    #start = pd.to_datetime(1576324740000, unit='ms')
+    #datetime.fromtimestamp(float(1576324740000) / 1e3, tz=pytz.UTC)
 
-    datetime.fromtimestamp(float(1576324740000) / 1e3, tz=pytz.UTC)
-
-    paths = get_symbol_files(symbol)
+    #find_depth_statistics()
 
     main()
 
