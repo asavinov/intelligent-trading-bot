@@ -28,6 +28,7 @@ for key, value in params.items():
 if script_name == "download_data":
     # download data
     # NOTE: Must be started from Anaconda console since some special (encription, certificate) libs are not otherwise found
+    # NOTE: Uncomment 3 lines to retrieve futures
     import scripts.download_data
     exitcode = scripts.download_data.main(sys.argv[1:])
 

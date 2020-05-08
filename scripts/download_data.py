@@ -49,14 +49,14 @@ def get_klines_all(symbol, freq, save=False):
     Client.get_historical_klines
     """
     # ---
-    # Uncomment this to get futures:
+    # Uncomment 3 lines to get futures:
     # ---
     #client.API_URL = "https://fapi.binance.com/fapi"
     #client.PRIVATE_API_VERSION = "v1"
     #client.PUBLIC_API_VERSION = "v1"
     # ---
 
-    filename = f"{symbol}-{freq}-data.csv"
+    filename = f"{symbol}-{freq}-klines.csv"
 
     if os.path.isfile(filename):
         data_df = pd.read_csv(filename)

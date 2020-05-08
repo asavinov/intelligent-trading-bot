@@ -14,7 +14,8 @@ from trade.utils import *
 from trade.feature_generation import *
 
 """
-Given a file with depth data, produce a time-series file with feature extracted from the depth data
+Produce features from market depth (json) data for a set of files by writing the result in several output (csv) files.
+Given a file with depth data, produce a time-series file with features extracted from the depth data.
 Input depth data:
 - [json] One line is a json object with timestamp and two time-series "bids" and "asks"
 - [gaps] It is not necessarily a regular time series and may have gaps (for whatever reason)
@@ -31,6 +32,20 @@ Features:
 - [ask_slope, bid_slope] - angle of the line computed either via regression or using min and max 
 - do we need and is it meaningful to process price and volume information separately or together?
 
+Parameters defined in feature_generation::depth_to_df():
+- bin_size=1.0
+- windows=[1, 2, 5, 10, 20]
+Output columns:
+-timestamp, end of latest 1m interval (time of request)
+-gap, - difference between ask and bid
+-price, - middle price between ask and bid
+-bids_1,asks_1, - abs volume in BTC per X price bins (defined by bin_size)
+-bids_2,asks_2,
+-bids_5,asks_5,
+-bids_10,asks_10,
+-bids_20,asks_20
+
+
 Tasks:
 - specify input parameters: symbol(s), file(s), frequency (currently fixed), whether combine or separately, delete gaps
 - process individual files:
@@ -42,31 +57,22 @@ Tasks:
   - assign data from individual files to this common data frame using time index for matching
 - store one output or individual files
 
-Features:
-Once we defined a box with absolute values, we can plot data (data might be more than the box or not enough for the box).
-We can compute the following characteristics:
-
+Possible features:
 - gap
-
 - bid/ask_density_xx bid/ask_volume_xx
   mean volume per price unit/bin
   param: number of price bins
-
 - bid/ask_density_std_xx
   standard deviation of volume
-
 - price_span_0, bid_span_20, ask_span_20: 
-price span for this fixed number of items (say, 10, 20, 50). It is easy: price N-th element minus price 0-th element)
-0 means gap. Note that the number if fixed price units
-
+  price span for this fixed number of items (say, 10, 20, 50). It is easy: price N-th element minus price 0-th element)
+  0 means gap. Note that the number if fixed price units
 - bid_slope_20: either regression or between min and max. Note that in order to compare the slope for different timestamps or averaging,
   we need to have the same box or otherwise comparable values, that is,
   the units of slope have to be the same, say, Volume increase per Price unit (average for the whole price interval).
-
 - bid_slope_std_20 deviation from linear growth
   It is deviation from linear line. We can measure linear rate (average growth per price unit).
   And then find average deviation from this average value. It will reflect the deviation from linear growth.
-
 - bid_area_20 which characterizes second derivative. Note that the areas for different timestamps have to be measured in the same units.
   For example, sum of volumes for fixed price interval. Yet, it will be essentially growth rate.
   What we really want to measure is second derivative when it first grows quickly and the slowly.
@@ -83,10 +89,10 @@ bids - buy (lower prices), --> prices drop
 asks - sell (higher prices), --> prices grow
 "asks": [["7186.47000000", "0.11475300"], ["7186.49000000", "0.04812900"], ["7186.52000000", "2.00000000"],
 [7186.47000000, 7198.31000000] = 11,84 price span
+"""
 
-Meaningful bin_size: 1 USDT or 2 USDT
-Meaningful windows: for 1 size: 1, 2, 5, 10, for 2 size: 1, 2, 5
-
+"""
+Statistics retrieved using find_depth_statistics():
 Bid spans: min=3.68, max=339.85, mean=18.37
 Ask spans: min=2.19, max=378.55, mean=17.23
 Bid lens: min=100.00, max=100.00, mean=100.00
@@ -94,6 +100,8 @@ Ask lens: min=100.00, max=100.00, mean=100.00
 Bid vols: min=8.46, max=1141.25, mean=68.83
 Ask vols: min=5.92, max=915.25, mean=66.85
 
+Meaningful bin_size: 1 USDT or 2 USDT
+Meaningful windows: for 1 size: 1, 2, 5, 10, for 2 size: 1, 2, 5
 """
 
 symbol = "BTCUSDT"  # BTCUSDT ETHBTC IOTAUSDT
@@ -190,8 +198,13 @@ def main(args=None):
                 table.append(entry)
 
         # Transform json table to data frame with features
+        # ---
         df = depth_to_df(table)
-        df = df.reset_index().rename(columns={'index': 'timestamp'})
+        # ---
+        df = df.reset_index().rename(columns={"index": "timestamp"})
+
+        # Make timestamp conform to klines: it has to be start of 1m interval (and not end as it is in collected depth data)
+        df["timestamp"] = df["timestamp"].shift(periods=1)  # Move forward (down) - use previous timestamp
 
         # Store file with features
         df.to_csv(path.with_suffix('.csv').name, index=False, float_format="%.4f")
