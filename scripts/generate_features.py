@@ -20,15 +20,15 @@ This file can be then used to train models and tune hyper-parameters.
 # Parameters
 #
 class P:
-    in_path_name = r"C:\DATA2\BITCOIN\KLINES"
-    in_file_name = r"BTCUSDT-1m-data.csv"
+    source_type = "merged"  # klines (our main approach), futur (only futur), depth (only depth), merged
+
+    in_path_name = r"C:\DATA2\BITCOIN\GENERATED"
+    in_file_name = r"depth-BTCUSDT-merged.csv"
     in_nrows = 100_000_000
 
     out_path_name = r"_TEMP_FEATURES"
-    out_file_name = r"_BTCUSDT-1m-features-with-weights"
+    out_file_name = r"_BTCUSDT-1m-features-merged"
 
-    features_horizon = 300  # Maximum past history used by features
-    labels_horizon = 60  # Maximum future horizon used by labels
 
 def main(args=None):
     in_df = None
@@ -46,7 +46,16 @@ def main(args=None):
     # Generate features (from past data)
     #
     print(f"Generating features...")
-    features = generate_features(in_df)
+    if P.source_type == "klines":
+        features = generate_features(in_df)
+    elif P.source_type == "futur":
+        features = generate_features_futur(in_df)
+    elif P.source_type == "depth":
+        features = generate_features_depth(in_df)
+    elif P.source_type == "merged":
+        features_depth = generate_features_depth(in_df)
+        features_futur = generate_features_futur(in_df)
+        features = features_depth + features_futur
 
     #
     # Generate labels (from future data)
