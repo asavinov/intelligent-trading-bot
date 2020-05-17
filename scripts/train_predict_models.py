@@ -41,8 +41,9 @@ class P:
     source_type = "futur"  # Selector: klines (our main approach), futur (only futur), depth (only depth), merged
 
     in_path_name = r"C:\DATA2\BITCOIN\GENERATED"  # File with all necessary derived features
-    in_file_name = r"_BTCUSDT-1m-features-merged.csv"
+    in_file_name = r"BTCUSDT-1m-features.csv"
     in_nrows = 10_000_000  # <-- PARAMETER
+    in_nrows_tail = None  # How many last rows to select (for testing)
 
     out_path_name = r"_TEMP_MODELS"
     out_file_name = r""
@@ -58,19 +59,19 @@ class P:
         'low_60_10', 'low_60_15', 'low_60_20', 'low_60_25',  # At least one time below
     ]
 
-    in_features_klines = [
+    in_features_kline = [
         "timestamp",
         "open","high","low","close","volume",
         "close_time",
         "quote_av","trades","tb_base_av","tb_quote_av","ignore"
     ]
 
-    features_klines_small = [
+    features_kline_small = [
         'close_1','close_2','close_5','close_20','close_60','close_180',
         'close_std_1','close_std_2','close_std_5','close_std_20','close_std_60','close_std_180',
         'volume_1','volume_2','volume_5','volume_20','volume_60','volume_180',
     ]
-    features_klines = [
+    features_kline = [
         'close_1','close_2','close_5','close_20','close_60','close_180',
         'close_std_1','close_std_2','close_std_5','close_std_20','close_std_60','close_std_180',
         'volume_1','volume_2','volume_5','volume_20','volume_60','volume_180',
@@ -101,7 +102,7 @@ class P:
     # Selector: here we choose what input features to use, what algorithm to use and what histories etc.
     #
     if source_type == "klines":
-        features_gb = features_klines
+        features_gb = features_kline
         label_histories = {"12": 525_600}  # Example: {"12": 525_600, "06": 262_800, "03": 131_400}
     elif source_type == "futur":
         features_gb = features_futur
@@ -141,6 +142,9 @@ def main(args=None):
         in_df = pd.read_parquet(in_path)
     else:
         print(f"ERROR: Unknown input file extension. Only csv and parquet are supported.")
+
+    if P.in_nrows_tail:
+        in_df = in_df.tail(P.in_nrows_tail)
 
     #
     # Algorithm parameters

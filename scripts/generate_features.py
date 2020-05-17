@@ -23,7 +23,7 @@ It will generate all labels as defined in the procedure (so that only the necess
 # Parameters
 #
 class P:
-    dervied_features = ["kline", "futur"]  # These dervied features will be generated
+    dervied_features = ["kline", "futur"]  # These derived features will be generated
 
     in_path_name = r"C:\DATA2\BITCOIN\GENERATED"
     in_file_name = r"BTCUSDT-1m.csv"
