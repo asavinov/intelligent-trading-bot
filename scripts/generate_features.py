@@ -14,20 +14,23 @@ from trade.label_generation import *
 """
 Compute derived features from source data and store then in an output file.
 This file can be then used to train models and tune hyper-parameters.
+It will generate *all* features as defined in the corresponding procedures (so that we should select only the necessary ones for prediction).
+It will generate all labels as defined in the procedure (so that only the necessary labels should be chosen later for prediction).
+!!! Make sure that *last* dates are the same - otherwise some last data will be empty which is worse for training
 """
 
 #
 # Parameters
 #
 class P:
-    source_type = "futur"  # Selector: klines (our main approach), futur (only futur), depth (only depth), merged
+    dervied_features = ["kline", "futur"]  # These dervied features will be generated
 
     in_path_name = r"C:\DATA2\BITCOIN\GENERATED"
-    in_file_name = r"depth-BTCUSDT-merged.csv"
+    in_file_name = r"BTCUSDT-1m.csv"
     in_nrows = 100_000_000
 
     out_path_name = r"_TEMP_FEATURES"
-    out_file_name = r"_BTCUSDT-1m-features-merged"
+    out_file_name = r"BTCUSDT-1m-features"
 
 
 def main(args=None):
@@ -42,31 +45,47 @@ def main(args=None):
     in_path = Path(P.in_path_name).joinpath(P.in_file_name)
     in_df = pd.read_csv(in_path, parse_dates=['timestamp'], nrows=P.in_nrows)
 
-    #
-    # Generate features (from past data)
-    #
-    print(f"Generating features...")
-    if P.source_type == "klines":
-        features = generate_features(in_df)
-    elif P.source_type == "futur":
-        features = generate_features_futur(in_df)
-    elif P.source_type == "depth":
-        features = generate_features_depth(in_df)
-    elif P.source_type == "merged":
-        features_depth = generate_features_depth(in_df)
-        features_futur = generate_features_futur(in_df)
-        features = features_depth + features_futur
+    print(f"Finished loading {len(in_df)} records with {len(in_df.columns)} columns.")
+
+    # For testing only
+    #in_df = in_df.tail(1_000)
 
     #
-    # Generate labels (from future data)
+    # Generate derived features
+    #
+    print(f"Generating features...")
+
+    if "kline" in P.dervied_features:
+        k_features = generate_features(in_df)
+    else:
+        k_features = []
+    print(f"Finished generating {len(k_features)} kline features")
+
+    if "futur" in P.dervied_features:
+        f_features = generate_features_futur(in_df)
+    else:
+        f_features = []
+    print(f"Finished generating {len(f_features)} futur features")
+
+    if "depth" in P.dervied_features:
+        d_features = generate_features_depth(in_df)
+    else:
+        d_features = []
+    print(f"Finished generating {len(f_features)} depth features")
+
+    #
+    # Generate labels (always the same, currently based on kline data which must be therefore present)
     #
     print(f"Generating labels...")
+
     labels = generate_labels_thresholds(in_df, horizon=60)
+
+    print(f"Finished generating {len(labels)} labels")
 
     #
     # Store feature matrix in output file
     #
-    print(f"Storing feature matrix in output file...")
+    print(f"Storing feature matrix with {len(in_df)} records and {len(in_df.columns)} columns in output file...")
 
     out_path = Path(P.out_path_name)
     out_path.mkdir(parents=True, exist_ok=True)  # Ensure that folder exists

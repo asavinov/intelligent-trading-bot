@@ -74,6 +74,7 @@ class P:
         'close_1','close_2','close_5','close_20','close_60','close_180',
         'close_std_1','close_std_2','close_std_5','close_std_20','close_std_60','close_std_180',
         'volume_1','volume_2','volume_5','volume_20','volume_60','volume_180',
+        'span_1', 'span_2', 'span_5', 'span_20', 'span_60', 'span_180',
         'trades_1','trades_2','trades_5','trades_20','trades_60','trades_180',
         'tb_base_1','tb_base_2','tb_base_5','tb_base_20','tb_base_60','tb_base_180',
         'tb_quote_1','tb_quote_2','tb_quote_5','tb_quote_20','tb_quote_60','tb_quote_180',
