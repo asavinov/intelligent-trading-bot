@@ -26,57 +26,60 @@ This file is intended for training signal models (by simulating trade process an
 The output predicted labels will cover shorter period of time because we need some relatively long history to train the very first model.
 """
 
-# TODO: Grid search for best hyper-parameters. Either here as a function, or as a driver script calling rolling predictions.
-#   We need to write a driver which will execute rolling predictions for a grid of parameters by storing the resulting performance
-grid_predictions = [
-    {
-        'max_depth': [1, 2, 3, 4, 5], 'learning_rate': [0.01, 0.05, 0.1], 'num_boost_round': [500],
-        'n_neighbors': [5, 10, 20], 'weights': ['uniform', 'distance'],
-    },
-    # Debug
-    #{
-    #    'max_depth': [3], 'learning_rate': [0.05], 'num_boost_round': [500],
-    #    'n_neighbors': [1000, 2000], 'weights': ['uniform', 'distance'],
-    #},
-]
-
-
 #
 # Parameters
 #
 class P:
-    in_path_name = r"_TEMP_FEATURES"
-    in_file_name = r"_BTCUSDT-1m-features-with-weights.csv"
-
-    out_path_name = r"_TEMP_FEATURES"
-    out_file_name = r"_BTCUSDT-1m-rolling-predictions-all"
-
-    features_horizon = 300  # Features are generated using this past window length
-    labels_horizon = 60  # Labels are generated using this number of steps ahead
-
-    label_histories = {"18": 788_400, "12": 525_600, "06": 262_800, "04": 175_200, "03": 131_400, "02": 87_600}
-    #label_histories = {"18": 788_400, "12": 525_600, "06": 262_800}
-    #label_histories = {"04": 175_200, "03": 131_400, "02": 87_600}
-    #label_histories = {"12": 525_600}
+    source_type = "klines"  # Selector: klines (our main approach), futur (only futur), depth (only depth), merged
 
     labels = [  # Target columns with true values which will be predicted
-        'high_60_10', 'high_60_15', 'high_60_20', 'high_60_25',
-        'high_60_01', 'high_60_02', 'high_60_03', 'high_60_04',
-        'low_60_01', 'low_60_02', 'low_60_03', 'low_60_04',
-        'low_60_10', 'low_60_15', 'low_60_20', 'low_60_25',
+        'high_60_10', 'high_60_15', 'high_60_20',
+        'low_60_10', 'low_60_15', 'low_60_20',
     ]
-    #labels = ['high_60_15']  # Target columns with true values
+    class_labels_all = [  # All existing target labels generated from feature generation procedure
+        'high_60_10', 'high_60_15', 'high_60_20', 'high_60_25',  # At least one time above
+        'high_60_01', 'high_60_02', 'high_60_03', 'high_60_04',  # Always below
+        'low_60_01', 'low_60_02', 'low_60_03', 'low_60_04',  # Always above
+        'low_60_10', 'low_60_15', 'low_60_20', 'low_60_25',  # At least one time below
+        ]
 
-    # Offsets
-    # 2017-08-18 00:00:00 = 1200
-    # 2017-08-21 00:00:00 = 5520
-    # 2017-10-02 00:00:00 = 65580
-    # 2017-12-04 06:00:20.799 = 156663 - start of anomaly with 0.0 in maker/taker and time alignment
-    # 2017-12-04 06:47:20.799 = 156710 - end of anomaly (last record) with zeros
-    # 2017-12-18 10:00:20.799 = 177063 - end of anomaly (last record) with time alignment
-    # 2018-01-01 00:00:00 = 196_546
-    # 2019-01-01 00:00:00 = 718_170
-    # 2019-05-01 00:00:00 = 890_610
+    in_features_klines = [
+        "timestamp",
+        "open","high","low","close","volume",
+        "close_time",
+        "quote_av","trades","tb_base_av","tb_quote_av","ignore"
+    ]
+
+    features_klines_small = [
+        'close_1','close_2','close_5','close_20','close_60','close_180',
+        'close_std_1','close_std_2','close_std_5','close_std_20','close_std_60','close_std_180',
+        'volume_1','volume_2','volume_5','volume_20','volume_60','volume_180',
+        ]
+    features_klines = [
+        'close_1','close_2','close_5','close_20','close_60','close_180',
+        'close_std_1','close_std_2','close_std_5','close_std_20','close_std_60','close_std_180',
+        'volume_1','volume_2','volume_5','volume_20','volume_60','volume_180',
+        'trades_1','trades_2','trades_5','trades_20','trades_60','trades_180',
+        'tb_base_1','tb_base_2','tb_base_5','tb_base_20','tb_base_60','tb_base_180',
+        'tb_quote_1','tb_quote_2','tb_quote_5','tb_quote_20','tb_quote_60','tb_quote_180',
+        ]
+
+    features_futur = [
+        "f_close_1", "f_close_2", "f_close_5", "f_close_10", "f_close_30", "f_close_60",
+        "f_close_std_1", "f_close_std_2", "f_close_std_5", "f_close_std_10", "f_close_std_30", "f_close_std_60",
+        "f_volume_1", "f_volume_2", "f_volume_5", "f_volume_10", "f_volume_30", "f_volume_60",
+        "f_span_1", "f_span_2", "f_span_5", "f_span_10", "f_span_30", "f_span_60",
+        "f_trades_1", "f_trades_2", "f_trades_5", "f_trades_10", "f_trades_30", "f_trades_60",
+    ]
+
+    features_depth = [
+        "gap_2","gap_5","gap_10",
+        "bids_1_2","bids_1_5","bids_1_10", "asks_1_2","asks_1_5","asks_1_10",
+        "bids_2_2","bids_2_5","bids_2_10", "asks_2_2","asks_2_5","asks_2_10",
+        "bids_5_2","bids_5_5","bids_5_10", "asks_5_2","asks_5_5","asks_5_10",
+        "bids_10_2","bids_10_5","bids_10_10", "asks_10_2","asks_10_5","asks_10_10",
+        "bids_20_2","bids_20_5","bids_20_10", "asks_20_2","asks_20_5","asks_20_10",
+    ]
 
     # ---
     # Debug:
@@ -92,35 +95,39 @@ class P:
     prediction_length = 1_440  # 1 day: 1_440 = 60 * 24, one week: 10_080
     prediction_count = None  # How many prediction steps. If None or 0, then from prediction start till the data end
 
-    class_labels_all = [  # All existing target labels generated from feature generation procedure
-        'high_60_10', 'high_60_15', 'high_60_20', 'high_60_25',  # At least one time above
-        'high_60_01', 'high_60_02', 'high_60_03', 'high_60_04',  # Always below
-        'low_60_01', 'low_60_02', 'low_60_03', 'low_60_04',  # Always above
-        'low_60_10', 'low_60_15', 'low_60_20', 'low_60_25',  # At least one time below
-        ]
+    in_path_name = r"C:\DATA2\BITCOIN\GENERATED"
+    out_path_name = r"_TEMP_FEATURES"
 
-    in_features = [
-        "timestamp",
-        "open","high","low","close","volume",
-        "close_time",
-        "quote_av","trades","tb_base_av","tb_quote_av","ignore"
-    ]
+    #
+    # Selector: here we choose what input features to use, what algorithm to use and what histories etc.
+    #
+    #label_histories = {"18": 788_400, "12": 525_600, "06": 262_800, "04": 175_200, "03": 131_400, "02": 87_600}
+    #label_histories = {"18": 788_400, "12": 525_600, "06": 262_800}
+    #label_histories = {"04": 175_200, "03": 131_400, "02": 87_600}
+    #label_histories = {"12": 525_600}
+    if source_type == "klines":
+        in_file_name = r"_BTCUSDT-1m-features-with-weights.csv"  # klines (long)
+        out_file_name = r"_BTCUSDT-1m-rolling-predictions-klines"
+        features_gb = features_klines
+        label_histories = {"12": 525_600}  # Example: {"12": 525_600, "06": 262_800, "03": 131_400}
+        prediction_start_str = "2020-02-01 00:00:00"
+    elif source_type == "futur":
+        in_file_name = r"_BTCUSDT-1m-features-merged.csv"  # futur and depth (short)
+        out_file_name = r"_BTCUSDT-1m-rolling-predictions-futur"
+        features_gb = features_futur
+        label_histories = {"03": 131_400}  # Example: {"12": 525_600, "06": 262_800, "04": 175_200, "03": 131_400, "02": 87_600}
+        prediction_start_str = "2020-02-01 00:00:00"
+    elif source_type == "depth":
+        features_gb = features_depth
+        label_histories = {"03": 131_400}  # Example: {"12": 525_600, "06": 262_800, "03": 131_400}
+    elif source_type == "merged":
+        print(f"NOT IMPLEMENTED")
+        exit()
 
-    features_0 = [
-        'close_1','close_2','close_5','close_20','close_60','close_180',
-        'close_std_1','close_std_2','close_std_5','close_std_20','close_std_60','close_std_180',
-        'volume_1','volume_2','volume_5','volume_20','volume_60','volume_180',
-        ]
-    features_1 = [
-        'close_1','close_2','close_5','close_20','close_60','close_180',
-        'close_std_1','close_std_2','close_std_5','close_std_20','close_std_60','close_std_180',
-        'volume_1','volume_2','volume_5','volume_20','volume_60','volume_180',
-        'trades_1','trades_2','trades_5','trades_20','trades_60','trades_180',
-        'tb_base_1','tb_base_2','tb_base_5','tb_base_20','tb_base_60','tb_base_180',
-        'tb_quote_1','tb_quote_2','tb_quote_5','tb_quote_20','tb_quote_60','tb_quote_180',
-        ]
+    features_horizon = 300  # Features are generated using this past window length
+    labels_horizon = 60  # Labels are generated using this number of steps ahead
 
-    features_gb = features_1
+
 
 def main(args=None):
     pd.set_option('use_inf_as_na', True)
@@ -232,7 +239,7 @@ def main(args=None):
     #
 
     # Append all features including true labels to the predicted labels
-    out_columns = P.in_features + P.class_labels_all
+    out_columns = P.in_features_klines + P.labels
     out_df = labels_hat_df.join(in_df[out_columns])
 
     #

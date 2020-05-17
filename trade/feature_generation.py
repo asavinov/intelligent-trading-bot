@@ -83,17 +83,10 @@ def generate_features(df, use_differences=False):
 def generate_features_futur(df, use_differences=False):
     """
     Generate derived features for futures.
-
-    Features (20):
-    f_close_2,f_close_5,f_close_10,f_close_20,
-    f_close_std_2,f_close_std_5,f_close_std_10,f_close_std_20,
-    f_volume_2,f_volume_5,f_volume_10,f_volume_20,
-    f_span_2,f_span_5,f_span_10,f_span_20,
-    f_trades_2,f_trades_5,f_trades_10,f_trades_20,
     """
     # Parameters of moving averages
-    windows = [2, 5, 10, 20]
-    base_window = 60
+    windows = [1, 2, 5, 10, 30, 60]
+    base_window = 120
 
     features = []
     to_drop = []
@@ -107,43 +100,43 @@ def generate_features_futur(df, use_differences=False):
     weight_column_name = 'f_volume'  # None: no weighting; 'volume': volume average
     to_drop += add_past_weighted_aggregations(df, 'f_close', weight_column_name, np.mean, base_window, suffix='')  # Base column
     features += add_past_weighted_aggregations(df, 'f_close', weight_column_name, np.mean, windows, '', to_drop[-1], 100.0)
-    # ['f_close_2', 'f_close_5', 'f_close_10', 'f_close_20']
+    # ['f_close_1', f_close_2', 'f_close_5', 'f_close_10', 'f_close_20']
 
     # close std
     to_drop += add_past_aggregations(df, 'f_close', np.std, base_window)  # Base column
     features += add_past_aggregations(df, 'f_close', np.std, windows, '_std', to_drop[-1], 100.0)
-    # ['f_close_std_2', 'f_close_std_5', 'f_close_std_10', 'f_close_std_20']
+    # ['f_close_std_1', f_close_std_2', 'f_close_std_5', 'f_close_std_10', 'f_close_std_20']
 
     # volume mean
     to_drop += add_past_aggregations(df, 'f_volume', np.mean, base_window, suffix='')  # Base column
     features += add_past_aggregations(df, 'f_volume', np.mean, windows, '', to_drop[-1], 100.0)
-    # ['f_volume_2', 'f_volume_5', 'f_volume_10', 'f_volume_20']
+    # ['f_volume_1', 'f_volume_2', 'f_volume_5', 'f_volume_10', 'f_volume_20']
 
     # Span: high-low difference
     df['f_span'] = df['f_high'] - df['f_low']
     to_drop.append('f_span')
     to_drop += add_past_aggregations(df, 'f_span', np.mean, base_window, suffix='')  # Base column
     features += add_past_aggregations(df, 'f_span', np.mean, windows, '', to_drop[-1], 100.0)
-    # ['f_span_2', 'f_span_5', 'f_span_10', 'f_span_20']
+    # ['f_span_1', 'f_span_2', 'f_span_5', 'f_span_10', 'f_span_20']
 
     # Number of trades
     to_drop += add_past_aggregations(df, 'f_trades', np.mean, base_window, suffix='')  # Base column
     features += add_past_aggregations(df, 'f_trades', np.mean, windows, '', to_drop[-1], 100.0)
-    # ['f_trades_2', 'f_trades_5', 'f_trades_10', 'f_trades_20']
+    # ['f_trades_1', 'f_trades_2', 'f_trades_5', 'f_trades_10', 'f_trades_20']
 
     # tb_base_av / volume varies around 0.5 in base currency
     #df['f_tb_base'] = df['f_tb_base_av'] / df['f_volume']
     #to_drop.append('f_tb_base')
     #to_drop += add_past_aggregations(df, 'f_tb_base', np.mean, base_window, suffix='')  # Base column
     #features += add_past_aggregations(df, 'f_tb_base', np.mean, windows, '', to_drop[-1], 100.0)
-    # ['f_tb_base_2', 'f_tb_base_5', 'f_tb_base_10', 'f_tb_base_20']
+    # ['f_tb_base_1', 'f_tb_base_2', 'f_tb_base_5', 'f_tb_base_10', 'f_tb_base_20']
 
     # tb_quote_av / quote_av varies around 0.5 in quote currency
     #df['f_tb_quote'] = df['f_tb_quote_av'] / df['f_quote_av']
     #to_drop.append('f_tb_quote')
     #to_drop += add_past_aggregations(df, 'f_tb_quote', np.mean, base_window, suffix='')  # Base column
     #features += add_past_aggregations(df, 'f_tb_quote', np.mean, windows, '', to_drop[-1], 100.0)
-    # ['f_tb_quote_2', 'f_tb_quote_5', 'f_tb_quote_10', 'f_tb_quote_20']
+    # ['f_tb_quote_1', 'f_tb_quote_2', 'f_tb_quote_5', 'f_tb_quote_10', 'f_tb_quote_20']
 
     df.drop(columns=to_drop, inplace=True)
 

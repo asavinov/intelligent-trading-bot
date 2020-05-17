@@ -20,7 +20,7 @@ This file can be then used to train models and tune hyper-parameters.
 # Parameters
 #
 class P:
-    source_type = "merged"  # klines (our main approach), futur (only futur), depth (only depth), merged
+    source_type = "futur"  # Selector: klines (our main approach), futur (only futur), depth (only depth), merged
 
     in_path_name = r"C:\DATA2\BITCOIN\GENERATED"
     in_file_name = r"depth-BTCUSDT-merged.csv"
