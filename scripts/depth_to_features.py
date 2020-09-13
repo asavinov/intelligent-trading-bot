@@ -106,7 +106,7 @@ Meaningful windows: for 1 size: 1, 2, 5, 10, for 2 size: 1, 2, 5
 
 symbol = "BTCUSDT"  # BTCUSDT ETHBTC IOTAUSDT
 
-in_path_name = r"C:\DATA2\BITCOIN\COLLECTED\DEPTH\batch5"
+in_path_name = r"C:\DATA2\BITCOIN\COLLECTED\DEPTH\batch6-partial-till-0307"
 #in_path_name = r"C:\DATA2\BITCOIN\COLLECTED\DEPTH\_test_"
 
 #

@@ -177,3 +177,28 @@ def predict_model_knn(X, model):
     y_hat = model.predict_proba(X)  # Returns probabilities for 2 classes as a matrix
     y_hat = y_hat[:,1]  # Get second columns. It represents probabilities of second class
     return y_hat
+
+def train_model_nn_classifier(X, y, params={}):
+    """Train nn using and return a model object having compatible predict method."""
+
+    train_fraction = 0.90
+    length = len(X)
+    val_start = int(length * train_fraction)
+
+    X_train = X[0:val_start]
+    y_train = y[0:val_start]
+
+    X_validate = X[val_start:length]
+    y_validate = y[val_start:length]
+
+    #
+    # Hyper-parameters
+    #
+    learning_rate = params.get("learning_rate") if params.get("learning_rate") else 0.1
+
+    model = None
+
+    return model
+
+if __name__ == '__main__':
+    pass

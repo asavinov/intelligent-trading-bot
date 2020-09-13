@@ -22,6 +22,16 @@ The output is an ordered list of best performing threshold-based signal generati
 """
 
 grid_signals = [
+    # All true labels (boolean):
+    # high_60_10,high_60_15,high_60_20,
+    # low_60_10,low_60_15,low_60_20
+
+    # All scores (between 0 and 1):
+    # high_60_10_k_12,high_60_15_k_12,high_60_20_k_12,
+    # low_60_10_k_12,low_60_15_k_12,low_60_20_k_12,
+    # high_60_10_f_03,high_60_15_f_03,high_60_20_f_03,
+    # low_60_10_f_03,low_60_15_f_03,low_60_20_f_03
+
     # Production
     #{
     #    'threshold_high_10': [0.24, 0.25, 0.26, 0.27, 0.28, 0.29, 0.30, 0.31],
@@ -37,13 +47,35 @@ grid_signals = [
     #},
     # Debug
     {
-        'threshold_high_10': [0.0],
-        'threshold_high_15': [0.0, 0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9],
-        'threshold_high_20': [0.0],
+        # Original
+        #'threshold_high_10_k': [0.0, 0.1, 0.2, 0.3, 0.4, 0.5],
+        #'threshold_high_15_k': [0.0, 0.1, 0.2, 0.3, 0.4, 0.5],
+        'threshold_high_20_k': [0.0, 0.1, 0.2, 0.3, 0.4, 0.5],
+        #'threshold_low_10_k': [0.5, 0.6, 0.7, 0.8, 0.9, 1.0],
+        #'threshold_low_15_k': [0.5, 0.6, 0.7, 0.8, 0.9, 1.0],
+        'threshold_low_20_k': [0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 1.0],
 
-        'threshold_low_10': [1.0],
-        'threshold_low_15': [0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 1.0],
-        'threshold_low_20': [1.0],
+        #'threshold_high_10_f': [0.0, 0.1, 0.2, 0.3, 0.4, 0.5],
+        #'threshold_high_15_f': [0.0, 0.1, 0.2, 0.3, 0.4, 0.5],
+        'threshold_high_20_f': [0.0, 0.1, 0.2, 0.3, 0.4, 0.5],
+        #'threshold_low_10_f': [0.5, 0.6, 0.7, 0.8, 0.9, 1.0],
+        #'threshold_low_15_f': [0.5, 0.6, 0.7, 0.8, 0.9, 1.0],
+        'threshold_low_20_f': [0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 1.0],
+
+        # Mean k+f
+        #'high_60_10': [0.0, 0.1, 0.2, 0.3, 0.4, 0.5],
+        #'high_60_15': [0.0, 0.1, 0.2, 0.3, 0.4, 0.5],
+        #'high_60_20': [0.0, 0.1, 0.2, 0.3, 0.4, 0.5],
+
+        #'low_60_10': [0.5, 0.6, 0.7, 0.8, 0.9, 1.0],
+        #'low_60_15': [0.5, 0.6, 0.7, 0.8, 0.9, 1.0],
+        #'low_60_20': [0.5, 0.6, 0.7, 0.8, 0.9, 1.0],
+
+        # Mean 10+15+20
+        #"high_60_k": [0.0, 0.1, 0.2, 0.3, 0.4, 0.5, 0.6],
+        #"high_60_f": [0.0, 0.1, 0.2, 0.3, 0.4, 0.5, 0.6],
+        #"low_60_k": [0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 1.0],
+        #"low_60_f": [0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 1.0],
 
         'percentage_sell_price': [1.018],
         'sell_timeout': [60],
@@ -54,22 +86,22 @@ grid_signals = [
 # Parameters
 #
 class P:
-    in_path_name = r"_TEMP_FEATURES"
+    in_path_name = r"C:\DATA2\BITCOIN\GENERATED"
     #in_file_name = r"_BTCUSDT-1m-rolling-predictions-no-weights.csv"
     #in_file_name = r"_BTCUSDT-1m-rolling-predictions-with-weights.csv"
-    in_file_name = r"_BTCUSDT-1m-rolling-predictions-02-03-04.csv"
+    in_file_name = r"BTCUSDT-1m-features-rolling.csv"
     in_nrows = 100_000_000
 
     out_path_name = r"_TEMP_FEATURES"
-    out_file_name = r"_BTCUSDT-1m-signal-models"
+    out_file_name = r"_BTCUSDT-1m-signals"
 
-    simulation_start = 100  # Default 0
-    simulation_end = -100  # Default till end of input data. Negative value is shift from the end
+    simulation_start = 10  # Default 0
+    simulation_end = -10  # Default till end of input data. Negative value is shift from the end
 
     #
     # Parameters of the whole optimization
     #
-    performance_weight = 12.0  # Per year. 1.0 means all are equal, 3.0 means last has 3 times more weight than first
+    performance_weight = 1.0  # Per year. 1.0 means all are equal, 3.0 means last has 3 times more weight than first
 
 def main(args=None):
 
@@ -92,16 +124,27 @@ def main(args=None):
     else:
         print(f"ERROR: Unknown input file extension. Only csv and parquet are supported.")
 
+    #
     # Compute average over all histories
-    in_df["high_60_10_gb"] = (in_df["high_60_10_gb_04"] + in_df["high_60_10_gb_03"] + in_df["high_60_10_gb_02"]) / 3.0
-    in_df["high_60_15_gb"] = (in_df["high_60_15_gb_04"] + in_df["high_60_15_gb_03"] + in_df["high_60_15_gb_02"]) / 3.0
-    in_df["high_60_20_gb"] = (in_df["high_60_20_gb_04"] + in_df["high_60_20_gb_03"] + in_df["high_60_20_gb_02"]) / 3.0
+    #
+    # Mean k+f
+    in_df["high_60_10"] = (in_df["high_60_10_k_12"] + in_df["high_60_10_f_03"]) / 2.0
+    in_df["high_60_15"] = (in_df["high_60_15_k_12"] + in_df["high_60_15_f_03"]) / 2.0
+    in_df["high_60_20"] = (in_df["high_60_20_k_12"] + in_df["high_60_20_f_03"]) / 2.0
 
-    in_df["low_60_10_gb"] = (in_df["low_60_10_gb_04"] + in_df["low_60_10_gb_03"] + in_df["low_60_10_gb_02"]) / 3.0
-    in_df["low_60_15_gb"] = (in_df["low_60_15_gb_04"] + in_df["low_60_15_gb_03"] + in_df["low_60_15_gb_02"]) / 3.0
-    in_df["low_60_20_gb"] = (in_df["low_60_20_gb_04"] + in_df["low_60_20_gb_03"] + in_df["low_60_20_gb_02"]) / 3.0
+    in_df["low_60_10"] = (in_df["low_60_10_k_12"] + in_df["low_60_10_f_03"]) / 2.0
+    in_df["low_60_15"] = (in_df["low_60_15_k_12"] + in_df["low_60_15_f_03"]) / 2.0
+    in_df["low_60_20"] = (in_df["low_60_20_k_12"] + in_df["low_60_20_f_03"]) / 2.0
 
+    # Mean 10+15+20
+    in_df["high_60_k"] = (in_df["high_60_10_k_12"] + in_df["high_60_15_k_12"] + in_df["high_60_20_k_12"]) / 3.0
+    in_df["high_60_f"] = (in_df["high_60_10_f_03"] + in_df["high_60_15_f_03"] + in_df["high_60_20_f_03"]) / 3.0
+    in_df["low_60_k"] = (in_df["low_60_10_k_12"] + in_df["low_60_15_k_12"] + in_df["low_60_20_k_12"]) / 3.0
+    in_df["low_60_f"] = (in_df["low_60_10_f_03"] + in_df["low_60_15_f_03"] + in_df["low_60_20_f_03"]) / 3.0
+
+    #
     # Choose some history
+    #
     #in_df["high_60_10_gb"] = in_df["high_60_10_gb_03"]
     #in_df["high_60_15_gb"] = in_df["high_60_15_gb_03"]
     #in_df["high_60_20_gb"] = in_df["high_60_20_gb_03"]
@@ -110,11 +153,31 @@ def main(args=None):
     #in_df["low_60_15_gb"] = in_df["low_60_15_gb_03"]
     #in_df["low_60_20_gb"] = in_df["low_60_20_gb_03"]
 
-    # Selecting only needed rows increases performance in several times (~4 times)
+    # Selecting only needed rows increases performance in several times (~4 times faster)
     in_df = in_df[[
         "high", "close",
-        "high_60_10_gb", "high_60_15_gb", "high_60_20_gb",
-        "low_60_10_gb", "low_60_15_gb", "low_60_20_gb",
+
+        # Original scores
+        #"high_60_10_k_12",
+        #"high_60_15_k_12",
+        "high_60_20_k_12",
+        #"high_60_10_f_03",
+        #"high_60_15_f_03",
+        "high_60_20_f_03",
+        #"low_60_10_k_12",
+        #"low_60_15_k_12",
+        "low_60_20_k_12",
+        #"low_60_10_f_03",
+        #"low_60_15_f_03",
+        "low_60_20_f_03",
+
+        # Mean k+f
+        #"high_60_10", "high_60_15", "high_60_20",
+        #"low_60_10", "low_60_15", "low_60_20",
+
+        # Mean 10+15+20
+        #"high_60_k", "high_60_f",
+        #"low_60_k", "low_60_f",
     ]]
 
     # Select the necessary interval of data
@@ -197,13 +260,23 @@ def simulate_trade(df, model: dict, performance_weight: float):
     #
     # Model parameters
     #
-    threshold_high_10 = float(model.get("threshold_high_10"))
-    threshold_high_15 = float(model.get("threshold_high_15"))
-    threshold_high_20 = float(model.get("threshold_high_20"))
-
-    threshold_low_10 = float(model.get("threshold_low_10"))
-    threshold_low_15 = float(model.get("threshold_low_15"))
-    threshold_low_20 = float(model.get("threshold_low_20"))
+    # Original
+    threshold_high_20_k = float(model.get("threshold_high_20_k"))
+    threshold_high_20_f = float(model.get("threshold_high_20_f"))
+    threshold_low_20_k = float(model.get("threshold_low_20_k"))
+    threshold_low_20_f = float(model.get("threshold_low_20_f"))
+    # Mean k+f
+    #high_60_10 = float(model.get("high_60_10"))
+    #high_60_15 = float(model.get("high_60_15"))
+    #high_60_20 = float(model.get("high_60_20"))
+    #low_60_10 = float(model.get("low_60_10"))
+    #low_60_15 = float(model.get("low_60_15"))
+    #low_60_20 = float(model.get("low_60_20"))
+    # Mean 10+15+20
+    #high_60_k = float(model.get("high_60_k"))
+    #high_60_f = float(model.get("high_60_f"))
+    #low_60_k = float(model.get("low_60_k"))
+    #low_60_f = float(model.get("low_60_f"))
 
     percentage_sell_price = float(model.get("percentage_sell_price"))
     sell_timeout = int(model.get("sell_timeout"))
@@ -226,7 +299,8 @@ def simulate_trade(df, model: dict, performance_weight: float):
         #
         # Apply model parameters and generate a signal for the current row
         #
-        if row.high_60_10_gb >= threshold_high_10 and row.high_60_15_gb >= threshold_high_15 and row.high_60_20_gb >= threshold_high_20:
+        # Higher than all thresholds
+        if row.high_60_20_k_12 >= threshold_high_20_k and row.high_60_20_f_03 >= threshold_high_20_f:
             is_buy_signal = True
         else:
             is_buy_signal = False
@@ -234,8 +308,9 @@ def simulate_trade(df, model: dict, performance_weight: float):
         if is_buy_signal:
             total_buy_signal_count += 1
 
+        # Lower than all thresholds
         if is_buy_signal:
-            if row.low_60_10_gb <= threshold_low_10 and row.low_60_15_gb <= threshold_low_15 and row.low_60_20_gb <= threshold_low_20:
+            if row.low_60_20_k_12 <= threshold_low_20_k and row.low_60_20_f_03 <= threshold_low_20_f:
                 is_buy_signal = True
             else:
                 is_buy_signal = False

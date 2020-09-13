@@ -30,19 +30,24 @@ The output predicted labels will cover shorter period of time because we need so
 # Parameters
 #
 class P:
-    prediction_types = ["kline", "futur"]  # Each one is a separate procedure with its algorithm and (expected) input features
+    # Each one is a separate procedure with its algorithm and (expected) input features
+    # Leave only what we want to generate (say, only klines for debug purposes)
+    prediction_types = ["kline", "futur"]
 
-    labels = [  # Target columns with true values which will be predicted
-        'high_60_10', 'high_60_15', 'high_60_20',
-        'low_60_10', 'low_60_15', 'low_60_20',
+    # Target columns with true values which will be predicted
+    # Leave only what we want to be generated (e.g., only one label for debug purposes)
+    labels = [
+        'high_10', 'high_15', 'high_20',
+        'low_10', 'low_15', 'low_20',
     ]
     class_labels_all = [  # All existing target labels generated from feature generation procedure
-        'high_60_10', 'high_60_15', 'high_60_20', 'high_60_25',  # At least one time above
-        'high_60_01', 'high_60_02', 'high_60_03', 'high_60_04',  # Always below
-        'low_60_01', 'low_60_02', 'low_60_03', 'low_60_04',  # Always above
-        'low_60_10', 'low_60_15', 'low_60_20', 'low_60_25',  # At least one time below
+        'high_10', 'high_15', 'high_20', 'high_25',  # At least one time above
+        'high_01', 'high_02', 'high_03', 'high_04',  # Always below
+        'low_01', 'low_02', 'low_03', 'low_04',  # Always above
+        'low_10', 'low_15', 'low_20', 'low_25',  # At least one time below
         ]
 
+    # These source columns will be added to the output file
     in_features_kline = [
         "timestamp",
         "open","high","low","close","volume",
@@ -50,27 +55,27 @@ class P:
         "quote_av","trades","tb_base_av","tb_quote_av","ignore"
     ]
 
-    features_kline_small = [
-        'close_1','close_2','close_5','close_20','close_60','close_180',
-        'close_std_1','close_std_2','close_std_5','close_std_20','close_std_60','close_std_180',
-        'volume_1','volume_2','volume_5','volume_20','volume_60','volume_180',
-        ]
     features_kline = [
-        'close_1','close_2','close_5','close_20','close_60','close_180',
-        'close_std_1','close_std_2','close_std_5','close_std_20','close_std_60','close_std_180',
-        'volume_1','volume_2','volume_5','volume_20','volume_60','volume_180',
-        'span_1', 'span_2', 'span_5', 'span_20', 'span_60', 'span_180',
-        'trades_1','trades_2','trades_5','trades_20','trades_60','trades_180',
-        'tb_base_1','tb_base_2','tb_base_5','tb_base_20','tb_base_60','tb_base_180',
-        'tb_quote_1','tb_quote_2','tb_quote_5','tb_quote_20','tb_quote_60','tb_quote_180',
+        'close_1','close_5','close_15','close_60','close_180','close_720',
+        'close_std_5','close_std_15','close_std_60','close_std_180','close_std_720',  # Removed "std_1" which is constant
+        'volume_1','volume_5','volume_15','volume_60','volume_180','volume_720',
+        'span_1', 'span_5', 'span_15', 'span_60', 'span_180', 'span_720',
+        'trades_1','trades_5','trades_15','trades_60','trades_180','trades_720',
+        'tb_base_1','tb_base_5','tb_base_15','tb_base_60','tb_base_180','tb_base_720',
+        'tb_quote_1','tb_quote_5','tb_quote_15','tb_quote_60','tb_quote_180','tb_quote_720',
+        ]
+    features_kline_small = [
+        'close_1','close_5','close_15','close_60','close_180','close_720',
+        'close_std_5','close_std_15','close_std_60','close_std_180','close_std_720',  # Removed "std_1" which is constant
+        'volume_1','volume_5','volume_15','volume_60','volume_180','volume_720',
         ]
 
     features_futur = [
-        "f_close_1", "f_close_2", "f_close_5", "f_close_10", "f_close_30", "f_close_60",
-        "f_close_std_1", "f_close_std_2", "f_close_std_5", "f_close_std_10", "f_close_std_30", "f_close_std_60",
-        "f_volume_1", "f_volume_2", "f_volume_5", "f_volume_10", "f_volume_30", "f_volume_60",
-        "f_span_1", "f_span_2", "f_span_5", "f_span_10", "f_span_30", "f_span_60",
-        "f_trades_1", "f_trades_2", "f_trades_5", "f_trades_10", "f_trades_30", "f_trades_60",
+        "f_close_1", "f_close_2", "f_close_5", "f_close_20", "f_close_60", "f_close_180",
+        "f_close_std_2", "f_close_std_5", "f_close_std_20", "f_close_std_60", "f_close_std_180",  # Removed "std_1" which is constant
+        "f_volume_1", "f_volume_2", "f_volume_5", "f_volume_20", "f_volume_60", "f_volume_180",
+        "f_span_1", "f_span_2", "f_span_5", "f_span_20", "f_span_60", "f_span_180",
+        "f_trades_1", "f_trades_2", "f_trades_5", "f_trades_20", "f_trades_60", "f_trades_180",
     ]
 
     features_depth = [
@@ -91,17 +96,19 @@ class P:
     out_path_name = r"_TEMP_FEATURES"
     out_file_name = r"BTCUSDT-1m-features-rolling.csv"
 
-    prediction_start_str = "2020-02-01 00:00:00"  # First row for starting predictions
-    prediction_length = 1_440  # 1 day: 1_440 = 60 * 24, one week: 10_080
+    # First row for starting predictions: "2020-02-01 00:00:00" - minimum start for futures
+    prediction_start_str = "2020-02-01 00:00:00"
+    # How frequently re-train models: 1 day: 1_440 = 60 * 24, one week: 10_080
+    prediction_length = 1_440
     prediction_count = None  # How many prediction steps. If None or 0, then from prediction start till the data end
 
-    # For each prediction type, we can define several history lengths. There will be prediction for each history.
-    label_histories_kline = {"12": 525_600}  # Example: {"12": 525_600, "06": 262_800, "03": 131_400}
-    label_histories_futur = {"03": 131_400}  # Example: {"12": 525_600, "06": 262_800, "04": 175_200, "03": 131_400, "02": 87_600}
-    #label_histories = {"18": 788_400, "12": 525_600, "06": 262_800, "04": 175_200, "03": 131_400, "02": 87_600}
+    # We can define several history lengths. A separate model and prediction scores will be generated for each of them.
+    # Example: {"18": 788_400, "12": 525_600, "06": 262_800, "04": 175_200, "03": 131_400, "02": 87_600}
+    label_histories_kline = {"12": 525_600}
+    label_histories_futur = {"03": 131_400}
 
-    features_horizon = 300  # Features are generated using this past window length
-    labels_horizon = 60  # Labels are generated using this number of steps ahead
+    features_horizon = 720  # Features are generated using this past window length
+    labels_horizon = 180  # Labels are generated using this number of steps ahead
 
 
 def main(args=None):
@@ -132,7 +139,7 @@ def main(args=None):
 
     pd.set_option('use_inf_as_na', True)
     #in_df = in_df.dropna()
-    in_df = in_df.reset_index(drop=True)  # We must reset index after removing rows
+    in_df = in_df.reset_index(drop=True)  # We must reset index after removing rows to remove gaps
 
     #
     # Algorithm parameters
@@ -194,7 +201,8 @@ def main(args=None):
                     y = train_df[label].values
                     y = y.reshape(-1)
                     # ---
-                    model = train_model_gb_classifier(X, y, params=params_gb)
+                    #model = train_model_gb_classifier(X, y, params=params_gb)
+                    model = train_model_nn_classifier(X, y, params={})
                     # ---
                     output_column_name = label + name_tag + history_name
                     models[output_column_name] = model
@@ -313,6 +321,7 @@ def main(args=None):
     # Store hyper-parameters and scores
     #
     with open(out_path.with_suffix('.txt'), "a+") as f:
+        f.write(f"Depth: {max_depth}, LR: {learning_rate}, Iterations: {num_boost_round} \n")
         out_str = f"{max_depth}, {learning_rate}, {num_boost_round}, " + out_str_kline
         f.write(out_str + "\n")
         out_str = f"{max_depth}, {learning_rate}, {num_boost_round}, " + out_str_futur

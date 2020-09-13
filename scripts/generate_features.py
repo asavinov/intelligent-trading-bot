@@ -53,32 +53,34 @@ def main(args=None):
     #
     # Generate derived features
     #
-    print(f"Generating features...")
 
     if "kline" in P.dervied_features:
+        print(f"Generating klines features...")
         k_features = generate_features(in_df)
+        print(f"Finished generating {len(k_features)} kline features")
     else:
         k_features = []
-    print(f"Finished generating {len(k_features)} kline features")
 
     if "futur" in P.dervied_features:
+        print(f"Generating futur features...")
         f_features = generate_features_futur(in_df)
+        print(f"Finished generating {len(f_features)} futur features")
     else:
         f_features = []
-    print(f"Finished generating {len(f_features)} futur features")
 
     if "depth" in P.dervied_features:
+        print(f"Generating depth features...")
         d_features = generate_features_depth(in_df)
+        print(f"Finished generating {len(f_features)} depth features")
     else:
         d_features = []
-    print(f"Finished generating {len(f_features)} depth features")
 
     #
     # Generate labels (always the same, currently based on kline data which must be therefore present)
     #
     print(f"Generating labels...")
 
-    labels = generate_labels_thresholds(in_df, horizon=60)
+    labels = generate_labels_thresholds(in_df, horizon=180)
 
     print(f"Finished generating {len(labels)} labels")
 

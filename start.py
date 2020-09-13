@@ -5,7 +5,7 @@ import sys
 #from trade.analysis import *
 #from trade.main import *
 
-script_name = "train_signal_models"  # Default value
+script_name = "merge_data"  # Default value
 
 if len(sys.argv) > 1:
     script_name = sys.argv[1]
@@ -29,18 +29,48 @@ if script_name == "download_data":
     # download data
     # NOTE: Must be started from Anaconda console since some special (encription, certificate) libs are not otherwise found
     # NOTE: Uncomment 3 lines to retrieve futures
+    # NOTE: Currently we download data from 2 sources (klines and futures) which will have to be immediately merged on the next step
     import scripts.download_data
     exitcode = scripts.download_data.main(sys.argv[1:])
 
     #from scripts.download_data import main
     #exitcode = main(sys.argv[1:])
 
+if script_name == "merge_data":
+    # Merge two or three source files (klines, futur, depth) into one source file with different column names
+    # It not only merges data, but also generates a regular correct 1m raster (in order to remove possible gaps)
+    # Currently we do it for klines and futures only
+    # The result file is 1m file with original klines and future klines with column names prefixed with "f_"
+    import scripts.merge_data
+    exitcode = scripts.merge_data.main(sys.argv[1:])
+
 if script_name == "generate_features":
     # Generate feature matrix file from source data: Read input file, generate features, generate labels, store the result
+    # NOTE: The source file is a merged file with source features from: klines, futures
     import scripts.generate_features
     exitcode = scripts.generate_features.main(sys.argv[1:])
 
     #from scripts.generate_features import main
+    #exitcode = main(sys.argv[1:])
+
+if script_name == "generate_rolling_predictions":
+    # In a loop with increasing history (we add more and more new data):
+    # - train model using the current historic data
+    # - apply this model to next horizon and store prediction
+    # - repeat by adding the horizon to history
+    # Finally, store the sequentially generated predictions along with the data and features in a file (to train signal models)
+    # Output: file with source source features, labels, and (generated) predicted label scores
+    import scripts.generate_rolling_predictions
+    exitcode = scripts.generate_rolling_predictions.main(sys.argv[1:])
+
+    #from scripts.generate_rolling_predictions import main
+    #exitcode = main(sys.argv[1:])
+
+if script_name == "train_signal_models":
+    import scripts.train_signal_models
+    exitcode = scripts.train_signal_models.main(sys.argv[1:])
+
+    #from scripts.generate_rolling_predictions import main
     #exitcode = main(sys.argv[1:])
 
 if script_name == "train_predict_models":
@@ -54,26 +84,6 @@ if script_name == "train_predict_models":
     exitcode = scripts.train_predict_models.main(sys.argv[1:])
 
     #from scripts.train_predict_models import main
-    #exitcode = main(sys.argv[1:])
-
-if script_name == "generate_rolling_predictions":
-    # In a loop with increasing history (we add more and more new data):
-    # - train model using the current historic data
-    # - apply this model to next horizon and store prediction
-    # - repeat by adding the horizon to history
-    # Finally, store the sequentially generated predictions along with the data and features in a file (to train signal models)
-    # Output: file with source data, features/labels, and (generated) sequential trains and predictions
-    import scripts.generate_rolling_predictions
-    exitcode = scripts.generate_rolling_predictions.main(sys.argv[1:])
-
-    #from scripts.generate_rolling_predictions import main
-    #exitcode = main(sys.argv[1:])
-
-if script_name == "train_signal_models":
-    import scripts.train_signal_models
-    exitcode = scripts.train_signal_models.main(sys.argv[1:])
-
-    #from scripts.generate_rolling_predictions import main
     #exitcode = main(sys.argv[1:])
 
 # === DATA COLLECTION SERVER ===

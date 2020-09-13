@@ -23,8 +23,8 @@ def generate_features(df, use_differences=False):
     If we use it for training to produce models then this same function has to be used before applying these models.
     """
     # Parameters of moving averages
-    windows = [1, 2, 5, 20, 60, 180]
-    base_window = 300
+    windows = [1, 5, 15, 60, 180, 720]
+    base_window = 1440
 
     features = []
     to_drop = []
@@ -85,8 +85,8 @@ def generate_features_futur(df, use_differences=False):
     Generate derived features for futures.
     """
     # Parameters of moving averages
-    windows = [1, 2, 5, 10, 30, 60]
-    base_window = 120
+    windows = [1, 2, 5, 20, 60, 180]
+    base_window = 360
 
     features = []
     to_drop = []

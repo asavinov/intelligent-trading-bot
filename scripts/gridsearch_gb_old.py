@@ -2,19 +2,31 @@ from datetime import datetime
 import numpy as np
 import pandas as pd
 
+import matplotlib.pyplot as plt
+
 from sklearn.model_selection import train_test_split
 from sklearn import metrics
+from sklearn.metrics import make_scorer
+from sklearn.metrics import accuracy_score
+from sklearn.metrics import precision_score
+from sklearn.metrics import recall_score
+from sklearn.metrics import roc_curve
+from sklearn.metrics import precision_recall_curve
+from sklearn.metrics import plot_precision_recall_curve
+
+from sklearn.model_selection import StratifiedShuffleSplit
+from sklearn.model_selection import GridSearchCV
+
+from sklearn import svm
+from sklearn import linear_model
+from sklearn.ensemble import GradientBoostingClassifier
 
 import lightgbm as lgbm
 
-from trade.utils import *
-from trade.feature_generation import *
 
-"""
-Experimental.
-Errors. Function names need to be adapted to (new) existing functions.
-Classify time series using gradient boosting.
-"""
+#from trade.utils import *
+#from trade.feature_generation import *
+
 
 # ===
 seed = 42
@@ -323,96 +335,205 @@ def klines_to_csv():
 
     df.to_csv(r"C:\DATA2\BITCOIN\ETHBTC-1m-data.csv")
 
+def search_signal_model():
+    """
+    Load file with many rolling predictions and labels, and train a good model which is intended for signal generation
+    """
+
+    # Best results auc (LogisticRegression): high_60_10 -> ~0.77, high_60_15 -> ~0.81, high_60_20 -> ~0.85
+    # Best results precision (LogisticRegression): high_60_10 -> ~0.77, high_60_15 -> ~0.70, high_60_20 -> ~0.68
+
+    # Try random forest or gradient boosting
+    # Next: score threshold for getting required accuracy, say, 95%?
+    # Next: can we increase accuracy by using all 3 scores? Maybe again a linear model?
+    # Next: check how important it is to use all 12 input scores - maybe we can get same results using only individual scores or a few scores
+
+    # high_60_10,high_60_15,high_60_20,low_60_10,low_60_15,low_60_20
+    label = "high_60_10"
+    features = [
+        "high_60_10_k_12", "high_60_15_k_12", "high_60_20_k_12", "low_60_10_k_12", "low_60_15_k_12", "low_60_20_k_12",
+        "high_60_10_f_03", "high_60_15_f_03", "high_60_20_f_03", "low_60_10_f_03", "low_60_15_f_03", "low_60_20_f_03",
+    ]
+
+    scoring = {
+        'roc_auc': None,
+        'accuracy': make_scorer(accuracy_score),
+        #'precision': make_scorer(precision_score),
+        #'recall': make_scorer(recall_score),
+    }
+    #scoring = 'f1'
+    #scoring='accuracy'
+    scoring='precision'
+    #scoring = 'roc_auc'
+    #scoring = {'AUC': 'roc_auc', 'Accuracy': make_scorer(accuracy_score)}
+
+
+    in_df = pd.read_csv(r"C:\DATA2\BITCOIN\GENERATED\BTCUSDT-1m-features-rolling.csv", parse_dates=['timestamp'])
+    pd.set_option('use_inf_as_na', True)
+    in_df = in_df.dropna()
+    print(f"Data loaded.")
+
+    X = in_df[features].values
+    y = in_df[label].values
+    y = y.reshape(-1)
+
+    X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.1, random_state=42, shuffle=True, stratify=y)
+
+    #
+    # SVM
+    #
+
+    # base=10 (default), start=base^start, start=base^stop
+    # Use base=2 for finer grid: C=[-5,15] ~21, gamma=[-15,3] ~19
+    C_range = np.logspace(-5, 10, 2, base=2)
+    gamma_range = np.logspace(-15, 1, 2, base=2)
+    C_range = [1e-4]
+    gamma_range = [1e-5]
+    param_grid = dict(C=C_range, gamma=gamma_range)  # gamma=gamma_range
+    param_grid = {'C': [0.00001, 0.00005, 0.0001, 0.0005, 0.001, 0.005, .01, .1]}
+
+    cv = StratifiedShuffleSplit(n_splits=2, test_size=0.5, random_state=42)
+
+    grid = GridSearchCV(
+        estimator=svm.LinearSVC(),  #  svm.LinearSVC() svm.SVC()
+        param_grid=param_grid,
+        scoring=scoring,
+        n_jobs=-1,
+        cv=cv,
+        refit=False,
+        verbose=10,
+    )
+    #grid.fit(X, y)
+    #scores = grid.cv_results_['mean_test_score'].reshape(len(C_range), len(gamma_range))
+
+    #
+    # LogisticRegression
+    #
+    param_grid = {'C': [0.001, 0.005, .01, .05, .1], 'class_weight': [None, "balanced", 0.5, 1.0, 10.0]}
+    grid = GridSearchCV(
+        linear_model.LogisticRegression(),
+        param_grid=param_grid,
+        scoring=scoring,
+        n_jobs=-1,
+        cv=5,
+        return_train_score=True,
+        verbose = 10,
+    )
+    grid.fit(X, y)
+    #print("The best parameters are {} with a score of {:.2f}".format(grid.best_params_, grid.best_score_))
+
+    #
+    # Gradient Boosting
+    #
+
+    parameters = {
+        "loss": ["deviance"],
+        "learning_rate": [0.01, 0.05, 0.1],
+        "min_samples_split": np.linspace(0.1, 0.5, 12),
+        "min_samples_leaf": np.linspace(0.1, 0.5, 12),
+        "max_depth": [5],
+        #"max_features": ["log2", "sqrt"],
+        #"criterion": ["friedman_mse", "mae"],
+        "subsample": [0.5, 0.6, 0.7],
+        "n_estimators": [10]
+    }
+    parameters = {
+        #"loss": ["deviance"],
+        "learning_rate": [0.05],
+        #"min_samples_split": [0.005],  # min_samples_split': 0.01: 0.84 -> 0.86
+        #"min_samples_leaf": np.linspace(0.1, 0.5, 10),
+        "max_depth": [10],
+        #"max_features": ["log2", "sqrt"],  # Both are bad
+        #"criterion": ["friedman_mse", "mae"],  # Hangs
+        #"subsample": [0.5],  # 'subsample': 0.618 0.84 -> 0.86
+        "n_estimators": [20]
+    }
+    grid = GridSearchCV(
+        GradientBoostingClassifier(),
+        parameters,
+        scoring=scoring,
+        refit=False,
+        cv=5,
+        n_jobs=-1,
+        verbose=10,
+    )
+    grid.fit(X, y)
+
+    print("The best parameters are {} with a score of {:.2f}".format(grid.best_params_, grid.best_score_))
+
+    # The best parameters are {'learning_rate': 0.15, 'max_depth': 3, 'n_estimators': 10} with a score of 0.73
+    # The best parameters are {'learning_rate': 0.1, 'max_depth': 4, 'n_estimators': 10} with a score of 0.84
+    # The best parameters are {'learning_rate': 0.05, 'max_depth': 4, 'n_estimators': 20} with a score of 0.84
+    # The best parameters are {'learning_rate': 0.05, 'max_depth': 4, 'n_estimators': 20} with a score of 0.84
+    # The best parameters are {'learning_rate': 0.05, 'max_depth': 4, 'n_estimators': 20, 'subsample': 0.618} with a score of 0.86
+    # The best parameters are {'learning_rate': 0.05, 'max_depth': 4, 'min_samples_split': 0.008, 'n_estimators': 20, 'subsample': 0.4} with a score of 0.89
+    # The best parameters are {'learning_rate': 0.05, 'max_depth': 4, 'min_samples_split': 0.006, 'n_estimators': 20, 'subsample': 0.6} with a score of 0.89
+
+    #C_2d_range = [1e-2, 1, 1e2]
+    #gamma_2d_range = [1e-1, 1, 1e1]
+    #models = []
+    #for C in C_2d_range:
+    #    for gamma in gamma_2d_range:
+    #        model = svm.SVC(C=C, gamma=gamma)
+    #        model.fit(X, y)
+    #        models.append((C, gamma, model))
+
+    #X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.25, random_state=42, shuffle=True, stratify=y)
+    #model = svm.SVC(C=1.0, gamma=1000.0)
+    #model.fit(X_train, y_train)
+
+    #y_train_hat = model.predict(X_train)
+    #auc = metrics.roc_auc_score(y_train, y_train_hat)
+    #print(f"AUC train: {auc:.3f}")
+
+    #y_test_hat = model.predict(X_test)
+    #auc = metrics.roc_auc_score(y_test, y_test_hat)
+    #print(f"AUC test: {auc:.3f}")
+
+    pass
+
+def build_roc_curve():
+    # high_60_10,high_60_15,high_60_20,low_60_10,low_60_15,low_60_20
+    label = "high_60_10"
+    features = [
+        "high_60_10_k_12", "high_60_15_k_12", "high_60_20_k_12", "low_60_10_k_12", "low_60_15_k_12", "low_60_20_k_12",
+        "high_60_10_f_03", "high_60_15_f_03", "high_60_20_f_03", "low_60_10_f_03", "low_60_15_f_03", "low_60_20_f_03",
+    ]
+
+    in_df = pd.read_csv(r"C:\DATA2\BITCOIN\GENERATED\BTCUSDT-1m-features-rolling.csv", parse_dates=['timestamp'])
+    pd.set_option('use_inf_as_na', True)
+    in_df = in_df.dropna()
+    print(f"Data loaded.")
+
+    X = in_df[features].values
+    y = in_df[label].values
+    y = y.reshape(-1)
+
+    model = linear_model.LogisticRegression(C=0.001, class_weight=None)
+    model.fit(X, y)
+
+    y_hat = model.decision_function(X)  # Threshold 0.0
+    #y_hat = model.predict_proba(X)  # Threshold 0.5
+    auc = metrics.roc_auc_score(y, y_hat)
+
+    print("Results".format())
+
+    fpr, tpr, thresholds = roc_curve(y, y_hat)
+    plt.plot(fpr, tpr, color='darkorange', label=f"ROC curve (area = {auc})")
+
+    precision, recall, thresholds = precision_recall_curve(y, y_hat)
+    plt.plot(recall, precision, color='darkorange')
+
+    disp = plot_precision_recall_curve(model, X, y)
+
+
+    # Find first offset (score) with the desired tpr
+    best_tpr = 0.95
+    best_score = np.searchsorted(tpr, best_tpr)
+
+    pass
 
 if __name__=='__main__':
-
-    # Study:
-    find_frequencies_of_labels()
-
-	# Predicted characteristics:
-	# high up (at least one greater than): 0.5, 1.0, 1.5, 2.0, (2.5)
-	# high dn (all highs less than): (0.05), 0.1, 0.2, 0.3, 0.4, 0.5
-	# low up (all lows greater than): (0.05), 0.1, 0.2, 0.3, 0.4, 0.5 (negative)
-	# low dn (at least one less than): 0.5, 1.0, 1.5, 2.0, (2.5) (negative)
-	"""
-	|
-	| 0.5-2.5 high up - at least one greater than   big probability -> buy
-	|
-	| 0.1-0.5 high dn - all highs less than         big probability -> sell
-	| 0
-	| 0.1-0.5 low up (all lows greater than)        big probability -> buy
-	|
-	| 0.5-2.5 low dn (at least one less than)       big probability -> sell
-	|
-	"""
-    # buy signal: increase outside high - big score (say, for 2.0), stay inside high - small score (say, for 0.5), stay inside low - big score (say, for -0.5), increase outside low - small score (say, 2.0)
-    # sell signal: opposite
-    #   s]    [b   s]    [b  - buy (growing trend)
-    #   b]    [s   b]    [s  - sell (falling trend)
-    # thresholds for scores can be tuned using back testing and measuring performance
-    # strategy: buy when (very) high buy score (buy carefully with high threshold), sell when (relatively low) sell score (sell frequently and quicly)
-    # stragety: derive one common score like trend (between -1 and +1), and then buy/sell using thresholds, say, but with high like 0.8 and sell with low like -0.2 or 0.0
-    #   assymmetry reflects the assymetry of weights of assets but it is not necessarily best strategy so it is better to back test
-
-    # STATISTICS of levels frequencies
-	# OUTSIDE (at least one) (len=1107635)
-    # horizon 30 min: (>0.5-2.5): 317551, 131352, 65020, 36626, 21636; 
-    # horizon 30 max: (>0.5-2.5): 308848, 118790, 55469, 29778, 17997; 
-    # ]317551-308848[ ]131352-118790[ ]65020-55469[ ]36626-29778[ ]21636-17997[ - number of occurances with at least one time outside the interval border
-
-    # horizon 60 min: (>0.5-2.5): 444127, 215635, 120415, 74397, 47682; 
-    # horizon 60 max: (>0.5-2.5): 435144, 200594, 106655, 62775, 39177; 
-
-    # horizon 90 min: (>0.5-2.5): 522824, 276701, 164837, 106779, 72314; 
-    # horizon 90 max: (>0.5-2.5): 515887, 262866, 149348, 92625, 60050; 
-
-    # horizon 120 min: (>0.5-2.5): 579805, 324882, 201415, 135353, 94411; 
-    # horizon 120 max: (>0.5-2.5): 574280, 313174, 185776, 119201, 80311; 
-
-    # INSIDE (all) (len=1107635)
-    # horizon 30 low: (<0.01, 0.05, 0.1-0.5): 64942, 156472, 271713, 462498, 606882, 712723, 790033
-    # horizon 30 high: (<0.01, 0.05, 0.1-0.5): 57925, 151666, 270548, 468439, 614395, 720676, 798739
-    # [64942-57925] [156472-151666] [271713-270548] [462498-468439] [606882-614395] [712723-720676] [790033-798739] - number of occurances with all elements within the border
-
-    # horizon 60 low: (<0.01, 0.05, 0.1-0.5): 44796, 107663, 191312, 345033, 475932, 580733, 663429
-    # horizon 60 high: (<0.01, 0.05, 0.1-0.5): 39403, 104023, 190178, 348970, 482077, 588042, 672415
-
-    # horizon 90 low: (<0.01, 0.05, 0.1-0.5): 35986, 85943, 153709, 284680, 402750, 501855, 584698
-    # horizon 90 high: (<0.01, 0.05, 0.1-0.5): 31078, 82247, 152228, 287752, 407646, 508420, 591650
-
-    # horizon 120 low: (<0.01, 0.05, 0.1-0.5): 30813, 73062, 130838, 245630, 353362, 446662, 527692
-    # horizon 120 high: (<0.01, 0.05, 0.1-0.5): 26220, 69638, 129221, 248650, 358285, 452793, 533225
-
-
-    # Drift: measure how various characteristics change in time: 
-	# - price variance (volatility), number of levels (histogram)
-	# - predicted parameter frequencies (average count, variance etc.)
-
-
-    # PLAN: Launch and iterate: implement a primitive "load-features-predict-signal-buy/sell" loop and then improve it
-    # - feature generation, (for training, label generation), 
-	# - predict by applying (previously trained) models to generated different labels
-    # - generate buy-sell signals by (rule-based) analyzing predicted labels (scores)
-    # - buy-sell by create order objects, assume that it is immediately executed, computed its execution price, update the current state and logs
-    # - repeat - note that the most important function is to sell the previously bought asset 
-    #   - does it make sense to train a model specifically for selling what we already have?
-    #   - what would be criteria for such a "right moment for selling" model in the sense of label (loss)? if we sell now, is it good or bad?
-    #   - note that we cannot measure performance (loss) in terms of buy price - this price is already history and we have new situation and more data
-    #     sell quality depends on the probability to lose in short term, 
-    #     in other words, we sell what is going to decrease its value (and buy what is going to increase its value)
-    #   - therefore, generate sell signal if price is going down (and/or is not going to grow): decrease outside high, stay inside low
-    #     similarly, we buy if price is going up (and/or is not going to fall): increase outside low high, stay inside high low.
-
-    #main()
-
-    #df = pd.read_pickle("_15__1_0__5.pkl")
-    #main_gb(df)
-
-    # TODO:
-    # - Develop pipeline for validation where model is trained on (large) historic data, and prediciton is done on (small) next data
-    #   Then we move forward by including the just predicted data into the training set, and repeat the procedure
-    #   The results are collected and then accuracy is computed as usual
-    #   - Parameters: train (history) size, predict (future) size, start iteration, end iteration
-    #   - It would be interesting to compare precision with the standard approach
-    
+    #build_roc_curve()
+    search_signal_model()
     pass
