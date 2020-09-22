@@ -9,7 +9,7 @@ patsy>=0.5.*
 fastparquet  # "conda install -c conda-forge fastparquet"
 lightgbm>=2.3.*  # For Linux, glibc >= 2.14 is required. "conda install -c conda-forge lightgbm"
 pytorch # conda install pytorch torchvision cpuonly -c pytorch
-fastai # pip install fastai
+#fastai # pip install fastai
 
 apscheduler  # "conda install -c conda-forge apscheduler"
 python-binance  # "pip install python-binance". It has to executed from Anaconda prompt.
