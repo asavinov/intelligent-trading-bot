@@ -468,7 +468,7 @@ def _add_aggregations(df, is_future: bool, column_name: str, fn, windows: Union[
 
 def _add_weighted_aggregations(df, is_future: bool, column_name: str, weight_column_name: str, fn, windows: Union[int, list[int]], suffix=None, rel_column_name: str = None, rel_factor: float = 1.0):
     """
-    Weighted aggregation. Normally using np.sum function.
+    Weighted rolling aggregation. Normally using np.sum function which means area under the curve.
     """
 
     column = df[column_name]
@@ -515,6 +515,50 @@ def _add_weighted_aggregations(df, is_future: bool, column_name: str, weight_col
             df[feature_name] = rel_factor * (feature - rel_column) / rel_column
         else:
             df[feature_name] = rel_factor * feature
+
+    return features
+
+def add_area_ratio(df, is_future: bool, column_name: str, windows: Union[int, list[int]], suffix=None):
+    """
+    For past, we take this element and compare the previous sub-series: the area under and over this element
+    For future, we take this element and compare the next sub-series: the area under and over this element
+    """
+    column = df[column_name]
+
+    if isinstance(windows, int):
+        windows = [windows]
+
+    if suffix is None:
+        suffix = "_" + "area_ratio"
+
+    def area_ratio_fn(x, is_future):
+        if is_future:
+            level = x[0]  # Relative to the oldest element
+        else:
+            level = x[-1]  # Relative to the newest element
+        x_diff = x - level  # Difference from the level
+        a = x_diff.sum()
+        b = np.absolute(x_diff).sum()
+        pos = (b+a)/2
+        neg = (b-a)/2
+        ratio = pos / b  # in [0,1]
+        ratio = (ratio * 2) - 1  # scale to [-1,+1]
+        return ratio
+
+    features = []
+    for w in windows:
+        feature_name = column_name + suffix + '_' + str(w)
+
+        ro = column.rolling(window=w, min_periods=max(1, w // 10))
+
+        feature = ro.apply(area_ratio_fn, kwargs=dict(is_future=is_future), raw=True)
+
+        if is_future:
+            df[feature_name] = feature.shift(periods=-(w-1))
+        else:
+            df[feature_name] = feature
+
+        features.append(feature_name)
 
     return features
 

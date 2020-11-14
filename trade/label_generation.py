@@ -14,6 +14,14 @@ Label generation.
 (True) labels are features computed from future data but stored as properties of the current row (in contrast to normal features which are computed from past data).
 """
 
+def generate_labels_price_area(df, windows: list):
+    """
+    Compute the ratio between the two areas: over and under the current price for the specified horizon.
+    The area is computed using normal price and volume weighted price.
+    """
+    features = add_area_ratio(df, is_future=True, column_name="close", windows=windows, suffix = "_area")
+    return features
+
 def generate_labels_thresholds(df, horizon=180):
     """
     Generate (compute) a number of labels similar to other derived features but using future data.
