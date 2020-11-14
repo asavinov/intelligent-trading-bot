@@ -27,7 +27,7 @@ class P:
 
     in_path_name = r"C:\DATA2\BITCOIN\GENERATED"
     in_file_name = r"BTCUSDT-1m.csv"
-    in_nrows = 100_000_000
+    in_nrows = 500_000
 
     out_path_name = r"_TEMP_FEATURES"
     out_file_name = r"BTCUSDT-1m-features"
@@ -79,8 +79,13 @@ def main(args=None):
     # Generate labels (always the same, currently based on kline data which must be therefore present)
     #
     print(f"Generating labels...")
+    labels = []
 
-    labels = generate_labels_thresholds(in_df, horizon=180)
+    # Binary labels whether max has exceeded a threshold or not
+    labels += generate_labels_thresholds(in_df, horizon=180)
+
+    # Numeric label which is ration between areas over and under the latest price
+    labels += generate_labels_price_area(in_df, windows=[60, 120, 180])
 
     print(f"Finished generating {len(labels)} labels")
 

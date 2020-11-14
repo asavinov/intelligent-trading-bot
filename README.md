@@ -1,39 +1,143 @@
+-----
+# Data/knowledge processing pipeline
 
-# Data processing pipeline
+## Main steps
 
 Note: see also start.py
+
+#### 1. Download historic (klines) data
 
 * Download historic data. Currently we use 2 separate sources stored in 2 separate files:
   * klines (spot market), its history is quite long
   * futures (also klines but from futures market), its history is relative short
-  * Script: scripts.download_data.py
+  * Script: scripts.download_data.py or "python start.py download_data"
+  * Script can be started from local folder and will store result in this folder.
+
+Notes:
+* Edit main in binance-data.py by setting necessary symbol
+* Run script binance-data.py which will directly call get_klines_all()
+* Get klines for futures: Use the same function get_klines_all() but uncomment the section at the beginning.
+
+#### 2. Merge historic data into one dataset
 
 * Merge historic data into one dataset. We analyse data using one common raster and different column names. Also, we fix problems with gaps by producing a uniform time raster. Note that columns from different source files will have different history length so short file will have Nones in the long file.
   * Script: scripts.merge_data.py
+  * If necessary, edit input data file locations as absolute paths
+
+#### 3. Generate feature matrix
 
 * Generate features. Here we compute derived features (also using window-functions) and produce a final feature matrix. We also compute target features (labels). Note that we compute many possible features and labels but not all of them have to be used. In parameters, we define past history length (windows) and future horizon for labels. Currently, we generate 3 kinds of features independently: klines features (source 1), future features (source 2), and label features (our possible predictions targets).
-  * Script: scripts.generate_features.py
+  * Script: scripts.generate_features.py or "python start.py generate_features
+
+Notes:
+* The goal here is to load source (kline) data, generate derived features and labels, and store the result in output file. The output is supposed to be used for other procedures like training prediction models.
+* Ensure that latest source data has been downloaded from binance server (previous step)
+* Max past window and max future horizon are currently not used (None will be stored)
+* Future horizon for labels is hard-coded (currently 60). Change if necessary
+* If necessary, uncomment line with storing to parquet (install the packages)
+* Output file will store features and labels as they are implemented in the trade module. Copy the header line to get the list.
+* Same number of lines in output as in input file
+* Approximate time: ~10 minutes (on YOGA)
+
+#### 4. Generate rolling predictions
 
 * Generate rolling predictions. Here we train a model using previous data less frequently, say, once per day or week, but use much more previous data than in typical window-based features. We apply then one constant model to predict values for the future time until it is re-trained again using newest data. (If the re-train frequency is equal to sample rate, that is, we do it for each new row, then we get normal window-based derived feature with large window sizes.) Each feature is based on some algorithm with some hyper-parameters and some history length. This procedure does not choose best hyper-parameters - for that purpose we need some other procedure, which will optimize the predicted values with the real ones. Normally, the target values of these features are directly related to what we really want to predict, that is, to some label. Output of this procedure is same file (feature matrix) with additional predicted features (scores). This file however will be much shorter because we need some quite long history for some features (say, 1 year). Note that for applying rolling predictions, we have to know hyper-parameters which can be found by a simpler procedure.
-  * Script: scripts.generate_rolling_predictions.py
+  * Script: scripts.generate_rolling_predictions.py or "python start.py generate_rolling_predictions.py"
+
+#### 5. Train signal models
+
+Here we find best parameters for signal generation like thresholds.
 
 * Train signal models. The input is a feature matrix with all scores (predicted features). Our goal is to define a feature the output of which will be directly used for buy/sell decisions. We need search for the best hyper-parameters starting from simple score threshold and ending with some data mining algorithm.
-  * Script: scripts.train_signal_models.py
+  * Script: scripts.train_signal_models.py or "python start.py train_signal_models.py"
+
+#### 6. (Grid) search for best parameters of and/or best prediction models
+
+Once we decided to use a model, we want to its best parameters.
 
 * Grid search.
   * Script: classification_nn.py
   * Script: classification_gb.py
 
-# TODO
+-----
+# Signaler: Signal server
 
-#### GENERAL
+## Principles
 
-Do not focus (spend time) on tuning algorithm hyper-parameters - choose something simple and reasonable but in such a way that it can be extended later.
-Instead, try and generate more predictions with *independent* algorithms: svm (maybe even linear), rf, ...
-Also, add new *independent* data like bitcoin future prices or cross-prices (bcn-eth etc.) even by reduce btc derived features (do we really need so many moving windows)
-Conceptually, focus on concept drift and adaptation to nearest trends and behavioral patterns, e.g., using short-middle-long windows.
+The task of this server is to *monitor* the state of the market and generate signals for the trader server which has to execute them. Signals are recommended actions in the context of the current market which however do not take into account account the current actor state like available resources etc. Essentially, the signaler describes the future of the market and what to do (in general) in order to benefit from this future. Whether you can really use these opportunities is already what the trader does.
 
-#### Simple 1 minute trading strategy
+## Architecture
+
+Main components:
+- Singleton object representing:
+  - the common state
+  - parameters loaded at start up
+- Analysis trigger:
+  - Synchronous scheduler which will trigger analysis with some fixed period
+  - Asynchronous trigger which will trigger analysis depending on incoming events like subscriptions or websocket events
+- Analysis event loop. Each task means that new data about the market is available and new analysis has to be done. Each new task (triggered by a scheduler) performs the following steps:
+  - collect latest data about the market
+  - analyze the current (just updated) state of the market (if the state has really changed since the last time)
+  - generate signals (if any) and notify trade server (or any other subscriber including logging), for example, by sending a message or putting the message into a queue of the trade server
+
+## Analysis
+
+### Predicted features
+
+* Add RF algorithm to predictions.
+* Add Linear SVM or logistic regression to predictions.
+* Think about adding more sophisticated algorithms like KernelPCA or SVM.
+Maybe for short histories in order to take into account drift or local dependencies.
+
+### Feature generation
+
+* Add trade-related features from https://github.com/bukosabino/ta
+  * compute and use weighted average price
+* Add long-term features (moving averages), for example, for 1 month or more.
+* Add ARIMA-like features
+
+-----
+# Trader: trade server
+
+The trader receives signals and then executes them depending on the current situation which includes its own state as well as the market state.
+
+## Architecture
+
+* An incoming queue contains signals in the order of their generation. We use a queue because we want to ensure that signals are processed sequentially by one procedure rather than concurrently
+* A trading main procedure retrieves all signals and processes the last one as the most up-to-date
+* Executing a signal involves various checks before the real execution:
+  * Check the current balance in our local state as well as on the server
+  * Check whether we have already an order submitted (which means some resources are frozen)
+* Execution
+  * Retrieve the latest price
+  * Retrieve the current order book and get the latest available offer (price and volume)
+  * Determine parameters of the order: price, volume, time to live etc.
+  * Submit order and set the 
+* Regularly check the order status:
+  * Synchronous. We do it either by using a synchronizer (say, once per second) which will do nothing if we have no orders, or by a procedure which will be activated only on the case of submitted orders
+  * Asynchronous. Here we are waiting for a confirmation event
+  * In any case, this procedure changes our local state depending on the result of execution. So submitting an order is considered an operation or action which however has a special asynchronous mechanism of return (finishing). The return/finish is needed because this event will continue the main submission procedure. 
+
+Problem of order status monitoring and order execution confirmation (rejection, execution etc.) For example, we submit an order which means that some independent (remote) process has been started. After that, we suspend the current procedure and want to resume it after getting the result of order execution. There are the following possibilities:
+* We really suspend this task and resume it (somehow) when a confirmation is received. This approach has some difficulties. For example, it is not clear how to suspend and then resume a task using removing interactions. Second, a task might be suspended for a quite a long time, possibly, because of some problems with the remote server or this client. So we need to be able to resume processing even after rebooting our server or repairing the connection with the remote server. In any case, we need to mark somewhere in our local state that there is a remote process (order execution) with some parameters in order for other procedurs to know (say, if next signal is received and its processing started)
+* We assume that any submitted order means creating a remote procedure which must be somehow explicitly represented in our local state. Note that this local state is restored/initialized after each start of the local server. In other words, when the server starts, we read the remote list of orders and store it locally so that all our procedures know the current state. In this case, we may have a special procedure which only processes returns/results of order executions, that is, its task is to update our local state each time the remote order list changes as well as notify other procedures about this change. We can implement a special data structure which represents the remote order list along with procedures for submitting orders and updating order status and notifying others about the changes. Thus submitting orders and processing order status changes are decoupled.
+
+## Order state and balance management
+
+We need a component which will be responsible for the representation of the remote orders and their life-cycle as well as the corresponding balances. Essentially, we need to maintain a local list of orders. When we submit an order, we add an entry into this list (if it was created successfully). What is more difficult, if an order changes its remote state, then we need to update the state of the entry in our local list. Typically, a remote order can be rejected, expire, be (partially) executed or cancelled in some other way. In addition to submission, we ourselves could cancel an order.
+
+It is necessary to distinguish:
+* Asynchronous like execution, cancellation, expiration. These changes can happen at any time. We get the result at any time either independently or by sending a special request.  
+* Synchronous operations with orders like creation, cancellation, getting status. We get the result as a return value of the request. For the synchronous approach, we need to implement a regular procedure which will request latest status of orders, update local state, and notify other procedures which wait for this status change (say, after order execution). This same procedure might also do some other tasks, for example, notify other procedures about time-out which is not stored in the remote state but is part of our own logic of order processing. Important is that we need a dedicated (frequent) scheduler which will request remote order state (if there are local orders to be checked) as well as do some other tasks like requesting balance status and maybe market latest information. All these tasks are performed with the purpose to update our local state (orders status, balances, market prices) and notifying/triggering other procedures, e.g., creating a task when an order has been executed or cancelled.
+
+One problem is distribution of tasks between the (frequent) remote state synchronization scheduler which can do some processing, and tasks in event loop which are triggered by this scheduler and also can do some tasks including changing the state of the order list. We also need to understand that the same order list is represented remotely and locally, and at least two independent processes can change it: the remote server (execution, cancellation, expiration etc.) and our local trader server (creation, cancellation, modify amount etc.) We need to develop a consistent design for such changes of the common order list. If balances and market state are passive, that is, we only read its state from the server, then order list can be changed also locally. We probably need to specify exactly what opreations can be done locally: 
+* Order creation/submission (this is never done remotely). We send a submission request to the server by asking it to create an order. We can create a (empty) record with this order if we get an immediate response. And then the standard procedure will synchronize the local state with the remote state. In the case something happens, a new local task is created or we can process this change immediately.
+* Order cancellation. We send this request to the server, it deletes the order, and we update the local state.
+
+One approach is that we introduce a high level function with the semantics of changing the side by moving assets like "move from USD to BTC some amount with max price X". Once we call this function, the state of assets has some intermediate status because some amount is locked and it will be in this intermediate state till the process returns (either successfully or with error). In any case, we need to distinguish this intermediate state and we need to be able to wait for the end of this procedure by being notified. In some cases, we might want to break this intermediate state by cancelling an order. So we should talk about intermediate state of some asset transfer process rather than individual orders. At the level of the logic, we work with asset transfers and orders are simply a way to implement these asset movements. Essentially, we need a class with such methods like get_current_assets, can_buy/sell, move_assets (trade), is_in_move, cancel move etc. Internally, it reflects the latest state of the orders/assets but will periodically (if necessary, e.g., if there are open orders) synchronize the state. It will also notfy about state changes (order executed, i.e., movement finished etc.)
+
+## Simple 1 minute trading strategy
+
 Modes:
 
 * [not in market - buy mode] Ready and try to enter the market.
@@ -51,7 +155,7 @@ Modes:
     * Log transaction
     * Switch to buy mode and execute the logic of buy mode
 
-Principles of our strategy:
+## Principles of our strategy
 
 * Buy order is market order, sell order is a limit order
 * Only 3 cases: buy order running, sell order running, no orders running (buy and sell orders running is impossible)
@@ -71,115 +175,52 @@ Define independent functions executed synchronously or awaited:
 Functions can return None which is an indication of some problem and we have to process this result (cancelling current processing step or maybe delay next processing step by raising some "problem flag")
 Functions have some timeout (say, 5-10 seconds) and number of retries.
 
-#### Separate the logic of data state management and update from the logic of (latest) data processing
+Check possibility of using OCO and other special orders and options.
 
-This means that the processor should be unaware how it is triggered - when it starts it loads latest batch and (if it is really latest data, that is, not too old),
-and follows the logic of processing: generate features, generate signals, send orders etc.
-On the other hand, the data updater is a function which requests data, sends it to the data manager and notifies the processor (maybe data manager notifies the processor).
-Scheduler triggers/notifies the updater, and updater or data manager triggers/notifiers the processor.
+## Problems
 
-#### Generate several prediction files with different past horizon for training: unlimited, 12 months, 6 months
+#### Problem 1: Modify/adjust limit order price
 
-Store them in some common folder.
-Maybe update source files before from the service.
-Use these files for comparing same signal strategies, e.g., how they influence stability/volatility.
+Currently main problem is modifying/adjusting existing order price - either to force-sell or to adjust-sell.
+Approach 1: Kill existing order, modify its parameters and submit again.
+  1. In one cycle. Kill synchronously, check funds request (if coins are still available for sale), submit new sell order.
+  2. In two cycles. Kill, continue cycle, check orders as usual on the next cycle: if exists then kill-continue, if does not exist (killed) then create new sell order as usual.
+Approach 2: Submit order (price) modification request.
+Solution. We assume that price cannot be modified. Therefore, we must kill the current order and create a new (modifed) order.
+  Kill synchronously using cancel request.
+  Check response "status" field. If "CANCELED" then continue. If not then send check status request in some time until it status is cancelled.
+  Create new sell request as usual with new parameters.
 
-#### Different signal generations
+#### Problem 2: Convert limit order to market order
 
-* Simple algorithm to evaluate precision of signals
-We do not do trades but rather compute how many buy signals are false.
-The algorithm should be fast and we should be able to quickly find signal hyper-parameters with best precision.
+This can be done by simply updating limit price lower than the market. But we need to be able to retrieve market price.
 
-* Flexible exit (sell) strategy using price adjustment or early exit depending on the situation.
-Lower the sell price - either fixed adjustments or (better) depending on the current buy/sell signal values.
-Do this after time out or earlier. For example, in a couple of minutes the situation can gets worse so stop loss.
-Check if we can leverage OCO feature with automatic sell order (what we use now) plus a stop-loss order which will be executed at the same time if the situation (price) gets worse.
-Do grid search over various sell adjustment parameters (exit or stop loss parameters) with fixed buy (enter) signal parameters.
+#### Problem 3: Sync response for some requests like kill order
 
-#### Predicted features
-* Add RF algorithm to predictions.
-* Add Linear SVM or logistic regression to predictions.
-* Think about adding more sophisticated algorithms like KernelPCA or SVM.
-Maybe for short histories in order to take into account drift or local dependencies.
+We do not want to wait one cycle or even worse regularly check the status.
+newOrderRespType parameter: ACK, RESULT, or FULL
+- MARKET and LIMIT order types default to FULL,
+- all other orders default to ACK
 
-#### Feature generation:
-* Add trade-related features from https://github.com/bukosabino/ta
-  * compute and use weighted average price
-* Add long-term features (moving averages), for example, for 1 month or more.
-* Add ARIMA-like features
+#### Problem 4 (low priority, future): Async processing triggered by incoming web-socket stream
+
+We work synchronous to our local time every 1 minute.
+It is theoretically possible that when we request data (klines etc.) right after 1 local minute, the server is not yet ready.
+An alternative solution is to subscribe to the service and listen to its update.
+In this case, we trigger processing precisely when a new 1m-kline is received (independent of our local clocks).
+Our system is then synchronized with the service and is driven by the service data updates being them 1m-klines or order executions.
+Java WebSocket: client.onCandlestickEvent("ethbtc", CandlestickInterval.ONE_MINUTE, response -> System.out.println(response));
+Python WebSocket: conn_key = bm.start_kline_socket('BNBBTC', process_message, interval=KLINE_INTERVAL_30MINUTE)
+Our processing logic should remain the same but now it is triggered not by the local scheduler but rather by external events.
+
+-----
+# General system
 
 #### General system functions:
+
 * Ping the server: https://python-binance.readthedocs.io/en/latest/general.html#id1
 * Get system status: https://python-binance.readthedocs.io/en/latest/general.html#id3
 * Check server time and compare with local time: https://python-binance.readthedocs.io/en/latest/general.html#id2
-
-## How to
-
-#### Structure of functions
-
-General sequence:
-* Update klines data set from the binance server: "python start.py download_data"
-* Compute features and labels (label lists are hard-coded but not all of them have to be used): "python start.py generate_features.py
-* Generate rolling predictions (specify hyper-model parameters as well as features to use and labels to predict): "python start.py generate_rolling_predictions.py"
-* Train signal (trade) models: "python start.py train_signal_models.py"
-
-Regular updates of the trade server:
-* Load (update) source data (currently klines but in future other data sources could be used like futures)
-* Generate features and labels for the new data set (it is needed for model training)
-* Re-train label prediction models using new data and fixed (previously optimized) hyper-parametes
-  * Upload these models to the trade server
-
-Optimizing hyper-parameters of the prediction models:
-* Update data set
-* Compute features and labels
-* TODO: In grid search for possible gb hyper-parameters execute:
-  * Compute rolling predictions with the current grid parameters
-  * Store average accuracy in a file
-  * (In future, instead of computing average accuracy for all rolling segments, we can give higher weight to last rolling segments.)
-* Choose hyper-parameters with best mean accuracy and use them for further model training
-
-Optimizing hyper-parameters of the trade models:
-* Update data set
-* Compute features and labels
-* Compute rolling predictions using the chosen (best) hyper-parameters for prediction models
-* In grid search for possible threshold parameters execute:
-  * Compute overall performance by simulating trades for the whole time interval
-  * Store average performance in a file
-  * (In future, instead of computing average performance for all rolling segments, we can give higher weight to last rolling segments. As segments, we can use any interval like month.)
-* Choose hyper-parameters of the signal model with best mean performance and use them for further signal generation.
-
-#### Load new historic (klines) data
-
-Script: scripts/download_data.py
-
-Get symbol klines:
-* Edit main in binance-data.py by setting necessary symbol
-* Run script binance-data.py which will directly call get_klines_all()
-
-Get klines for futures:
-* Use the same function get_klines_all() but uncomment the section at the beginning.
-
-#### Generate feature matrix
-
-The goal here is to load source (kline) data, generate derived features and labels, and store the result in output file.
-The output is supposed to be used for other procedures like training prediction models.
-
-Execute from project root:
-```
-$ python start.py generate_features
-```
-
-* Ensure that latest source data has been downloaded from binance server
-* Max past window and max future horizon are currently not used (None will be stored)
-* Future horizon for labels is hard-coded (currently 60). Change if necessary
-* If necessary, uncomment line with storing to parquet (install the packages)
-* Output file will store features and labels as they are implemented in the trade module. Copy the header line to get the list.
-* Same number of lines in output as in input file
-* Approximate time: ~10 minutes (on YOGA)
-
-#### Train predict models
-
-See start.py
 
 #### Time synchronization in OS and time zones
 
@@ -317,7 +358,8 @@ systemctl disable apt-daily-upgrade.timer
 systemctl daemon-reload
 ```
 
-## Additional information
+-----
+# Additional information
 
 #### Order types
 
@@ -325,31 +367,32 @@ MARKET: taker order executed immediately at the best price
 
 LIMIT: exists in order book and can be filled at any time
 
-# STOP_LOSS* and TAKE_PROFIT* have a trigger and hence do not exist in order book, they are inserted in order book only using trigger.
+* STOP_LOSS* and TAKE_PROFIT* have a trigger and hence do not exist in order book, they are inserted in order book only using trigger.
   *after* trigger works, it is inserted in order book either as a market order or as a limit order.
-# STOP_LOSS and TAKE_PROFIT will execute a MARKET order when the stopPrice is reached.
-# Trigger rules:
-- Price above market price: STOP_LOSS BUY, TAKE_PROFIT SELL
-- Price below market price: STOP_LOSS SELL, TAKE_PROFIT BUY
-# We can specify timeInForce (so that the order is automatically killed after time out)
+* STOP_LOSS and TAKE_PROFIT will execute a MARKET order when the stopPrice is reached.
+* Trigger rules:
+  * Price above market price: STOP_LOSS BUY, TAKE_PROFIT SELL
+  * Price below market price: STOP_LOSS SELL, TAKE_PROFIT BUY
+* We can specify timeInForce (so that the order is automatically killed after time out)
 
-# Is used when price gets worse:
-STOP_LOSS: quantity, stopPrice (trigger), execution price is market price
-STOP_LOSS_LIMIT: timeInForce, quantity, price, stopPrice (trigger)
+* Is used when price gets worse:
+  * STOP_LOSS: quantity, stopPrice (trigger), execution price is market price
+  * STOP_LOSS_LIMIT: timeInForce, quantity, price, stopPrice (trigger)
 
-# Probably is used when price gets better:
-TAKE_PROFIT: quantity, stopPrice (trigger), execution price is market price
-TAKE_PROFIT_LIMIT: timeInForce, quantity, price, stopPrice
+* Probably is used when price gets better:
+  * TAKE_PROFIT: quantity, stopPrice (trigger), execution price is market price
+  * TAKE_PROFIT_LIMIT: timeInForce, quantity, price, stopPrice
 
-# LIMIT_MAKER are LIMIT orders that will be rejected if they would immediately match and trade as a taker.
-LIMIT_MAKER: quantity, price
+* LIMIT_MAKER are LIMIT orders that will be rejected if they would immediately match and trade as a taker.
+  * LIMIT_MAKER: quantity, price
 
 What is OCO:
-- One-Cancels-the-Other Order - (OCO)
+* One-Cancels-the-Other Order - (OCO)
 
 #### Order API for getting order status
 
 Link: https://python-binance.readthedocs.io/en/latest/account.html#orders
+
 * Get all orders: orders = client.get_all_orders(symbol='BNBBTC', limit=10)
 * Get all open orders: orders = client.get_open_orders(symbol='BNBBTC')
 * Check order status: order = client.get_order(symbol='BNBBTC', orderId='orderId')
@@ -357,6 +400,7 @@ Link: https://python-binance.readthedocs.io/en/latest/account.html#orders
 #### Account API for getting funds
 
 Link: https://python-binance.readthedocs.io/en/latest/account.html#account
+
 * Get asset balance: balance = client.get_asset_balance(asset='BTC')
 
 #### Software
@@ -364,39 +408,3 @@ Link: https://python-binance.readthedocs.io/en/latest/account.html#account
 * binance offician API: https://github.com/binance-exchange/binance-official-api-docs
 * python-binance: https://github.com/sammchardy/python-binance
 * LiveDataFrame = Python + Pandas + Streaming: https://docs.livedataframe.com/
-
-## Problems
-
-#### Problem 1: Modify/adjust limit order price
-
-Currently main problem is modifying/adjusting existing order price - either to force-sell or to adjust-sell.
-Approach 1: Kill existing order, modify its parameters and submit again.
-  1. In one cycle. Kill synchronously, check funds request (if coins are still available for sale), submit new sell order.
-  2. In two cycles. Kill, continue cycle, check orders as usual on the next cycle: if exists then kill-continue, if does not exist (killed) then create new sell order as usual.
-Approach 2: Submit order (price) modification request.
-Solution. We assume that price cannot be modified. Therefore, we must kill the current order and create a new (modifed) order.
-  Kill synchronously using cancel request.
-  Check response "status" field. If "CANCELED" then continue. If not then send check status request in some time until it status is cancelled.
-  Create new sell request as usual with new parameters.
-
-#### Problem 2: Convert limit order to market order
-
-This can be done by simply updating limit price lower than the market. But we need to be able to retrieve market price.
-
-#### Problem 3: Sync response for some requests like kill order
-
-We do not want to wait one cycle or even worse regularly check the status.
-newOrderRespType parameter: ACK, RESULT, or FULL
-- MARKET and LIMIT order types default to FULL,
-- all other orders default to ACK
-
-#### Problem 4 (low priority, future): Async processing triggered by incoming web-socket stream
-
-We work synchronous to our local time every 1 minute.
-It is theoretically possible that when we request data (klines etc.) right after 1 local minute, the server is not yet ready.
-An alternative solution is to subscribe to the service and listen to its update.
-In this case, we trigger processing precisely when a new 1m-kline is received (independent of our local clocks).
-Our system is then synchronized with the service and is driven by the service data updates being them 1m-klines or order executions.
-Java WebSocket: client.onCandlestickEvent("ethbtc", CandlestickInterval.ONE_MINUTE, response -> System.out.println(response));
-Python WebSocket: conn_key = bm.start_kline_socket('BNBBTC', process_message, interval=KLINE_INTERVAL_30MINUTE)
-Our processing logic should remain the same but now it is triggered not by the local scheduler but rather by external events.
