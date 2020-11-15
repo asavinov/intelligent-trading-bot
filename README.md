@@ -33,31 +33,57 @@ Notes:
 * The goal here is to load source (kline) data, generate derived features and labels, and store the result in output file. The output is supposed to be used for other procedures like training prediction models.
 * Ensure that latest source data has been downloaded from binance server (previous step)
 * Max past window and max future horizon are currently not used (None will be stored)
-* Future horizon for labels is hard-coded (currently 60). Change if necessary
+* Future horizon for labels is hard-coded (currently 300). Change if necessary
 * If necessary, uncomment line with storing to parquet (install the packages)
 * Output file will store features and labels as they are implemented in the trade module. Copy the header line to get the list.
 * Same number of lines in output as in input file
-* Approximate time: ~10 minutes (on YOGA)
+* Approximate time: ~20-30 minutes (on YOGA)
 
 #### 4. Generate rolling predictions
 
 * Generate rolling predictions. Here we train a model using previous data less frequently, say, once per day or week, but use much more previous data than in typical window-based features. We apply then one constant model to predict values for the future time until it is re-trained again using newest data. (If the re-train frequency is equal to sample rate, that is, we do it for each new row, then we get normal window-based derived feature with large window sizes.) Each feature is based on some algorithm with some hyper-parameters and some history length. This procedure does not choose best hyper-parameters - for that purpose we need some other procedure, which will optimize the predicted values with the real ones. Normally, the target values of these features are directly related to what we really want to predict, that is, to some label. Output of this procedure is same file (feature matrix) with additional predicted features (scores). This file however will be much shorter because we need some quite long history for some features (say, 1 year). Note that for applying rolling predictions, we have to know hyper-parameters which can be found by a simpler procedure.
   * Script: scripts.generate_rolling_predictions.py or "python start.py generate_rolling_predictions.py"
 
-#### 5. Train signal models
+Notes:
+* Prerequisite: We already have to know the best prediction model(s) and its best parameters
+* There can be several models used for rolling predictions
+* Essentially, the predicting models are treated here as (more complex) feature definitions
+* Choose the best model and its parameters using grid search (below)
+* The results of this step are consumed by signal generator
+
+#### 5. (Grid) search for best parameters of and/or best prediction models
+
+The goal is to find best prediction models and their best parameters using hyper-parameter optimization. The results of this step are certain model (like nn, gradient boosting etc.) and, importantly, its best hyper-parameters.
+
+Notes:
+* The results are consumed by the rolling prediction step
+* There can be many algorithms and many historic horizons or input feature set
+
+* Grid search.
+  * Script: grid_search.py
+
+#### 6. Train prediction models
+
+Here we regularly train prediciton models to be used in the production service as parameters of the corresponding predicted feature generation procedures.
+
+Notes:
+* There can be many predicted features and models, for example, for spot and future markets or based on different prediction algorithms or historic horizons
+
+Script: train_predict_models.py 
+
+#### 7. Train signal models
 
 Here we find best parameters for signal generation like thresholds.
 
 * Train signal models. The input is a feature matrix with all scores (predicted features). Our goal is to define a feature the output of which will be directly used for buy/sell decisions. We need search for the best hyper-parameters starting from simple score threshold and ending with some data mining algorithm.
   * Script: scripts.train_signal_models.py or "python start.py train_signal_models.py"
 
-#### 6. (Grid) search for best parameters of and/or best prediction models
-
-Once we decided to use a model, we want to its best parameters.
-
-* Grid search.
-  * Script: classification_nn.py
-  * Script: classification_gb.py
+Notes:
+* We consume the results of rolling predictions
+* We assume that rolling prediction produce many highly informative features
+* The grid search (brute force) of this step has to test our trading strategy using back testing as (direct) metric. In other words, trading performance on historic data is our metric for brute force or simple ML 
+* Normally the result is some thresholds or some simple ML model
+* Important: The results of this step are consumed in the production service to generate signals 
 
 -----
 # Signaler: Signal server

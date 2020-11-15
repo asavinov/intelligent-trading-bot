@@ -76,6 +76,9 @@ def generate_features(df, use_differences=False):
     features += add_past_aggregations(df, 'tb_quote', np.mean, windows, '', to_drop[-1], 100.0)
     # ['tb_quote_1', 'tb_quote_2', 'tb_quote_5', 'tb_quote_20', 'tb_quote_60', 'tb_quote_180']
 
+    # Area over and under latest close price
+    features += add_area_ratio(df, is_future=False, column_name="close", windows=[60, 120, 180, 300, 720], suffix = "_area")
+
     df.drop(columns=to_drop, inplace=True)
 
     return features

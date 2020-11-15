@@ -27,7 +27,7 @@ class P:
 
     in_path_name = r"C:\DATA2\BITCOIN\GENERATED"
     in_file_name = r"BTCUSDT-1m.csv"
-    in_nrows = 500_000
+    in_nrows = 10_000_000
 
     out_path_name = r"_TEMP_FEATURES"
     out_file_name = r"BTCUSDT-1m-features"
@@ -85,7 +85,7 @@ def main(args=None):
     labels += generate_labels_thresholds(in_df, horizon=180)
 
     # Numeric label which is ration between areas over and under the latest price
-    labels += generate_labels_price_area(in_df, windows=[60, 120, 180])
+    labels += add_area_ratio(in_df, is_future=True, column_name="close", windows=[60, 120, 180, 300], suffix = "_area_future")
 
     print(f"Finished generating {len(labels)} labels")
 
