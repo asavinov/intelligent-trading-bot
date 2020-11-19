@@ -141,6 +141,9 @@ def generate_features_futur(df, use_differences=False):
     #features += add_past_aggregations(df, 'f_tb_quote', np.mean, windows, '', to_drop[-1], 100.0)
     # ['f_tb_quote_1', 'f_tb_quote_2', 'f_tb_quote_5', 'f_tb_quote_10', 'f_tb_quote_20']
 
+    # Area over and under latest close price
+    features += add_area_ratio(df, is_future=False, column_name="f_close", windows=[20, 60, 120, 180], suffix = "_area")
+
     df.drop(columns=to_drop, inplace=True)
 
     return features

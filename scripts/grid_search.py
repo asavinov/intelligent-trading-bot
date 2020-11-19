@@ -17,6 +17,8 @@ from sklearn.metrics import precision_score
 from sklearn.metrics import recall_score
 from sklearn.metrics import f1_score
 
+from sklearn.linear_model import LogisticRegression, SGDClassifier
+
 import lightgbm as lgbm
 
 import tensorflow as tf
@@ -51,7 +53,8 @@ features_kline = [
     'trades_1','trades_5','trades_15','trades_60','trades_180','trades_720',
     'tb_base_1','tb_base_5','tb_base_15','tb_base_60','tb_base_180','tb_base_720',
     'tb_quote_1','tb_quote_5','tb_quote_15','tb_quote_60','tb_quote_180','tb_quote_720',
-    ]  # 41 features
+    'close_area_60','close_area_120','close_area_180','close_area_300','close_area_720',
+    ]  # 46 features
 features_kline_small = [
     'close_1','close_5','close_15','close_60','close_180','close_720',
     'close_std_5','close_std_15','close_std_60','close_std_180','close_std_720',  # Removed "std_1" which is constant
@@ -60,16 +63,23 @@ features_kline_small = [
 
 features_futur = [
     "f_close_1", "f_close_2", "f_close_5", "f_close_20", "f_close_60", "f_close_180",
-    "f_close_std_2", "f_close_std_5", "f_close_std_20", "f_close_std_60", "f_close_std_180",
-    # Removed "std_1" which is constant
+    "f_close_std_2", "f_close_std_5", "f_close_std_20", "f_close_std_60", "f_close_std_180",  # Removed "std_1" which is constant
     "f_volume_1", "f_volume_2", "f_volume_5", "f_volume_20", "f_volume_60", "f_volume_180",
     "f_span_1", "f_span_2", "f_span_5", "f_span_20", "f_span_60", "f_span_180",
     "f_trades_1", "f_trades_2", "f_trades_5", "f_trades_20", "f_trades_60", "f_trades_180",
-]  # 29 features
+    'f_close_area_20', 'f_close_area_60', 'f_close_area_120', 'f_close_area_180',
+]  # 33 features
+
 
 labels = [
     'high_10', 'high_15', 'high_20',
     'low_10', 'low_15', 'low_20',
+]
+labels_regr = [
+    'high_max_60', 'high_max_120', 'high_max_180',  # Maximum high (relative)
+    'low_min_60', 'low_min_120', 'low_min_180',  # Minimum low (relative)
+    'high_to_low_60', 'high_to_low_120', 'high_to_low_180',
+    'close_area_future_60', 'close_area_future_120', 'close_area_future_180', 'close_area_future_300',
 ]
 
 params_grid_gb = {  # First parameter is the slowest
@@ -90,31 +100,121 @@ params_grid_nn = {  # First parameter is the slowest
     "bs": [64],
 }
 
+# Best liblinear: is_scale=False, balance=False, penalty=l2, max_iter=100
+params_grid_lc = {  # First parameter is the slowest
+    # Best is False, but True can give almost same result (under different conditions)
+    "is_scale": [False],
+    "penalty": ["l2"],  # "l2" "l1" "elasticnet" "none"
+    "C": [1.0],  # small values stronger regularization
+    # 1) None balance is always better
+    "class_weight": [None],  # "balanced"
+    # 1) liblinear - fast convergence (100 is enough), lbfgs (l2 or none) - good convergence, "newton-cg" "sag" "saga"
+    "solver": ["liblinear"],
+    "max_iter": [200],
+}
+# Results for futur:
+#high_10, False, l2, 1.0, None, liblinear, 100, 0.458, 0.032, 0.553, 0.016
+#high_15, False, l2, 1.0, None, liblinear, 100, 0.470, 0.029, 0.652, 0.015
+#high_20, False, l2, 1.0, None, liblinear, 100, 0.472, 0.030, 0.623, 0.015
+#low_10, False, l2, 1.0, None, liblinear, 100, 0.471, 0.017, 0.367, 0.009
+#low_15, False, l2, 1.0, None, liblinear, 100, 0.468, 0.005, 0.399, 0.002
+#low_20, False, l2, 1.0, None, liblinear, 100, 0.473, 0.010, 0.572, 0.005
+# Results for klines (spot):
+#high_10, False, l2, 1.0, None, liblinear, 200, 0.551, 0.050, 0.522, 0.026
+#high_15, False, l2, 1.0, None, liblinear, 200, 0.558, 0.023, 0.484, 0.012
+#high_20, False, l2, 1.0, None, liblinear, 200, 0.564, 0.017, 0.440, 0.009
+#low_10, False, l2, 1.0, None, liblinear, 200, 0.565, 0.044, 0.538, 0.023
+#low_15, False, l2, 1.0, None, liblinear, 200, 0.580, 0.015, 0.556, 0.008
+#low_20, False, l2, 1.0, None, liblinear, 200, 0.584, 0.019, 0.784, 0.010
+
 #
 # Parameters of data and features
 #
 
-params_grid = params_grid_nn
+params_grid = params_grid_lc
 
 #
 # Parameters of rolling predict
 #
 nrows = 10_000_000  # For debug
 # Columns
-train_features = features_futur
+train_features = features_kline  # features_futur features_kline
 predict_label = "low_20"
 # Rows
 prediction_start_str = "2020-02-01 00:00:00"  # Use it when rolling prediction will work
 #prediction_start_str = "2020-06-01 00:00:00"
-train_length = int(4.0 * 43_800)  # 525_600 * 1.5 for long, 43_800 * 4 for short (futur)
+train_length = int(1.5 * 525_600)  # 1.5 * 525_600 for long/spot, 4 * 43_800 for short/futur
 stride = 6*7*1440  # Length of one rolling prediction step: 4 weeks, 1 month = 43800
-steps = 5  # 5 How many rolling prediction steps
+steps = 6  # How many rolling prediction steps
 
+
+#
+# LC - Linear Classifier
+#
+
+def train_predict_lc(df_X, df_y, df_X_test, params: dict):
+    """
+    Train model with the specified hyper-parameters and return its predictions for the test data.
+    """
+    models = train_lc(df_X, df_y, params)
+    y_test_hat = predict_lc(models, df_X_test)
+    return y_test_hat
+
+def train_lc(df_X, df_y, params: dict):
+    """
+    Train model with the specified hyper-parameters and return its predictions for the test data.
+    """
+    is_scale = params.get("is_scale")
+
+    #
+    # Prepare data
+    #
+    if is_scale:
+        scaler = StandardScaler()
+        scaler.fit(df_X)
+        X_train = scaler.transform(df_X)
+    else:
+        scaler = None
+        X_train = df_X.values
+
+    y_train = df_y.values
+
+    #
+    # Create model
+    #
+    args = params.copy()
+    del args["is_scale"]
+    args["n_jobs"] = 1
+    model = LogisticRegression(**args)
+
+    #
+    # Train
+    #
+    model.fit(X_train, y_train)
+
+    return (model, scaler)
+
+def predict_lc(models: tuple, df_X_test):
+    """
+    Use the model(s) to make predictions for the test data.
+    The first model is a prediction model and the second model (optional) is a scaler.
+    """
+    scaler = models[1]
+    is_scale = scaler is not None
+
+    if is_scale:
+        df_X_test = scaler.transform(df_X_test)
+    else:
+        df_X_test = df_X_test.values
+
+    y_test_hat = models[0].predict_proba(df_X_test)
+
+    # Binary classifier predict_proba returns pairs of probabilities for class 0 and class 1
+    return y_test_hat[:, 1]  # Or y_test_hat.flatten()
 
 #
 # NN
 #
-
 
 def train_predict_nn(df_X, df_y, df_X_test, params: dict):
     """
@@ -222,11 +322,9 @@ def predict_nn(models: tuple, df_X_test):
 
     return y_test_hat[:, 0]  # Or y_test_hat.flatten()
 
-
 #
 # GB
 #
-
 
 def train_predict_gb(df_X, df_y, df_X_test, params: dict):
     """
@@ -385,7 +483,7 @@ def driver():
 
             # ---
             #y_test_hat = train_gb(df_X, df_y, df_X_test, params)
-            y_test_hat = train_predict_nn(df_X, df_y, df_X_test, params)
+            y_test_hat = train_predict_lc(df_X, df_y, df_X_test, params)
             # ---
             y_test_hat = pd.Series(index=df_y_test.index, data=y_test_hat)
 
@@ -442,10 +540,28 @@ def driver():
         ]
         return line
 
+    def get_line_lc(params, record):
+        line = [
+            predict_label,
+            params.get("is_scale"),
+            params.get("penalty"),
+            params.get("C"),
+            params.get("class_weight"),
+            params.get("solver"),
+            params.get("max_iter"),
+            "{:.3f}".format(record["auc"]),
+            "{:.3f}".format(record["f1"]),
+            "{:.3f}".format(record["precision"]),
+            "{:.3f}".format(record["recall"]),
+        ]
+
+        return line
+
     lines = []
     for i, params in enumerate(params_list):
         #line = get_line_gb(params, records[i])
-        line = get_line_nn(params, records[i])
+        #line = get_line_nn(params, records[i])
+        line = get_line_lc(params, records[i])
         lines.append(", ".join([str(x) for x in line]))
 
     with open('metrics.txt', 'w') as f:
