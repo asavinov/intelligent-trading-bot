@@ -13,7 +13,7 @@ from sklearn.model_selection import train_test_split
 from sklearn import metrics
 from sklearn.model_selection import ParameterGrid
 
-from trade.utils import *
+from common.utils import *
 
 """
 In fact, it training a hyper-model while the model itself is not trained - it is a rule-based model.

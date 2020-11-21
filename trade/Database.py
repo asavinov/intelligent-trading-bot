@@ -8,8 +8,8 @@ import queue
 import numpy as np
 import pandas as pd
 
+from common.utils import *
 from trade.App import App
-from trade.utils import *
 from trade.feature_prediction import *
 from trade.feature_generation import *
 from trade.signal_generation import *

@@ -13,7 +13,7 @@ from sklearn import metrics
 
 import lightgbm as lgbm
 
-from trade.utils import *
+from common.utils import *
 from trade.feature_generation import *
 from trade.feature_prediction import *
 

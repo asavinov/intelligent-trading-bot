@@ -24,7 +24,7 @@ from sklearn.ensemble import GradientBoostingClassifier
 import lightgbm as lgbm
 
 
-#from trade.utils import *
+#from common.utils import *
 #from trade.feature_generation import *
 
 

@@ -10,7 +10,7 @@ import asyncio
 
 from binance.client import Client
 
-from trade.utils import *
+from common.utils import *
 from trade.App import App
 from trade.Database import *
 from trade.buysell import *

@@ -10,7 +10,7 @@ from tqdm import tqdm_notebook #(Optional, used for progress-bars)
 
 import numpy as np
 
-from trade.utils import *
+from common.utils import *
 from trade.feature_generation import *
 
 """

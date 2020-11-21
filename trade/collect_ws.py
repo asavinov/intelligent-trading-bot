@@ -13,7 +13,7 @@ from binance.helpers import date_to_milliseconds, interval_to_milliseconds
 from binance.client import Client
 from binance.websockets import BinanceSocketManager
 
-from trade.utils import *
+from common.utils import *
 from trade.App import App
 from trade.Database import *
 

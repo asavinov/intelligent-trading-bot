@@ -12,7 +12,7 @@ import pandas as pd
 from sklearn.model_selection import train_test_split
 from sklearn import metrics
 
-from trade.utils import *
+from common.utils import *
 
 """
 OBSOLETE: Use train_signal_models.py instead for grid search and finding best signal model by loading pre-computed rolling predictions.

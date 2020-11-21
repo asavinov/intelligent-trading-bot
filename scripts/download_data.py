@@ -16,7 +16,7 @@ from binance.websockets import BinanceSocketManager
 from binance.enums import *
 
 # DO NOT INCLUDE because it has function klines_to_df with the same name but different implementation (name conflict)
-#from trade.utils import *
+#from common.utils import *
 
 """
 The script is intended for retrieving data from binance server: klines, server info etc.

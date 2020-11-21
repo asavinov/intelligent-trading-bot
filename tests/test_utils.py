@@ -1,8 +1,8 @@
 import pytest
 
+from common.utils import *
+from common.utils import add_area_ratio
 from trade.signal_generation import *
-from trade.utils import *
-from trade.utils import add_area_ratio
 
 def test_signal_generation():
 	data = [

@@ -13,10 +13,11 @@ from sklearn import metrics
 
 import lightgbm as lgbm
 
-from trade.utils import *
+from common.classifiers import *
+from common.utils import *
 from trade.feature_generation import *
 from trade.feature_prediction import *
-from scripts.grid_search_gb import *
+
 """
 Generate label predictions for the whole input feature matrix by iteratively training models using historic data and predicting labels for some future horizon.
 The main parameter is the step of iteration, that is, the future horizon for prediction.
@@ -115,36 +116,45 @@ class P:
     # First row for starting predictions: "2020-02-01 00:00:00" - minimum start for futures
     prediction_start_str = "2020-02-01 00:00:00"
     # How frequently re-train models: 1 day: 1_440 = 60 * 24, one week: 10_080
-    prediction_length = 6*7*1440
-    prediction_count = 5  # How many prediction steps. If None or 0, then from prediction start till the data end
+    prediction_length = 4*7*1440
+    prediction_count = 9  # How many prediction steps. If None or 0, then from prediction start till the data end
 
     # We can define several history lengths. A separate model and prediction scores will be generated for each of them.
     # Example: {"18": 788_400, "12": 525_600, "06": 262_800, "04": 175_200, "03": 131_400, "02": 87_600}
-    label_histories_kline = {"18": 788_400}  # 1.5 years - 788_400
-    label_histories_futur = {"04": 175_200}  # 4 months - 175_200
+    label_histories_kline = {"18": 788_400}  # 1.5 years - 788_400=1.5*525_600
+    label_histories_futur = {"04": 175_200}  # 4 months - 175_200=4*43_800
 
     features_horizon = 720  # Features are generated using this past window length (max feature window)
     labels_horizon = 180  # Labels are generated using this number of steps ahead (max label window)
 
 
 #
-# (Best) algorithm parameters (from grid search)
+# (Best) algorithm parameters (found by and copied from grid search scripts)
 #
 params_gb = {
     "objective": "cross_entropy",
     "max_depth": 1,
     "learning_rate": 0.01,
-    "num_boost_round": 1_00,
+    "num_boost_round": 1_500,
 
     "lambda_l1": 1.0,
     "lambda_l2": 1.0,
 }
 
 params_nn = {
-    "layers": [29],
+    "layers": [29],  # It is equal to the number of input features (different for spot and futur)
     "learning_rate": 0.001,
-    "n_epochs": 10,
+    "n_epochs": 20,
     "bs": 64,
+}
+
+params_grid_lc = {
+    "is_scale": False,
+    "penalty": "l2",
+    "C": 1.0,
+    "class_weight": None,
+    "solver": "liblinear",
+    "max_iter": 200,
 }
 
 
@@ -177,11 +187,11 @@ def main(args=None):
     if P.in_nrows_tail:
         in_df = in_df.tail(P.in_nrows_tail)
 
-    for label in labels:
+    for label in P.labels:
         in_df[label] = in_df[label].astype(int)  # "category" NN does not work without this
 
     pd.set_option('use_inf_as_na', True)
-    #in_df = in_df.dropna()  # We drop nulls after selecting features because futures have more nans than klines
+    #in_df = in_df.dropna()  # We drop nulls after selecting features (not here) because futures have more nans than klines
     in_df = in_df.reset_index(drop=True)  # We must reset index after removing rows to remove gaps
 
     prediction_start = find_index(in_df, P.prediction_start_str)
@@ -235,18 +245,23 @@ def main(args=None):
                 for label in P.labels:  # Train-predict different labels (and algorithms) using same X
                     df_y = train_df[label]
 
-                    # --- NN
-                    score_column_name = label + name_tag + "nn"
-                    print(f"Train model: label '{label}', history {history_name}, rows {len(train_df)}, features {len(features)}, score column {score_column_name}...")
-                    y_hat = train_predict_nn(df_X, df_y, df_X_test, params=params_nn)
-                    predict_labels_df[score_column_name] = y_hat
-                    # ---
                     # --- GB
                     score_column_name = label + name_tag + "gb"
                     print(f"Train model: label '{label}', history {history_name}, rows {len(train_df)}, features {len(features)}, score column {score_column_name}...")
                     y_hat = train_predict_gb(df_X, df_y, df_X_test, params=params_gb)
                     predict_labels_df[score_column_name] = y_hat
-                    # ---
+
+                    # --- NN
+                    score_column_name = label + name_tag + "nn"
+                    print(f"Train model: label '{label}', history {history_name}, rows {len(train_df)}, features {len(features)}, score column {score_column_name}...")
+                    y_hat = train_predict_nn(df_X, df_y, df_X_test, params=params_nn)
+                    predict_labels_df[score_column_name] = y_hat
+
+                    # --- LC
+                    score_column_name = label + name_tag + "lc"
+                    print(f"Train model: label '{label}', history {history_name}, rows {len(train_df)}, features {len(features)}, score column {score_column_name}...")
+                    y_hat = train_predict_lc(df_X, df_y, df_X_test, params=params_lc)
+                    predict_labels_df[score_column_name] = y_hat
 
         # ===
         # futur package
@@ -271,18 +286,23 @@ def main(args=None):
                 for label in P.labels:  # Train-predict different labels (and algorithms) using same X
                     df_y = train_df[label]
 
-                    # --- NN
-                    score_column_name = label + name_tag + "nn"
-                    print(f"Train model: label '{label}', history {history_name}, rows {len(train_df)}, features {len(features)}, score column {score_column_name}...")
-                    y_hat = train_predict_nn(df_X, df_y, df_X_test, params=params_nn)
-                    predict_labels_df[score_column_name] = y_hat
-                    # ---
                     # --- GB
                     score_column_name = label + name_tag + "gb"
                     print(f"Train model: label '{label}', history {history_name}, rows {len(train_df)}, features {len(features)}, score column {score_column_name}...")
                     y_hat = train_predict_gb(df_X, df_y, df_X_test, params=params_gb)
                     predict_labels_df[score_column_name] = y_hat
-                    # ---
+
+                    # --- NN
+                    score_column_name = label + name_tag + "nn"
+                    print(f"Train model: label '{label}', history {history_name}, rows {len(train_df)}, features {len(features)}, score column {score_column_name}...")
+                    y_hat = train_predict_nn(df_X, df_y, df_X_test, params=params_nn)
+                    predict_labels_df[score_column_name] = y_hat
+
+                    # --- LC
+                    score_column_name = label + name_tag + "lc"
+                    print(f"Train model: label '{label}', history {history_name}, rows {len(train_df)}, features {len(features)}, score column {score_column_name}...")
+                    y_hat = train_predict_lc(df_X, df_y, df_X_test, params=params_lc)
+                    predict_labels_df[score_column_name] = y_hat
 
         #
         # Append predicted *rows* to the end of previous predicted rows
