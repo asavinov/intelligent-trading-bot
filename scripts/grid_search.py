@@ -26,6 +26,17 @@ data_path = r"C:\DATA2\BITCOIN\GENERATED"
 data_file = r"BTCUSDT-1m-features.csv"
 
 
+labels = [
+    'high_10', 'high_15', 'high_20',
+    'low_10', 'low_15', 'low_20',
+]
+labels_regr = [
+    'high_max_60', 'high_max_120', 'high_max_180',  # Maximum high (relative)
+    'low_min_60', 'low_min_120', 'low_min_180',  # Minimum low (relative)
+    'high_to_low_60', 'high_to_low_120', 'high_to_low_180',
+    'close_area_future_60', 'close_area_future_120', 'close_area_future_180', 'close_area_future_300',
+]
+
 features_kline = [
     'close_1','close_5','close_15','close_60','close_180','close_720',
     'close_std_5','close_std_15','close_std_60','close_std_180','close_std_720',  # Removed "std_1" which is constant
@@ -46,34 +57,25 @@ features_futur = [
     'f_close_area_20', 'f_close_area_60', 'f_close_area_120', 'f_close_area_180',
 ]  # 33 features
 
-
-labels = [
-    'high_10', 'high_15', 'high_20',
-    'low_10', 'low_15', 'low_20',
-]
-labels_regr = [
-    'high_max_60', 'high_max_120', 'high_max_180',  # Maximum high (relative)
-    'low_min_60', 'low_min_120', 'low_min_180',  # Minimum low (relative)
-    'high_to_low_60', 'high_to_low_120', 'high_to_low_180',
-    'close_area_future_60', 'close_area_future_120', 'close_area_future_180', 'close_area_future_300',
-]
-
 #
 # Parameters of rolling predict
 #
 
 nrows = 10_000_000  # For debug
 # Columns
-train_features = features_futur  # features_futur features_kline
-predict_label = "low_20"
+train_features = features_kline  # features_futur features_kline
+predict_label = "high_15"
 # Rows
 prediction_start_str = "2020-02-01 00:00:00"  # Use it when rolling prediction will work
 #prediction_start_str = "2020-06-01 00:00:00"
-train_length = int(4 * 43_800)  # 1.5 * 525_600 for long/spot, 4 * 43_800 for short/futur
-stride = 1*7*1440  # Length of one rolling prediction step: mid: 1 month 43_800=4*7*1440, long: 1,5 months 6*7*1440
-steps = 1  # How many rolling prediction steps. ~40 weeks in [1.2-1.11]
+train_length = int(1.5 * 525_600)  # 1.5 * 525_600 for long/spot, 4 * 43_800 for short/futur
+stride = 4*7*1440  # Length of one rolling prediction step: mid: 1 month 43_800=4*7*1440, long: 1,5 months 6*7*1440
+steps = 2  # How many rolling prediction steps. ~40 weeks in [1.2-1.11]
 
-algorithm = "lc"  # gb nn lc
+# features_horizon = 720  # Features are generated using this past window length (max feature window)
+labels_horizon = 180  # Labels are generated using this number of steps ahead (max label window)
+
+algorithm = "nn"  # gb nn lc
 
 #
 # Parameters for algorithms
@@ -190,24 +192,31 @@ def params_to_line_lc(params):
 # Grid search
 #
 
-def driver():
+def main():
     #
     # Load and prepare all data
     #
 
     # Load all data
     df_all = pd.read_csv(data_path + "\\" + data_file, parse_dates=['timestamp'], nrows=nrows)
+
+    print(f"Feature matrix loaded. Length: {len(df_all)}. Width: {len(df_all.columns)}")
+
     for label in labels:
         df_all[label] = df_all[label].astype(int)  # "category" NN does not work without this
 
     # Select necessary features and label
-    df_all = df_all[train_features + labels + ["timestamp"]]
+    df_all = df_all[["timestamp"] + features_kline + features_futur + labels]
 
     pd.set_option('use_inf_as_na', True)
-    df_all = df_all.dropna()  # Nans result in constant accuracy and nan loss. MissingValues procedure does not work and produces exceptions
+    # Spot and futures have different available histories. If we drop nans in all of them, then we get a very short data frame (corresponding to futureus which have little data)
+    # So we do not drop data here but rather when we select necessary input features
+    # Nans result in constant accuracy and nan loss. MissingValues procedure does not work and produces exceptions
+    df_all = df_all.dropna(subset=labels)
     df_all = df_all.reset_index(drop=True)  # We must reset index after removing rows to remove gaps
 
     prediction_start = find_index(df_all, prediction_start_str)
+    print(f"Start index: {prediction_start}")
 
     del df_all["timestamp"]
 
@@ -238,19 +247,32 @@ def driver():
         print("Steps ({}): ".format(steps), end="")
         for step in range(steps):
 
-            # Train step data
-            end = prediction_start + (step * stride)
-            start = end - train_length
-            df_train = df_all.iloc[start:end]
+            # Predict data
+
+            predict_start = prediction_start + (step * stride)
+            predict_end = predict_start + stride
+
+            df_test = df_all.iloc[predict_start:predict_end]
+            df_test = df_test.dropna(subset=train_features)
+
+            df_X_test = df_test[train_features]
+            df_y_test = df_test[predict_label]
+
+            # Train data
+
+            # We exclude recent objects from training, because they do not have labels yet - the labels are in future
+            # In real (stream) data, we will have null labels for recent objects. During simulation, labels are available and hence we need to ignore/exclude them manually
+            train_end = predict_start - labels_horizon - 1
+            train_start = train_end - train_length
+            train_start = 0 if train_start < 0 else train_start
+
+            df_train = df_all.iloc[train_start:train_end]
+            df_train = df_train.dropna(subset=train_features)
 
             df_X = df_train[train_features]
             df_y = df_train[predict_label]
 
-            # Test step data
-            df_test = df_all.iloc[end:end+stride]
-
-            df_X_test = df_test[train_features]
-            df_y_test = df_test[predict_label]
+            print(f"Train range: [{train_start}, {train_end}]. Prediction range: [{predict_start}, {predict_end}]. ")
 
             # ---
             if algorithm == "gb":
@@ -360,4 +382,4 @@ def driver():
 
 
 if __name__ == '__main__':
-    driver()
+    main()
