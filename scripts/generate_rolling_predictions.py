@@ -115,12 +115,7 @@ class P:
     prediction_start_str = "2020-02-01 00:00:00"
     # How frequently re-train models: 1 day: 1_440 = 60 * 24, one week: 10_080
     prediction_length = 4*7*1440
-    prediction_count = 2  # How many prediction steps. If None or 0, then from prediction start till the data end
-
-    # We can define several history lengths. A separate model and prediction scores will be generated for each of them.
-    # Example: {"18": 788_400, "12": 525_600, "06": 262_800, "04": 175_200, "03": 131_400, "02": 87_600}
-    label_histories_kline = {"18": 788_400}  # 1.5 years - 788_400=1.5*525_600
-    label_histories_futur = {"04": 175_200}  # 4 months - 175_200=4*43_800
+    prediction_count = 3  # How many prediction steps. If None or 0, then from prediction start till the data end
 
     #features_horizon = 720  # Features are generated using this past window length (max feature window)
     labels_horizon = 180  # Labels are generated using this number of steps ahead (max label window)
@@ -192,13 +187,13 @@ def main(args=None):
         in_df[label] = in_df[label].astype(int)  # "category" NN does not work without this
 
     # Select necessary features and label
-    in_df = in_df[["timestamp"] + P.features_kline + P.features_futur + P.labels]
+    in_df = in_df[P.in_features_kline + P.features_kline + P.features_futur + P.labels]
 
-    pd.set_option('use_inf_as_na', True)
     # Spot and futures have different available histories. If we drop nans in all of them, then we get a very short data frame (corresponding to futureus which have little data)
     # So we do not drop data here but rather when we select necessary input features
     # Nans result in constant accuracy and nan loss. MissingValues procedure does not work and produces exceptions
-    in_df = in_df.dropna(subset=P.labels)
+    pd.set_option('use_inf_as_na', True)
+    #in_df = in_df.dropna(subset=P.labels)
     in_df = in_df.reset_index(drop=True)  # We must reset index after removing rows to remove gaps
 
     prediction_start = find_index(in_df, P.prediction_start_str)
@@ -212,6 +207,8 @@ def main(args=None):
     if not steps:
         # Use all available rest data (from the prediction start to the dataset end)
         steps = (len(in_df) - prediction_start) // stride
+    if len(in_df) - prediction_start < steps * stride:
+        raise ValueError(f"Number of steps {steps} is too high (not enough data after start). Data available for prediction: {len(in_df) - prediction_start}. Data to be predicted: {steps * stride} ")
 
     print(f"Starting rolling predict loop with {steps} steps. Each step with {stride} horizon...")
 
@@ -220,59 +217,69 @@ def main(args=None):
 
     for step in range(steps):
 
+        print(f"Start step {step}/{steps}")
+
+        # Predict data
+
+        predict_start = prediction_start + (step * stride)
+        predict_end = predict_start + stride
+
+        predict_df = in_df.iloc[predict_start:predict_end]  # We assume that iloc is equal to index
+        # predict_df = predict_df.dropna(subset=features)  # Nans will be droped by the algorithms themselves
+
+        # Here we will collect predicted columns
+        predict_labels_df = pd.DataFrame(index=predict_df.index)
+
         # ===
         # kline package
         # ===
         if "kline" in P.prediction_types:
             features = P.features_kline
             name_tag = "_k_"
-            history_length = 123456
+            train_length = int(1.5 * 525_600)  # 1.5 * 525_600
+
+            print(f"Start training 'kline' package with {len(features)} features, name tag {name_tag}', and train length {train_length}")
 
             # Predict data
 
-            predict_start = prediction_start + (step * stride)
-            predict_end = predict_start + stride
-
-            predict_df = in_df.iloc[predict_start:predict_end]  # We assume that iloc is equal to index
-            predict_df = predict_df.dropna(subset=features)
-
             df_X_test = predict_df[features]
+            #df_y_test = predict_df[predict_label]  # It will be set in the loop over labels
 
             # Train data
 
             # We exclude recent objects from training, because they do not have labels yet - the labels are in future
             # In real (stream) data, we will have null labels for recent objects. During simulation, labels are available and hence we need to ignore/exclude them manually
             train_end = predict_start - P.labels_horizon - 1
-            train_start = train_end - history_length
+            train_start = train_end - train_length
             train_start = 0 if train_start < 0 else train_start
 
-            train_df = in_df.iloc[train_start:train_end]  # We assume that iloc is equal to index
+            train_df = in_df.iloc[int(train_start):int(train_end)]  # We assume that iloc is equal to index
             train_df = train_df.dropna(subset=features)
 
             df_X = train_df[features]
+            #df_y = train_df[predict_label]  # It will be set in the loop over labels
 
-            print(f"Train range: [{train_start}, {train_end}]. Prediction range: [{predict_start}, {predict_end}]. ")
-
-            predict_labels_df = pd.DataFrame(index=predict_df.index)
+            print(f"Train range: [{train_start}, {train_end}]={train_end-train_start}. Prediction range: [{predict_start}, {predict_end}]={predict_end-predict_start}. ")
 
             for label in P.labels:  # Train-predict different labels (and algorithms) using same X
                 df_y = train_df[label]
+                df_y_test = predict_df[label]
 
                 # --- GB
                 score_column_name = label + name_tag + "gb"
-                print(f"Train model: label '{label}', history {history_name}, rows {len(train_df)}, features {len(features)}, score column {score_column_name}...")
+                print(f"Train model: type 'kline', label '{label}', rows {len(train_df)}, features {len(features)}, score column {score_column_name}...")
                 y_hat = train_predict_gb(df_X, df_y, df_X_test, params=params_gb)
                 predict_labels_df[score_column_name] = y_hat
 
                 # --- NN
                 score_column_name = label + name_tag + "nn"
-                print(f"Train model: label '{label}', history {history_name}, rows {len(train_df)}, features {len(features)}, score column {score_column_name}...")
+                print(f"Train model: type 'kline', label '{label}', rows {len(train_df)}, features {len(features)}, score column {score_column_name}...")
                 y_hat = train_predict_nn(df_X, df_y, df_X_test, params=params_nn)
                 predict_labels_df[score_column_name] = y_hat
 
                 # --- LC
                 score_column_name = label + name_tag + "lc"
-                print(f"Train model: label '{label}', history {history_name}, rows {len(train_df)}, features {len(features)}, score column {score_column_name}...")
+                print(f"Train model: type 'kline', label '{label}', rows {len(train_df)}, features {len(features)}, score column {score_column_name}...")
                 y_hat = train_predict_lc(df_X, df_y, df_X_test, params=params_lc)
                 predict_labels_df[score_column_name] = y_hat
 
@@ -282,51 +289,50 @@ def main(args=None):
         if "futur" in P.prediction_types:
             features = P.features_futur
             name_tag = "_f_"
-            history_length = 123456
+            train_length = int(4 * 43_800)
+
+            print(f"Start training 'futur' package with {len(features)} features, name tag {name_tag}', and train length {train_length}")
 
             # Predict data
 
-            predict_start = prediction_start + (step * stride)
-            predict_end = predict_start + stride
-
-            predict_df = in_df.iloc[predict_start:predict_end]  # We assume that iloc is equal to index
-            predict_df = predict_df.dropna(subset=features)
-
             df_X_test = predict_df[features]
+            #df_y_test = predict_df[predict_label]  # It will be set in the loop over labels
 
             # Train data
 
             # We exclude recent objects from training, because they do not have labels yet - the labels are in future
             # In real (stream) data, we will have null labels for recent objects. During simulation, labels are available and hence we need to ignore/exclude them manually
             train_end = predict_start - P.labels_horizon - 1
-            train_start = train_end - history_length
+            train_start = train_end - train_length
             train_start = 0 if train_start < 0 else train_start
 
-            train_df = in_df.iloc[train_start:train_end]  # We assume that iloc is equal to index
+            train_df = in_df.iloc[int(train_start):int(train_end)]  # We assume that iloc is equal to index
             train_df = train_df.dropna(subset=features)
 
             df_X = train_df[features]
+            #df_y = train_df[predict_label]  # It will be set in the loop over labels
 
-            print(f"Train range: [{train_start}, {train_end}]. Prediction range: [{predict_start}, {predict_end}]. ")
+            print(f"Train range: [{train_start}, {train_end}]={train_end-train_start}. Prediction range: [{predict_start}, {predict_end}]={predict_end-predict_start}. ")
 
             for label in P.labels:  # Train-predict different labels (and algorithms) using same X
                 df_y = train_df[label]
+                df_y_test = predict_df[label]
 
                 # --- GB
                 score_column_name = label + name_tag + "gb"
-                print(f"Train model: label '{label}', history {history_name}, rows {len(train_df)}, features {len(features)}, score column {score_column_name}...")
+                print(f"Train model: type 'futur', label '{label}', rows {len(train_df)}, features {len(features)}, score column {score_column_name}...")
                 y_hat = train_predict_gb(df_X, df_y, df_X_test, params=params_gb)
                 predict_labels_df[score_column_name] = y_hat
 
                 # --- NN
                 score_column_name = label + name_tag + "nn"
-                print(f"Train model: label '{label}', history {history_name}, rows {len(train_df)}, features {len(features)}, score column {score_column_name}...")
+                print(f"Train model: type 'futur', label '{label}', rows {len(train_df)}, features {len(features)}, score column {score_column_name}...")
                 y_hat = train_predict_nn(df_X, df_y, df_X_test, params=params_nn)
                 predict_labels_df[score_column_name] = y_hat
 
                 # --- LC
                 score_column_name = label + name_tag + "lc"
-                print(f"Train model: label '{label}', history {history_name}, rows {len(train_df)}, features {len(features)}, score column {score_column_name}...")
+                print(f"Train model: type 'futur', label '{label}', rows {len(train_df)}, features {len(features)}, score column {score_column_name}...")
                 y_hat = train_predict_lc(df_X, df_y, df_X_test, params=params_lc)
                 predict_labels_df[score_column_name] = y_hat
 
@@ -336,11 +342,22 @@ def main(args=None):
         # Predictions for all labels and histories (and algorithms) have been generated for the iteration
         labels_hat_df = labels_hat_df.append(predict_labels_df)
 
+        print(f"End step {step}/{steps}.")
+        print(f"Predicted {len(predict_labels_df.columns)} labels.")
+
+
+    # End of loop over prediction steps
+    print("")
+    print(f"Finished all {steps} prediction steps each with {stride} predicted rows (stride). ")
+    print(f"Size of predicted dataframe {len(labels_hat_df)}. Number of rows in all steps {steps*stride} (steps * stride). ")
+    print(f"Number of predicted columns {len(labels_hat_df.columns)}")
+
     #
     # Prepare output
     #
 
-    # Append all features including true labels to the predicted labels
+    # Attach all original columns including true labels to the predicted labels
+    # Here we assume that df with predictions has the same index as the original df
     out_columns = P.in_features_kline + P.labels
     out_df = labels_hat_df.join(in_df[out_columns])
 
@@ -364,12 +381,17 @@ def main(args=None):
     # Alternatively, generate all score column names: score_column_name = label + "_k_" + history_name
     score_lines = []
     for score_column_name in labels_hat_df.columns:
-
-        y_predicted = out_df[score_column_name]
-        y_predicted_class = np.where(out_df[score_column_name].values > 0.5, 1, 0)
-
         label_column = score_column_name[0:-5]
-        y_true = out_df[label_column].astype(int)
+
+        # Drop nans from scores
+        df_scores = pd.DataFrame({"y_true": out_df[label_column], "y_predicted": out_df[score_column_name]})
+        df_scores = df_scores.dropna()
+
+        y_true = df_scores["y_true"].astype(int)
+        y_predicted = df_scores["y_predicted"]
+        y_predicted_class = np.where(y_predicted.values > 0.5, 1, 0)
+
+        print(f"Using {len(df_scores)} non-nan rows for scoring.")
 
         try:
             auc = metrics.roc_auc_score(y_true, y_predicted.fillna(value=0))

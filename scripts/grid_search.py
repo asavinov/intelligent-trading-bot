@@ -63,19 +63,19 @@ features_futur = [
 
 nrows = 10_000_000  # For debug
 # Columns
-train_features = features_kline  # features_futur features_kline
+train_features = features_futur  # features_futur features_kline
 predict_label = "high_15"
 # Rows
 prediction_start_str = "2020-02-01 00:00:00"  # Use it when rolling prediction will work
 #prediction_start_str = "2020-06-01 00:00:00"
-train_length = int(1.5 * 525_600)  # 1.5 * 525_600 for long/spot, 4 * 43_800 for short/futur
+train_length = int(4 * 43_800)  # 1.5 * 525_600 for long/spot, 4 * 43_800 for short/futur
 stride = 4*7*1440  # Length of one rolling prediction step: mid: 1 month 43_800=4*7*1440, long: 1,5 months 6*7*1440
 steps = 2  # How many rolling prediction steps. ~40 weeks in [1.2-1.11]
 
 # features_horizon = 720  # Features are generated using this past window length (max feature window)
 labels_horizon = 180  # Labels are generated using this number of steps ahead (max label window)
 
-algorithm = "nn"  # gb nn lc
+algorithm = "lc"  # gb nn lc
 
 #
 # Parameters for algorithms
@@ -208,15 +208,18 @@ def main():
     # Select necessary features and label
     df_all = df_all[["timestamp"] + features_kline + features_futur + labels]
 
-    pd.set_option('use_inf_as_na', True)
     # Spot and futures have different available histories. If we drop nans in all of them, then we get a very short data frame (corresponding to futureus which have little data)
     # So we do not drop data here but rather when we select necessary input features
     # Nans result in constant accuracy and nan loss. MissingValues procedure does not work and produces exceptions
-    df_all = df_all.dropna(subset=labels)
+    pd.set_option('use_inf_as_na', True)
+    #df_all = df_all.dropna(subset=labels)
     df_all = df_all.reset_index(drop=True)  # We must reset index after removing rows to remove gaps
 
     prediction_start = find_index(df_all, prediction_start_str)
     print(f"Start index: {prediction_start}")
+
+    if len(df_all) - prediction_start < steps * stride:
+        raise ValueError(f"Number of steps {steps} is too high (not enough data after start). Data available for prediction: {len(df_all) - prediction_start}. Data to be predicted: {steps * stride} ")
 
     del df_all["timestamp"]
 
@@ -239,13 +242,14 @@ def main():
 
         print("\n{}/{} rolling train start...".format(i+1, len(params_list)))
 
-        #
-        # Loop over all rolling steps
-        #
+        # Here we will collect true and predicted values for one label
+        # These series must have the same indexes and these indexes should correspond to main input indexes even if some rows are dropped (for them we store Null)
         y_true = pd.Series(dtype=float)
         y_predicted = pd.Series(dtype=float)
-        print("Steps ({}): ".format(steps), end="")
+
         for step in range(steps):
+
+            print(f"\nStart step {step}/{steps}")
 
             # Predict data
 
@@ -253,7 +257,7 @@ def main():
             predict_end = predict_start + stride
 
             df_test = df_all.iloc[predict_start:predict_end]
-            df_test = df_test.dropna(subset=train_features)
+            #df_test = df_test.dropna(subset=train_features)  # Nans will be droped by the algorithms themselves
 
             df_X_test = df_test[train_features]
             df_y_test = df_test[predict_label]
@@ -266,13 +270,13 @@ def main():
             train_start = train_end - train_length
             train_start = 0 if train_start < 0 else train_start
 
-            df_train = df_all.iloc[train_start:train_end]
+            df_train = df_all.iloc[int(train_start):int(train_end)]
             df_train = df_train.dropna(subset=train_features)
 
             df_X = df_train[train_features]
             df_y = df_train[predict_label]
 
-            print(f"Train range: [{train_start}, {train_end}]. Prediction range: [{predict_start}, {predict_end}]. ")
+            print(f"Train range: [{train_start}, {train_end}]={train_end-train_start}. Prediction range: [{predict_start}, {predict_end}]={predict_end-predict_start}. ")
 
             # ---
             if algorithm == "gb":
@@ -283,16 +287,24 @@ def main():
                 y_test_hat = train_predict_lc(df_X, df_y, df_X_test, params)
             # ---
 
-            y_test_hat = pd.Series(index=df_y_test.index, data=y_test_hat)
-
             # Append true and predicted array
             y_true = y_true.append(df_y_test)
             y_predicted = y_predicted.append(y_test_hat)
 
-            print(".", end="")
+            print(f"End step {step}/{steps}. ")
 
         print("")
         print("Finished {} steps of train with {} true and {} predicted results.".format(steps, len(y_true), len(y_predicted)))
+
+        # y_true and y_predicted might have nans which can confuse some scoring functions
+        df_scores = pd.DataFrame({"y_true": y_true, "y_predicted": y_predicted})
+        num_scores = len(df_scores)
+        df_scores = df_scores.dropna()
+        print(f"Total number of collected predictions: {num_scores}. After dropping NaNs: {len(df_scores)}")
+        print(f"Number of non-NaN predictions used for scoring: {len(df_scores)}")
+        num_scores = len(df_scores)
+        y_true = df_scores["y_true"]
+        y_predicted = df_scores["y_predicted"]
 
         # Computing metrics
         y_predicted_class = np.where(y_predicted > 0.5, 1, 0)
@@ -308,53 +320,6 @@ def main():
     #
     # Process all collected results and save
     #
-    def get_line_gb(params, record):
-        line = [
-            predict_label,
-            params.get("objective"),
-            params.get("max_depth"),
-            params.get("learning_rate"),
-            params.get("num_boost_round"),
-            params.get("lambda_l1"),
-            params.get("lambda_l2"),
-            "{:.3f}".format(record["auc"]),
-            "{:.3f}".format(record["f1"]),
-            "{:.3f}".format(record["precision"]),
-            "{:.3f}".format(record["recall"]),
-        ]
-        return line
-
-    def get_line_nn(params, record):
-        line = [
-            predict_label,
-            params.get("layers"),
-            params.get("learning_rate"),
-            params.get("n_epochs"),
-            params.get("bs"),
-            "{:.3f}".format(record["auc"]),
-            "{:.3f}".format(record["f1"]),
-            "{:.3f}".format(record["precision"]),
-            "{:.3f}".format(record["recall"]),
-        ]
-        return line
-
-    def get_line_lc(params, record):
-        line = [
-            predict_label,
-            params.get("is_scale"),
-            params.get("penalty"),
-            params.get("C"),
-            params.get("class_weight"),
-            params.get("solver"),
-            params.get("max_iter"),
-            "{:.3f}".format(record["auc"]),
-            "{:.3f}".format(record["f1"]),
-            "{:.3f}".format(record["precision"]),
-            "{:.3f}".format(record["recall"]),
-        ]
-
-        return line
-
     lines = []
     for i, params in enumerate(params_list):
         line = [predict_label]

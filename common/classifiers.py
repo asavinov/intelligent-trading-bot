@@ -228,6 +228,7 @@ def train_nn(df_X, df_y, params: dict):
         #validation_data=(X_validate, y_validate),
         #class_weight={0: 1, 1: 20},
         callbacks=[es],
+        verbose=0,
     )
 
     return (model, scaler)
