@@ -1,4 +1,5 @@
 import sys
+import os
 from pathlib import Path
 from datetime import datetime, timezone, timedelta
 from typing import Union
@@ -12,6 +13,10 @@ from sklearn.model_selection import train_test_split
 from sklearn import metrics
 
 import lightgbm as lgbm
+
+PACKAGE_PARENT = '..'
+SCRIPT_DIR = os.path.dirname(os.path.realpath(os.path.join(os.getcwd(), os.path.expanduser(__file__))))
+sys.path.append(os.path.normpath(os.path.join(SCRIPT_DIR, PACKAGE_PARENT)))
 
 from common.classifiers import *
 from common.utils import *
@@ -115,7 +120,7 @@ class P:
     prediction_start_str = "2020-02-01 00:00:00"
     # How frequently re-train models: 1 day: 1_440 = 60 * 24, one week: 10_080
     prediction_length = 4*7*1440
-    prediction_count = 3  # How many prediction steps. If None or 0, then from prediction start till the data end
+    prediction_count = 1  # How many prediction steps. If None or 0, then from prediction start till the data end
 
     #features_horizon = 720  # Features are generated using this past window length (max feature window)
     labels_horizon = 180  # Labels are generated using this number of steps ahead (max label window)
@@ -170,10 +175,10 @@ def main(args=None):
 
     if P.in_file_name.endswith(".csv"):
         in_df = pd.read_csv(in_path, parse_dates=['timestamp'], nrows=P.in_nrows)  # , skiprows=range(1,P.skiprows)
-        #in_df.to_pickle('aaa.pkl')
-    elif P.in_file_name.endswith(".parq"):
+        #in_df.to_pickle('aaa.pickle')
+    elif P.in_file_name.endswith(".parquet"):
         in_df = pd.read_parquet(in_path)
-    elif P.in_file_name.endswith(".pkl"):
+    elif P.in_file_name.endswith(".pickle"):
         in_df = pd.read_pickle(in_path)
     else:
         print(f"ERROR: Unknown input file extension. Only csv and parquet are supported.")
@@ -372,7 +377,7 @@ def main(args=None):
 
     out_df.to_csv(out_path.with_suffix('.csv'), index=False, float_format="%.4f")
 
-    #out_df.to_parquet(out_path.with_suffix('.parq'), engine='auto', compression=None, index=None, partition_cols=None)
+    #out_df.to_parquet(out_path.with_suffix('.parquet'), engine='auto', compression=None, index=None, partition_cols=None)
 
     #
     # Compute accuracy for the whole data set (all segments)

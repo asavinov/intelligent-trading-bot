@@ -212,7 +212,8 @@ Approach 1: Kill existing order, modify its parameters and submit again.
   1. In one cycle. Kill synchronously, check funds request (if coins are still available for sale), submit new sell order.
   2. In two cycles. Kill, continue cycle, check orders as usual on the next cycle: if exists then kill-continue, if does not exist (killed) then create new sell order as usual.
 Approach 2: Submit order (price) modification request.
-Solution. We assume that price cannot be modified. Therefore, we must kill the current order and create a new (modifed) order.
+Solution. We assume that price cannot be modified. Therefore, we must kill the current order and create a new (modified) order.
+Solution. We assume that price cannot be modified. Therefore, we must kill the current order and create a new (modified) order.
   Kill synchronously using cancel request.
   Check response "status" field. If "CANCELED" then continue. If not then send check status request in some time until it status is cancelled.
   Create new sell request as usual with new parameters.
@@ -393,7 +394,7 @@ MARKET: taker order executed immediately at the best price
 
 LIMIT: exists in order book and can be filled at any time
 
-* STOP_LOSS* and TAKE_PROFIT* have a trigger and hence do not exist in order book, they are inserted in order book only using trigger.
+* STOP_LOSS and TAKE_PROFIT have a trigger and hence do not exist in order book, they are inserted in order book only using trigger.
   *after* trigger works, it is inserted in order book either as a market order or as a limit order.
 * STOP_LOSS and TAKE_PROFIT will execute a MARKET order when the stopPrice is reached.
 * Trigger rules:

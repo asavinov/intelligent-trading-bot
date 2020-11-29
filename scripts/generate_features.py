@@ -100,7 +100,7 @@ def main(args=None):
 
     in_df.to_csv(out_path.with_suffix('.csv'), index=False, float_format="%.4f")
 
-    #in_df.to_parquet(out_path.with_suffix('.parq'), engine='auto', compression=None, index=None, partition_cols=None)
+    #in_df.to_parquet(out_path.with_suffix('.parquet'), engine='auto', compression=None, index=None, partition_cols=None)
 
     elapsed = datetime.now() - start_dt
     print(f"Finished feature generation in {int(elapsed.total_seconds())} seconds")

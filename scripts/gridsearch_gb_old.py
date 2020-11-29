@@ -326,7 +326,7 @@ def find_frequencies_of_labels():
 
 
 def klines_to_csv():
-    klines = pd.read_pickle(r"C:\DATA2\BITCOIN\ETHBTC-1m-data.pkl")  # ETHBTC BTCUSDT
+    klines = pd.read_pickle(r"C:\DATA2\BITCOIN\ETHBTC-1m-data.pickle")  # ETHBTC BTCUSDT
     # Length: 1107636, 1163506
     # Row: [1502942400000, '4261.48000000', '4261.48000000', '4261.48000000', '4261.48000000', '1.77518300', 1502942459999, '7564.90685084', 3, '0.07518300', '320.39085084', '7960.54017996']
     df = pd.DataFrame(klines, columns = ['timestamp', 'open', 'high', 'low', 'close', 'volume', 'close_time', 'quote_av', 'trades', 'tb_base_av', 'tb_quote_av', 'ignore' ])

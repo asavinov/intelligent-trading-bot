@@ -273,7 +273,7 @@ class Database:
         models = {}
         for label in labels:
             model_file_name = label + "_gb"
-            model_file = Path(model_path, model_file_name).with_suffix(".pkl")
+            model_file = Path(model_path, model_file_name).with_suffix(".pickle")
             if not Path(model_file).exists():
                 log.error(f"Model file does not exist: {model_file}")
                 return

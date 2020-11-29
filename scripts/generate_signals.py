@@ -87,7 +87,7 @@ def main(args=None):
 
     if P.in_file_name.endswith(".csv"):
         in_df = pd.read_csv(in_path, parse_dates=['timestamp'], nrows=P.in_nrows)
-    elif P.in_file_name.endswith(".parq"):
+    elif P.in_file_name.endswith(".parquet"):
         in_df = pd.read_parquet(in_path)
     else:
         print(f"ERROR: Unknown input file extension. Only csv and parquet are supported.")

@@ -16,69 +16,91 @@ from sklearn.model_selection import ParameterGrid
 from common.utils import *
 
 """
-In fact, it training a hyper-model while the model itself is not trained - it is a rule-based model.
-Find best signal generation models using pre-computed (rolling) predict label scores and searching through the threshold grid.
-The output is an ordered list of best performing threshold-based signal generation models.
+By signal generation model we mean simple rules with some thresholds as parameters.
+Training such a model is performed by brute force by training out all parameters and finding their peformance using back testing.
+Back testing is performed using an available feature matrix with all rolling predictions.
+The output is an ordered list of top performing threshold-based signal generation models.
+
+One approach is to use two parameters which determine entry and exit thresholds for a position (BTC). They need not be symmetric.
+These parameters are compared with the final prediction in [-1, +1] which expresses our consolidated future trend. 
+We might introduce one or two additional parameters to eliminate jitter if it happens. 
+Another way to reduce jitter is to smooth the final score so that it simply does not change quickly.
+Yet, if we entry and exist thresholds are significantly different then jitter should not happen.
+This approach does not try to optimize each transaction by searching individual best (but rare) entry-exit point.
+Instead, it tries to find maximums and minimums by switching the side at these points.
+We switch side independent of any other factors - simply because of the future trend and more opportunities on this new side.
+
+Performance is determined by how much can be earned with these parameters.
+We follow the strategy of switching the side or enter-exit strategy.
+Note that this strategy does not have time outs or main asset.
+Instead of main asset, we can use non-symmetric entry-exit thresholds which result in having higher
+probability of one side/asset than the other.
+
+We can also assign higher weight to recent performance.
+Another adjustment is transaction fee which punishes models with many transactions.
+
+Another, original, strategy is to have USD as main asset and then enter (buy BTC) only with 
+the purpose to earn while exiting. Note that this strategy could be also modelled 
+if the two thresholds are not symmetric.
+
+NEXT:
+- Since we are going to use only kline (no futures), generate rolling predictions for longer period
+- Explore how profit depends on month: downward tren (Feb-March) vs. other months.
+  - Run back testing on only summer months
+- DONE: smooth score and check if the performance is better. simply run same grid with different smooth factors (different definitions of score column).
+- alternative to smoothing, generate signal if 2 or more previous values are all higher/lower than threshold
+- OR, take generate signal when 2nd time crosses the threshold
+
+- simple extrapolation of score (forecast)
+
+- hybrid strategy: instead of simply waiting for signal and change point, we can introduce stop loss or take profit signals.
+These signals will allow us to take profit where we see it and it is large rather than wait for something in future.
+In other words, such signals are generated from reality (we can earn already now) rather then future.
+One way to impelment it, is to use this special kind of order (take profit) which will be executed automatically.
+Yet, we need to model this logic manually.
+"""
+
+"""
+BEST:
+without fees or weights (simple mode): 
+kf: (0.07, -0.2), profit 8600, per month 960, avg 33, percent 41%, #/month 29
+k: (0.14, -0.17), profit 9222, per month 1030, avg 46, percent 41%, #/month 22
+k: (0.135, -0.155), profit 9588, per month 1071, avg 44, percent 42%, # 24
++++ k: (0.135, -0.2), profit 9285, per month 1037, avg 53, percent 44%, # 19
+k2: (), profit 8180, per month 914, 19, percent 38, 47
+k3: (0.13,-0.13), profit 8800, per month 985, avg 39, percent 40%, #/month 25
+k5: (0.13,-0.13), profit 8800, per month 985, avg 39, percent 40, # 25 - ???
+k10: (0, -0.13), profit 8920, per month 996, avg 19, percent 36, #52
+f: (0.07, -0.16), profit 5360, per month 600, avg 8.3, percent 39%, #/month 72
+
+k_nn: (0.18, -0.04), profit 8521, per month 951, avg 10.6, 39%, #90 - many low profit transactions
+kf_nn: (0, -0.2), profit 8900, per month 995, avg 11.5, 36%, #86 
+kf_lc: (0.03, -0.2), profit 7318, per month 817, avg 18.5, 38%, #44
+kf_gb: (0, -0.12), profit 6338, per month 708, avg 9.11, 41%, #77
+
+score as difference (high_k-low_k):
+(0.03, -0.05), profit 8388, per month 937, avg 30, 45%, #30
+
 """
 
 grid_signals = [
-    # All true labels (boolean):
-    # high_60_10,high_60_15,high_60_20,
-    # low_60_10,low_60_15,low_60_20
-
-    # All scores (between 0 and 1):
-    # high_60_10_k_12,high_60_15_k_12,high_60_20_k_12,
-    # low_60_10_k_12,low_60_15_k_12,low_60_20_k_12,
-    # high_60_10_f_03,high_60_15_f_03,high_60_20_f_03,
-    # low_60_10_f_03,low_60_15_f_03,low_60_20_f_03
-
-    # Production
-    #{
-    #    'threshold_high_10': [0.24, 0.25, 0.26, 0.27, 0.28, 0.29, 0.30, 0.31],
-    #    'threshold_high_15': [0.05, 0.06, 0.07, 0.08, 0.09, 0.10, 0.11, 0.12, 0.13, 0.14, 0.15],
-    #    'threshold_high_20': [0.00, 0.01, 0.015, 0.02, 0.025, 0.03, 0.04],
-    #
-    #    'threshold_low_10': [0.24, 0.25, 0.26, 0.27, 0.28, 0.29, 0.30, 0.31],
-    #    'threshold_low_15': [0.05, 0.06, 0.07, 0.08, 0.09, 0.10, 0.11, 0.12, 0.13, 0.14, 0.15],
-    #    'threshold_low_20': [0.00, 0.01, 0.015, 0.02, 0.025, 0.03, 0.04],
-    #
-    #    'percentage_sell_price': [1.017, 1.018, 1.019],
-    #    'sell_timeout': [30],
-    #},
-    # Debug
     {
-        # Original
-        #'threshold_high_10_k': [0.0, 0.1, 0.2, 0.3, 0.4, 0.5],
-        #'threshold_high_15_k': [0.0, 0.1, 0.2, 0.3, 0.4, 0.5],
-        'threshold_high_20_k': [0.0, 0.1, 0.2, 0.3, 0.4, 0.5],
-        #'threshold_low_10_k': [0.5, 0.6, 0.7, 0.8, 0.9, 1.0],
-        #'threshold_low_15_k': [0.5, 0.6, 0.7, 0.8, 0.9, 1.0],
-        'threshold_low_20_k': [0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 1.0],
+        "entry_threshold": [
+            0.00, 0.01, 0.02, 0.03, 0.04, 0.05, 0.06, 0.07, 0.08, 0.09,
+            0.10, 0.11, 0.12, 0.13, 0.14, 0.15, 0.16, 0.17, 0.18, 0.19, 0.20,
+            #0.12, 0.125, 0.13, 0.135, 0.14, 0.145, 0.15, 0.155, 0.16, 0.165, 0.17,
+        ],  # Buy BTC when higher than this value
+        "exit_threshold": [
+            -0.00, -0.01, -0.02, -0.03, -0.04, -0.05, -0.06, -0.07, -0.08, -0.09,
+            -0.10, -0.11, -0.12, -0.13, -0.14, -0.15, -0.16, -0.17, -0.18, -0.19, -0.20,
+            #-0.14, -0.145, -0.15, -0.155, -0.16, -0.165, -0.17, -0.175, -0.18, -0.185, -0.19, -0.195, -0.20,
+        ],  # Sell BTC when lower than this value
 
-        #'threshold_high_10_f': [0.0, 0.1, 0.2, 0.3, 0.4, 0.5],
-        #'threshold_high_15_f': [0.0, 0.1, 0.2, 0.3, 0.4, 0.5],
-        'threshold_high_20_f': [0.0, 0.1, 0.2, 0.3, 0.4, 0.5],
-        #'threshold_low_10_f': [0.5, 0.6, 0.7, 0.8, 0.9, 1.0],
-        #'threshold_low_15_f': [0.5, 0.6, 0.7, 0.8, 0.9, 1.0],
-        'threshold_low_20_f': [0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 1.0],
+        "transaction_fee": [0.005],  # Portion of total transaction amount
+        "transaction_price_adjustment": [0.005],  # The real execution price is worse than we assume
 
-        # Mean k+f
-        #'high_60_10': [0.0, 0.1, 0.2, 0.3, 0.4, 0.5],
-        #'high_60_15': [0.0, 0.1, 0.2, 0.3, 0.4, 0.5],
-        #'high_60_20': [0.0, 0.1, 0.2, 0.3, 0.4, 0.5],
-
-        #'low_60_10': [0.5, 0.6, 0.7, 0.8, 0.9, 1.0],
-        #'low_60_15': [0.5, 0.6, 0.7, 0.8, 0.9, 1.0],
-        #'low_60_20': [0.5, 0.6, 0.7, 0.8, 0.9, 1.0],
-
-        # Mean 10+15+20
-        #"high_60_k": [0.0, 0.1, 0.2, 0.3, 0.4, 0.5, 0.6],
-        #"high_60_f": [0.0, 0.1, 0.2, 0.3, 0.4, 0.5, 0.6],
-        #"low_60_k": [0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 1.0],
-        #"low_60_f": [0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 1.0],
-
-        'percentage_sell_price': [1.018],
-        'sell_timeout': [60],
+        # Per year. 1.0 means all are equal, 3.0 means last has 3 times more weight than first
+        "performance_weight": [1.0],
     },
 ]
 
@@ -95,13 +117,8 @@ class P:
     out_path_name = r"_TEMP_FEATURES"
     out_file_name = r"_BTCUSDT-1m-signals"
 
-    simulation_start = 10  # Default 0
-    simulation_end = -10  # Default till end of input data. Negative value is shift from the end
-
-    #
-    # Parameters of the whole optimization
-    #
-    performance_weight = 1.0  # Per year. 1.0 means all are equal, 3.0 means last has 3 times more weight than first
+    simulation_start = 10  # 10 Default 0, 129_600 (1.5.)
+    simulation_end = -10  # -10, -43_199 (1.10.) Default till end of input data. Negative value is shift from the end
 
 def main(args=None):
 
@@ -119,66 +136,78 @@ def main(args=None):
 
     if P.in_file_name.endswith(".csv"):
         in_df = pd.read_csv(in_path, parse_dates=['timestamp'], nrows=P.in_nrows)
-    elif P.in_file_name.endswith(".parq"):
+    elif P.in_file_name.endswith(".parquet"):
         in_df = pd.read_parquet(in_path)
     else:
         print(f"ERROR: Unknown input file extension. Only csv and parquet are supported.")
 
     #
-    # Compute average over all histories
+    # Compute final score (as average over different predictions)
     #
-    # Mean k+f
-    in_df["high_60_10"] = (in_df["high_60_10_k_12"] + in_df["high_60_10_f_03"]) / 2.0
-    in_df["high_60_15"] = (in_df["high_60_15_k_12"] + in_df["high_60_15_f_03"]) / 2.0
-    in_df["high_60_20"] = (in_df["high_60_20_k_12"] + in_df["high_60_20_f_03"]) / 2.0
+    # high kline: 3 algorithms for all 3 levels
+    in_df["high_k"] = \
+        in_df["high_10_k_gb"] + in_df["high_10_k_nn"] + in_df["high_10_k_lc"] + \
+        in_df["high_15_k_gb"] + in_df["high_15_k_nn"] + in_df["high_15_k_lc"] + \
+        in_df["high_20_k_gb"] + in_df["high_20_k_nn"] + in_df["high_20_k_lc"]
+    in_df["high_k"] /= 9
 
-    in_df["low_60_10"] = (in_df["low_60_10_k_12"] + in_df["low_60_10_f_03"]) / 2.0
-    in_df["low_60_15"] = (in_df["low_60_15_k_12"] + in_df["low_60_15_f_03"]) / 2.0
-    in_df["low_60_20"] = (in_df["low_60_20_k_12"] + in_df["low_60_20_f_03"]) / 2.0
+    # low kline: 3 algorithms for all 3 levels
+    in_df["low_k"] = \
+        in_df["low_10_k_gb"] + in_df["low_10_k_nn"] + in_df["low_10_k_lc"] + \
+        in_df["low_15_k_gb"] + in_df["low_15_k_nn"] + in_df["low_15_k_lc"] + \
+        in_df["low_20_k_gb"] + in_df["low_20_k_nn"] + in_df["low_20_k_lc"]
+    in_df["low_k"] /= 9
 
-    # Mean 10+15+20
-    in_df["high_60_k"] = (in_df["high_60_10_k_12"] + in_df["high_60_15_k_12"] + in_df["high_60_20_k_12"]) / 3.0
-    in_df["high_60_f"] = (in_df["high_60_10_f_03"] + in_df["high_60_15_f_03"] + in_df["high_60_20_f_03"]) / 3.0
-    in_df["low_60_k"] = (in_df["low_60_10_k_12"] + in_df["low_60_15_k_12"] + in_df["low_60_20_k_12"]) / 3.0
-    in_df["low_60_f"] = (in_df["low_60_10_f_03"] + in_df["low_60_15_f_03"] + in_df["low_60_20_f_03"]) / 3.0
+    # high futur: 3 algorithms for all 3 levels
+    in_df["high_f"] = \
+        in_df["high_10_f_gb"] + in_df["high_10_f_nn"] + in_df["high_10_f_lc"] + \
+        in_df["high_15_f_gb"] + in_df["high_15_f_nn"] + in_df["high_15_f_lc"] + \
+        in_df["high_20_f_gb"] + in_df["high_20_f_nn"] + in_df["high_20_f_lc"]
+    in_df["high_f"] /= 9
+
+    # low kline: 3 algorithms for all 3 levels
+    in_df["low_f"] = \
+        in_df["low_10_f_gb"] + in_df["low_10_f_nn"] + in_df["low_10_f_lc"] + \
+        in_df["low_15_f_gb"] + in_df["low_15_f_nn"] + in_df["low_15_f_lc"] + \
+        in_df["low_20_f_gb"] + in_df["low_20_f_nn"] + in_df["low_20_f_lc"]
+    in_df["low_f"] /= 9
+
+    # By algorithm
+    in_df["high_k_gb"] = (in_df["high_10_k_gb"] + in_df["high_15_k_gb"] + in_df["high_20_k_gb"]) / 3
+    in_df["high_f_gb"] = (in_df["high_10_f_gb"] + in_df["high_15_f_gb"] + in_df["high_20_f_gb"]) / 3
+
+    in_df["low_k_gb"] = (in_df["low_10_k_gb"] + in_df["low_15_k_gb"] + in_df["low_20_k_gb"]) / 3
+    in_df["low_f_gb"] = (in_df["low_10_f_gb"] + in_df["low_15_f_gb"] + in_df["low_20_f_gb"]) / 3
+
+    # High and low
+    # Both k and f
+    #in_df["high"] = (in_df["high_k"] + in_df["high_f"]) / 2
+    #in_df["low"] = (in_df["low_k"] + in_df["low_f"]) / 2
+
+    # Only k
+    in_df["high"] = (in_df["high_k"]) / 1
+    in_df["low"] = (in_df["low_k"]) / 1
+
+    #in_df["high"] = (in_df["high_k_gb"]) / 1
+    #in_df["low"] = (in_df["low_k_gb"]) / 1
+
+    # Final score: proportion to the sum
+    high_and_low = in_df["high"] + in_df["low"]
+    in_df["score"] = ((in_df["high"] / high_and_low) * 2) - 1.0  # in [-1, +1]
+
+    # Final score: abs difference betwee high and low (scaled to [-1,+1] maybe)
+    #in_df["score"] = in_df["high"] - in_df["low"]
+    from sklearn.preprocessing import StandardScaler
+    #in_df["score"] = StandardScaler().fit_transform(in_df["score"])
+
+    #in_df["score"] = in_df["score"].rolling(window=10, min_periods=1).apply(np.nanmean)
 
     #
-    # Choose some history
+    # Select data
     #
-    #in_df["high_60_10_gb"] = in_df["high_60_10_gb_03"]
-    #in_df["high_60_15_gb"] = in_df["high_60_15_gb_03"]
-    #in_df["high_60_20_gb"] = in_df["high_60_20_gb_03"]
-
-    #in_df["low_60_10_gb"] = in_df["low_60_10_gb_03"]
-    #in_df["low_60_15_gb"] = in_df["low_60_15_gb_03"]
-    #in_df["low_60_20_gb"] = in_df["low_60_20_gb_03"]
 
     # Selecting only needed rows increases performance in several times (~4 times faster)
-    in_df = in_df[[
-        "high", "close",
-
-        # Original scores
-        #"high_60_10_k_12",
-        #"high_60_15_k_12",
-        "high_60_20_k_12",
-        #"high_60_10_f_03",
-        #"high_60_15_f_03",
-        "high_60_20_f_03",
-        #"low_60_10_k_12",
-        #"low_60_15_k_12",
-        "low_60_20_k_12",
-        #"low_60_10_f_03",
-        #"low_60_15_f_03",
-        "low_60_20_f_03",
-
-        # Mean k+f
-        #"high_60_10", "high_60_15", "high_60_20",
-        #"low_60_10", "low_60_15", "low_60_20",
-
-        # Mean 10+15+20
-        #"high_60_k", "high_60_f",
-        #"low_60_k", "low_60_f",
-    ]]
+    in_df = in_df[["timestamp", "high", "low", "close", "score",]]
 
     # Select the necessary interval of data
     if not P.simulation_start:
@@ -191,7 +220,7 @@ def main(args=None):
     in_df = in_df.iloc[P.simulation_start:P.simulation_end]
 
     #
-    # Loop on all trade hyper-models - one model is one trade (threshold-based) strategy
+    # Loop on all trade hyper-models
     #
     grid = ParameterGrid(grid_signals)
     models = list(grid)  # List of model dicts
@@ -200,7 +229,7 @@ def main(args=None):
         # Set parameters of the model
 
         start_dt = datetime.now()
-        performance = simulate_trade(in_df, model, P.performance_weight)
+        performance = simulate_trade(in_df, model)
         elapsed = datetime.now() - start_dt
         print(f"Finished simulation {i} / {len(models)} in {elapsed.total_seconds():.1f} seconds.")
 
@@ -242,186 +271,140 @@ def main(args=None):
 
     pass
 
-def simulate_trade(df, model: dict, performance_weight: float):
+
+def simulate_trade(df, model: dict):
     """
-    It will use 1.0 as initial trade amount and overall performance will be the end amount with respect to the initial one.
-    It will always use 1.0 to enter market (for buying) independent of the available (earned or lost) funds.
+    It will use 1.0 as initial trade amount in USD.
+    Overall performance will be the end amount with respect to the initial one.
     It will use the whole data set from start to end.
+
+    Stragegy 1 (non-cumulative): Always use 1.0 to enter market (for buying) independent of the available (earned or lost) funds.
+    Strategy 2 (cumulative): Use all currently available funds for trade
 
     :param df:
     :param model:
-        threshold_high_10 - Buy only if score is higher
-        threshold_high_20 - Buy only if score is higher
-        percentage_sell_price - how much increase sell price in comparision to buy price (it is our planned profit)
-        sell_timeout - Sell using latest close price after this time
-    :param performance_weight: weight for the last time point for the 1 year period. for the first point it is 1.0
     :return: Performance record
     """
     #
     # Model parameters
     #
-    # Original
-    threshold_high_20_k = float(model.get("threshold_high_20_k"))
-    threshold_high_20_f = float(model.get("threshold_high_20_f"))
-    threshold_low_20_k = float(model.get("threshold_low_20_k"))
-    threshold_low_20_f = float(model.get("threshold_low_20_f"))
-    # Mean k+f
-    #high_60_10 = float(model.get("high_60_10"))
-    #high_60_15 = float(model.get("high_60_15"))
-    #high_60_20 = float(model.get("high_60_20"))
-    #low_60_10 = float(model.get("low_60_10"))
-    #low_60_15 = float(model.get("low_60_15"))
-    #low_60_20 = float(model.get("low_60_20"))
-    # Mean 10+15+20
-    #high_60_k = float(model.get("high_60_k"))
-    #high_60_f = float(model.get("high_60_f"))
-    #low_60_k = float(model.get("low_60_k"))
-    #low_60_f = float(model.get("low_60_f"))
+    entry_threshold = float(model.get("entry_threshold"))
+    exit_threshold = float(model.get("exit_threshold"))
+    transaction_fee = float(model.get("transaction_fee"))
+    transaction_price_adjustment = float(model.get("transaction_price_adjustment"))
 
-    percentage_sell_price = float(model.get("percentage_sell_price"))
-    sell_timeout = int(model.get("sell_timeout"))
+    performance_weight = model.get("performance_weight")
+
+    #
+    # Statistics of the performance run
+    #
 
     # All transactions will be collected in this list for later analysis
     transactions = []  # List of dicts like dict(i=23, is_forced_sell=False, profit=-0.123)
 
-    total_buy_signal_count = 0  # How many rows satisfy buy signal criteria independent of mode
+    # How many signals independent of mode and execution
+    buy_signal_count = 0
+    sell_signal_count = 0
 
     #
     # Main loop over trade sessions
     #
     i = 0
+    is_buy_mode = True
     for row in df.itertuples(index=True, name="Row"):
         i += 1
-        # Object parameters
+        transaction_weight = 1.0 + i * (performance_weight - 1.0) / 525_600  # Increases in time
+
+        # Current market parameters
         close_price = row.close
         high_price = row.high
+        low_price = row.high
+        timestamp = row.timestamp
+
+        score = row.score
 
         #
-        # Apply model parameters and generate a signal for the current row
+        # Table has missing data
         #
-        # Higher than all thresholds
-        if row.high_60_20_k_12 >= threshold_high_20_k and row.high_60_20_f_03 >= threshold_high_20_f:
-            is_buy_signal = True
-        else:
-            is_buy_signal = False
-
-        if is_buy_signal:
-            total_buy_signal_count += 1
-
-        # Lower than all thresholds
-        if is_buy_signal:
-            if row.low_60_20_k_12 <= threshold_low_20_k and row.low_60_20_f_03 <= threshold_low_20_f:
-                is_buy_signal = True
-            else:
-                is_buy_signal = False
+        if not (close_price and score):
+            continue
 
         #
-        # Determine trade mode
+        # Apply model parameters and generate buy/sell (enter/exit) signal
         #
-        if not transactions or transactions[-1]["is_filled"]:
-            is_buy_mode = True
-        else:
-            is_buy_mode = False
+        previous_transaction = transactions[-1] if len(transactions) > 0 else None
+        previous_price = previous_transaction["price"] if previous_transaction else None
+        profit = (close_price - previous_price) if previous_price else None
 
-        if is_buy_mode:  # Buy mode: in cash - trying to buy
-            transaction = {}
-            if is_buy_signal:
-                transaction["buy_time"] = i
-                transaction["buy_price"] = close_price
-                transaction["sell_price"] = close_price * percentage_sell_price
-                transaction["is_filled"] = False
+        if score > entry_threshold:
+            buy_signal_count += 1
 
-                # Compute weight of this transaction which linearly
-                # Weight changes with i from 1.0 to specified parameters, say, from 1.0 to 2.0 at the end if parameter is 2.0
-                # f(i)=i * (e-s)/(n-1) + s - [s=f(0),e=f(n-1)]
-                # if s=1.0 then f(i)=1.0 + i * (e-1)/(n-1)
-                #transaction["weight"] = 1.0 + i * (performance_weight - 1.0) / (len(df)-1)
-                # 1 year has 525_600 transactions. if for 525_600, x times more, then for 1 minute x/525_600 times more, and for i minutes i/525_600
-                transaction["weight"] = 1.0 + i * (performance_weight-1.0) / 525_600
-
+            if is_buy_mode:  # Buy mode. Enter market by buying BTC
+                transaction = dict(
+                    side="BUY",
+                    price=close_price, quantity=1.0,
+                    profit=profit,  # Lower (negative) is better
+                    timestamp=timestamp, row=i, weight=transaction_weight,
+                )
                 transactions.append(transaction)
+                is_buy_mode = False
 
-        else:  # Sell mode: in market - trying to sell
-            transaction = transactions[-1]
-            if high_price >= transaction["sell_price"]:  # Determine if it was filled for the desired price
-                transaction["sell_time"] = i
-                transaction["fill_time"] = transaction["sell_time"] - transaction["buy_time"]
-                transaction["is_timeout"] = False
-                transaction["profit"] = transaction["sell_price"] - transaction["buy_price"]
-                transaction["has_profit"] = True
-                transaction["is_filled"] = True
-            elif (i - transaction["buy_time"]) > sell_timeout:  # Sell time out. Forced sell
-                transaction["sell_price"] = close_price
-                transaction["sell_time"] = i
-                transaction["fill_time"] = transaction["sell_time"] - transaction["buy_time"]
-                transaction["is_timeout"] = True
-                transaction["profit"] = transaction["sell_price"] - transaction["buy_price"]
-                transaction["has_profit"] = False if transaction["profit"] <= 0.0 else True
-                transaction["is_filled"] = True
+        elif score < exit_threshold:
+            sell_signal_count += 1
 
-    if not transactions:
-        return {}
+            if not is_buy_mode:  # Sell mode. Exit market by selling BTC
+                transaction = dict(
+                    side="SELL",
+                    price=close_price, quantity=1.0,
+                    profit=profit,  # Higher (positive) is better
+                    timestamp=timestamp, row=i, weight=transaction_weight,
+                )
+                transactions.append(transaction)
+                is_buy_mode = True
+
+        else:
+            continue  # No signal. Just wait
 
     #
     # Remove last transaction if not filled
     #
-    transaction = transactions[-1]
-    if not transaction["is_filled"]:
+    if len(transactions) <= 1:
+        return {}
+
+    if transactions[-1]["side"] == "BUY":
         del transactions[-1]
+
+    assert len(transactions) % 2 == 0
 
     #
     # Compute performance parameters from the list of transactions
     #
 
-    # total_buy_signal_count
-    t_count = len(transactions)  # No transactions - we need no transactions relative to time, that is, transaction frequency, say, per day or month
-
-    # Frequency of transactions
+    sell_transactions = [t for t in transactions if t["side"] == "SELL"]
+    sell_profits = [t["profit"] for t in sell_transactions]
+    sell_t_count = len(sell_transactions)
     no_months = len(df) / 43_920
-    t_per_month = t_count / no_months
 
-    # All absolute
-    profit_per_transaction = np.sum([t["profit"] for t in transactions]) / t_count
-    profit_per_month = profit_per_transaction * t_per_month
+    # KPIs
+    sell_t_per_month = sell_t_count / no_months
 
-    # All weighted
-    sum_of_weights = np.sum([t["weight"] for t in transactions])
-    sum_of_weighted_profits = np.sum([t["weight"]*t["profit"] for t in transactions])
-    weighted_profit_per_transaction = sum_of_weighted_profits / sum_of_weights
-    weighted_profit_per_month = weighted_profit_per_transaction * t_per_month  # TODO: Not sure that this is correct
+    profit_sum = np.nansum(sell_profits)
+    profit_month = profit_sum / no_months
+    profit_avg = np.nanmean(sell_profits)
+    profit_std = np.nanstd(sell_profits)
 
-    # Limit (profitable) transactions
-    t_limit_percentage = len([t for t in transactions if not t["is_timeout"]]) * 100.0 / t_count
-    limit_fill_times = [t["fill_time"] for t in transactions if not t["is_timeout"]]
-    limit_fill_time = np.mean(limit_fill_times)  # Average fill time for limit transactions
-    limit_fill_time_std = np.std(limit_fill_times)  # Deviation fill time for limit transactions
-
-    # Timeout transactions
-    t_timeout_percentage = len([t for t in transactions if t["is_timeout"]]) * 100.0 / t_count
-
-    # Loss transactions
-    t_loss_percentage = len([t for t in transactions if not t["has_profit"]]) * 100.0 / t_count
-    loss_per_transaction = np.sum([t["profit"] for t in transactions if not t["has_profit"]]) / t_count
-    loss_per_month = loss_per_transaction * t_per_month
+    # Percentage of profitable
+    profitable_percent = len([t for t in sell_transactions if t["profit"] > 0]) / sell_t_count
+    # TODO: Average length (time from buy to sell, that is, difference between sell and previous buy)
 
     performance = dict(
-        t_per_month=t_per_month,
+        profit_sum=profit_sum,
+        profit_avg=profit_avg,
+        profit_std=profit_std,
+        profitable_percent=profitable_percent,
 
-        profit_per_transaction=profit_per_transaction,
-        profit_per_month=profit_per_month,
-
-        weighted_profit_per_transaction=weighted_profit_per_transaction,
-        weighted_profit_per_month=weighted_profit_per_month,
-
-        t_limit_percentage=t_limit_percentage,
-        limit_fill_time=limit_fill_time,
-        limit_fill_time_std=limit_fill_time_std,
-
-        t_timeout_percentage=t_timeout_percentage,
-
-        t_loss_percentage=t_loss_percentage,
-        loss_per_transaction=loss_per_transaction,
-        loss_per_month=loss_per_month,
+        sell_t_per_month=sell_t_per_month,
+        profit_month=profit_month,
     )
 
     return performance
