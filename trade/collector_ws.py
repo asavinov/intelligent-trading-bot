@@ -18,7 +18,7 @@ from trade.App import App
 from trade.Database import *
 
 import logging
-log = logging.getLogger('collect-ws')
+log = logging.getLogger('collector_ws')
 
 #
 # Subscribe to a stream and receive the events with updates
@@ -86,7 +86,7 @@ def process_message(msg):
     App.database.queue.put(event)
 
 
-def start_collect_ws():
+def start_collector_ws():
     print(f"Start collecting data using WebSocket streams.")
 
     #
@@ -127,11 +127,11 @@ def start_collect_ws():
     # start_user_socket: account/order/trade updates (socket is kept alive automatically)
 
     # List of streams
-    channels = App.config["collect"]["stream"]["channels"]
+    channels = App.config["collector"]["stream"]["channels"]
     print(f"Channels: {channels}")
 
     # List of symbols
-    symbols = App.config["collect"]["stream"]["symbols"]
+    symbols = App.config["collector"]["stream"]["symbols"]
     print(f"Channels: {symbols}")
 
     streams = []
@@ -163,7 +163,7 @@ def start_collect_ws():
     """
 
     # Periodically call db-store
-    saving_period = App.config["collect"]["flush_period"]
+    saving_period = App.config["collector"]["flush_period"]
     try:
         while True:
             time.sleep(saving_period)
@@ -199,6 +199,6 @@ def start_collect_ws():
     return 0
 
 if __name__ == "__main__":
-    start_collect_ws()
+    start_collector_ws()
 
     pass

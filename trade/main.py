@@ -14,7 +14,7 @@ from common.utils import *
 from trade.App import App
 from trade.Database import *
 from trade.buysell import *
-from trade.collect import *
+from trade.collector import *
 
 import logging
 log = logging.getLogger('trade')
@@ -108,10 +108,10 @@ def main(args = None):
     try:
         if command == "trade":
             exitcode = start_trade()
-        elif command == "collect":
-            exitcode = start_collect()
+        elif command == "collector":
+            exitcode = start_collector()
         else:
-            print(f"Uknonwn command {command}. Exit")
+            print(f"Unknown command {command}. Exit")
             exitcode = 1
     except Exception as e:
         log.error(f"Error starting application.")

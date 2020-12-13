@@ -68,7 +68,7 @@ async def sync_trade_task():
     #
     # 1. Ensure that we are up-to-date with klines
     #
-    res = await sync_data_collect_task()
+    res = await sync_data_collector_task()
 
     if res > 0:
         return
@@ -341,7 +341,7 @@ def problems_exist():
 # order_book_ticker = App.client.get_orderbook_ticker(symbol="BTCUSDT")  # dict: "bidPrice", "bidQty", "askPrice", "askQty",
 # print(order_book_ticker)
 
-async def sync_data_collect_task():
+async def sync_data_collector_task():
     """
     Collect latest data.
     After executing this task our local (in-memory) data state is up-to-date.
@@ -845,7 +845,7 @@ def start_trade():
 
     # Do one time data update (cold start)
     try:
-        App.loop.run_until_complete(sync_data_collect_task())
+        App.loop.run_until_complete(sync_data_collector_task())
     except:
         pass
     if problems_exist():
@@ -914,7 +914,7 @@ if __name__ == "__main__":
 
         #App.loop.run_until_complete(check_limit_sell_order())
 
-        App.loop.run_until_complete(sync_data_collect_task())
+        App.loop.run_until_complete(sync_data_collector_task())
 
         App.database.analyze("BTCUSDT")
 

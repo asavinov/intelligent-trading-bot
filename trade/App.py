@@ -27,13 +27,13 @@ class App:
     # Persistent configuration
     #
     config = {
-        "command": "collect",  # "collect" "trade"
+        "command": "collector",  # "collector" "trader"
 
         "api_key": "***REMOVED***",
         "api_secret": "***REMOVED***",
 
-        # === DATA COLLECTION SERVER ===
-        "collect": {
+        # === DATA COLLECTOR SERVER ===
+        "collector": {
             "folder": "DATA",
             "flush_period": 300,  # seconds
             "depth": {

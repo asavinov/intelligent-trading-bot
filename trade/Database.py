@@ -154,8 +154,8 @@ class Database:
 
             symbol = depth["symbol"]
 
-            path = Path(TRADE_DATA).joinpath(App.config["collect"]["folder"])
-            path = path.joinpath(App.config["collect"]["depth"]["folder"])
+            path = Path(TRADE_DATA).joinpath(App.config["collector"]["folder"])
+            path = path.joinpath(App.config["collector"]["depth"]["folder"])
             path.mkdir(parents=True, exist_ok=True)  # Ensure that dir exists
 
             file_name = f"depth-{symbol}-{freq}"
@@ -207,8 +207,8 @@ class Database:
         # BASE_DIR = Path(__file__).resolve().parent.parent
         # BASE_DIR = Path.cwd()
 
-        path = Path(TRADE_DATA).joinpath(App.config["collect"]["folder"])
-        path = path.joinpath(App.config["collect"]["stream"]["folder"])
+        path = Path(TRADE_DATA).joinpath(App.config["collector"]["folder"])
+        path = path.joinpath(App.config["collector"]["stream"]["folder"])
         path.mkdir(parents=True, exist_ok=True)  # Ensure that dir exists
 
         now = datetime.utcnow()
