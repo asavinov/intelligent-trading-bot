@@ -32,7 +32,7 @@ class App:
         "api_key": "***REMOVED***",
         "api_secret": "***REMOVED***",
 
-        # === DATA COLLECTOR SERVER ===
+        # === COLLECTOR SERVER ===
         "collector": {
             "folder": "DATA",
             "flush_period": 300,  # seconds
@@ -53,8 +53,8 @@ class App:
             }
         },
 
-        # === TRADE SERVER ===
-        "trade": {
+        # === TRADER SERVER ===
+        "trader": {
             #
             # Status data retrieved from the server. Below are examples only.
             #
@@ -88,7 +88,7 @@ class App:
             },
 
             #
-            # Static parameters of trade
+            # Static parameters of trader
             #
             "folder": "DATA",
             "symbol": "BTCUSDT",

@@ -13,8 +13,8 @@ from binance.client import Client
 from common.utils import *
 from trade.App import App
 from trade.Database import *
-from trade.buysell import *
 from trade.collector import *
+from trade.trader import *
 
 import logging
 log = logging.getLogger('trade')
@@ -107,7 +107,7 @@ def main(args = None):
     command = App.config["command"]
     try:
         if command == "trade":
-            exitcode = start_trade()
+            exitcode = start_trader()
         elif command == "collector":
             exitcode = start_collector()
         else:

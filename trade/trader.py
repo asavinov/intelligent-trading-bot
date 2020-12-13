@@ -20,7 +20,7 @@ from trade.App import App
 from trade.Database import *
 
 import logging
-log = logging.getLogger('TRADE')
+log = logging.getLogger('trader')
 logging.basicConfig(filename='temp.log', level=logging.DEBUG)  # filename='example.log', - parameter in App
 
 # TODO: after analysis: set buy signal true or false, actually it has to be stored in dataframe and we can retrieve it and store in the config field
@@ -46,11 +46,11 @@ logging.basicConfig(filename='temp.log', level=logging.DEBUG)  # filename='examp
 # - surround all python-binance calls with try-catch
 # - check if timeout for sell orders works correctly
 
-async def sync_trade_task():
+async def sync_trader_task():
     """
     It is a highest level task which is added to the event loop and executed normally every 1 minute and then it calls other tasks.
     """
-    symbol = App.config["trade"]["symbol"]
+    symbol = App.config["trader"]["symbol"]
     startTime, endTime = get_interval("1m")
     now_ts = now_timestamp()
 
@@ -89,26 +89,26 @@ async def sync_trade_task():
     # Get balances and determine whether we are in market or in cash
     #
     await update_account_state()
-    base_quantity = App.config["trade"]["state"]["base_quantity"]
-    quote_quantity = App.config["trade"]["state"]["quote_quantity"]
+    base_quantity = App.config["trader"]["state"]["base_quantity"]
+    quote_quantity = App.config["trader"]["state"]["quote_quantity"]
     if base_quantity > 0.00000010:
-        App.config["trade"]["state"]["in_market"] = True
+        App.config["trader"]["state"]["in_market"] = True
         in_market = True
     else:
-        App.config["trade"]["state"]["in_market"] = False
+        App.config["trader"]["state"]["in_market"] = False
         in_market = False
 
     last_kline_ts = App.database.get_last_kline_ts(symbol)
     if last_kline_ts + 60_000 != startTime:
         log.error(f"Problem during analysis. Last kline end ts {last_kline_ts + 60_000} not equal to start of current interval {startTime}.")
 
-    is_buy_signal = App.config["trade"]["state"]["buy_signal"]
-    buy_signal_scores = App.config["trade"]["state"]["buy_signal_scores"]
+    is_buy_signal = App.config["trader"]["state"]["buy_signal"]
+    buy_signal_scores = App.config["trader"]["state"]["buy_signal_scores"]
     log.debug(f"Analysis finished. BTC: {base_quantity:.8f}. USDT: {quote_quantity:.8f}. In market {in_market}. Buy signal: {is_buy_signal} with scores {buy_signal_scores}")
     if is_buy_signal:
         log.debug(f"\n==============  BUY SIGNAL  ==============. Scores: {buy_signal_scores}\n")
 
-    if App.config["trade"]["parameters"]["no_trades_only_data_processing"]:
+    if App.config["trader"]["parameters"]["no_trades_only_data_processing"]:
         log.info(f"<=== End trade task. Only data operations performed (trading is disabled).")
         return
 
@@ -134,7 +134,7 @@ async def in_market_trade():
     # We must get status even if the order has been filled
     order_status = await update_sell_order_status()
 
-    sell_order = App.config["trade"]["state"]["sell_order"]
+    sell_order = App.config["trader"]["state"]["sell_order"]
 
     if not sell_order or not sell_order.get("status"):
         # No sell order exists or some problem
@@ -169,15 +169,15 @@ async def in_market_trade():
     elif order_status == ORDER_STATUS_FILLED:  # Success: order filled
         log.info(f"Limit sell order filled. {sell_order}")
         sell_order = None
-        App.config["trade"]["state"]["sell_order"] = None
+        App.config["trader"]["state"]["sell_order"] = None
         in_market = False
 
     # elif order_status == ORDER_STATUS_NEW
     else:  # Order still exists and is active
         now_ts = now_timestamp()
 
-        sell_timeout = App.config["trade"]["parameters"]["sell_timeout"]  # Seconds
-        creation_ts = App.config["trade"]["state"]["sell_order_time"]
+        sell_timeout = App.config["trader"]["parameters"]["sell_timeout"]  # Seconds
+        creation_ts = App.config["trader"]["state"]["sell_order_time"]
 
         if (now_ts - creation_ts) >= (sell_timeout * 1_000):
             is_timeout = True
@@ -191,7 +191,7 @@ async def in_market_trade():
             if is_sold:
                 # TODO (LOG): Log fulfilled transaction
                 sell_order = None
-                App.config["trade"]["state"]["sell_order"] = None
+                App.config["trader"]["state"]["sell_order"] = None
                 in_market = False
             else:
                 # TODO (ERROR, suspend)
@@ -201,7 +201,7 @@ async def out_of_market_trade():
     """If buy signal, then enter the market and immediately creating a limit sell order."""
 
     # Result of analysis
-    is_buy_signal = App.config["trade"]["state"]["buy_signal"]
+    is_buy_signal = App.config["trader"]["state"]["buy_signal"]
 
     if not is_buy_signal:
         return
@@ -219,8 +219,8 @@ async def out_of_market_trade():
     # ---
     # Retrieve latest account state (important for making buy market order)
     await update_account_state()
-    base_quantity = App.config["trade"]["state"]["base_quantity"]
-    quote_quantity = App.config["trade"]["state"]["quote_quantity"]
+    base_quantity = App.config["trader"]["state"]["base_quantity"]
+    quote_quantity = App.config["trader"]["state"]["quote_quantity"]
     if base_quantity < 0.00000010:
         log.error(f"Problem or wrong state: attempt to create a limit sell order while the base quantity is 0. Base quantity: {base_quantity}. Quote quantity: {quote_quantity}")
         return
@@ -238,11 +238,11 @@ async def out_of_market_trade():
 
 async def update_account_state():
 
-    balance = App.client.get_asset_balance(asset=App.config["trade"]["base_asset"])
-    App.config["trade"]["state"]["base_quantity"] = Decimal(balance.get("free", "0.00000000"))
+    balance = App.client.get_asset_balance(asset=App.config["trader"]["base_asset"])
+    App.config["trader"]["state"]["base_quantity"] = Decimal(balance.get("free", "0.00000000"))
 
-    balance = App.client.get_asset_balance(asset=App.config["trade"]["quote_asset"])
-    App.config["trade"]["state"]["quote_quantity"] = Decimal(balance.get("free", "0.00000000"))
+    balance = App.client.get_asset_balance(asset=App.config["trader"]["quote_asset"])
+    App.config["trader"]["state"]["quote_quantity"] = Decimal(balance.get("free", "0.00000000"))
 
     pass
 
@@ -252,7 +252,7 @@ async def update_state_and_health_check():
     This function is called when we want to get complete real (true) state, for example, after re-start or network problem.
     It sets our state by requesting information from the server.
     """
-    symbol = App.config["trade"]["symbol"]
+    symbol = App.config["trader"]["symbol"]
 
     # Get server state (ping) and trade status (e.g., trade can be suspended on some symbol)
     system_status = App.client.get_system_status()
@@ -261,9 +261,9 @@ async def update_state_and_health_check():
     #    "msg": "normal"  # normal or System maintenance.
     #}
     if not system_status or system_status.get("status") != 0:
-        App.config["trade"]["state"]["server_status"] = 1
+        App.config["trader"]["state"]["server_status"] = 1
         return 1
-    App.config["trade"]["state"]["server_status"] = 0
+    App.config["trader"]["state"]["server_status"] = 0
 
     # "orderTypes": ["LIMIT", "LIMIT_MAKER", "MARKET", "STOP_LOSS_LIMIT", "TAKE_PROFIT_LIMIT"]
     # "isSpotTradingAllowed": True
@@ -277,58 +277,58 @@ async def update_state_and_health_check():
 
     # Get symbol info
     symbol_info = App.client.get_symbol_info(symbol)
-    App.config["trade"]["symbol_info"] = symbol_info
+    App.config["trader"]["symbol_info"] = symbol_info
     if not symbol_info or symbol_info.get("status") != "TRADING":
-        App.config["trade"]["state"]["server_status"] = 1
+        App.config["trader"]["state"]["server_status"] = 1
         return 1
-    App.config["trade"]["state"]["server_status"] = 0
+    App.config["trader"]["state"]["server_status"] = 0
 
     # Get account trading status (it can be blocked/suspended, e.g., too many orders)
     account_info = App.client.get_account()
     if not account_info or not account_info.get("canTrade"):
-        App.config["trade"]["state"]["account_status"] = 1
+        App.config["trader"]["state"]["account_status"] = 1
         return 1
-    App.config["trade"]["state"]["account_status"] = 0
+    App.config["trader"]["state"]["account_status"] = 0
 
     # Get current balances (available funds)
-    #balance = App.client.get_asset_balance(asset=App.config["trade"]["base_asset"])
-    balance = next((b for b in account_info.get("balances", []) if b.get("asset") == App.config["trade"]["base_asset"]), {})
-    App.config["trade"]["state"]["base_quantity"] = Decimal(balance.get("free", "0.00000000"))
+    #balance = App.client.get_asset_balance(asset=App.config["trader"]["base_asset"])
+    balance = next((b for b in account_info.get("balances", []) if b.get("asset") == App.config["trader"]["base_asset"]), {})
+    App.config["trader"]["state"]["base_quantity"] = Decimal(balance.get("free", "0.00000000"))
 
-    #balance = App.client.get_asset_balance(asset=App.config["trade"]["quote_asset"])
-    balance = next((b for b in account_info.get("balances", []) if b.get("asset") == App.config["trade"]["quote_asset"]), {})
-    App.config["trade"]["state"]["quote_quantity"] = Decimal(balance.get("free", "0.00000000"))
+    #balance = App.client.get_asset_balance(asset=App.config["trader"]["quote_asset"])
+    balance = next((b for b in account_info.get("balances", []) if b.get("asset") == App.config["trader"]["quote_asset"]), {})
+    App.config["trader"]["state"]["quote_quantity"] = Decimal(balance.get("free", "0.00000000"))
 
     # Get current active orders
     #orders = App.client.get_all_orders(symbol=symbol, limit=10)  # All orders
     orders = App.client.get_open_orders(symbol=symbol)
     if len(orders) == 0:  # No open orders
-        App.config["trade"]["state"]["sell_order"] = None  # Forget about our sell order
+        App.config["trader"]["state"]["sell_order"] = None  # Forget about our sell order
     elif len(orders) == 1:
         order = orders[0]
         if order["side"] == "BUY":
-            App.config["trade"]["state"]["trade_state_status"] = "Buy order still open. Market buy order have to be executed immediately."
+            App.config["trader"]["state"]["trade_state_status"] = "Buy order still open. Market buy order have to be executed immediately."
             return 1
         elif order["side"] == "SELL":
             # It is our limit sell order. We are expected to be in market (check it) and assets should be as expected.
             # Check that this order exists and update its status
             pass
     else:
-        App.config["trade"]["state"]["trade_state_status"] = "More than 1 active order. There cannot be more than 1 active order."
+        App.config["trader"]["state"]["trade_state_status"] = "More than 1 active order. There cannot be more than 1 active order."
         return 1
 
-    App.config["trade"]["state"]["trade_state_status"] = 0
+    App.config["trader"]["state"]["trade_state_status"] = 0
 
     return 0
 
 def problems_exist():
-    if App.config["trade"]["state"]["error_status"] != 0:
+    if App.config["trader"]["state"]["error_status"] != 0:
         return True
-    if App.config["trade"]["state"]["server_status"] != 0:
+    if App.config["trader"]["state"]["server_status"] != 0:
         return True
-    if App.config["trade"]["state"]["account_status"] != 0:
+    if App.config["trader"]["state"]["account_status"] != 0:
         return True
-    if App.config["trade"]["state"]["trade_state_status"] != 0:
+    if App.config["trader"]["state"]["trade_state_status"] != 0:
         return True
     return False
 
@@ -352,7 +352,7 @@ async def sync_data_collector_task():
     - We update only local state by loading latest data. If it is necessary to initialize the db then another function should be used.
     """
 
-    symbol = App.config["trade"]["symbol"]
+    symbol = App.config["trader"]["symbol"]
     symbols = [symbol]  # In future, we might want to collect other data, say, from other cryptocurrencies
 
     # Request newest data
@@ -456,10 +456,10 @@ async def update_sell_order_status(order_id):
     :param order_id:
     :return:
     """
-    symbol = App.config["trade"]["symbol"]
+    symbol = App.config["trader"]["symbol"]
 
     # Get currently active order and id (if any)
-    sell_order = App.config["trade"]["state"]["sell_order"]
+    sell_order = App.config["trader"]["state"]["sell_order"]
     sell_order_id = sell_order.get("orderId", 0) if sell_order else 0
     if not sell_order_id:
         log.error(f"Wrong state or use: check sell order status cannot find the order id.")
@@ -495,7 +495,7 @@ async def new_market_buy_order():
     """
     Submit a new market buy order. Wait until it is executed.
     """
-    symbol = App.config["trade"]["symbol"]
+    symbol = App.config["trader"]["symbol"]
 
     #
     # Get latest market parameters
@@ -519,8 +519,8 @@ async def new_market_buy_order():
     #
     # Determine BTC quantity to buy depending on how much USDT we have and what is the latest price taking into account possible price increase
     #
-    quote_quantity = App.config["trade"]["state"]["quote_quantity"]
-    percentage_used_for_trade = App.config["trade"]["parameters"]["percentage_used_for_trade"]
+    quote_quantity = App.config["trader"]["state"]["quote_quantity"]
+    percentage_used_for_trade = App.config["trader"]["parameters"]["percentage_used_for_trade"]
     quantity = (quote_quantity * percentage_used_for_trade) / 100.0 / last_close_price
     quantity = to_decimal(quantity)
     # Alternatively, we can pass quoteOrderQty in USDT (how much I want to spend)
@@ -540,13 +540,13 @@ async def new_market_buy_order():
     #
     # Store/log order object in our records
     #
-    App.config["trade"]["state"]["in_market"] = True
+    App.config["trader"]["state"]["in_market"] = True
 
-    App.config["trade"]["state"]["buy_order"] = order
-    App.config["trade"]["state"]["buy_order_price"] = Decimal(order.get("price", "0.00000000"))
+    App.config["trader"]["state"]["buy_order"] = order
+    App.config["trader"]["state"]["buy_order_price"] = Decimal(order.get("price", "0.00000000"))
 
-    App.config["trade"]["state"]["base_quantity"] += quantity  # Increase BTC
-    App.config["trade"]["state"]["quote_quantity"] -= percentage_used_for_trade  # Decrease USDT
+    App.config["trader"]["state"]["base_quantity"] += quantity  # Increase BTC
+    App.config["trader"]["state"]["quote_quantity"] -= percentage_used_for_trade  # Decrease USDT
 
     return order
 
@@ -556,12 +556,12 @@ async def new_market_sell_order():
     It is a blocking request until everything is sold.
     The function determines the total quantity of btc we possess and then creates a market order.
     """
-    symbol = App.config["trade"]["symbol"]
+    symbol = App.config["trader"]["symbol"]
 
     #
     # We want to sell all BTC we own.
     #
-    quantity = App.config["trade"]["state"]["base_quantity"]
+    quantity = App.config["trader"]["state"]["base_quantity"]
     quantity = to_decimal(quantity)
 
     #
@@ -586,17 +586,17 @@ async def new_limit_sell_order():
     Create a new limit sell order with the amount we current have (and have just bought).
     The amount is total amount and price is determined according to our strategy (either fixed increase or increase depending on the signal).
     """
-    symbol = App.config["trade"]["symbol"]
+    symbol = App.config["trader"]["symbol"]
     now_ts = now_timestamp()
 
     #
     # We want to sell all BTC we own but the price is derived from previous (buy) order price
     #
-    quantity = App.config["trade"]["state"]["base_quantity"]
+    quantity = App.config["trader"]["state"]["base_quantity"]
     quantity = to_decimal(quantity)
 
-    buy_order_price = App.config["trade"]["state"]["buy_order_price"]
-    price = buy_order_price * App.config["trade"]["parameters"]["percentage_sell_price"]
+    buy_order_price = App.config["trader"]["state"]["buy_order_price"]
+    price = buy_order_price * App.config["trader"]["parameters"]["percentage_sell_price"]
     price = to_decimal(price)
 
     #
@@ -609,15 +609,15 @@ async def new_limit_sell_order():
 
     # Process response
     if not order:
-        App.config["trade"]["state"]["sell_order"] = order
-        App.config["trade"]["state"]["sell_order_time"] = 0
+        App.config["trader"]["state"]["sell_order"] = order
+        App.config["trader"]["state"]["sell_order_time"] = 0
         return order
 
     #
     # Store/log order object in our records (only after confirmation of success)
     #
-    App.config["trade"]["state"]["sell_order"] = order
-    App.config["trade"]["state"]["sell_order_time"] = now_ts
+    App.config["trader"]["state"]["sell_order"] = order
+    App.config["trader"]["state"]["sell_order_time"] = now_ts
 
     return order
 
@@ -639,10 +639,10 @@ def execute_order(order: dict):
 
     # TODO: Check validity, e.g., against filters (min, max) and our own limits
 
-    if App.config["trade"]["parameters"]["test_order_before_submit"]:
+    if App.config["trader"]["parameters"]["test_order_before_submit"]:
         test_response = App.client.create_test_order(**order)  # Returns {} if ok, but what if error? Exception?
 
-    if App.config["trade"]["parameters"]["simulate_order_execution"]:
+    if App.config["trader"]["parameters"]["simulate_order_execution"]:
         # TODO:
         #   For market buy order, use latest close price (slightly worse)
         #   For market sell order, use latest close price (slightly worse)
@@ -689,10 +689,10 @@ async def cancel_sell_order():
     Kill existing sell order. It is a blocking request, that is, it waits for the end of the operation.
     Info: DELETE /api/v3/order - cancel order
     """
-    symbol = App.config["trade"]["symbol"]
+    symbol = App.config["trader"]["symbol"]
 
     # Get currently active order and id (if any)
-    sell_order = App.config["trade"]["state"]["sell_order"]
+    sell_order = App.config["trader"]["state"]["sell_order"]
     sell_order_id = sell_order.get("orderId", 0) if sell_order else 0
     if sell_order_id == 0:
         # TODO: Maybe retrieve all existing (sell, limit) orders
@@ -708,9 +708,9 @@ async def force_sell():
     Force sell available btc and exit market.
     We kill an existing limit sell order (if any) and then create a new sell market order.
     """
-    symbol = App.config["trade"]["symbol"]
+    symbol = App.config["trader"]["symbol"]
 
-    sell_order = App.config["trade"]["state"]["sell_order"]
+    sell_order = App.config["trader"]["state"]["sell_order"]
     sell_order_id = sell_order.get("orderId", 0) if sell_order else 0
     if sell_order_id == 0:
         # TODO: Maybe retrieve all existing (sell, limit) orders
@@ -723,7 +723,7 @@ async def force_sell():
         return False
 
     # Forget about this order (no need to log it)
-    App.config["trade"]["state"]["sell_order"] = None
+    App.config["trader"]["state"]["sell_order"] = None
 
     # Create a new market sell order with the whole possessed amount to sell
     is_executed = await new_market_sell_order()
@@ -742,8 +742,8 @@ async def force_sell():
 async def check_limit_sell_order():
     """It will really create a limit sell order and then immedialtely cancel this order."""
 
-    App.config["trade"]["state"]["base_quantity"] = 0.001  # How much
-    App.config["trade"]["state"]["buy_order_price"] = Decimal("10_000.00000000")  # Some percent will be added to this price to compute limit
+    App.config["trader"]["state"]["base_quantity"] = 0.001  # How much
+    App.config["trader"]["state"]["buy_order_price"] = Decimal("10_000.00000000")  # Some percent will be added to this price to compute limit
 
     # Create limit sell order (with high price)
     # Store what it returns and whether it has important information
@@ -815,11 +815,11 @@ async def check_limit_sell_order():
 # Main procedure. Initialize everything
 #
 
-def start_trade():
+def start_trader():
     #
     # Validation
     #
-    symbol = App.config["trade"]["symbol"]
+    symbol = App.config["trader"]["symbol"]
 
     log.info(f"Initializing trade server. Trade symbol {symbol}. ")
 
@@ -875,11 +875,11 @@ def start_trade():
         # INFO: Creating/adding asyncio tasks from another thread
         # - https://docs.python.org/3/library/asyncio-task.html#scheduling-from-other-threads
         # - App.loop.call_soon_threadsafe(sync_responder)  # This works, but takes a normal funciton (not awaitable), which has to call coroutine: eventLoop.create_task(coroutine())
-        lambda: asyncio.run_coroutine_threadsafe(sync_trade_task(), App.loop),
+        lambda: asyncio.run_coroutine_threadsafe(sync_trader_task(), App.loop),
         trigger='cron',
         #second='*/30',
         minute='*',
-        id='sync_trade_task'
+        id='sync_trader_task'
     )
 
     App.sched.start()  # Start scheduler (essentially, start the thread)
@@ -903,7 +903,7 @@ def start_trade():
     return 0
 
 if __name__ == "__main__":
-    # Short version of start_trade (main procedure)
+    # Short version of start_trader (main procedure)
     App.database = Database(None)
     App.client = Client(api_key=App.config["api_key"], api_secret=App.config["api_secret"])
     App.loop = asyncio.get_event_loop()
@@ -918,7 +918,7 @@ if __name__ == "__main__":
 
         App.database.analyze("BTCUSDT")
 
-        #App.loop.run_until_complete(sync_trade_task())
+        #App.loop.run_until_complete(sync_trader_task())
     except BinanceAPIException as be:
         # IP is not registred in binance
         # BinanceAPIException: APIError(code=-2015): Invalid API-key, IP, or permissions for action
