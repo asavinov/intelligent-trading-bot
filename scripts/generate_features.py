@@ -8,8 +8,8 @@ import pickle
 import numpy as np
 import pandas as pd
 
-from trade.feature_generation import *
-from trade.label_generation import *
+from common.feature_generation import *
+from common.label_generation import *
 
 """
 Compute derived features from source data and store then in an output file.

@@ -25,7 +25,7 @@ import lightgbm as lgbm
 
 
 #from common.utils import *
-#from trade.feature_generation import *
+#from common.feature_generation import *
 
 
 # ===

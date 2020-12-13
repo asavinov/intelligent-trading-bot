@@ -90,7 +90,7 @@ Notes:
 
 ## Principles
 
-The task of this server is to *monitor* the state of the market and generate signals for the trader server which has to execute them. Signals are recommended actions in the context of the current market which however do not take into account account the current actor state like available resources etc. Essentially, the signaler describes the future of the market and what to do (in general) in order to benefit from this future. Whether you can really use these opportunities is already what the trader does.
+The task of this server is to *monitor* the state of the market and generate signals for the trader server which has to execute them. Signals are recommended actions in the context of the current market which however do not take into account the current actor state like available resources etc. Essentially, the signaler describes the future of the market and what to do (in general) in order to benefit from this future. Whether you can really use these opportunities is already what the trader does.
 
 ## Architecture
 

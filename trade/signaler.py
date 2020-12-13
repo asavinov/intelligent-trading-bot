@@ -39,10 +39,10 @@ async def sync_signaler_task():
     #
     # 0. Check server state (if necessary)
     #
-    if problems_exist():
-        await update_state_and_health_check()
-        if problems_exist():
-            log.error(f"There are problems with connection, server, account or consistency.")
+    if data_provider_problems_exist():
+        await data_provider_health_check()
+        if data_provider_problems_exist():
+            log.error(f"Problems with the data provider server found. Skip. Will try later.")
             return
 
     #
@@ -81,11 +81,9 @@ async def sync_signaler_task():
 # Server and account info
 #
 
-async def update_state_and_health_check():
+async def data_provider_health_check():
     """
-    Request information about the current state of the account (balances), order (buy and sell), server state.
-    This function is called when we want to get complete real (true) state, for example, after re-start or network problem.
-    It sets our state by requesting information from the server.
+    Request information about the data provider server state.
     """
     symbol = App.config["trader"]["symbol"]
 
@@ -100,70 +98,19 @@ async def update_state_and_health_check():
         return 1
     App.config["trader"]["state"]["server_status"] = 0
 
-    # "orderTypes": ["LIMIT", "LIMIT_MAKER", "MARKET", "STOP_LOSS_LIMIT", "TAKE_PROFIT_LIMIT"]
-    # "isSpotTradingAllowed": True
-
     # Ping the server
 
     # Check time synchronization
     #server_time = App.client.get_server_time()
     #time_diff = int(time.time() * 1000) - server_time['serverTime']
-    # TODO: Log large time differences (or even trigger time synchronization if possible)
-
-    # Get symbol info
-    symbol_info = App.client.get_symbol_info(symbol)
-    App.config["trader"]["symbol_info"] = symbol_info
-    if not symbol_info or symbol_info.get("status") != "TRADING":
-        App.config["trader"]["state"]["server_status"] = 1
-        return 1
-    App.config["trader"]["state"]["server_status"] = 0
-
-    # Get account trading status (it can be blocked/suspended, e.g., too many orders)
-    account_info = App.client.get_account()
-    if not account_info or not account_info.get("canTrade"):
-        App.config["trader"]["state"]["account_status"] = 1
-        return 1
-    App.config["trader"]["state"]["account_status"] = 0
-
-    # Get current balances (available funds)
-    #balance = App.client.get_asset_balance(asset=App.config["trader"]["base_asset"])
-    balance = next((b for b in account_info.get("balances", []) if b.get("asset") == App.config["trader"]["base_asset"]), {})
-    App.config["trader"]["state"]["base_quantity"] = Decimal(balance.get("free", "0.00000000"))
-
-    #balance = App.client.get_asset_balance(asset=App.config["trader"]["quote_asset"])
-    balance = next((b for b in account_info.get("balances", []) if b.get("asset") == App.config["trader"]["quote_asset"]), {})
-    App.config["trader"]["state"]["quote_quantity"] = Decimal(balance.get("free", "0.00000000"))
-
-    # Get current active orders
-    #orders = App.client.get_all_orders(symbol=symbol, limit=10)  # All orders
-    orders = App.client.get_open_orders(symbol=symbol)
-    if len(orders) == 0:  # No open orders
-        App.config["trader"]["state"]["sell_order"] = None  # Forget about our sell order
-    elif len(orders) == 1:
-        order = orders[0]
-        if order["side"] == "BUY":
-            App.config["trader"]["state"]["trade_state_status"] = "Buy order still open. Market buy order have to be executed immediately."
-            return 1
-        elif order["side"] == "SELL":
-            # It is our limit sell order. We are expected to be in market (check it) and assets should be as expected.
-            # Check that this order exists and update its status
-            pass
-    else:
-        App.config["trader"]["state"]["trade_state_status"] = "More than 1 active order. There cannot be more than 1 active order."
-        return 1
-
-    App.config["trader"]["state"]["trade_state_status"] = 0
+    # TODO: Log large time differences (or better trigger time synchronization procedure)
 
     return 0
 
-def problems_exist():
+def data_provider_problems_exist():
     if App.config["trader"]["state"]["error_status"] != 0:
         return True
     if App.config["trader"]["state"]["server_status"] != 0:
-        return True
-    if App.config["trader"]["state"]["account_status"] != 0:
-        return True
-    if App.config["trader"]["state"]["trade_state_status"] != 0:
         return True
     return False
 
@@ -275,7 +222,7 @@ async def request_klines(symbol, freq, limit):
     return {symbol: klines_full}
 
 #
-# Main procedure. Initialize everything
+# Main procedure
 #
 
 def start_signlaer():
@@ -297,11 +244,11 @@ def start_signlaer():
 
     # Do one time server check and state update
     try:
-        App.loop.run_until_complete(update_state_and_health_check())
+        App.loop.run_until_complete(data_provider_health_check())
     except:
         pass
-    if problems_exist():
-        log.error(f"Problems found. Check server, symbol, account or system state.")
+    if data_provider_problems_exist():
+        log.error(f"Problems with the data provider server found.")
         return
 
     log.info(f"Finished updating state and health check.")
@@ -311,8 +258,8 @@ def start_signlaer():
         App.loop.run_until_complete(sync_data_collector_task())
     except:
         pass
-    if problems_exist():
-        log.error(f"Problems found. Check server, symbol, account or system state.")
+    if data_provider_problems_exist():
+        log.error(f"Problems with the data provider server found.")
         return
 
     log.info(f"Finished updating data.")
@@ -366,22 +313,22 @@ def start_signlaer():
     return 0
 
 if __name__ == "__main__":
-    # Short version of start_trader (main procedure)
+    # Short version of start_trader (main procedure) for testing/debug purposes
     App.database = Database(None)
     App.client = Client(api_key=App.config["api_key"], api_secret=App.config["api_secret"])
     App.loop = asyncio.get_event_loop()
     try:
         log.debug("Start in debug mode.")
         log.info("Start testing in main.")
-        App.loop.run_until_complete(update_state_and_health_check())
 
-        #App.loop.run_until_complete(check_limit_sell_order())
+        App.loop.run_until_complete(data_provider_health_check())
 
         App.loop.run_until_complete(sync_data_collector_task())
 
         App.database.analyze("BTCUSDT")
 
         #App.loop.run_until_complete(sync_signaler_task())
+
     except BinanceAPIException as be:
         # IP is not registred in binance
         # BinanceAPIException: APIError(code=-2015): Invalid API-key, IP, or permissions for action

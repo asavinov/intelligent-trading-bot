@@ -44,8 +44,13 @@ the purpose to earn while exiting. Note that this strategy could be also modelle
 if the two thresholds are not symmetric.
 
 NEXT:
+!!!- Implement signal generation server with real-time updates and notifying some other
+  component which might simulate trade or simply store the logs in a file
+
 - Since we are going to use only kline (no futures), generate rolling predictions for longer period
-- Explore how profit depends on month: downward tren (Feb-March) vs. other months.
+  - play with other options of NN since we
+
+- Explore how profit depends on month: downward trend (Feb-March) vs. other months.
   - Run back testing on only summer months
 - DONE: smooth score and check if the performance is better. simply run same grid with different smooth factors (different definitions of score column).
 - alternative to smoothing, generate signal if 2 or more previous values are all higher/lower than threshold
@@ -56,7 +61,7 @@ NEXT:
 - hybrid strategy: instead of simply waiting for signal and change point, we can introduce stop loss or take profit signals.
 These signals will allow us to take profit where we see it and it is large rather than wait for something in future.
 In other words, such signals are generated from reality (we can earn already now) rather then future.
-One way to impelment it, is to use this special kind of order (take profit) which will be executed automatically.
+One way to implement it, is to use this special kind of order (take profit) which will be executed automatically.
 Yet, we need to model this logic manually.
 """
 

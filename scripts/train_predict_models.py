@@ -14,8 +14,8 @@ from sklearn import metrics
 import lightgbm as lgbm
 
 from common.utils import *
-from trade.feature_generation import *
-from trade.feature_prediction import *
+from common.feature_generation import *
+from common.feature_prediction import *
 
 """
 Use input feature matrix to train *one* label predict model for each label using all specified historic data.

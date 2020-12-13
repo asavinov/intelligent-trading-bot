@@ -20,8 +20,8 @@ sys.path.append(os.path.normpath(os.path.join(SCRIPT_DIR, PACKAGE_PARENT)))
 
 from common.classifiers import *
 from common.utils import *
-from trade.feature_generation import *
-from trade.feature_prediction import *
+from common.feature_generation import *
+from common.feature_prediction import *
 
 """
 Generate label predictions for the whole input feature matrix by iteratively training models using historic data and predicting labels for some future horizon.

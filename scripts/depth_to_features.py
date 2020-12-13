@@ -11,7 +11,7 @@ from tqdm import tqdm_notebook #(Optional, used for progress-bars)
 import numpy as np
 
 from common.utils import *
-from trade.feature_generation import *
+from common.feature_generation import *
 
 """
 Produce features from market depth (json) data for a set of files by writing the result in several output (csv) files.

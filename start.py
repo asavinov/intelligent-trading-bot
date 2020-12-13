@@ -86,13 +86,13 @@ if script_name == "train_predict_models":
     #from scripts.train_predict_models import main
     #exitcode = main(sys.argv[1:])
 
-# === DATA COLLECTION SERVER ===
+# === DATA COLLECTOR SERVER ===
 #
 if script_name == "collect_data":
     # Regularly (1m) request new data: depth
     # - start command: python start.py collect_data &
     # CHECK:
-    # - In "collect"-"depth": symbols, depth (how may items in order book), freq (1m)
+    # - In "collector"-"depth": symbols, depth (how may items in order book), freq (1m)
     from trade.main import *
     exitcode = main(sys.argv[1:])
 
@@ -103,23 +103,23 @@ if script_name == "collect_data_ws":
     # - in Database.py::store_queue, rotate_suffix has to store in monthly files (not daily or hourly or whatever was used for debugging)
     # - in App.py, check list of symbols and depth of order book (20 and not 5 or whatever was used for debugging)
     # - in App.py, check frequency of flushes and set it to 300 seconds or 60 seconds.
-    from trade.collect_ws import *
-    exitcode = start_collect_ws()
-    #import trade.collect_ws
-    #exitcode = trade.collect_ws.start_collect_ws()
+    from trade.collector_ws import *
+    exitcode = start_collector_ws()
+    #import trade.collector_ws
+    #exitcode = trade.collector_ws.start_collector_ws()
 
-# === TRADE SERVER ===
+# === TRADER SERVER ===
 #
 if script_name == "trade_server":
     # Regularly (1m) request data, analyze (feature, predictions, signals), trade (buy or check sold)
     # - start command: python start.py trade_server &
     # CHECK:
-    # In "config"|"trade"
+    # In "config"|"trader"
     # - "analysis", "kline_window" must be >300 (base window), e.g., 400 or 600
     # - "analysis", "features" copy all derived feature names
     # - "analysis", "labels" copy all predicted labels (one for each trained model used)
     # - "parameters": check all parameters of trade logic
-    from trade.trade_server import *
-    exitcode = start_trade()
+    from trade.trader import *
+    exitcode = start_trader()
     #import trade.trade_server
-    #exitcode = trade.trade_server^.start_trade()
+    #exitcode = trade.trade_server.start_trader()

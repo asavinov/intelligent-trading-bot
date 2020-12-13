@@ -4,11 +4,28 @@ import pytz
 from datetime import datetime, timezone, timedelta
 from typing import Union
 import json
+from decimal import *
 
 import numpy as np
 import pandas as pd
 
 from binance.helpers import date_to_milliseconds, interval_to_milliseconds
+
+#
+# Decimals
+#
+
+def to_decimal(value):
+    """Convert to a decimal with the required precision. The value can be string, float or decimal."""
+    # App.config["trade"]["symbol_info"]["baseAssetPrecision"]
+    n = 8
+    rr = Decimal(1) / (Decimal(10) ** n)  # Result: 0.00000001
+    ret = Decimal(str(value)).quantize(rr, rounding=ROUND_DOWN)
+    return ret
+
+#
+# Date and time
+#
 
 def get_interval(freq: str, timestamp: int=None):
     """

@@ -10,9 +10,9 @@ import pandas as pd
 
 from common.utils import *
 from trade.App import App
-from trade.feature_prediction import *
-from trade.feature_generation import *
-from trade.signal_generation import *
+from common.feature_generation import *
+from common.feature_prediction import *
+from common.signal_generation import *
 
 import logging
 log = logging.getLogger('DB')
@@ -75,7 +75,7 @@ class Database:
         now_ts = now_timestamp()
         last_kline_ts = self.get_last_kline_ts(symbol)
         if not last_kline_ts:
-            return App.config["trade"]["analysis"]["kline_window"]
+            return App.config["trader"]["analysis"]["kline_window"]
         end_of_last_kline = last_kline_ts + 60_000  # Plus 1m
 
         minutes = (now_ts - end_of_last_kline) / 60_000
@@ -119,7 +119,7 @@ class Database:
             klines_data.extend(klines)
 
             # Remove too old klines
-            kline_window = App.config["trade"]["analysis"]["kline_window"]
+            kline_window = App.config["trader"]["analysis"]["kline_window"]
             to_delete = len(klines_data) - kline_window
             if to_delete > 0:
                 del klines_data[:to_delete]
@@ -268,8 +268,8 @@ class Database:
         #
 
         # Prepare (load) models (models are identified by label names and algorithm name)
-        labels = App.config["trade"]["analysis"]["labels"]
-        model_path = App.config["trade"]["analysis"]["folder"]
+        labels = App.config["trader"]["analysis"]["labels"]
+        model_path = App.config["trader"]["analysis"]["folder"]
         models = {}
         for label in labels:
             model_file_name = label + "_gb"
@@ -284,7 +284,7 @@ class Database:
             models[label + "_gb"] = model
 
         # Prepare input
-        features = App.config["trade"]["analysis"]["features"]
+        features = App.config["trader"]["analysis"]["features"]
         df = df[features]
         # Drop NaN because of limited history and many empty values
         df = df.dropna(subset=features)
@@ -294,7 +294,7 @@ class Database:
         labels_df = predict_labels(df, models)
 
         # Shift each score column
-        if App.config["trade"]["parameters"]["use_previous_scores"]:
+        if App.config["trader"]["parameters"]["use_previous_scores"]:
             for label in labels:
                 label_prev = label + "_prev"
                 labels_df[label_prev] = labels_df[label].shift(1)
@@ -328,7 +328,7 @@ class Database:
         else:
             is_buy_signal = False
 
-        if is_buy_signal and App.config["trade"]["parameters"]["use_previous_scores"]:
+        if is_buy_signal and App.config["trader"]["parameters"]["use_previous_scores"]:
             high_60_10_gb_prev = row["high_60_10_gb_prev"]
             high_60_20_gb_prev = row["high_60_20_gb_prev"]
             if high_60_10_gb_prev >= threshold_buy_10_prev and high_60_20_gb_prev >= threshold_buy_20_prev:
@@ -336,8 +336,8 @@ class Database:
             else:
                 is_buy_signal = False
 
-        App.config["trade"]["state"]["buy_signal_scores"] = [high_60_10_gb, high_60_20_gb]
-        App.config["trade"]["state"]["buy_signal"] = is_buy_signal
+        App.config["trader"]["state"]["buy_signal_scores"] = [high_60_10_gb, high_60_20_gb]
+        App.config["trader"]["state"]["buy_signal"] = is_buy_signal
 
 
 if __name__ == "__main__":

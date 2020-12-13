@@ -11,7 +11,7 @@ from tqdm import tqdm_notebook #(Optional, used for progress-bars)
 import numpy as np
 
 from common.utils import *
-from trade.feature_generation import *
+from common.feature_generation import *
 
 """
 Create one output file from input files of different types: klines, futures, depth.

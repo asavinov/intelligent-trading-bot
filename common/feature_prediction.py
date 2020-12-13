@@ -13,8 +13,8 @@ from sklearn import neighbors
 
 import lightgbm as lgbm
 
-from trade.feature_generation import *
-from trade.label_generation import *
+from common.feature_generation import *
+from common.label_generation import *
 
 """
 Feature prediction.

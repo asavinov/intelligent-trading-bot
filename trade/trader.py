@@ -677,7 +677,7 @@ async def check_limit_sell_order():
     pass
 
 #
-# Main procedure. Initialize everything
+# Main procedure
 #
 
 def start_trader():
