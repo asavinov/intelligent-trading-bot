@@ -13,6 +13,7 @@ PACKAGE_PARENT = '..'
 SCRIPT_DIR = os.path.dirname(os.path.realpath(os.path.join(os.getcwd(), os.path.expanduser(__file__))))
 sys.path.append(os.path.normpath(os.path.join(SCRIPT_DIR, PACKAGE_PARENT)))
 
+from trade.App import App
 from common.utils import *
 from common.classifiers import *
 
@@ -25,37 +26,9 @@ Try to train also using multiple classes (with all thresholds).
 data_path = r"C:\DATA2\BITCOIN\GENERATED"
 data_file = r"BTCUSDT-1m-features.csv"
 
-
-labels = [
-    'high_10', 'high_15', 'high_20',
-    'low_10', 'low_15', 'low_20',
-]
-labels_regr = [
-    'high_max_60', 'high_max_120', 'high_max_180',  # Maximum high (relative)
-    'low_min_60', 'low_min_120', 'low_min_180',  # Minimum low (relative)
-    'high_to_low_60', 'high_to_low_120', 'high_to_low_180',
-    'close_area_future_60', 'close_area_future_120', 'close_area_future_180', 'close_area_future_300',
-]
-
-features_kline = [
-    'close_1','close_5','close_15','close_60','close_180','close_720',
-    'close_std_5','close_std_15','close_std_60','close_std_180','close_std_720',  # Removed "std_1" which is constant
-    'volume_1','volume_5','volume_15','volume_60','volume_180','volume_720',
-    'span_1', 'span_5', 'span_15', 'span_60', 'span_180', 'span_720',
-    'trades_1','trades_5','trades_15','trades_60','trades_180','trades_720',
-    'tb_base_1','tb_base_5','tb_base_15','tb_base_60','tb_base_180','tb_base_720',
-    'tb_quote_1','tb_quote_5','tb_quote_15','tb_quote_60','tb_quote_180','tb_quote_720',
-    'close_area_60','close_area_120','close_area_180','close_area_300','close_area_720',
-    ]  # 46 features
-
-features_futur = [
-    "f_close_1", "f_close_2", "f_close_5", "f_close_20", "f_close_60", "f_close_180",
-    "f_close_std_2", "f_close_std_5", "f_close_std_20", "f_close_std_60", "f_close_std_180",  # Removed "std_1" which is constant
-    "f_volume_1", "f_volume_2", "f_volume_5", "f_volume_20", "f_volume_60", "f_volume_180",
-    "f_span_1", "f_span_2", "f_span_5", "f_span_20", "f_span_60", "f_span_180",
-    "f_trades_1", "f_trades_2", "f_trades_5", "f_trades_20", "f_trades_60", "f_trades_180",
-    'f_close_area_20', 'f_close_area_60', 'f_close_area_120', 'f_close_area_180',
-]  # 33 features
+labels = App.config["labels"]
+features_kline = App.config["features_kline"]
+features_futur = App.config["features_futur"]
 
 #
 # Parameters of rolling predict

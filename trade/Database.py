@@ -75,7 +75,7 @@ class Database:
         now_ts = now_timestamp()
         last_kline_ts = self.get_last_kline_ts(symbol)
         if not last_kline_ts:
-            return App.config["trader"]["analysis"]["kline_window"]
+            return App.config["signaler"]["analysis"]["kline_window"]
         end_of_last_kline = last_kline_ts + 60_000  # Plus 1m
 
         minutes = (now_ts - end_of_last_kline) / 60_000
@@ -119,7 +119,7 @@ class Database:
             klines_data.extend(klines)
 
             # Remove too old klines
-            kline_window = App.config["trader"]["analysis"]["kline_window"]
+            kline_window = App.config["signaler"]["analysis"]["kline_window"]
             to_delete = len(klines_data) - kline_window
             if to_delete > 0:
                 del klines_data[:to_delete]
@@ -254,8 +254,7 @@ class Database:
 
         #
         # 2.
-        # generate_features(): get data in some form, generate feature matrix by apply some transformations and returning a df
-        # the data frame will get additional columns with features
+        # Generate all necessary derived features
         #
         features_out = generate_features(df)
 
@@ -263,13 +262,20 @@ class Database:
 
         #
         # 3.
-        # predict_labels(): get df with feature matrix, apply models and generate predictive features, and return a df
-        # the data frame will get additional columns with predicted features
+        # Generate scores using existing models (trained in advance using latest history by a separate script)
         #
+        # TODO: Standard function for loading models from files from folder conform to our conventions
+
+        # TODO: We need one unified implementation of procedure:
+        # - input:
+        #   - df with derived features
+        #   - dict with models, key is label name (standard), value is model
+        # - output:
+        #   - prediction column (scores) with standard names (to be consumed by signal generator)
 
         # Prepare (load) models (models are identified by label names and algorithm name)
-        labels = App.config["trader"]["analysis"]["labels"]
-        model_path = App.config["trader"]["analysis"]["folder"]
+        labels = App.config["signaler"]["analysis"]["labels"]
+        model_path = App.config["signaler"]["analysis"]["folder"]
         models = {}
         for label in labels:
             model_file_name = label + "_gb"
@@ -284,7 +290,7 @@ class Database:
             models[label + "_gb"] = model
 
         # Prepare input
-        features = App.config["trader"]["analysis"]["features"]
+        features = App.config["signaler"]["analysis"]["features"]
         df = df[features]
         # Drop NaN because of limited history and many empty values
         df = df.dropna(subset=features)
@@ -305,9 +311,9 @@ class Database:
 
         #
         # 4.
-        # generate_signals(): get prediction features and return buy/sell signals with asset symbol and amount
-        # get a dict with the decisions based on the last row of the data frame
+        # Generate buy/sell signals using rules and thresholds
         #
+
         # Currently signals are generated manually for the last row only so we do not use this function
         #signals_out = generate_signals(df, models)
 

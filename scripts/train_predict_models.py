@@ -8,11 +8,7 @@ import pickle
 import numpy as np
 import pandas as pd
 
-from sklearn.model_selection import train_test_split
-from sklearn import metrics
-
-import lightgbm as lgbm
-
+from trade.App import App
 from common.utils import *
 from common.feature_generation import *
 from common.feature_prediction import *
@@ -48,55 +44,17 @@ class P:
     out_path_name = r"_TEMP_MODELS"
     out_file_name = r""
 
-    labels = [  # Target columns with true values which will be predicted
-        'high_60_10', 'high_60_15', 'high_60_20',
-        'low_60_10', 'low_60_15', 'low_60_20',
-    ]
-    class_labels_all = [  # All existing target labels generated from feature generation procedure
-        'high_60_10', 'high_60_15', 'high_60_20', 'high_60_25',  # At least one time above
-        'high_60_01', 'high_60_02', 'high_60_03', 'high_60_04',  # Always below
-        'low_60_01', 'low_60_02', 'low_60_03', 'low_60_04',  # Always above
-        'low_60_10', 'low_60_15', 'low_60_20', 'low_60_25',  # At least one time below
-    ]
-
     in_features_kline = [
         "timestamp",
         "open","high","low","close","volume",
-        "close_time",
-        "quote_av","trades","tb_base_av","tb_quote_av","ignore"
+        #"close_time",
+        #"quote_av","trades","tb_base_av","tb_quote_av","ignore"
     ]
 
-    features_kline_small = [
-        'close_1','close_2','close_5','close_20','close_60','close_180',
-        'close_std_1','close_std_2','close_std_5','close_std_20','close_std_60','close_std_180',
-        'volume_1','volume_2','volume_5','volume_20','volume_60','volume_180',
-    ]
-    features_kline = [
-        'close_1','close_2','close_5','close_20','close_60','close_180',
-        'close_std_1','close_std_2','close_std_5','close_std_20','close_std_60','close_std_180',
-        'volume_1','volume_2','volume_5','volume_20','volume_60','volume_180',
-        'span_1', 'span_2', 'span_5', 'span_20', 'span_60', 'span_180',
-        'trades_1','trades_2','trades_5','trades_20','trades_60','trades_180',
-        'tb_base_1','tb_base_2','tb_base_5','tb_base_20','tb_base_60','tb_base_180',
-        'tb_quote_1','tb_quote_2','tb_quote_5','tb_quote_20','tb_quote_60','tb_quote_180',
-    ]
-
-    features_futur = [
-        "f_close_1", "f_close_2", "f_close_5", "f_close_10", "f_close_30", "f_close_60",
-        "f_close_std_1", "f_close_std_2", "f_close_std_5", "f_close_std_10", "f_close_std_30", "f_close_std_60",
-        "f_volume_1", "f_volume_2", "f_volume_5", "f_volume_10", "f_volume_30", "f_volume_60",
-        "f_span_1", "f_span_2", "f_span_5", "f_span_10", "f_span_30", "f_span_60",
-        "f_trades_1", "f_trades_2", "f_trades_5", "f_trades_10", "f_trades_30", "f_trades_60",
-    ]
-
-    features_depth = [
-        "gap_2","gap_5","gap_10",
-        "bids_1_2","bids_1_5","bids_1_10", "asks_1_2","asks_1_5","asks_1_10",
-        "bids_2_2","bids_2_5","bids_2_10", "asks_2_2","asks_2_5","asks_2_10",
-        "bids_5_2","bids_5_5","bids_5_10", "asks_5_2","asks_5_5","asks_5_10",
-        "bids_10_2","bids_10_5","bids_10_10", "asks_10_2","asks_10_5","asks_10_10",
-        "bids_20_2","bids_20_5","bids_20_10", "asks_20_2","asks_20_5","asks_20_10",
-    ]
+    labels = App.config["labels"]
+    features_kline = App.config["features_kline"]
+    features_futur = App.config["features_futur"]
+    features_depth = App.config["features_depth"]
 
     #
     # Selector: here we choose what input features to use, what algorithm to use and what histories etc.
