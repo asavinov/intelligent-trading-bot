@@ -380,6 +380,35 @@ def load_model_pair(model_path, score_column_name: str):
 
     return (model, scaler)
 
+def compute_scores(y_true, y_hat):
+    """Compute several scores and return them as dict."""
+    y_true = y_true.astype(int)
+    y_hat_class = np.where(y_hat.values > 0.5, 1, 0)
+
+    try:
+        auc = metrics.roc_auc_score(y_true, y_hat.fillna(value=0))
+    except ValueError:
+        auc = 0.0  # Only one class is present (if dataset is too small, e.g,. when debugging) or Nulls in predictions
+
+    try:
+        ap = metrics.average_precision_score(y_true, y_hat.fillna(value=0))
+    except ValueError:
+        ap = 0.0  # Only one class is present (if dataset is too small, e.g,. when debugging) or Nulls in predictions
+
+    f1 = metrics.f1_score(y_true, y_hat_class)
+    precision = metrics.precision_score(y_true, y_hat_class)
+    recall = metrics.recall_score(y_true, y_hat_class)
+
+    scores = dict(
+        auc=auc,
+        ap=ap,  # it summarizes precision-recall curve, should be equivalent to auc
+        f1=f1,
+        precision=precision,
+        recall=recall,
+    )
+
+    return scores
+
 
 if __name__ == '__main__':
     pass

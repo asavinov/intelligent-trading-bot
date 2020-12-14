@@ -38,7 +38,7 @@ class P:
     feature_sets = ["kline", "futur"]
 
     labels = App.config["labels"]
-    labels = labels[:2]
+    labels = labels[:1]
     features_kline = App.config["features_kline"]
     features_futur = App.config["features_futur"]
     features_depth = App.config["features_depth"]
@@ -134,12 +134,11 @@ def main(args=None):
     in_df = in_df.head(-P.labels_horizon)
 
     models = dict()
-    accuracies_gb = dict()
+    scores = dict()
 
     # ===
     # kline feature set
     # ===
-    """
     if "kline" in P.feature_sets:
         features = P.features_kline
         name_tag = "_k_"
@@ -160,19 +159,24 @@ def main(args=None):
             print(f"Train '{score_column_name}'... ")
             model_scaler = train_gb(df_X, df_y, params=params_gb)
             models[score_column_name] = model_scaler
+            df_y_hat = predict_gb(model_scaler, df_X)
+            scores[score_column_name] = compute_scores(df_y, df_y_hat)
 
             # --- NN
             score_column_name = label + name_tag + "nn"
             print(f"Train '{score_column_name}'... ")
             model_scaler = train_nn(df_X, df_y, params=params_nn)
             models[score_column_name] = model_scaler
+            df_y_hat = predict_nn(model_scaler, df_X)
+            scores[score_column_name] = compute_scores(df_y, df_y_hat)
 
             # --- LC
             score_column_name = label + name_tag + "lc"
             print(f"Train '{score_column_name}'... ")
             model_scaler = train_lc(df_X, df_y, params=params_lc)
             models[score_column_name] = model_scaler
-    """
+            df_y_hat = predict_lc(model_scaler, df_X)
+            scores[score_column_name] = compute_scores(df_y, df_y_hat)
 
     # ===
     # futur feature set
@@ -197,18 +201,24 @@ def main(args=None):
             print(f"Train '{score_column_name}'... ")
             model_scaler = train_gb(df_X, df_y, params=params_gb)
             models[score_column_name] = model_scaler
+            df_y_hat = predict_gb(model_scaler, df_X)
+            scores[score_column_name] = compute_scores(df_y, df_y_hat)
 
             # --- NN
             score_column_name = label + name_tag + "nn"
             print(f"Train '{score_column_name}'... ")
             model_scaler = train_nn(df_X, df_y, params=params_nn)
             models[score_column_name] = model_scaler
+            df_y_hat = predict_nn(model_scaler, df_X)
+            scores[score_column_name] = compute_scores(df_y, df_y_hat)
 
             # --- LC
             score_column_name = label + name_tag + "lc"
             print(f"Train '{score_column_name}'... ")
             model_scaler = train_lc(df_X, df_y, params=params_lc)
             models[score_column_name] = model_scaler
+            df_y_hat = predict_lc(model_scaler, df_X)
+            scores[score_column_name] = compute_scores(df_y, df_y_hat)
 
         #
         # Store all models in files
@@ -217,6 +227,20 @@ def main(args=None):
             save_model_pair(out_path, score_column_name, model_pair)
 
         print(f"Models stored in path: {out_path.absolute()}")
+
+        #
+        # Store scores
+        #
+        lines = list()
+        for score_column_name, score in scores.items():
+            line = score_column_name + ", " + str(score)
+            lines.append(line)
+
+        metrics_file_name = out_path.joinpath("metrics").with_suffix(".txt")
+        with open(metrics_file_name, 'a+') as f:
+            f.write("\n".join(lines) + "\n")
+
+        print(f"Metrics stored in path: {metrics_file_name.absolute()}")
 
         #
         # Store accuracies

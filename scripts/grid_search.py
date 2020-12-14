@@ -208,7 +208,7 @@ def main():
     else:
         raise ValueError(f"Unknown algorithm value {algorithm}.")
 
-    records = []  # One record with metrics for one param object
+    metrics = []  # One record with metrics for one param object
     grid = ParameterGrid(params_grid)
     params_list = list(grid)  # List of hyper-param dicts
     for i, params in enumerate(params_list):
@@ -279,16 +279,9 @@ def main():
         y_true = df_scores["y_true"]
         y_predicted = df_scores["y_predicted"]
 
-        # Computing metrics
-        y_predicted_class = np.where(y_predicted > 0.5, 1, 0)
-        auc = metrics.roc_auc_score(y_true, y_predicted)
+        score = compute_scores(y_true, y_predicted)
 
-        f1 = metrics.f1_score(y_true, y_predicted_class)
-        precision = precision_score(y_true, y_predicted_class)
-        recall = recall_score(y_true, y_predicted_class)
-        score = {"auc": auc, "f1": f1, "precision": precision, "recall": recall}
-
-        records.append(score)
+        metrics.append(score)
 
     #
     # Process all collected results and save
@@ -304,7 +297,7 @@ def main():
         elif algorithm == "lc":
             line += params_to_line_lc(params)
         # Add scores
-        rec = records[i]
+        rec = metrics[i]
         score_str = [
             "{:.3f}".format(rec["auc"]),
             "{:.3f}".format(rec["f1"]),

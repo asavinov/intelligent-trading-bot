@@ -340,21 +340,9 @@ def main(args=None):
 
         print(f"Using {len(df_scores)} non-nan rows for scoring.")
 
-        try:
-            auc = metrics.roc_auc_score(y_true, y_predicted.fillna(value=0))
-        except ValueError:
-            auc = 0.0  # Only one class is present (if dataset is too small, e.g,. when debugging) or Nulls in predictions
+        score = compute_scores(y_true, y_predicted)
 
-        try:
-            ap = metrics.average_precision_score(y_true, y_predicted.fillna(value=0))
-        except ValueError:
-            ap = 0.0  # Only one class is present (if dataset is too small, e.g,. when debugging) or Nulls in predictions
-
-        f1 = metrics.f1_score(y_true, y_predicted_class)
-        precision = metrics.precision_score(y_true, y_predicted_class)
-        recall = metrics.recall_score(y_true, y_predicted_class)
-
-        score_lines.append(f"{score_column_name}, {auc:.3f}, {ap:.3f}, {f1:.3f}, {precision:.3f}, {recall:.3f}")
+        score_lines.append(f"{score_column_name}, {score.auc:.3f}, {score.ap:.3f}, {score.f1:.3f}, {score.precision:.3f}, {score.recall:.3f}")
 
     #
     # Store hyper-parameters and scores
