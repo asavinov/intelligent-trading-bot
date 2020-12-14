@@ -23,7 +23,7 @@ It will generate all labels as defined in the procedure (so that only the necess
 # Parameters
 #
 class P:
-    dervied_features = ["kline", "futur"]  # These derived features will be generated
+    feature_sets = ["kline", "futur"]
 
     in_path_name = r"C:\DATA2\BITCOIN\GENERATED"
     in_file_name = r"BTCUSDT-1m.csv"
@@ -54,21 +54,21 @@ def main(args=None):
     # Generate derived features
     #
 
-    if "kline" in P.dervied_features:
+    if "kline" in P.feature_sets:
         print(f"Generating klines features...")
         k_features = generate_features(in_df)
         print(f"Finished generating {len(k_features)} kline features")
     else:
         k_features = []
 
-    if "futur" in P.dervied_features:
+    if "futur" in P.feature_sets:
         print(f"Generating futur features...")
         f_features = generate_features_futur(in_df)
         print(f"Finished generating {len(f_features)} futur features")
     else:
         f_features = []
 
-    if "depth" in P.dervied_features:
+    if "depth" in P.feature_sets:
         print(f"Generating depth features...")
         d_features = generate_features_depth(in_df)
         print(f"Finished generating {len(f_features)} depth features")

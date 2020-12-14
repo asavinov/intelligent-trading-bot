@@ -1,8 +1,11 @@
 import sys
 import os
+from pathlib import Path
 
 import numpy as np
 import pandas as pd
+
+from joblib import dump, load
 
 from sklearn.model_selection import train_test_split
 from sklearn import metrics
@@ -18,7 +21,7 @@ import lightgbm as lgbm
 
 import tensorflow as tf
 
-from keras.models import Sequential
+from keras.models import Sequential, save_model, load_model
 from keras.layers import Dense, Dropout
 from keras.optimizers import *
 from keras.regularizers import *
@@ -38,7 +41,7 @@ def train_predict_gb(df_X, df_y, df_X_test, params: dict):
 
 def train_gb(df_X, df_y, params: dict):
     """
-    Train model with the specified hyper-parameters and return its predictions for new data.
+    Train model with the specified hyper-parameters and return this model (and scaler if any).
     """
     is_scale = params.get("is_scale", False)
 
@@ -150,7 +153,7 @@ def train_predict_nn(df_X, df_y, df_X_test, params: dict):
 
 def train_nn(df_X, df_y, params: dict):
     """
-    Train model with the specified hyper-parameters and return its predictions for the test data.
+    Train model with the specified hyper-parameters and return this model (and scaler if any).
     """
     is_scale = params.get("is_scale", True)
 
@@ -275,7 +278,7 @@ def train_predict_lc(df_X, df_y, df_X_test, params: dict):
 
 def train_lc(df_X, df_y, params: dict):
     """
-    Train model with the specified hyper-parameters and return its predictions for the test data.
+    Train model with the specified hyper-parameters and return this model (and scaler if any).
     """
     is_scale = params.get("is_scale", True)
 
@@ -334,6 +337,48 @@ def predict_lc(models: tuple, df_X_test):
     sr_ret = df_ret["y_hat"]  # This series has all original input indexes but NaNs where input is NaN
 
     return sr_ret
+
+#
+# Utils
+#
+
+def save_model_pair(model_path, score_column_name: str, model_pair: tuple):
+    """Save two models in two files with the corresponding extensions."""
+    if not isinstance(model_path, Path):
+        model_path = Path(model_path)
+    model = model_pair[0]
+    scaler = model_pair[1]
+    # Save scaler
+    scaler_file_name = model_path.joinpath(score_column_name).with_suffix(".scaler")
+    dump(scaler, scaler_file_name)
+    # Save prediction model
+    if score_column_name.endswith("_nn"):
+        model_extension = ".h5"
+        model_file_name = model_path.joinpath(score_column_name).with_suffix(model_extension)
+        save_model(model, model_file_name)
+    else:
+        model_extension = ".pickle"
+        model_file_name = model_path.joinpath(score_column_name).with_suffix(model_extension)
+        dump(model, model_file_name)
+
+def load_model_pair(model_path, score_column_name: str):
+    """Load a pair consisting of scaler model (possibly null) and prediction model from two files."""
+    if not isinstance(model_path, Path):
+        model_path = Path(model_path)
+    # Load scaler
+    scaler_file_name = model_path.joinpath(score_column_name).with_suffix(".scaler")
+    scaler = load(scaler_file_name)
+    # Load prediction model
+    if score_column_name.endswith("_nn"):
+        model_extension = ".h5"
+        model_file_name = model_path.joinpath(score_column_name).with_suffix(model_extension)
+        model = load_model(model_file_name)
+    else:
+        model_extension = ".pickle"
+        model_file_name = model_path.joinpath(score_column_name).with_suffix(model_extension)
+        model = load(model_file_name)
+
+    return (model, scaler)
 
 
 if __name__ == '__main__':

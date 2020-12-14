@@ -34,10 +34,7 @@ The output predicted labels will cover shorter period of time because we need so
 class P:
     # Each one is a separate procedure with its algorithm and (expected) input features
     # Leave only what we want to generate (say, only klines for debug purposes)
-    prediction_types = [
-        "kline",
-        "futur",
-    ]
+    feature_sets = ["kline", "futur"]
 
     # These source columns will be added to the output file
     in_features_kline = [
@@ -51,6 +48,9 @@ class P:
     features_kline = App.config["features_kline"]
     features_futur = App.config["features_futur"]
     features_depth = App.config["features_depth"]
+
+    #features_horizon = 720  # Features are generated using this past window length (max feature window)
+    labels_horizon = 180  # Labels are generated using this number of steps ahead (max label window)
 
     in_path_name = r"C:\DATA2\BITCOIN\GENERATED"  # File with all necessary derived features
     in_file_name = r"BTCUSDT-1m-features.csv"
@@ -66,9 +66,6 @@ class P:
     # How frequently re-train models: 1 day: 1_440 = 60 * 24, one week: 10_080
     prediction_length = 4*7*1440
     prediction_count = 1  # How many prediction steps. If None or 0, then from prediction start till the data end
-
-    #features_horizon = 720  # Features are generated using this past window length (max feature window)
-    labels_horizon = 180  # Labels are generated using this number of steps ahead (max label window)
 
 
 #
@@ -181,9 +178,9 @@ def main(args=None):
         predict_labels_df = pd.DataFrame(index=predict_df.index)
 
         # ===
-        # kline package
+        # kline feature set
         # ===
-        if "kline" in P.prediction_types:
+        if "kline" in P.feature_sets:
             features = P.features_kline
             name_tag = "_k_"
             train_length = int(1.5 * 525_600)  # 1.5 * 525_600
@@ -217,26 +214,26 @@ def main(args=None):
 
                 # --- GB
                 score_column_name = label + name_tag + "gb"
-                print(f"Train model: type 'kline', label '{label}', rows {len(train_df)}, features {len(features)}, score column {score_column_name}...")
+                print(f"Train-predict '{score_column_name}'... ")
                 y_hat = train_predict_gb(df_X, df_y, df_X_test, params=params_gb)
                 predict_labels_df[score_column_name] = y_hat
 
                 # --- NN
                 score_column_name = label + name_tag + "nn"
-                print(f"Train model: type 'kline', label '{label}', rows {len(train_df)}, features {len(features)}, score column {score_column_name}...")
+                print(f"Train-predict '{score_column_name}'... ")
                 y_hat = train_predict_nn(df_X, df_y, df_X_test, params=params_nn)
                 predict_labels_df[score_column_name] = y_hat
 
                 # --- LC
                 score_column_name = label + name_tag + "lc"
-                print(f"Train model: type 'kline', label '{label}', rows {len(train_df)}, features {len(features)}, score column {score_column_name}...")
+                print(f"Train-predict '{score_column_name}'... ")
                 y_hat = train_predict_lc(df_X, df_y, df_X_test, params=params_lc)
                 predict_labels_df[score_column_name] = y_hat
 
         # ===
-        # futur package
+        # futur feature set
         # ===
-        if "futur" in P.prediction_types:
+        if "futur" in P.feature_sets:
             features = P.features_futur
             name_tag = "_f_"
             train_length = int(4 * 43_800)
@@ -270,19 +267,19 @@ def main(args=None):
 
                 # --- GB
                 score_column_name = label + name_tag + "gb"
-                print(f"Train model: type 'futur', label '{label}', rows {len(train_df)}, features {len(features)}, score column {score_column_name}...")
+                print(f"Train-predict '{score_column_name}'... ")
                 y_hat = train_predict_gb(df_X, df_y, df_X_test, params=params_gb)
                 predict_labels_df[score_column_name] = y_hat
 
                 # --- NN
                 score_column_name = label + name_tag + "nn"
-                print(f"Train model: type 'futur', label '{label}', rows {len(train_df)}, features {len(features)}, score column {score_column_name}...")
+                print(f"Train-predict '{score_column_name}'... ")
                 y_hat = train_predict_nn(df_X, df_y, df_X_test, params=params_nn)
                 predict_labels_df[score_column_name] = y_hat
 
                 # --- LC
                 score_column_name = label + name_tag + "lc"
-                print(f"Train model: type 'futur', label '{label}', rows {len(train_df)}, features {len(features)}, score column {score_column_name}...")
+                print(f"Train-predict '{score_column_name}'... ")
                 y_hat = train_predict_lc(df_X, df_y, df_X_test, params=params_lc)
                 predict_labels_df[score_column_name] = y_hat
 

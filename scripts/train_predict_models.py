@@ -10,6 +10,7 @@ import pandas as pd
 
 from trade.App import App
 from common.utils import *
+from common.classifiers import *
 from common.feature_generation import *
 from common.feature_prediction import *
 
@@ -34,7 +35,16 @@ Parameters:
 # Parameters
 #
 class P:
-    source_type = "futur"  # Selector: klines (our main approach), futur (only futur), depth (only depth), merged
+    feature_sets = ["kline", "futur"]
+
+    labels = App.config["labels"]
+    labels = labels[:2]
+    features_kline = App.config["features_kline"]
+    features_futur = App.config["features_futur"]
+    features_depth = App.config["features_depth"]
+
+    #features_horizon = 720  # Features are generated using this past window length
+    labels_horizon = 180  # Labels are generated using this number of steps ahead
 
     in_path_name = r"C:\DATA2\BITCOIN\GENERATED"  # File with all necessary derived features
     in_file_name = r"BTCUSDT-1m-features.csv"
@@ -44,36 +54,35 @@ class P:
     out_path_name = r"_TEMP_MODELS"
     out_file_name = r""
 
-    in_features_kline = [
-        "timestamp",
-        "open","high","low","close","volume",
-        #"close_time",
-        #"quote_av","trades","tb_base_av","tb_quote_av","ignore"
-    ]
+#
+# (Best) algorithm parameters (found by and copied from grid search scripts)
+#
 
-    labels = App.config["labels"]
-    features_kline = App.config["features_kline"]
-    features_futur = App.config["features_futur"]
-    features_depth = App.config["features_depth"]
+params_gb = {
+    "objective": "cross_entropy",
+    "max_depth": 1,
+    "learning_rate": 0.01,
+    "num_boost_round": 1_500,
 
-    #
-    # Selector: here we choose what input features to use, what algorithm to use and what histories etc.
-    #
-    if source_type == "klines":
-        features_gb = features_kline
-        label_histories = {"12": 525_600}  # Example: {"12": 525_600, "06": 262_800, "03": 131_400}
-    elif source_type == "futur":
-        features_gb = features_futur
-        label_histories = {"03": 131_400}  # Example: {"12": 525_600, "06": 262_800, "03": 131_400}
-    elif source_type == "depth":
-        features_gb = features_depth
-        label_histories = {"03": 131_400}  # Example: {"12": 525_600, "06": 262_800, "03": 131_400}
-    elif source_type == "merged":
-        print(f"NOT IMPLEMENTED")
-        exit()
+    "lambda_l1": 1.0,
+    "lambda_l2": 1.0,
+}
 
-    features_horizon = 300  # Features are generated using this past window length
-    labels_horizon = 60  # Labels are generated using this number of steps ahead
+params_nn = {
+    "layers": [29],  # It is equal to the number of input features (different for spot and futur)
+    "learning_rate": 0.001,
+    "n_epochs": 20,
+    "bs": 64,
+}
+
+params_lc = {
+    "is_scale": False,
+    "penalty": "l2",
+    "C": 1.0,
+    "class_weight": None,
+    "solver": "liblinear",
+    "max_iter": 200,
+}
 
 
 def main(args=None):
@@ -98,85 +107,120 @@ def main(args=None):
         in_df = pd.read_csv(in_path, parse_dates=['timestamp'], nrows=P.in_nrows)
     elif P.in_file_name.endswith(".parquet"):
         in_df = pd.read_parquet(in_path)
+    elif P.in_file_name.endswith(".pickle"):
+        in_df = pd.read_pickle(in_path)
     else:
         print(f"ERROR: Unknown input file extension. Only csv and parquet are supported.")
+
+    print(f"Feature matrix loaded. Length: {len(in_df)}. Width: {len(in_df.columns)}")
 
     if P.in_nrows_tail:
         in_df = in_df.tail(P.in_nrows_tail)
 
-    #
-    # Algorithm parameters
-    #
-    max_depth = os.getenv("max_depth", None)
-    learning_rate = os.getenv("learning_rate", None)
-    num_boost_round = os.getenv("num_boost_round", None)
-    params_gb = {
-        "max_depth": max_depth,
-        "learning_rate": learning_rate,
-        "num_boost_round": num_boost_round,
-    }
+    for label in P.labels:
+        in_df[label] = in_df[label].astype(int)  # "category" NN does not work without this
 
-    n_neighbors = int(os.getenv("n_neighbors", 0))
-    weights = os.getenv("weights", None)
-    params_knn = {
-        "n_neighbors": n_neighbors,
-        "weights": weights,
-    }
+    # Select necessary features and label
+    in_df = in_df[P.features_kline + P.features_futur + P.labels]
 
-    #
-    # Prepare train data with past values
-    #
-    print(f"Prepare training data set. Loaded size: {len(in_df)}...")
-
-    full_length = len(in_df)
+    # Spot and futures have different available histories. If we drop nans in all of them, then we get a very short data frame (corresponding to futureus which have little data)
+    # So we do not drop data here but rather when we select necessary input features
+    # Nans result in constant accuracy and nan loss. MissingValues procedure does not work and produces exceptions
     pd.set_option('use_inf_as_na', True)
-    in_df = in_df.dropna()
-    full_length = len(in_df)
+    #in_df = in_df.dropna(subset=P.labels)
+    in_df = in_df.reset_index(drop=True)  # We must reset index after removing rows to remove gaps
 
-    models_gb = {}
-    accuracies_gb = {}
-    for history_name, history_length in P.label_histories.items():  # Example: {"12": 525_600, "06": 262_800, "03": 131_400}
+    # Remove the tail data for which no labels are available (since their labels are computed from future which is not available)
+    in_df = in_df.head(-P.labels_horizon)
 
-        train_df = in_df.tail(history_length)  # Latest history
-        train_length = len(train_df)
+    models = dict()
+    accuracies_gb = dict()
+
+    # ===
+    # kline feature set
+    # ===
+    """
+    if "kline" in P.feature_sets:
+        features = P.features_kline
+        name_tag = "_k_"
+        train_length = int(1.5 * 525_600)  # 1.5 * 525_600
+
+        print(f"Start training 'kline' package with {len(features)} features, name tag {name_tag}', and train length {train_length}")
+
+        train_df = in_df.tail(train_length)
+        train_df = train_df.dropna(subset=features)
+
+        df_X = train_df[features]
+
+        for label in P.labels:  # Train-predict different labels (and algorithms) using same X
+            df_y = train_df[label]
+
+            # --- GB
+            score_column_name = label + name_tag + "gb"
+            print(f"Train '{score_column_name}'... ")
+            model_scaler = train_gb(df_X, df_y, params=params_gb)
+            models[score_column_name] = model_scaler
+
+            # --- NN
+            score_column_name = label + name_tag + "nn"
+            print(f"Train '{score_column_name}'... ")
+            model_scaler = train_nn(df_X, df_y, params=params_nn)
+            models[score_column_name] = model_scaler
+
+            # --- LC
+            score_column_name = label + name_tag + "lc"
+            print(f"Train '{score_column_name}'... ")
+            model_scaler = train_lc(df_X, df_y, params=params_lc)
+            models[score_column_name] = model_scaler
+    """
+
+    # ===
+    # futur feature set
+    # ===
+    if "futur" in P.feature_sets:
+        features = P.features_futur
+        name_tag = "_f_"
+        train_length = int(4 * 43_800)
+
+        print(f"Start training 'futur' package with {len(features)} features, name tag {name_tag}', and train length {train_length}")
+
+        train_df = in_df.tail(train_length)
+        train_df = train_df.dropna(subset=features)
+
+        df_X = train_df[features]
+
+        for label in P.labels:  # Train-predict different labels (and algorithms) using same X
+            df_y = train_df[label]
+
+            # --- GB
+            score_column_name = label + name_tag + "gb"
+            print(f"Train '{score_column_name}'... ")
+            model_scaler = train_gb(df_X, df_y, params=params_gb)
+            models[score_column_name] = model_scaler
+
+            # --- NN
+            score_column_name = label + name_tag + "nn"
+            print(f"Train '{score_column_name}'... ")
+            model_scaler = train_nn(df_X, df_y, params=params_nn)
+            models[score_column_name] = model_scaler
+
+            # --- LC
+            score_column_name = label + name_tag + "lc"
+            print(f"Train '{score_column_name}'... ")
+            model_scaler = train_lc(df_X, df_y, params=params_lc)
+            models[score_column_name] = model_scaler
 
         #
-        # Train gb models for all labels
+        # Store all models in files
         #
-        X = train_df[P.features_gb].values
-        for label in P.labels:
-            print(f"Train gb model: label '{label}', history {history_name}, rows {len(train_df)}, features {len(P.features_gb)}...")
-            y = train_df[label].values
-            y = y.reshape(-1)
-            model = train_model_gb_classifier(X, y, params=params_gb)
-            models_gb[label+"_gb_"+history_name] = model
+        for score_column_name, model_pair in models.items():
+            save_model_pair(out_path, score_column_name, model_pair)
 
-            # Accuracy for training set
-            y_hat = model.predict(X)
-            try:
-                auc = metrics.roc_auc_score(y, y_hat)  # maybe y.astype(int)
-            except ValueError:
-                auc = 0.0  # Only one class is present (if dataset is too small, e.g,. when debugging)
-            accuracies_gb[label+"_"+history_name] = auc
-            print(f"Model training finished. AUC: {auc:.2f}")
-
-            model_file = out_path.joinpath(label+"_gb_"+history_name).with_suffix('.pickle')
-            with open(model_file, 'wb') as f:
-                pickle.dump(model, f, pickle.HIGHEST_PROTOCOL)
-            print(f"Model stored in file: {model_file}")
+        print(f"Models stored in path: {out_path.absolute()}")
 
         #
-        # Train knn models for all labels
+        # Store accuracies
         #
-        #X = train_df[P.features_knn].values
-        #models_knn = {}
-        #accuracies_knn = {}
-        #for label in P.labels:
-        #    print(f"Train knn model for label '{label}' {len(train_df)} records and {len(P.features_gb)} features...")
-        #    y = train_df[label].values
-        #    y = y.reshape(-1)
-        #    model = train_model_knn_classifier(X, y, params=params_knn)
-        #    models_knn[label] = model
 
         #
         # End

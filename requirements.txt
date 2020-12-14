@@ -7,9 +7,12 @@ patsy>=0.5.*
 
 #python-snappy  # Compression for fastparquet (gzip is always available)
 fastparquet  # "conda install -c conda-forge fastparquet"
+
 lightgbm>=2.3.*  # For Linux, glibc >= 2.14 is required. "conda install -c conda-forge lightgbm"
 pytorch # conda install pytorch torchvision cpuonly -c pytorch
 #fastai # pip install fastai
+tensorflow  # pip install --upgrade tensorflow
+keras  # pip install --upgrade keras
 
 apscheduler  # "conda install -c conda-forge apscheduler"
 python-binance  # "pip install python-binance". It has to executed from Anaconda prompt.

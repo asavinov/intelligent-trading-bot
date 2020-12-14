@@ -30,6 +30,9 @@ labels = App.config["labels"]
 features_kline = App.config["features_kline"]
 features_futur = App.config["features_futur"]
 
+# features_horizon = 720  # Features are generated using this past window length (max feature window)
+labels_horizon = 180  # Labels are generated using this number of steps ahead (max label window)
+
 #
 # Parameters of rolling predict
 #
@@ -44,9 +47,6 @@ prediction_start_str = "2020-02-01 00:00:00"  # Use it when rolling prediction w
 train_length = int(4 * 43_800)  # 1.5 * 525_600 for long/spot, 4 * 43_800 for short/futur
 stride = 4*7*1440  # Length of one rolling prediction step: mid: 1 month 43_800=4*7*1440, long: 1,5 months 6*7*1440
 steps = 2  # How many rolling prediction steps. ~40 weeks in [1.2-1.11]
-
-# features_horizon = 720  # Features are generated using this past window length (max feature window)
-labels_horizon = 180  # Labels are generated using this number of steps ahead (max label window)
 
 algorithm = "lc"  # gb nn lc
 
