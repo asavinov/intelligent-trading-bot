@@ -114,17 +114,9 @@ class App:
         "signaler": {
             "analysis": {  # Same for all symbols
                 "folder": "_TEMP_MODELS",
-                "kline_window": 800,  # History needed to compute derived features
-                "features": [  # Ensure (copy-paste) that these are same features and labels as in training models
-                    'close_1', 'close_2', 'close_5', 'close_20', 'close_60', 'close_180',
-                    'close_std_1', 'close_std_2', 'close_std_5', 'close_std_20', 'close_std_60', 'close_std_180',
-                    'volume_1', 'volume_2', 'volume_5', 'volume_20', 'volume_60', 'volume_180',
-                    'trades_1', 'trades_2', 'trades_5', 'trades_20', 'trades_60', 'trades_180',
-                    'tb_base_1', 'tb_base_2', 'tb_base_5', 'tb_base_20', 'tb_base_60', 'tb_base_180',
-                    'tb_quote_1', 'tb_quote_2', 'tb_quote_5', 'tb_quote_20', 'tb_quote_60', 'tb_quote_180',
-                ],
-                "labels": ['high_60_10', 'high_60_20'],
+                "features_horizon": 800,  # History needed to compute derived features
             },
+            "signal": None,
         },
 
         # === TRADER SERVER ===

@@ -234,7 +234,9 @@ def main(args=None):
         # Set parameters of the model
 
         start_dt = datetime.now()
+        # ---
         performance = simulate_trade(in_df, model)
+        # ---
         elapsed = datetime.now() - start_dt
         print(f"Finished simulation {i} / {len(models)} in {elapsed.total_seconds():.1f} seconds.")
 

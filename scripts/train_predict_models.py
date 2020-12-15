@@ -12,7 +12,6 @@ from trade.App import App
 from common.utils import *
 from common.classifiers import *
 from common.feature_generation import *
-from common.feature_prediction import *
 
 """
 Use input feature matrix to train *one* label predict model for each label using all specified historic data.
@@ -38,7 +37,6 @@ class P:
     feature_sets = ["kline", "futur"]
 
     labels = App.config["labels"]
-    labels = labels[:1]
     features_kline = App.config["features_kline"]
     features_futur = App.config["features_futur"]
     features_depth = App.config["features_depth"]

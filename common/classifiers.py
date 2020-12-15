@@ -1,6 +1,7 @@
 import sys
 import os
 from pathlib import Path
+import itertools
 
 import numpy as np
 import pandas as pd
@@ -379,6 +380,15 @@ def load_model_pair(model_path, score_column_name: str):
         model = load(model_file_name)
 
     return (model, scaler)
+
+def load_models(model_path, labels: list, feature_sets: list, algorithms: list):
+    """Load all model pairs for all combinations of the model parameters and return as a dict."""
+    models = {}
+    for predicted_label in itertools.product(labels, feature_sets, algorithms):
+        score_column_name = predicted_label[0] + "_" + predicted_label[1][0] + "_" + predicted_label[2]
+        model_pair = load_model_pair(model_path, score_column_name)
+        models[score_column_name] = model_pair
+    return models
 
 def compute_scores(y_true, y_hat):
     """Compute several scores and return them as dict."""

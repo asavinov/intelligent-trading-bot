@@ -17,6 +17,7 @@ from common.feature_generation import *
 from common.label_generation import *
 
 """
+OBSOLETE
 Feature prediction.
 These functions allow for training transformation parameters from the historic data.
 """

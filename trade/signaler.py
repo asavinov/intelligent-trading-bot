@@ -24,8 +24,6 @@ log = logging.getLogger('signaler')
 logging.basicConfig(filename='signaler.log', level=logging.DEBUG)  # filename='example.log', - parameter in App
 
 
-
-
 async def sync_signaler_task():
     """
     It is a highest level task which is added to the event loop and executed normally every 1 minute and then it calls other tasks.
@@ -64,16 +62,20 @@ async def sync_signaler_task():
     App.database.analyze(symbol)
 
     # Now we have a list of signals and can make trade decisions using trading logic and trade
+    #
 
-    last_kline_ts = App.database.get_last_kline_ts(symbol)
-    if last_kline_ts + 60_000 != startTime:
-        log.error(f"Problem during analysis. Last kline end ts {last_kline_ts + 60_000} not equal to start of current interval {startTime}.")
+    #
+    # 5.
+    # Notify
+    #
+    signal = App.config["signaler"]["signal"]
+    if signal:
+        print(f"=====>>> Signal: {signal}")
 
-    is_buy_signal = App.config["trader"]["state"]["buy_signal"]
-    buy_signal_scores = App.config["trader"]["state"]["buy_signal_scores"]
-    log.debug(f"Analysis finished. Buy signal: {is_buy_signal} with scores {buy_signal_scores}")
-    if is_buy_signal:
-        log.debug(f"\n==============  BUY SIGNAL  ==============. Scores: {buy_signal_scores}\n")
+    # TODO: Validation
+    #last_kline_ts = App.database.get_last_kline_ts(symbol)
+    #if last_kline_ts + 60_000 != startTime:
+    #    log.error(f"Problem during analysis. Last kline end ts {last_kline_ts + 60_000} not equal to start of current interval {startTime}.")
 
     log.info(f"<=== End signaler task.")
 

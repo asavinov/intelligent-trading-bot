@@ -10,8 +10,8 @@ import pandas as pd
 
 from common.utils import *
 from trade.App import App
+from common.classifiers import *
 from common.feature_generation import *
-from common.feature_prediction import *
 from common.signal_generation import *
 
 import logging
@@ -75,7 +75,7 @@ class Database:
         now_ts = now_timestamp()
         last_kline_ts = self.get_last_kline_ts(symbol)
         if not last_kline_ts:
-            return App.config["signaler"]["analysis"]["kline_window"]
+            return App.config["signaler"]["analysis"]["features_horizon"]
         end_of_last_kline = last_kline_ts + 60_000  # Plus 1m
 
         minutes = (now_ts - end_of_last_kline) / 60_000
@@ -119,7 +119,7 @@ class Database:
             klines_data.extend(klines)
 
             # Remove too old klines
-            kline_window = App.config["signaler"]["analysis"]["kline_window"]
+            kline_window = App.config["signaler"]["analysis"]["features_horizon"]
             to_delete = len(klines_data) - kline_window
             if to_delete > 0:
                 del klines_data[:to_delete]
@@ -247,6 +247,19 @@ class Database:
         log.info(f"Analyze {symbol}. {len(klines)} klines in the database. Last kline timestamp: {last_kline_ts}")
 
         #
+        # 0.
+        # Load models (parameters of transformations)
+        # TODO: Move to service init. Introduce a utility function to load all models given their dimensions (and maybe store all models)
+        #
+        labels = App.config["labels"]
+        feature_sets = ["kline"]
+        algorithms = ["gb", "nn", "lc"]
+
+        model_path = App.config["signaler"]["analysis"]["folder"]
+
+        models = load_models(model_path, labels, feature_sets, algorithms)
+
+        #
         # 1.
         # Produce a data frame with source data
         #
@@ -254,7 +267,7 @@ class Database:
 
         #
         # 2.
-        # Generate all necessary derived features
+        # Generate all necessary derived features (many will be Null due to short history)
         #
         features_out = generate_features(df)
 
@@ -264,86 +277,64 @@ class Database:
         # 3.
         # Generate scores using existing models (trained in advance using latest history by a separate script)
         #
-        # TODO: Standard function for loading models from files from folder conform to our conventions
 
-        # TODO: We need one unified implementation of procedure:
-        # - input:
-        #   - df with derived features
-        #   - dict with models, key is label name (standard), value is model
-        # - output:
-        #   - prediction column (scores) with standard names (to be consumed by signal generator)
+        # kline feature set
+        features = App.config["features_kline"]
+        predict_df = df[features]
+        # Do not drop nans because they will be processed by predictor
 
-        # Prepare (load) models (models are identified by label names and algorithm name)
-        labels = App.config["signaler"]["analysis"]["labels"]
-        model_path = App.config["signaler"]["analysis"]["folder"]
-        models = {}
-        for label in labels:
-            model_file_name = label + "_gb"
-            model_file = Path(model_path, model_file_name).with_suffix(".pickle")
-            if not Path(model_file).exists():
-                log.error(f"Model file does not exist: {model_file}")
-                return
+        # Do prediction by applying models to the data
+        score_df = pd.DataFrame(index=predict_df.index)
+        for score_column_name, model_pair in models.items():
+            if score_column_name.endswith("_gb"):
+                df_y_hat = predict_gb(model_pair, predict_df)
+            elif score_column_name.endswith("_nn"):
+                df_y_hat = predict_nn(model_pair, predict_df)
+            elif score_column_name.endswith("_lc"):
+                df_y_hat = predict_lc(model_pair, predict_df)
+            score_df[score_column_name] = df_y_hat
 
-            with open(model_file, 'rb') as f:
-                model = pickle.load(f)
-
-            models[label + "_gb"] = model
-
-        # Prepare input
-        features = App.config["signaler"]["analysis"]["features"]
-        df = df[features]
-        # Drop NaN because of limited history and many empty values
-        df = df.dropna(subset=features)
-
-        # Do prediction by applying models.
-        # New, predicted columns will be added to features. They will be named as in dict
-        labels_df = predict_labels(df, models)
-
-        # Shift each score column
-        if App.config["trader"]["parameters"]["use_previous_scores"]:
-            for label in labels:
-                label_prev = label + "_prev"
-                labels_df[label_prev] = labels_df[label].shift(1)
-
-        labels_df = labels_df.iloc[1:]  # Drop first row which has NaN for previous (absent) scores
-
-        # Now df will have additionally as many new columns as we have defined labels (and corresponding models)
+        # Now we have all predictions (score columns) needed to make a buy/sell decision - many predictions for each true label column
+        # We will need only the latest row for signal generation
 
         #
         # 4.
         # Generate buy/sell signals using rules and thresholds
         #
+        all_scores = models.keys()
+        high_scores = [col for col in all_scores if "high_" in col]  # 3 algos x 3 thresholds x 1 k = 9
+        low_scores = [col for col in all_scores if "low_" in col]  # 3 algos x 3 thresholds x 1 k = 9
 
-        # Currently signals are generated manually for the last row only so we do not use this function
-        #signals_out = generate_signals(df, models)
+        # Compute final score column
+        score_df["high"] = score_df[high_scores].mean(axis=1)
+        score_df["low"] = score_df[low_scores].mean(axis=1)
+        high_and_low = score_df["high"] + score_df["low"]
+        score_df["score"] = ((score_df["high"] / high_and_low) * 2) - 1.0  # in [-1, +1]
 
-        # Currently the best model is hard-coded. In future, it will be loaded from file
-        model = {"threshold_buy_10": 0.26, "threshold_buy_20": 0.07, "percentage_sell_price": 1.018, "sell_timeout": 70}
-        threshold_buy_10 = model["threshold_buy_10"]
-        threshold_buy_20 = model["threshold_buy_20"]
-        threshold_buy_10_prev = float(model.get("threshold_buy_10_prev", 0.0))
-        threshold_buy_20_prev = float(model.get("threshold_buy_20_prev", 0.0))
-        # Object parameters (label prediction scores)
-        row = labels_df.iloc[-1]
-        high_60_10_gb = row["high_60_10_gb"]
-        high_60_20_gb = row["high_60_20_gb"]
+        score = score_df.iloc[-1].score
 
-        # Apply model parameters and generate a signal for the current row
-        if high_60_10_gb >= threshold_buy_10 and high_60_20_gb >= threshold_buy_20:
-            is_buy_signal = True
+        row = df.iloc[-1]
+        close_price = row.close
+        high_price = row.high
+        low_price = row.high
+        timestamp = row.name
+        close_time = row.close_time
+        # TODO: We need to pass latest known time which is essentially close time, but close time is 1ms less that minute border, so we need to pass timestamp plus 1 second
+
+        # Generate signal
+        model = {"buy_threshold": 0.1, "sell_threshold": -0.1}
+
+        signal = dict(side=None, score=score, price=close_price, timestamp=timestamp)
+        if not score:
+            signal = dict()
+        elif score > model.get("buy_threshold"):
+            signal["side"] = "BUY"
+        elif score < model.get("sell_threshold"):
+            signal["side"] = "SELL"
         else:
-            is_buy_signal = False
+            signal = dict()
 
-        if is_buy_signal and App.config["trader"]["parameters"]["use_previous_scores"]:
-            high_60_10_gb_prev = row["high_60_10_gb_prev"]
-            high_60_20_gb_prev = row["high_60_20_gb_prev"]
-            if high_60_10_gb_prev >= threshold_buy_10_prev and high_60_20_gb_prev >= threshold_buy_20_prev:
-                is_buy_signal = True
-            else:
-                is_buy_signal = False
-
-        App.config["trader"]["state"]["buy_signal_scores"] = [high_60_10_gb, high_60_20_gb]
-        App.config["trader"]["state"]["buy_signal"] = is_buy_signal
+        App.config["signaler"]["signal"] = signal
 
 
 if __name__ == "__main__":
