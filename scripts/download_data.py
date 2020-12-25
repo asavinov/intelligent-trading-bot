@@ -17,6 +17,7 @@ from binance.enums import *
 
 # DO NOT INCLUDE because it has function klines_to_df with the same name but different implementation (name conflict)
 #from common.utils import *
+from trade.App import App
 
 """
 The script is intended for retrieving data from binance server: klines, server info etc.
@@ -26,17 +27,14 @@ https://sammchardy.github.io/binance/2018/01/08/historical-data-download-binance
 https://sammchardy.github.io/kucoin/2018/01/14/historical-data-download-kucoin.html
 """
 
-### API
-binance_api_key = '***REMOVED***'    #Enter your own API-key here
-binance_api_secret = '***REMOVED***' #Enter your own API-secret here
-
 ### CONSTANTS
 binsizes = {"1m": 1, "5m": 5, "1h": 60, "1d": 1440}
 batch_size = 750
 
 symbols = ["XBTUSD", "ETHUSD", "XRPZ18", "LTCZ18", "EOSZ18", "BCHZ18", "ADAZ18", "TRXZ18"]
 
-client = Client(api_key=binance_api_key, api_secret=binance_api_secret)
+App.client = Client(api_key=App.config["api_key"], api_secret=App.config["api_secret"])
+
 
 #
 # Historic data
@@ -51,15 +49,16 @@ def get_klines_all(symbol, freq, save=False):
     # ---
     # Uncomment 3 lines to get futures:
     # ---
-    #client.API_URL = "https://fapi.binance.com/fapi"
-    #client.PRIVATE_API_VERSION = "v1"
-    #client.PUBLIC_API_VERSION = "v1"
+    #App.client.API_URL = "https://fapi.binance.com/fapi"
+    #App.client.PRIVATE_API_VERSION = "v1"
+    #App.client.PUBLIC_API_VERSION = "v1"
     # ---
 
     filename = f"{symbol}-{freq}-klines.csv"
 
     if os.path.isfile(filename):
         data_df = pd.read_csv(filename)
+        data_df['timestamp'] = pd.to_datetime(data_df['timestamp'])
     else:
         data_df = pd.DataFrame()
 
@@ -72,10 +71,9 @@ def get_klines_all(symbol, freq, save=False):
     if oldest_point == datetime.strptime('1 Jan 2017', '%d %b %Y'):
         print('Downloading all available %s data for %s. Be patient..!' % (freq, symbol))
     else:
-        print('Downloading %d minutes of new data available for %s, i.e. %d instances of %s data.' % (
-        delta_min, symbol, available_data, freq))
+        print('Downloading %d minutes of new data available for %s, i.e. %d instances of %s data.' % (delta_min, symbol, available_data, freq))
 
-    klines = client.get_historical_klines(
+    klines = App.client.get_historical_klines(
         symbol,
         freq,
         oldest_point.strftime("%d %b %Y %H:%M:%S"),
@@ -100,7 +98,7 @@ def get_exchange_info():
     Client.get_exchange_info
     /api/v1/exchangeInfo
     """
-    exchange_info = client.get_exchange_info()
+    exchange_info = App.client.get_exchange_info()
 
     with open("exchange_info.json", "w") as file:
         json.dump(exchange_info, file, indent=4)  # , sort_keys=True
@@ -108,14 +106,14 @@ def get_exchange_info():
     return
 
 def get_account_info():
-    orders = client.get_all_orders(symbol='BTCUSDT')
-    trades = client.get_my_trades(symbol='BTCUSDT')
-    info = client.get_account()
-    status = client.get_account_status()
-    details = client.get_asset_details()
+    orders = App.client.get_all_orders(symbol='BTCUSDT')
+    trades = App.client.get_my_trades(symbol='BTCUSDT')
+    info = App.client.get_account()
+    status = App.client.get_account_status()
+    details = App.client.get_asset_details()
 
 def get_market_info():
-    depth = client.get_order_book(symbol='BTCUSDT')
+    depth = App.client.get_order_book(symbol='BTCUSDT')
 
 #
 # Utility
@@ -123,13 +121,14 @@ def get_market_info():
 
 def minutes_of_new_data(symbol, freq, data):
     if len(data) > 0:  
-        old = parser.parse(data["timestamp"].iloc[-1])
-    else: 
+        #old = parser.parse(data["timestamp"].iloc[-1])
+        old = data["timestamp"].iloc[-1]
+    else:
         #old = datetime.strptime('1 Aug 2019', '%d %b %Y')
         old = datetime.strptime('1 Jan 2017', '%d %b %Y')
 
     # List of tuples like this: [1569728580000, '8156.65000000', '8156.66000000', '8154.75000000', '8155.32000000', '4.63288700', 1569728639999, '37786.23994297', 74, '3.18695100', '25993.68396886', '0']
-    new_info = client.get_klines(symbol=symbol, interval=freq)
+    new_info = App.client.get_klines(symbol=symbol, interval=freq)
     new = pd.to_datetime(new_info[-1][0], unit='ms')
     
     return old, new
@@ -139,12 +138,26 @@ def klines_to_df(klines, df):
 
     data = pd.DataFrame(klines, columns = ['timestamp', 'open', 'high', 'low', 'close', 'volume', 'close_time', 'quote_av', 'trades', 'tb_base_av', 'tb_quote_av', 'ignore' ])
     data['timestamp'] = pd.to_datetime(data['timestamp'], unit='ms')
+    dtypes = {
+        'open': 'float64', 'high': 'float64', 'low': 'float64', 'close': 'float64', 'volume': 'float64',
+        'close_time': 'int64',
+        'quote_av': 'float64',
+        'trades': 'int64',
+        'tb_base_av': 'float64',
+        'tb_quote_av': 'float64',
+        'ignore': 'int64',
+    }
+    data = data.astype(dtypes)
 
     if df is None or len(df) == 0:
         df = data
     else: 
-        temp_df = pd.DataFrame(data)
-        df = df.append(temp_df)
+        df = df.append(data)
+
+
+    # Drop duplicates
+    df = df.drop_duplicates(subset=["timestamp"])
+    #df = df[~df.index.duplicated(keep='last')]  # alternatively, drop duplicates in index
 
     df.set_index('timestamp', inplace=True)
 
@@ -244,7 +257,7 @@ def check_market_stream():
     - ticker, 
     - trade, 
     """
-    bm = BinanceSocketManager(client)
+    bm = BinanceSocketManager(App.client)
 
     # trade socket (one event for each new trade - quote intensive)
     conn_key = bm.start_trade_socket('BTCUSDT', message_fn)
@@ -305,7 +318,7 @@ def check_market_stream_multiplex():
     """
     Symbols in socket name must be lowercase i.e bnbbtc@aggTrade, neobtc@ticker
     """
-    bm = BinanceSocketManager(client)
+    bm = BinanceSocketManager(App.client)
     conn_key = bm.start_multiplex_socket(['bnbbtc@aggTrade', 'neobtc@ticker'], multiples_fn)
 
 def multiples_fn(msg):
@@ -318,7 +331,7 @@ def check_user_stream():
     - Order Update Event - Returns individual order updates
     - Trade Update Event - Returns individual trade updates
     """
-    bm = BinanceSocketManager(client)
+    bm = BinanceSocketManager(App.client)
 
     # The Manager handles keeping the socket alive.
     bm.start_user_socket(user_message_fn)
