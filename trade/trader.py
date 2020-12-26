@@ -16,7 +16,7 @@ from binance.helpers import date_to_milliseconds, interval_to_milliseconds
 from binance.enums import *
 
 from common.utils import *
-from trade.App import App
+from trade.App import *
 from trade.Database import *
 
 import logging
@@ -211,106 +211,6 @@ async def out_of_market_trade():
     if not sell_order:
         log.error(f"Problem creating limit sell order (empty response).")
         return
-
-#
-# Server and account info
-#
-
-async def update_account_state():
-
-    balance = App.client.get_asset_balance(asset=App.config["trader"]["base_asset"])
-    App.config["trader"]["state"]["base_quantity"] = Decimal(balance.get("free", "0.00000000"))
-
-    balance = App.client.get_asset_balance(asset=App.config["trader"]["quote_asset"])
-    App.config["trader"]["state"]["quote_quantity"] = Decimal(balance.get("free", "0.00000000"))
-
-    pass
-
-async def update_state_and_health_check():
-    """
-    Request information about the current state of the account (balances), order (buy and sell), server state.
-    This function is called when we want to get complete real (true) state, for example, after re-start or network problem.
-    It sets our state by requesting information from the server.
-    """
-    symbol = App.config["trader"]["symbol"]
-
-    # Get server state (ping) and trade status (e.g., trade can be suspended on some symbol)
-    system_status = App.client.get_system_status()
-    #{
-    #    "status": 0,  # 0: normal，1：system maintenance
-    #    "msg": "normal"  # normal or System maintenance.
-    #}
-    if not system_status or system_status.get("status") != 0:
-        App.config["trader"]["state"]["server_status"] = 1
-        return 1
-    App.config["trader"]["state"]["server_status"] = 0
-
-    # "orderTypes": ["LIMIT", "LIMIT_MAKER", "MARKET", "STOP_LOSS_LIMIT", "TAKE_PROFIT_LIMIT"]
-    # "isSpotTradingAllowed": True
-
-    # Ping the server
-
-    # Check time synchronization
-    #server_time = App.client.get_server_time()
-    #time_diff = int(time.time() * 1000) - server_time['serverTime']
-    # TODO: Log large time differences (or even trigger time synchronization if possible)
-
-    # Get symbol info
-    symbol_info = App.client.get_symbol_info(symbol)
-    App.config["trader"]["symbol_info"] = symbol_info
-    if not symbol_info or symbol_info.get("status") != "TRADING":
-        App.config["trader"]["state"]["server_status"] = 1
-        return 1
-    App.config["trader"]["state"]["server_status"] = 0
-
-    # Get account trading status (it can be blocked/suspended, e.g., too many orders)
-    account_info = App.client.get_account()
-    if not account_info or not account_info.get("canTrade"):
-        App.config["trader"]["state"]["account_status"] = 1
-        return 1
-    App.config["trader"]["state"]["account_status"] = 0
-
-    # Get current balances (available funds)
-    #balance = App.client.get_asset_balance(asset=App.config["trader"]["base_asset"])
-    balance = next((b for b in account_info.get("balances", []) if b.get("asset") == App.config["trader"]["base_asset"]), {})
-    App.config["trader"]["state"]["base_quantity"] = Decimal(balance.get("free", "0.00000000"))
-
-    #balance = App.client.get_asset_balance(asset=App.config["trader"]["quote_asset"])
-    balance = next((b for b in account_info.get("balances", []) if b.get("asset") == App.config["trader"]["quote_asset"]), {})
-    App.config["trader"]["state"]["quote_quantity"] = Decimal(balance.get("free", "0.00000000"))
-
-    # Get current active orders
-    #orders = App.client.get_all_orders(symbol=symbol, limit=10)  # All orders
-    orders = App.client.get_open_orders(symbol=symbol)
-    if len(orders) == 0:  # No open orders
-        App.config["trader"]["state"]["sell_order"] = None  # Forget about our sell order
-    elif len(orders) == 1:
-        order = orders[0]
-        if order["side"] == "BUY":
-            App.config["trader"]["state"]["trade_state_status"] = "Buy order still open. Market buy order have to be executed immediately."
-            return 1
-        elif order["side"] == "SELL":
-            # It is our limit sell order. We are expected to be in market (check it) and assets should be as expected.
-            # Check that this order exists and update its status
-            pass
-    else:
-        App.config["trader"]["state"]["trade_state_status"] = "More than 1 active order. There cannot be more than 1 active order."
-        return 1
-
-    App.config["trader"]["state"]["trade_state_status"] = 0
-
-    return 0
-
-def problems_exist():
-    if App.config["trader"]["state"]["error_status"] != 0:
-        return True
-    if App.config["trader"]["state"]["server_status"] != 0:
-        return True
-    if App.config["trader"]["state"]["account_status"] != 0:
-        return True
-    if App.config["trader"]["state"]["trade_state_status"] != 0:
-        return True
-    return False
 
 #
 # Order and asset status
@@ -677,114 +577,90 @@ async def check_limit_sell_order():
     pass
 
 #
-# Main procedure
+# Server and account info
 #
 
-def start_trader():
-    #
-    # Validation
-    #
-    symbol = App.config["trader"]["symbol"]
+async def update_account_state():
 
-    log.info(f"Initializing trade server. Trade symbol {symbol}. ")
+    balance = App.client.get_asset_balance(asset=App.config["trader"]["base_asset"])
+    App.config["trader"]["state"]["base_quantity"] = Decimal(balance.get("free", "0.00000000"))
 
-    #
-    # Connect to the server and update/initialize our system state
-    #
-    App.client = Client(api_key=App.config["api_key"], api_secret=App.config["api_secret"])
-
-    App.database = Database(None)
-
-    App.loop = asyncio.get_event_loop()
-
-    # Do one time server check and state update
-    try:
-        App.loop.run_until_complete(update_state_and_health_check())
-    except:
-        pass
-    if problems_exist():
-        log.error(f"Problems found. Check server, symbol, account or system state.")
-        return
-
-    log.info(f"Finished updating state and health check.")
-
-    log.info(f"Finished updating data.")
-
-    #
-    # Register schedulers
-    #
-
-    # INFO: Scheduling:
-    #     - https://medium.com/greedygame-engineering/an-elegant-way-to-run-periodic-tasks-in-python-61b7c477b679
-    #     - https://schedule.readthedocs.io/en/stable/ https://github.com/dbader/schedule - 6.6k
-    #     - https://github.com/agronholm/apscheduler/blob/master/docs/index.rst - 2.1k
-    #       - https://apscheduler.readthedocs.io/en/latest/modules/schedulers/asyncio.html
-    #     - https://docs.python.org/3/library/sched.html
-
-    App.sched = BackgroundScheduler(daemon=False)  # Daemon flag is passed to Thread (False means the program will not exit until all Threads are finished)
-    #logging.getLogger('apscheduler.executors.default').setLevel(logging.WARNING)
-    logging.getLogger('apscheduler').setLevel(logging.WARNING)
-
-    App.sched.add_job(
-        # We register a normal Python function as a call back.
-        # The only role of this function is to add an asyncio task to the event loop
-        # INFO: Creating/adding asyncio tasks from another thread
-        # - https://docs.python.org/3/library/asyncio-task.html#scheduling-from-other-threads
-        # - App.loop.call_soon_threadsafe(sync_responder)  # This works, but takes a normal funciton (not awaitable), which has to call coroutine: eventLoop.create_task(coroutine())
-        lambda: asyncio.run_coroutine_threadsafe(sync_trader_task(), App.loop),
-        trigger='cron',
-        #second='*/30',
-        minute='*',
-        id='sync_trader_task'
-    )
-
-    App.sched.start()  # Start scheduler (essentially, start the thread)
-
-    log.info(f"Scheduler started.")
-
-    #
-    # Start event loop
-    #
-    try:
-        App.loop.run_forever()  # Blocking. Run until stop() is called
-    except KeyboardInterrupt:
-        log.info(f"KeyboardInterrupt.")
-        pass
-    finally:
-        App.loop.close()
-        log.info(f"Event loop closed.")
-        App.sched.shutdown()
-        log.info(f"Scheduler shutdown.")
-
-    return 0
-
-if __name__ == "__main__":
-    # Short version of start_trader (main procedure)
-    App.database = Database(None)
-    App.client = Client(api_key=App.config["api_key"], api_secret=App.config["api_secret"])
-    App.loop = asyncio.get_event_loop()
-    try:
-        log.debug("Start in debug mode.")
-        log.info("Start testing in main.")
-        App.loop.run_until_complete(update_state_and_health_check())
-
-        #App.loop.run_until_complete(check_limit_sell_order())
-
-        App.database.analyze("BTCUSDT")
-
-        #App.loop.run_until_complete(sync_trader_task())
-    except BinanceAPIException as be:
-        # IP is not registred in binance
-        # BinanceAPIException: APIError(code=-2015): Invalid API-key, IP, or permissions for action
-        # APIError(code=-1021): Timestamp for this request was 1000ms ahead of the server's time.
-        print(be)
-    except KeyboardInterrupt:
-        pass
-    except Exception as e:
-        log.error(f"Exception {e}")
-    finally:
-        log.info(f"Finished.")
-        App.loop.close()
-        #App.sched.shutdown()
+    balance = App.client.get_asset_balance(asset=App.config["trader"]["quote_asset"])
+    App.config["trader"]["state"]["quote_quantity"] = Decimal(balance.get("free", "0.00000000"))
 
     pass
+
+async def update_state_and_health_check():
+    """
+    Request information about the current state of the account (balances), order (buy and sell), server state.
+    This function is called when we want to get complete real (true) state, for example, after re-start or network problem.
+    It sets our state by requesting information from the server.
+    """
+    symbol = App.config["trader"]["symbol"]
+
+    # Get server state (ping) and trade status (e.g., trade can be suspended on some symbol)
+    system_status = App.client.get_system_status()
+    #{
+    #    "status": 0,  # 0: normal，1：system maintenance
+    #    "msg": "normal"  # normal or System maintenance.
+    #}
+    if not system_status or system_status.get("status") != 0:
+        App.config["trader"]["state"]["server_status"] = 1
+        return 1
+    App.config["trader"]["state"]["server_status"] = 0
+
+    # "orderTypes": ["LIMIT", "LIMIT_MAKER", "MARKET", "STOP_LOSS_LIMIT", "TAKE_PROFIT_LIMIT"]
+    # "isSpotTradingAllowed": True
+
+    # Ping the server
+
+    # Check time synchronization
+    #server_time = App.client.get_server_time()
+    #time_diff = int(time.time() * 1000) - server_time['serverTime']
+    # TODO: Log large time differences (or even trigger time synchronization if possible)
+
+    # Get symbol info
+    symbol_info = App.client.get_symbol_info(symbol)
+    App.config["trader"]["symbol_info"] = symbol_info
+    if not symbol_info or symbol_info.get("status") != "TRADING":
+        App.config["trader"]["state"]["server_status"] = 1
+        return 1
+    App.config["trader"]["state"]["server_status"] = 0
+
+    # Get account trading status (it can be blocked/suspended, e.g., too many orders)
+    account_info = App.client.get_account()
+    if not account_info or not account_info.get("canTrade"):
+        App.config["trader"]["state"]["account_status"] = 1
+        return 1
+    App.config["trader"]["state"]["account_status"] = 0
+
+    # Get current balances (available funds)
+    #balance = App.client.get_asset_balance(asset=App.config["trader"]["base_asset"])
+    balance = next((b for b in account_info.get("balances", []) if b.get("asset") == App.config["trader"]["base_asset"]), {})
+    App.config["trader"]["state"]["base_quantity"] = Decimal(balance.get("free", "0.00000000"))
+
+    #balance = App.client.get_asset_balance(asset=App.config["trader"]["quote_asset"])
+    balance = next((b for b in account_info.get("balances", []) if b.get("asset") == App.config["trader"]["quote_asset"]), {})
+    App.config["trader"]["state"]["quote_quantity"] = Decimal(balance.get("free", "0.00000000"))
+
+    # Get current active orders
+    #orders = App.client.get_all_orders(symbol=symbol, limit=10)  # All orders
+    orders = App.client.get_open_orders(symbol=symbol)
+    if len(orders) == 0:  # No open orders
+        App.config["trader"]["state"]["sell_order"] = None  # Forget about our sell order
+    elif len(orders) == 1:
+        order = orders[0]
+        if order["side"] == "BUY":
+            App.config["trader"]["state"]["trade_state_status"] = "Buy order still open. Market buy order have to be executed immediately."
+            return 1
+        elif order["side"] == "SELL":
+            # It is our limit sell order. We are expected to be in market (check it) and assets should be as expected.
+            # Check that this order exists and update its status
+            pass
+    else:
+        App.config["trader"]["state"]["trade_state_status"] = "More than 1 active order. There cannot be more than 1 active order."
+        return 1
+
+    App.config["trader"]["state"]["trade_state_status"] = 0
+
+    return 0

@@ -14,7 +14,7 @@ from binance.client import Client
 from binance.websockets import BinanceSocketManager
 
 from common.utils import *
-from trade.App import App
+from trade.App import *
 from trade.Database import *
 
 import logging

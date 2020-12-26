@@ -13,7 +13,7 @@ from binance.helpers import date_to_milliseconds, interval_to_milliseconds
 from binance.client import Client
 
 from common.utils import *
-from trade.App import App
+from trade.App import *
 from trade.Database import *
 
 import logging

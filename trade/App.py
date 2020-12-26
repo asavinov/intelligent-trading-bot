@@ -233,8 +233,28 @@ class App:
     # TODO: Lock for synchronization of access to shared resources
     # INFO: use queue instead of asynchio https://docs.python.org/3/library/queue.html
 
+
 class Debug:
     parameter_debug = 234
+
+
+def data_provider_problems_exist():
+    if App.config["trader"]["state"]["error_status"] != 0:
+        return True
+    if App.config["trader"]["state"]["server_status"] != 0:
+        return True
+    return False
+
+def problems_exist():
+    if App.config["trader"]["state"]["error_status"] != 0:
+        return True
+    if App.config["trader"]["state"]["server_status"] != 0:
+        return True
+    if App.config["trader"]["state"]["account_status"] != 0:
+        return True
+    if App.config["trader"]["state"]["trade_state_status"] != 0:
+        return True
+    return False
 
 
 if __name__ == "__main__":

@@ -2,14 +2,14 @@ from pathlib import Path
 from typing import Union
 import json
 import pickle
-from datetime import datetime, date
+from datetime import datetime, date, timedelta
 import queue
 
 import numpy as np
 import pandas as pd
 
 from common.utils import *
-from trade.App import App
+from trade.App import *
 from common.classifiers import *
 from common.feature_generation import *
 from common.signal_generation import *
@@ -44,6 +44,8 @@ class Database:
         self.klines = {}
 
         self.queue = queue.Queue()
+
+        self.models = None
 
         #
         # Start a thread for storing data
@@ -249,7 +251,6 @@ class Database:
         #
         # 0.
         # Load models (parameters of transformations)
-        # TODO: Move to service init. Introduce a utility function to load all models given their dimensions (and maybe store all models)
         #
         labels = App.config["labels"]
         feature_sets = ["kline"]
@@ -257,7 +258,8 @@ class Database:
 
         model_path = App.config["signaler"]["analysis"]["folder"]
 
-        models = load_models(model_path, labels, feature_sets, algorithms)
+        if not self.models:
+            self.models = load_models(model_path, labels, feature_sets, algorithms)
 
         #
         # 1.
@@ -285,7 +287,7 @@ class Database:
 
         # Do prediction by applying models to the data
         score_df = pd.DataFrame(index=predict_df.index)
-        for score_column_name, model_pair in models.items():
+        for score_column_name, model_pair in self.models.items():
             if score_column_name.endswith("_gb"):
                 df_y_hat = predict_gb(model_pair, predict_df)
             elif score_column_name.endswith("_nn"):
@@ -301,7 +303,7 @@ class Database:
         # 4.
         # Generate buy/sell signals using rules and thresholds
         #
-        all_scores = models.keys()
+        all_scores = self.models.keys()
         high_scores = [col for col in all_scores if "high_" in col]  # 3 algos x 3 thresholds x 1 k = 9
         low_scores = [col for col in all_scores if "low_" in col]  # 3 algos x 3 thresholds x 1 k = 9
 
@@ -318,13 +320,12 @@ class Database:
         high_price = row.high
         low_price = row.high
         timestamp = row.name
-        close_time = row.close_time
-        # TODO: We need to pass latest known time which is essentially close time, but close time is 1ms less that minute border, so we need to pass timestamp plus 1 second
+        close_time = row.name+timedelta(minutes=1)  # row.close_time
 
         # Generate signal
-        model = {"buy_threshold": 0.1, "sell_threshold": -0.1}
+        model = {"buy_threshold": 0.135, "sell_threshold": -0.2}
 
-        signal = dict(side=None, score=score, price=close_price, timestamp=timestamp)
+        signal = dict(side=None, score=score, close_price=close_price, close_time=close_time)
         if not score:
             signal = dict()
         elif score > model.get("buy_threshold"):
@@ -332,7 +333,8 @@ class Database:
         elif score < model.get("sell_threshold"):
             signal["side"] = "SELL"
         else:
-            signal = dict()
+            #signal = dict()
+            pass
 
         App.config["signaler"]["signal"] = signal
 
