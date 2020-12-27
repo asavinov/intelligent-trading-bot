@@ -9,6 +9,8 @@ from decimal import *
 import numpy as np
 import pandas as pd
 
+from sklearn import linear_model
+
 from binance.helpers import date_to_milliseconds, interval_to_milliseconds
 
 #
@@ -644,6 +646,50 @@ def ___add_label_column(df, window, threshold, max_column_name='<HIGH>', ref_col
     # df.drop(columns=['max'], inplace=True)  # Not needed anymore
 
     return df
+
+def add_linear_trends(df, is_future: bool, column_name: str, windows: Union[int, list[int]], suffix=None):
+    """
+    Use a series of points to compute slope of the fitted line and return it.
+    For past, we use previous series.
+    For future, we use future series.
+    This point is included in series in both cases.
+    """
+    column = df[column_name]
+
+    if isinstance(windows, int):
+        windows = [windows]
+
+    if suffix is None:
+        suffix = "_" + "trend"
+
+    def linear_trend_fn(X):
+        """
+        Given a Series, fit a linear regression model and return its slope interpreted as a trend.
+        The sequence of values in X must correspond to increasing time in order for the trend to make sense.
+        """
+        X_array = np.asarray(range(len(X)))
+        X_array = X_array.reshape(-1, 1)
+        y_array = X
+        model = linear_model.LinearRegression()
+        model.fit(X_array, y_array)
+        return model.coef_[0]
+
+    features = []
+    for w in windows:
+        feature_name = column_name + suffix + '_' + str(w)
+
+        ro = column.rolling(window=w, min_periods=max(1, w // 10))
+
+        feature = ro.apply(linear_trend_fn, raw=True)
+
+        if is_future:
+            df[feature_name] = feature.shift(periods=-(w-1))
+        else:
+            df[feature_name] = feature
+
+        features.append(feature_name)
+
+    return features
 
 
 if __name__ == "__main__":

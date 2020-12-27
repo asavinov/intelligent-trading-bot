@@ -1,4 +1,5 @@
 import pytest
+import numpy.testing as npt
 
 from common.utils import *
 from common.utils import add_area_ratio
@@ -121,5 +122,20 @@ def test_area_ratio():
 	# First element has to be computed from next 3 elements
 	assert df[df.columns[1]].iloc[0] == 1  # all elements greater than this one
 	assert df[df.columns[1]].iloc[1] == 0  # 1 is less and 1 is greater than this one
+
+	pass
+
+def test_linear_trends():
+	price = [10, 20, 40, 40, 30, 10]
+	df = pd.DataFrame(data={"price": price})
+
+	features = add_linear_trends(df, is_future=False, column_name="price", windows=2)
+	npt.assert_almost_equal(df["price_trend_2"].values, np.array([0, 10, 20, 0, -10, -20]))
+
+	features = add_linear_trends(df, is_future=True, column_name="price", windows=2)
+	npt.assert_almost_equal(df["price_trend_2"].values, np.array([10, 20, 0, -10, -20, np.nan]))
+
+	features = add_linear_trends(df, is_future=False, column_name="price", windows=6)
+	npt.assert_almost_equal(df["price_trend_6"].values, np.array([0, 10, 15, 11, 6, 0.857143]))
 
 	pass

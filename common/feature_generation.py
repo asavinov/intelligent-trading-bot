@@ -42,7 +42,7 @@ def generate_features(df, use_differences=False):
 
     # close std
     to_drop += add_past_aggregations(df, 'close', np.std, base_window)  # Base column
-    features += add_past_aggregations(df, 'close', np.std, windows, '_std', to_drop[-1], 100.0)
+    features += add_past_aggregations(df, 'close', np.std, windows[1:], '_std', to_drop[-1], 100.0)  # window 1 excluded
     # ['close_std_1', 'close_std_2', 'close_std_5', 'close_std_20', 'close_std_60', 'close_std_180']
 
     # volume mean
@@ -79,6 +79,9 @@ def generate_features(df, use_differences=False):
     # Area over and under latest close price
     features += add_area_ratio(df, is_future=False, column_name="close", windows=[60, 120, 180, 300, 720], suffix = "_area")
 
+    # Linear trend
+    features += add_linear_trends(df, is_future=False, column_name="close", windows=windows[1:], suffix="_trend")  # window 1 excluded
+
     df.drop(columns=to_drop, inplace=True)
 
     return features
@@ -107,7 +110,7 @@ def generate_features_futur(df, use_differences=False):
 
     # close std
     to_drop += add_past_aggregations(df, 'f_close', np.std, base_window)  # Base column
-    features += add_past_aggregations(df, 'f_close', np.std, windows, '_std', to_drop[-1], 100.0)
+    features += add_past_aggregations(df, 'f_close', np.std, windows[1:], '_std', to_drop[-1], 100.0)  # window 1 excluded
     # ['f_close_std_1', f_close_std_2', 'f_close_std_5', 'f_close_std_10', 'f_close_std_20']
 
     # volume mean
@@ -143,6 +146,9 @@ def generate_features_futur(df, use_differences=False):
 
     # Area over and under latest close price
     features += add_area_ratio(df, is_future=False, column_name="f_close", windows=[20, 60, 120, 180], suffix = "_area")
+
+    # Linear trend
+    features += add_linear_trends(df, is_future=False, column_name="f_close", windows=windows[1:], suffix="_trend")  # window 1 excluded
 
     df.drop(columns=to_drop, inplace=True)
 
