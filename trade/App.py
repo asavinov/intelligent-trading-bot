@@ -116,6 +116,10 @@ class App:
                 "folder": "_TEMP_MODELS",
                 "features_horizon": 800,  # History needed to compute derived features
             },
+            "model": {
+                "buy_threshold": 0.135,  # Optimal: 0.135
+                "sell_threshold": -0.2,  # Optimal: -0.2
+            },
             "signal": None,
         },
 
@@ -164,10 +168,14 @@ class App:
             "parameters": {
                 # For debugging: determine what parts of code will be executed
                 "no_trades_only_data_processing": True,  # in market or out of market processing is excluded (all below parameters ignored)
-                "simulate_order_execution": True,  # Instead of real orders, simulate their execution (immediate buy/sell market orders and use high price of klines for limit orders)
                 "test_order_before_submit": True,  # Send test submit to the server as part of validation
+                "simulate_order_execution": False,  # Instead of real orders, simulate their execution (immediate buy/sell market orders and use high price of klines for limit orders)
 
-                "percentage_used_for_trade": 90,  # in % to the available USDT quantity, that is, we will derive how much BTC to buy using this percentage
+                "percentage_used_for_trade": 99,  # in % to the available USDT quantity, that is, we will derive how much BTC to buy using this percentage
+                "limit_price_adjustment": 0.001,  # Limit price of orders will be better (higher or lower) than the latest close price (0 means no change)
+
+
+
 
                 # Signal model (trade strategy)
                 "sell_timeout": 70,  # Seconds
@@ -184,9 +192,17 @@ class App:
                 "account_status": 0,  # If account allows us to trade (funds, suspended etc.)
                 "trade_state_status": 0,  # Something wrong with our trading logic (wrong use, inconsistent state etc. what we cannot recover)
 
+                "status": None,  # BOUGHT, SOLD, BUYING, SELLING
+                "order": None,  # Latest or current order
+                "order_time": None,  # Order submission time
+
                 # What we possess. Can be set by the sync/recover function or updated by the trade algorithm
                 "base_quantity": "0.04108219",  # BTC owned (on account, already bought, available for trade)
                 "quote_quantity": "1000.0",  # USDT owned (on account, available for trade)
+
+
+
+
 
                 # Set by analysis procedure like signals
                 "buy_signal": 0,

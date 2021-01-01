@@ -21,36 +21,404 @@ from trade.Database import *
 
 import logging
 log = logging.getLogger('trader')
-logging.basicConfig(filename='trader.log', level=logging.DEBUG)  # filename='example.log', - parameter in App
-
-# =====
-# !!! Old version signaler+trader. Needs to be re-written to have only trading functions
-# =====
-
-# TODO: after analysis: set buy signal true or false, actually it has to be stored in dataframe and we can retrieve it and store in the config field
-
-# test runs:
-# - run in data collection, analysis, signal generation only, excluding real trade (maybe only test orders) but reporting signals (and maybe timeouts of sells)
-#   goals: check data collection/updates/discards work, check stream processing works with new data periodic analyses.
-#   no trades (order creation etc.) - only analysis logic
-
-# TODO: Add high level exception catchers too all calls where we have binance client calls (which may well fail so that they do not crash the server - see main, e.g., IP wrong)
-
-#   - train model(s) and copy them to the folder - document the steps and develop standard procedures
-#   - train signal model and copy to the folder (so that we can re-train it later) - document the steps and develop standard procedures
-#   - configure App.config: feature list, label list etc.
-#   - check that logging works and configure debug level for logging
-
-# - run in order simulation mode
-#   simulate orders by generating their specifications and then assume they are executed with any (valid) results
-#   goals: check that orders get valid parameters like quantity and price
+logging.basicConfig(
+    filename="trader.log",  # parameter in App
+    level=logging.DEBUG,
+    #format = "%(asctime)s.%(msecs)03d %(levelname)s %(module)s - %(funcName)s: %(message)s",
+    format = "%(asctime)s %(levelname)s %(message)s",
+    #datefmt = '%Y-%m-%d %H:%M:%S',
+)
 
 # TODO:
+# - simulation mode when orders are created as local variable. execution of orders is somehow estimated, e.g., from previous kline (high-low)
+# - ensure/validate that orders have valid parameters
 # - check/ensure that now_timestamp return UTC millis
 # - surround all python-binance calls with try-catch
-# - check if timeout for sell orders works correctly
 
-async def sync_trader_task():
+"""
+High level logic:
+- Before applying the main logic of switching, we need to sync the current state which can lead to switch from buying-selling to bought-sold, respectively.
+Here we check the status of (possible) orders (state buying-selling has one-to-one relation with the existence of buy-sell orders still not executed). 
+- Q: is canceling order is immediate operation? Can we meet an async "cancel" task which is still being awaited?
+  Or we assume that canceling must be executed immediately or at least we do not do anything until an order is canceled?
+- the basis is that at each iteration, we compare new desired state represented by signal with the current state (bought, buying, sold, selling).
+thus we need to switch from 4 current states to 2 target states buying or selling (we cannot switch immediately to buy or sell as desired).
+- Sometimes we do not need change anything if the target direction/state is the same as the intermediate one. 
+- Sometimes we need to cancel orders if the target direction/state is opposite to the current intermediate state.
+- Sometimes we need to create a new order (maybe right after cancelling an existing one).
+- How to cancel order if it still does not execute (price is too bad)? Timeout? Or price update?
+  One approach is mechanism of price update - for that purpose, we need to cancel-create_new order 
+"""
+
+async def main_trader_task():
+    """
+    It is a highest level task which is added to the event loop and executed normally every 1 minute and then it calls other tasks.
+    """
+    symbol = App.config["trader"]["symbol"]
+    startTime, endTime = get_interval("1m")
+    now_ts = now_timestamp()
+
+    log.info(f"===> Start trade task. Timestamp {now_ts}. Interval [{startTime},{endTime}].")
+
+    #
+    # Sync trade status, check running orders (orders, account etc.)
+    #
+
+    status = App.config["trader"]["state"]["status"]
+
+    if status == "BUYING" or status == "SELLING":
+        # We expect that an order was created before and now we need to check if it still exists or was executed
+        # -----
+        order_status = await update_order_status()
+
+        order = App.config["trader"]["state"]["order"]
+        # If order status executed then change the status
+        # Status codes: NEW PARTIALLY_FILLED FILLED CANCELED PENDING_CANCEL(currently unused) REJECTED EXPIRED
+
+        if not order or not order_status:
+            # No sell order exists or some problem
+            # TODO: Recover, reset, init/sync state (cannot trade because wrong happened with the order or connection or whatever)
+            #   check connection (like ping), then server status, then our own account status, then funds, orders etc.
+            # -----
+            await update_trade_status()
+            log.error(f"Bad order or order status {order}. Full reset/init needed.")
+            return
+        if order_status == ORDER_STATUS_FILLED:
+            log.info(f"Limit sell order filled. {order}")
+            if status == "BUYING":
+                App.config["trader"]["state"]["status"] = "BOUGHT"
+            elif status == "SELLING":
+                App.config["trader"]["state"]["status"] = "SOLD"
+            log.info(f'New trade mode: {App.config["trader"]["state"]["status"]}')
+        elif order_status == ORDER_STATUS_REJECTED or order_status == ORDER_STATUS_EXPIRED or order_status == ORDER_STATUS_CANCELED:
+            log.error(f"Failed to fill order with order status {order_status}")
+            if status == "BUYING":
+                App.config["trader"]["state"]["status"] = "SOLD"
+            elif status == "SELLING":
+                App.config["trader"]["state"]["status"] = "BOUGHT"
+            log.info(f'New trade mode: {App.config["trader"]["state"]["status"]}')
+        elif order_status == ORDER_STATUS_PENDING_CANCEL:
+            return  # Currently do nothing. Check next time.
+        elif order_status == ORDER_STATUS_PARTIALLY_FILLED:
+            pass  # Currently do nothing. Check next time.
+        elif order_status == ORDER_STATUS_NEW:
+            pass  # Wait further for execution
+        else:
+            pass  # Order still exists and is active
+    elif status == "BOUGHT" or status == "SOLD":
+        pass  # Do nothing
+    else:
+        log.error(f"Wrong status value {status}.")
+
+    #
+    # Prepare. Kill or update existing orders (if necessary)
+    #
+
+    status = App.config["trader"]["state"]["status"]
+    signal = App.config["signaler"]["signal"]
+    signal_side = signal.get("side")
+
+    # If not sold for 1 minute, then kill and then a new order will be created below if there is signal
+    # Essentially, this will mean price adjustment (if a new order of the same direction will be created)
+    # In future, we might kill only after some timeout
+    if status == "BUYING" or status == "SELLING":  # Still not sold for 1 minute
+        # -----
+        await cancel_order()
+        await asyncio.sleep(1)  # Wait for a second
+        if status == "BUYING":
+            App.config["trader"]["state"]["status"] = "SOLD"
+        elif status == "SELLING":
+            App.config["trader"]["state"]["status"] = "BOUGHT"
+
+    #
+    # Trade by creating orders
+    #
+
+    status = App.config["trader"]["state"]["status"]
+    if signal_side in ["BUY", "SELL"]:
+        print("SIGNAL: " + str(signal))
+    else:
+        print("SCORE: " + str(signal.get("score")))
+
+    # Update account balance etc. what is needed for trade
+    # -----
+    await update_account_balance()
+
+    if status == "SOLD" and signal_side == "BUY":
+        # -----
+        await new_limit_order(side=SIDE_BUY)
+        App.config["trader"]["state"]["status"] = "BUYING"
+    elif status == "BOUGHT" and signal_side == "SELL":
+        # -----
+        await new_limit_order(side=SIDE_SELL)
+        App.config["trader"]["state"]["status"] = "SELLING"
+
+    log.info(f"<=== End trade task.")
+
+    return
+
+#
+# Order and asset status
+#
+
+async def update_trade_status():
+    """Read the account state and set the local state parameters."""
+    # GET /api/v3/openOrders - get current open orders
+    # GET /api/v3/allOrders - get all orders: active, canceled, or filled
+
+    symbol = App.config["trader"]["symbol"]
+
+    # -----
+    try:
+        open_orders = App.client.get_open_orders(symbol=symbol)  # By "open" orders they probably mean "NEW" or "PARTIALLY_FILLED"
+        # orders = App.client.get_all_orders(symbol=symbol, limit=10)
+    except Exception as e:
+        log.error(f"Binance exception in 'get_open_orders' {e}")
+        return
+
+    if not open_orders:
+        # -----
+        await update_account_balance()
+
+        last_kline = App.database.get_last_kline(symbol)
+        last_close_price = to_decimal(last_kline[4])  # Close price of kline has index 4 in the list
+
+        base_quantity = App.config["trader"]["state"]["base_quantity"]  # BTC
+        btc_assets_in_usd = base_quantity * last_close_price  # Cost of available BTC in USD
+
+        usd_assets = App.config["trader"]["state"]["quote_quantity"]  # USD
+
+        if usd_assets >= btc_assets_in_usd:
+            App.config["trader"]["state"]["status"] = "SOLD"
+        else:
+            App.config["trader"]["state"]["status"] = "BOUGHT"
+
+    elif len(open_orders) == 1:
+        order = open_orders[0]
+        if order.get("side") == SIDE_SELL:
+            App.config["trader"]["state"]["status"] = "SELLING"
+        elif order.get("side") == SIDE_BUY:
+            App.config["trader"]["state"]["status"] = "BUYING"
+        else:
+            log.error(f"Neither SELL nor BUY side of the order {order}.")
+            return None
+
+    else:  # Many orders
+        log.error(f"Wrong state. More than one open order. Fix manually.")
+        return None
+
+async def update_order_status():
+    """
+    Update information about the current order and return its execution status.
+
+    ASSUMPTIONS and notes:
+    - Status codes: NEW PARTIALLY_FILLED FILLED CANCELED PENDING_CANCEL(currently unused) REJECTED EXPIRED
+    - only one or no orders can be active currently, but in future there can be many orders
+    - if no order id(s) is provided then retrieve all existing orders
+    """
+    symbol = App.config["trader"]["symbol"]
+
+    # Get currently active order and id (if any)
+    order = App.config["trader"]["state"]["order"]
+    order_id = order.get("orderId", 0) if order else 0
+    if not order_id:
+        log.error(f"Wrong state or use: check order status cannot find the order id.")
+        return None
+
+    # -----
+    # Retrieve order from the server
+    try:
+        new_order = App.client.get_order(symbol=symbol, orderId=order_id)
+    except Exception as e:
+        log.error(f"Binance exception in 'get_order' {e}")
+        return
+
+    # Impose and overwrite the new order information
+    if new_order:
+        order.update(new_order)
+    else:
+        return None
+
+    # Now order["status"] contains the latest status of the order
+    return order["status"]
+
+async def update_account_balance():
+    """Get available assets (as decimal)."""
+
+    try:
+        balance = App.client.get_asset_balance(asset=App.config["trader"]["base_asset"])
+    except Exception as e:
+        log.error(f"Binance exception in 'get_asset_balance' {e}")
+        return
+
+    App.config["trader"]["state"]["base_quantity"] = Decimal(balance.get("free", "0.00000000"))  # BTC
+
+    try:
+        balance = App.client.get_asset_balance(asset=App.config["trader"]["quote_asset"])
+    except Exception as e:
+        log.error(f"Binance exception in 'get_asset_balance' {e}")
+        return
+
+    App.config["trader"]["state"]["quote_quantity"] = Decimal(balance.get("free", "0.00000000"))  # USD
+
+    pass
+
+#
+# Cancel and liquidation orders
+#
+
+async def cancel_order():
+    """
+    Kill existing sell order. It is a blocking request, that is, it waits for the end of the operation.
+    Info: DELETE /api/v3/order - cancel order
+    """
+    symbol = App.config["trader"]["symbol"]
+
+    # Get currently active order and id (if any)
+    order = App.config["trader"]["state"]["order"]
+    order_id = order.get("orderId", 0) if order else 0
+    if order_id == 0:
+        # TODO: Maybe retrieve all existing (sell, limit) orders
+        return None
+
+    # -----
+    try:
+        log.info(f"Cancelling order id {order_id}")
+        new_order = App.client.cancel_order(symbol=symbol, orderId=order_id)
+    except Exception as e:
+        log.error(f"Binance exception in 'cancel_order' {e}")
+        return
+
+    # TODO: There is small probability that the order will be filled just before we want to kill it
+    #   We need to somehow catch and process this case
+    #   If we get an error (say, order does not exist and cannot be killed), then after error returned, we could do trade state reset
+
+    # Impose and overwrite the new order information
+    if new_order:
+        order.update(new_order)
+    else:
+        return None
+
+    # Now order["status"] contains the latest status of the order
+    return order["status"]
+
+#
+# Order creation
+#
+
+async def new_limit_order(side):
+    """
+    Create a new limit sell order with the amount we current have.
+    The amount is total amount and price is determined according to our strategy (either fixed increase or increase depending on the signal).
+    """
+    symbol = App.config["trader"]["symbol"]
+    now_ts = now_timestamp()
+
+    #
+    # Find limit price (from signal, last kline and adjustment parameters)
+    #
+    last_kline = App.database.get_last_kline(symbol)
+    last_close_price = to_decimal(last_kline[4])  # Close price of kline has index 4 in the list
+    if not last_close_price:
+        log.error(f"Cannot determine last close price in order to create a market buy order.")
+        return None
+
+    price_adjustment = App.config["trader"]["parameters"]["limit_price_adjustment"]
+    if side == SIDE_BUY:
+        price = last_close_price * Decimal(1.0 - price_adjustment)  # Adjust price slightly lower
+    elif side == SIDE_SELL:
+        price = last_close_price * Decimal(1.0 + price_adjustment)  # Adjust price slightly higher
+
+    price_str = round_str(price, 2)
+    price = Decimal(price_str)  # We will use the adjusted price for computing quantity
+
+    #
+    # Find quantity
+    #
+    if side == SIDE_BUY:
+        # Find how much quantity we can buy for all available USD using the computed price
+        quantity = App.config["trader"]["state"]["quote_quantity"]  # USD
+        percentage_used_for_trade = App.config["trader"]["parameters"]["percentage_used_for_trade"]
+        quantity = (quantity * percentage_used_for_trade) / Decimal(100.0)  # Available for trade
+        quantity = quantity / price  # BTC to buy
+        # Alternatively, we can pass quoteOrderQty in USDT (how much I want to spend)
+    elif side == SIDE_SELL:
+        # All available BTCs
+        quantity = App.config["trader"]["state"]["base_quantity"]  # BTC
+
+    quantity_str = round_down_str(quantity, 6)
+
+    #
+    # Execute order
+    #
+    order_spec = dict(
+        symbol=symbol,
+        side=side,
+        type=ORDER_TYPE_LIMIT,  # Alternatively, ORDER_TYPE_LIMIT_MAKER
+        timeInForce=TIME_IN_FORCE_GTC,
+        quantity=quantity_str,
+        price=price_str,
+    )
+
+    order = execute_order(order_spec)
+
+    #
+    # Store/log order object in our records (only after confirmation of success)
+    #
+    App.config["trader"]["state"]["order"] = order
+    App.config["trader"]["state"]["order_time"] = now_ts
+
+    return order
+
+def execute_order(order: dict):
+    """Validate and submit order"""
+
+    # TODO: Check validity, e.g., against filters (min, max) and our own limits
+
+    if App.config["trader"]["parameters"]["test_order_before_submit"]:
+        try:
+            log.info(f"Submitting test order: {order}")
+            test_response = App.client.create_test_order(**order)  # Returns {} if ok. Does not check available balances - only trade rules
+        except Exception as e:
+            log.error(f"Binance exception in 'create_test_order' {e}")
+            # TODO: Reset/resync whole account
+            return
+
+    if App.config["trader"]["parameters"]["simulate_order_execution"]:
+        # TODO: Simply store order so that later we can check conditions of its execution
+        print(order)
+        print(App.config["signaler"]["signal"])
+        pass
+    else:
+        # -----
+        # Submit order
+        try:
+            log.info(f"Submitting order: {order}")
+            order = App.client.create_order(**order)
+        except Exception as e:
+            log.error(f"Binance exception in 'create_order' {e}")
+            return
+
+        if not order or not order.get("status"):
+            return None
+
+    return order
+
+
+
+
+
+
+
+
+
+
+# ===
+# OLD
+# ===
+
+
+async def sync_trader_task_OLD():
     """
     It is a highest level task which is added to the event loop and executed normally every 1 minute and then it calls other tasks.
     """
@@ -72,7 +440,7 @@ async def sync_trader_task():
     #
     # Get balances and determine whether we are in market or in cash
     #
-    await update_account_state()
+    await update_account_balance()
     base_quantity = App.config["trader"]["state"]["base_quantity"]
     quote_quantity = App.config["trader"]["state"]["quote_quantity"]
     if base_quantity > 0.00000010:
@@ -112,7 +480,7 @@ async def in_market_trade():
     # ---
     # Check that we are really in market (the order could have been sold already)
     # We must get status even if the order has been filled
-    order_status = await update_sell_order_status()
+    order_status = await update_order_status()
 
     sell_order = App.config["trader"]["state"]["sell_order"]
 
@@ -198,7 +566,7 @@ async def out_of_market_trade():
 
     # ---
     # Retrieve latest account state (important for making buy market order)
-    await update_account_state()
+    await update_account_balance()
     base_quantity = App.config["trader"]["state"]["base_quantity"]
     quote_quantity = App.config["trader"]["state"]["quote_quantity"]
     if base_quantity < 0.00000010:
@@ -211,54 +579,6 @@ async def out_of_market_trade():
     if not sell_order:
         log.error(f"Problem creating limit sell order (empty response).")
         return
-
-#
-# Order and asset status
-#
-
-async def update_sell_order_status(order_id):
-    """
-    Get order execution status for the specified order.
-    The function is used to learn if the order has been filled (success) or is still waiting (also normal) or something is wrong.
-
-    ASSUMPTIONS and notes:
-    - Status codes: NEW PARTIALLY_FILLED FILLED CANCELED PENDING_CANCEL(currently unused) REJECTED EXPIRED
-    - only one or no orders can be active currently, but in future there can be many orders
-    - if no order id(s) is provided then retrieve all existing orders
-
-    :param order_id:
-    :return:
-    """
-    symbol = App.config["trader"]["symbol"]
-
-    # Get currently active order and id (if any)
-    sell_order = App.config["trader"]["state"]["sell_order"]
-    sell_order_id = sell_order.get("orderId", 0) if sell_order else 0
-    if not sell_order_id:
-        log.error(f"Wrong state or use: check sell order status cannot find the order id.")
-        return None
-
-    # ===
-    # Retrieve order from the server
-    order = App.client.get_order(symbol=symbol, orderId=sell_order_id)
-
-    # Impose and overwrite the new order information
-    if not order:
-        return order
-    else:
-        sell_order.update(order)
-
-    # Now order["status"] contains the latest status of the order
-    return sell_order["status"]
-
-async def get_existing_orders():
-    # GET /api/v3/openOrders - get current open orders
-    # GET /api/v3/allOrders - get all orders: active, canceled, or filled
-    # Alternatively, we could retrieve all (open) orders which is probably more reliable because we cannot lose any order
-    # In this case, we get a list of orders and update our complete status
-    # orders = App.client.get_all_orders(symbol=symbol, limit=10)
-    # open_orders = App.client.get_open_orders(symbol=symbol)  # It seems that by "open" orders they mean "NEW" or "PARTIALLY_FILLED"
-    pass
 
 #
 # Order creation
@@ -274,7 +594,7 @@ async def new_market_buy_order():
     # Get latest market parameters
     #
     last_kline = App.database.get_last_kline(symbol)
-    last_close_price = last_kline[4]  # Close price of kline has index 4 in the list
+    last_close_price = to_decimal(last_kline[4])  # Close price of kline has index 4 in the list
     if not last_close_price:
         log.error(f"Cannot determine last close price in order to create a market buy order.")
         return None
@@ -354,82 +674,6 @@ async def new_market_sell_order():
 
     return order
 
-async def new_limit_sell_order():
-    """
-    Create a new limit sell order with the amount we current have (and have just bought).
-    The amount is total amount and price is determined according to our strategy (either fixed increase or increase depending on the signal).
-    """
-    symbol = App.config["trader"]["symbol"]
-    now_ts = now_timestamp()
-
-    #
-    # We want to sell all BTC we own but the price is derived from previous (buy) order price
-    #
-    quantity = App.config["trader"]["state"]["base_quantity"]
-    quantity = to_decimal(quantity)
-
-    buy_order_price = App.config["trader"]["state"]["buy_order_price"]
-    price = buy_order_price * App.config["trader"]["parameters"]["percentage_sell_price"]
-    price = to_decimal(price)
-
-    #
-    # Execute order
-    #
-    order_spec = dict(symbol=symbol, side=SIDE_SELL, type=ORDER_TYPE_LIMIT, timeInForce=TIME_IN_FORCE_GTC, quantity=quantity, price=price)
-    # Alternatively, use ORDER_TYPE_LIMIT_MAKER
-
-    order = execute_order(order_spec)
-
-    # Process response
-    if not order:
-        App.config["trader"]["state"]["sell_order"] = order
-        App.config["trader"]["state"]["sell_order_time"] = 0
-        return order
-
-    #
-    # Store/log order object in our records (only after confirmation of success)
-    #
-    App.config["trader"]["state"]["sell_order"] = order
-    App.config["trader"]["state"]["sell_order_time"] = now_ts
-
-    return order
-
-def execute_order(order: dict):
-    """
-    Validate and execute order.
-
-    Results/influences:
-    - output type
-    - App.state, say, created order or sold order or latest prices
-    - Error state like suspended trade, timeout state (e.g., to check execution of some order), no connection state or complete recovery state update
-      Note that in the case of recover, we could find any asset and order state, that is, existing order or no funds etc.
-
-    For validation errors, ...
-    For market orders, ...
-    For limit orders,  ...
-    For simulated orders, ...
-    """
-
-    # TODO: Check validity, e.g., against filters (min, max) and our own limits
-
-    if App.config["trader"]["parameters"]["test_order_before_submit"]:
-        test_response = App.client.create_test_order(**order)  # Returns {} if ok, but what if error? Exception?
-
-    if App.config["trader"]["parameters"]["simulate_order_execution"]:
-        # TODO:
-        #   For market buy order, use latest close price (slightly worse)
-        #   For market sell order, use latest close price (slightly worse)
-        #   For limit sell order, simply make a submission record, and then, during regualr check, check the latest high price of kline to determine if it is filled or not.
-        pass
-
-    else:
-        order = App.client.create_order(**order)
-
-        if not order or not order.get("status"):
-            return order
-
-    return order
-
 async def wait_until_filled(order):
     """Regularly check the status of this order until it is filled and return the original order updated with new responses."""
     symbol = order.get("symbol", "")
@@ -446,27 +690,8 @@ async def wait_until_filled(order):
     return order
 
 #
-# Cancel and liquidation orders
+# Combined and adjust/update orders
 #
-
-async def cancel_sell_order():
-    """
-    Kill existing sell order. It is a blocking request, that is, it waits for the end of the operation.
-    Info: DELETE /api/v3/order - cancel order
-    """
-    symbol = App.config["trader"]["symbol"]
-
-    # Get currently active order and id (if any)
-    sell_order = App.config["trader"]["state"]["sell_order"]
-    sell_order_id = sell_order.get("orderId", 0) if sell_order else 0
-    if sell_order_id == 0:
-        # TODO: Maybe retrieve all existing (sell, limit) orders
-        return None
-
-    # ===
-    order = App.client.cancel_order(symbol=symbol, orderId=sell_order_id)
-
-    return order
 
 async def force_sell():
     """
@@ -482,7 +707,7 @@ async def force_sell():
         return None
 
     # Kill existing order
-    order = await cancel_sell_order()
+    order = await cancel_order()
     if not order or order.get("status") != ORDER_STATUS_CANCELED:
         # TODO: Log error. Will try to do the same on the next cycle.
         return False
@@ -556,7 +781,7 @@ async def check_limit_sell_order():
 
     # Kill an existing (limit sell) order. Use data from the created sell order
     # Store what it returns and whether it has important information
-    cancel_order = await cancel_sell_order()
+    cancel_order = await cancel_order()
     # INFO: Return from cancel order:
     #{
     #    'symbol': 'BTCUSDT',
@@ -579,16 +804,6 @@ async def check_limit_sell_order():
 #
 # Server and account info
 #
-
-async def update_account_state():
-
-    balance = App.client.get_asset_balance(asset=App.config["trader"]["base_asset"])
-    App.config["trader"]["state"]["base_quantity"] = Decimal(balance.get("free", "0.00000000"))
-
-    balance = App.client.get_asset_balance(asset=App.config["trader"]["quote_asset"])
-    App.config["trader"]["state"]["quote_quantity"] = Decimal(balance.get("free", "0.00000000"))
-
-    pass
 
 async def update_state_and_health_check():
     """

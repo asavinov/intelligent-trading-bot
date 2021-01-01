@@ -323,7 +323,8 @@ class Database:
         close_time = row.name+timedelta(minutes=1)  # row.close_time
 
         # Generate signal
-        model = {"buy_threshold": 0.135, "sell_threshold": -0.2}
+        model = App.config["signaler"]["model"]
+        #model = {"buy_threshold": 0.135, "sell_threshold": -0.2}
 
         signal = dict(side=None, score=score, close_price=close_price, close_time=close_time)
         if not score:

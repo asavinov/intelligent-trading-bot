@@ -29,7 +29,7 @@ logging.basicConfig(
     #datefmt = '%Y-%m-%d %H:%M:%S',
 )
 
-async def sync_signaler_task():
+async def main_signaler_task():
     """
     It is a highest level task which is added to the event loop and executed normally every 1 minute and then it calls other tasks.
     """
@@ -67,41 +67,12 @@ async def sync_signaler_task():
     App.database.analyze(symbol)
 
     # Now we have a list of signals and can make trade decisions using trading logic and trade
-    #
-
-    #
-    # 5.
-    # Notify
-    #
-    signal = App.config["signaler"]["signal"]
-    if signal.get("side") == "BUY":
-        print(f"=====>>> BUY: {signal}")
-    elif signal.get("side") == "SELL":
-        print(f"<<<===== SELL: {signal}")
-    else:
-        print(f"----- : {signal}")
-        pass
+    # Signal is stored in App.config["signaler"]["signal"]
 
     # TODO: Validation
     #last_kline_ts = App.database.get_last_kline_ts(symbol)
     #if last_kline_ts + 60_000 != startTime:
     #    log.error(f"Problem during analysis. Last kline end ts {last_kline_ts + 60_000} not equal to start of current interval {startTime}.")
-
-    # TODO: Trading logic
-    # If signal BUY:
-    #   if bought, then do nothing (already done)
-    #   if buying, then do nothing (in future, we could adjust limit price)
-    #   if sold, then create buy order and switch to buying state (another procedure will sync state)
-    #   if selling, then cancel sell order, and then create buy order and switch to buying
-    # If no signal:
-    #   If buying or selling, then either do nothing or cancel order
-    #   If bought or sold, then do nothing
-
-    # Four states: buying, bought, selling, sold
-    # Function for determining state from my account (sync_state): if there is order then selling or buying, if BTC then bought, if USDT then sold
-
-    # Scheduled function for checking existng order state (if any), and if executed (or cancele, failed etc.) then switch to corresponding state
-
 
     log.info(f"<=== End signaler task.")
 

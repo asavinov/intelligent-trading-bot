@@ -5,6 +5,25 @@ from common.utils import *
 from common.utils import add_area_ratio
 from common.signal_generation import *
 
+def test_decimal():
+	val = "4.1E-7"
+	dec = to_decimal(val)
+	assert round_down_str(dec, 8) == "0.00000041"
+
+	assert round_down_str("4.1E-7", 8) == "0.00000041"
+
+	assert round_down_str("10.000000001", 8) == "10.00000000"  # 8 zeros and then 1
+
+	val = "10.000000009"  # 8 zeros and then 9
+	assert round_str(val, 8) == "10.00000001"
+
+	assert round_down_str(val, 8) == "10.00000000"
+
+	to_sell = Decimal("0.01185454")  # What we can get from the server with 8 digits
+	assert round_down_str(to_sell, 6) == "0.011854"  # We need to round but so smaller value (otherwise exception with not enough funds)
+
+	pass
+
 def test_signal_generation():
 	data = [
 		(222, 1, 2),

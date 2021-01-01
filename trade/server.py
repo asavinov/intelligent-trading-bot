@@ -22,17 +22,24 @@ from trade.Database import *
 import signaler
 import trader
 
+import logging
+
+log = logging.getLogger('server')
+
+
 #
 # Main procedure
 #
 
-def start_signaler():
+def start_server():
+    #getcontext().prec = 8
+
     #
     # Validation
     #
     symbol = App.config["trader"]["symbol"]
 
-    log.info(f"Initializing signaler server. Trade symbol {symbol}. ")
+    print(f"Initializing signaler server. Trade symbol {symbol}. ")
 
     #
     # Connect to the server and update/initialize our system state
@@ -46,24 +53,40 @@ def start_signaler():
     # Do one time server check and state update
     try:
         App.loop.run_until_complete(signaler.data_provider_health_check())
-    except:
-        pass
+    except Exception as e:
+        print(f"Problems during health check (connectivity, server etc.) {e}")
+
     if data_provider_problems_exist():
-        log.error(f"Problems with the data provider server found.")
+        print(f"Problems during health check (connectivity, server etc.)")
         return
 
-    log.info(f"Finished updating state and health check.")
+    print(f"Finished health check (connection, server status etc.)")
 
     # Do one time data update (cold start)
     try:
         App.loop.run_until_complete(signaler.sync_data_collector_task())
-    except:
-        pass
+    except Exception as e:
+        print(f"Problems during initial data collection. {e}")
+
     if data_provider_problems_exist():
-        log.error(f"Problems with the data provider server found.")
+        print(f"Problems during initial data collection.")
         return
 
-    log.info(f"Finished updating data.")
+    print(f"Finished initial data collection.")
+
+    # Initialize trade status (account, balances, orders etc.)
+    try:
+        App.loop.run_until_complete(trader.update_trade_status())
+    except Exception as e:
+        print(f"Problems trade status sync. {e}")
+
+    if data_provider_problems_exist():
+        print(f"Problems trade status sync.")
+        return
+
+    print(f"Finished trade status sync (account, balances etc.)")
+    print(f'BTC: {str(App.config["trader"]["state"]["base_quantity"])}')
+    print(f'USD: {str(App.config["trader"]["state"]["quote_quantity"])}')
 
     #
     # Register schedulers
@@ -76,9 +99,14 @@ def start_signaler():
     #       - https://apscheduler.readthedocs.io/en/latest/modules/schedulers/asyncio.html
     #     - https://docs.python.org/3/library/sched.html
 
-    App.sched = BackgroundScheduler(daemon=False)  # Daemon flag is passed to Thread (False means the program will not exit until all Threads are finished)
-    #logging.getLogger('apscheduler.executors.default').setLevel(logging.WARNING)
+    App.sched = BackgroundScheduler(
+        daemon=False)  # Daemon flag is passed to Thread (False means the program will not exit until all Threads are finished)
+    # logging.getLogger('apscheduler.executors.default').setLevel(logging.WARNING)
     logging.getLogger('apscheduler').setLevel(logging.WARNING)
+
+    async def main_task():
+        await signaler.main_signaler_task()
+        await trader.main_trader_task()
 
     App.sched.add_job(
         # We register a normal Python function as a call back.
@@ -86,16 +114,16 @@ def start_signaler():
         # INFO: Creating/adding asyncio tasks from another thread
         # - https://docs.python.org/3/library/asyncio-task.html#scheduling-from-other-threads
         # - App.loop.call_soon_threadsafe(sync_responder)  # This works, but takes a normal funciton (not awaitable), which has to call coroutine: eventLoop.create_task(coroutine())
-        lambda: asyncio.run_coroutine_threadsafe(signaler.sync_signaler_task(), App.loop),
+        lambda: asyncio.run_coroutine_threadsafe(main_task(), App.loop),
         trigger='cron',
-        #second='*/30',
+        # second='*/30',
         minute='*',
         id='sync_signaler_task'
     )
 
     App.sched.start()  # Start scheduler (essentially, start the thread)
 
-    log.info(f"Scheduler started.")
+    print(f"Scheduler started.")
 
     #
     # Start event loop
@@ -103,100 +131,19 @@ def start_signaler():
     try:
         App.loop.run_forever()  # Blocking. Run until stop() is called
     except KeyboardInterrupt:
-        log.info(f"KeyboardInterrupt.")
+        print(f"KeyboardInterrupt.")
         pass
     finally:
         App.loop.close()
-        log.info(f"Event loop closed.")
+        print(f"Event loop closed.")
         App.sched.shutdown()
-        log.info(f"Scheduler shutdown.")
+        print(f"Scheduler shutdown.")
 
     return 0
 
-#
-# Main procedure
-#
-
-def start_trader():
-    #
-    # Validation
-    #
-    symbol = App.config["trader"]["symbol"]
-
-    log.info(f"Initializing trade server. Trade symbol {symbol}. ")
-
-    #
-    # Connect to the server and update/initialize our system state
-    #
-    App.client = Client(api_key=App.config["api_key"], api_secret=App.config["api_secret"])
-
-    App.database = Database(None)
-
-    App.loop = asyncio.get_event_loop()
-
-    # Do one time server check and state update
-    try:
-        App.loop.run_until_complete(trader.update_state_and_health_check())
-    except:
-        pass
-    if problems_exist():
-        log.error(f"Problems found. Check server, symbol, account or system state.")
-        return
-
-    log.info(f"Finished updating state and health check.")
-
-    log.info(f"Finished updating data.")
-
-    #
-    # Register schedulers
-    #
-
-    # INFO: Scheduling:
-    #     - https://medium.com/greedygame-engineering/an-elegant-way-to-run-periodic-tasks-in-python-61b7c477b679
-    #     - https://schedule.readthedocs.io/en/stable/ https://github.com/dbader/schedule - 6.6k
-    #     - https://github.com/agronholm/apscheduler/blob/master/docs/index.rst - 2.1k
-    #       - https://apscheduler.readthedocs.io/en/latest/modules/schedulers/asyncio.html
-    #     - https://docs.python.org/3/library/sched.html
-
-    App.sched = BackgroundScheduler(daemon=False)  # Daemon flag is passed to Thread (False means the program will not exit until all Threads are finished)
-    #logging.getLogger('apscheduler.executors.default').setLevel(logging.WARNING)
-    logging.getLogger('apscheduler').setLevel(logging.WARNING)
-
-    App.sched.add_job(
-        # We register a normal Python function as a call back.
-        # The only role of this function is to add an asyncio task to the event loop
-        # INFO: Creating/adding asyncio tasks from another thread
-        # - https://docs.python.org/3/library/asyncio-task.html#scheduling-from-other-threads
-        # - App.loop.call_soon_threadsafe(sync_responder)  # This works, but takes a normal funciton (not awaitable), which has to call coroutine: eventLoop.create_task(coroutine())
-        lambda: asyncio.run_coroutine_threadsafe(trader.sync_trader_task(), App.loop),
-        trigger='cron',
-        #second='*/30',
-        minute='*',
-        id='sync_trader_task'
-    )
-
-    App.sched.start()  # Start scheduler (essentially, start the thread)
-
-    log.info(f"Scheduler started.")
-
-    #
-    # Start event loop
-    #
-    try:
-        App.loop.run_forever()  # Blocking. Run until stop() is called
-    except KeyboardInterrupt:
-        log.info(f"KeyboardInterrupt.")
-        pass
-    finally:
-        App.loop.close()
-        log.info(f"Event loop closed.")
-        App.sched.shutdown()
-        log.info(f"Scheduler shutdown.")
-
-    return 0
 
 if __name__ == "__main__":
-    start_signaler()
+    start_server()
     os.exit()
 
     # Short version of start_trader (main procedure) for testing/debug purposes
@@ -213,7 +160,7 @@ if __name__ == "__main__":
 
         App.database.analyze("BTCUSDT")
 
-        #App.loop.run_until_complete(sync_signaler_task())
+        # App.loop.run_until_complete(sync_signaler_task())
 
     except BinanceAPIException as be:
         # IP is not registred in binance
@@ -227,6 +174,6 @@ if __name__ == "__main__":
     finally:
         log.info(f"Finished.")
         App.loop.close()
-        #App.sched.shutdown()
+        # App.sched.shutdown()
 
     pass
