@@ -33,7 +33,7 @@ The output predicted labels will cover shorter period of time because we need so
 class P:
     # Each one is a separate procedure with its algorithm and (expected) input features
     # Leave only what we want to generate (say, only klines for debug purposes)
-    feature_sets = ["kline", "futur"]
+    feature_sets = ["kline", ]  # "futur"
 
     # These source columns will be added to the output file
     in_features_kline = [
@@ -61,10 +61,10 @@ class P:
     out_file_name = r"BTCUSDT-1m-features-rolling.csv"
 
     # First row for starting predictions: "2020-02-01 00:00:00" - minimum start for futures
-    prediction_start_str = "2020-02-01 00:00:00"
+    prediction_start_str = "2019-08-01 00:00:00"
     # How frequently re-train models: 1 day: 1_440 = 60 * 24, one week: 10_080
     prediction_length = 4*7*1440
-    prediction_count = 1  # How many prediction steps. If None or 0, then from prediction start till the data end
+    prediction_count = 18  # How many prediction steps. If None or 0, then from prediction start till the data end
 
 
 #
@@ -133,7 +133,13 @@ def main(args=None):
         in_df[label] = in_df[label].astype(int)  # "category" NN does not work without this
 
     # Select necessary features and label
-    in_df = in_df[P.in_features_kline + P.features_kline + P.features_futur + P.labels]
+    all_features = P.in_features_kline.copy()
+    if "kline" in P.feature_sets:
+        all_features += P.features_kline
+    if "futur" in P.feature_sets:
+        all_features += P.features_futur
+    all_features += P.labels
+    in_df = in_df[all_features]
 
     # Spot and futures have different available histories. If we drop nans in all of them, then we get a very short data frame (corresponding to futureus which have little data)
     # So we do not drop data here but rather when we select necessary input features
@@ -163,7 +169,7 @@ def main(args=None):
 
     for step in range(steps):
 
-        print(f"Start step {step}/{steps}")
+        print(f"\n===>>> Start step {step}/{steps}")
 
         # Predict data
 
@@ -341,7 +347,7 @@ def main(args=None):
 
         score = compute_scores(y_true, y_predicted)
 
-        score_lines.append(f"{score_column_name}, {score.auc:.3f}, {score.ap:.3f}, {score.f1:.3f}, {score.precision:.3f}, {score.recall:.3f}")
+        score_lines.append(f"{score_column_name}, {score.get('auc'):.3f}, {score.get('ap'):.3f}, {score.get('f1'):.3f}, {score.get('precision'):.3f}, {score.get('recall'):.3f}")
 
     #
     # Store hyper-parameters and scores

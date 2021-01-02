@@ -18,9 +18,7 @@ from common.utils import *
 from common.classifiers import *
 
 """
-Find good hyper-parameters of gradient boosting.
-
-Try to train also using multiple classes (with all thresholds).
+Find good hyper-parameters of algorithms applied to generated featues.
 """
 
 data_path = r"C:\DATA2\BITCOIN\GENERATED"
@@ -39,16 +37,16 @@ labels_horizon = 180  # Labels are generated using this number of steps ahead (m
 
 nrows = 10_000_000  # For debug
 # Columns
-train_features = features_futur  # features_futur features_kline
+train_features = features_kline  # features_futur features_kline
 predict_label = "high_15"
 # Rows
-prediction_start_str = "2020-02-01 00:00:00"  # Use it when rolling prediction will work
+prediction_start_str = "2020-09-01 00:00:00"  # Use it when rolling prediction will work (2020-02-01 00:00:00 - for futur)
 #prediction_start_str = "2020-06-01 00:00:00"
-train_length = int(4 * 43_800)  # 1.5 * 525_600 for long/spot, 4 * 43_800 for short/futur
+train_length = int(1.5 * 525_600)  # 1.5 * 525_600 for long/spot, 4 * 43_800 for short/futur
 stride = 4*7*1440  # Length of one rolling prediction step: mid: 1 month 43_800=4*7*1440, long: 1,5 months 6*7*1440
 steps = 2  # How many rolling prediction steps. ~40 weeks in [1.2-1.11]
 
-algorithm = "lc"  # gb nn lc
+algorithm = "nn"  # gb nn lc
 
 #
 # Parameters for algorithms
@@ -93,7 +91,7 @@ def params_to_line_gb(params):
 #low_20, cross_entropy, 1, 0.01, 1500, 1.0, 1.0, 0.734, 0.011, 0.506, 0.006
 
 params_grid_nn = {  # First parameter is the slowest
-    "layers": [[33]],  # Number of layers depends on no of features: 33 future, 46 for spot
+    "layers": [[33]],  # Number of layers depends on the number of input features
     "learning_rate": [0.001],
     "n_epochs": [20],
     "bs": [64],

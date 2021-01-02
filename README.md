@@ -88,7 +88,7 @@ Notes:
 
 #### 5. (Grid) search for best parameters of and/or best prediction models
 
-The goal is to find best prediction models and their best parameters using hyper-parameter optimization. The results of this step are certain model (like nn, gradient boosting etc.) and, importantly, its best hyper-parameters.
+The goal is to find the best prediction models, and their best parameters using hyper-parameter optimization. The results of this step are certain model (like nn, gradient boosting etc.) and, importantly, its best hyper-parameters.
 
 Notes:
 * The results are consumed by the rolling prediction step

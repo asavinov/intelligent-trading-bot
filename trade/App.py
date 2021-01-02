@@ -69,7 +69,8 @@ class App:
             'tb_base_1','tb_base_5','tb_base_15','tb_base_60','tb_base_180','tb_base_720',
             'tb_quote_1','tb_quote_5','tb_quote_15','tb_quote_60','tb_quote_180','tb_quote_720',
             'close_area_60', 'close_area_120', 'close_area_180', 'close_area_300', 'close_area_720',
-        ],  # 46 features
+            'close_trend_5', 'close_trend_15', 'close_trend_60', 'close_trend_180', 'close_trend_720',
+        ],  # 51 features
 
         "features_futur": [  # Feature columns implemented (hard-coded) by feature generation function
             "f_close_1", "f_close_2", "f_close_5", "f_close_20", "f_close_60", "f_close_180",
@@ -78,7 +79,8 @@ class App:
             "f_span_1", "f_span_2", "f_span_5", "f_span_20", "f_span_60", "f_span_180",
             "f_trades_1", "f_trades_2", "f_trades_5", "f_trades_20", "f_trades_60", "f_trades_180",
             'f_close_area_20', 'f_close_area_60', 'f_close_area_120', 'f_close_area_180',
-        ],  # 33 features
+            'close_trend_2', 'close_trend_5', 'close_trend_20', 'close_trend_60', 'close_trend_180',
+        ],  # 38 features
 
         "features_depth": [
             "gap_2","gap_5","gap_10",

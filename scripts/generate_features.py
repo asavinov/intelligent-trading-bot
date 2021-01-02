@@ -23,11 +23,11 @@ It will generate all labels as defined in the procedure (so that only the necess
 # Parameters
 #
 class P:
-    feature_sets = ["kline", "futur"]
+    feature_sets = ["kline", ]  # "futur"
 
     in_path_name = r"C:\DATA2\BITCOIN\GENERATED"
     in_file_name = r"BTCUSDT-1m.csv"
-    in_nrows = 10_000_000
+    in_nrows = 100_000_000
 
     out_path_name = r"_TEMP_FEATURES"
     out_file_name = r"BTCUSDT-1m-features"

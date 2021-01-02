@@ -681,8 +681,14 @@ def add_linear_trends(df, is_future: bool, column_name: str, windows: Union[int,
         The sequence of values in X must correspond to increasing time in order for the trend to make sense.
         """
         X_array = np.asarray(range(len(X)))
-        X_array = X_array.reshape(-1, 1)
         y_array = X
+        if np.isnan(y_array).any():
+            nans = ~np.isnan(y_array)
+            X_array = X_array[nans]
+            y_array = y_array[nans]
+
+        X_array = X_array.reshape(-1, 1)  # Make matrix
+
         model = linear_model.LinearRegression()
         model.fit(X_array, y_array)
         return model.coef_[0]
@@ -691,7 +697,7 @@ def add_linear_trends(df, is_future: bool, column_name: str, windows: Union[int,
     for w in windows:
         feature_name = column_name + suffix + '_' + str(w)
 
-        ro = column.rolling(window=w, min_periods=max(1, w // 10))
+        ro = column.rolling(window=w, min_periods=max(1, w // 5))
 
         feature = ro.apply(linear_trend_fn, raw=True)
 
