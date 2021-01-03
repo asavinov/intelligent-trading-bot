@@ -5,6 +5,7 @@ from datetime import datetime, timezone, timedelta
 from typing import Union
 import json
 import pickle
+from concurrent.futures import ProcessPoolExecutor
 
 import numpy as np
 import pandas as pd
@@ -63,9 +64,11 @@ class P:
     # First row for starting predictions: "2020-02-01 00:00:00" - minimum start for futures
     prediction_start_str = "2019-08-01 00:00:00"
     # How frequently re-train models: 1 day: 1_440 = 60 * 24, one week: 10_080
-    prediction_length = 4*7*1440
-    prediction_count = 18  # How many prediction steps. If None or 0, then from prediction start till the data end
+    prediction_length = 1*7*1440
+    prediction_count = 74  # How many prediction steps. If None or 0, then from prediction start till the data end
 
+    use_multiprocessing = True
+    max_workers = 8  # None means number of processors
 
 #
 # (Best) algorithm parameters (found by and copied from grid search scripts)
@@ -217,23 +220,43 @@ def main(args=None):
                 df_y = train_df[label]
                 df_y_test = predict_df[label]
 
-                # --- GB
-                score_column_name = label + name_tag + "gb"
-                print(f"Train-predict '{score_column_name}'... ")
-                y_hat = train_predict_gb(df_X, df_y, df_X_test, params=params_gb)
-                predict_labels_df[score_column_name] = y_hat
+                if P.use_multiprocessing:
+                    # Submit train-predict algorithms to the pool
+                    execution_results = dict()
+                    with ProcessPoolExecutor(max_workers=P.max_workers) as executor:
+                        # --- GB
+                        score_column_name = label + name_tag + "gb"
+                        execution_results[score_column_name] = executor.submit(train_predict_gb, df_X, df_y, df_X_test, params_gb)
 
-                # --- NN
-                score_column_name = label + name_tag + "nn"
-                print(f"Train-predict '{score_column_name}'... ")
-                y_hat = train_predict_nn(df_X, df_y, df_X_test, params=params_nn)
-                predict_labels_df[score_column_name] = y_hat
+                        # --- NN
+                        score_column_name = label + name_tag + "nn"
+                        execution_results[score_column_name] = executor.submit(train_predict_nn, df_X, df_y, df_X_test, params_nn)
 
-                # --- LC
-                score_column_name = label + name_tag + "lc"
-                print(f"Train-predict '{score_column_name}'... ")
-                y_hat = train_predict_lc(df_X, df_y, df_X_test, params=params_lc)
-                predict_labels_df[score_column_name] = y_hat
+                        # --- LC
+                        score_column_name = label + name_tag + "lc"
+                        execution_results[score_column_name] = executor.submit(train_predict_lc, df_X, df_y, df_X_test, params_lc)
+
+                    # Process the results as the tasks are finished
+                    for score_column_name, future in execution_results.items():
+                        predict_labels_df[score_column_name] = future.result()
+                        if future.exception():
+                            print(f"Exception while train-predict {score_column_name}.")
+                            return
+                else:  # No multiprocessing - sequential execution
+                    # --- GB
+                    y_hat = train_predict_gb(df_X, df_y, df_X_test, params=params_gb)
+                    score_column_name = label + name_tag + "gb"
+                    predict_labels_df[score_column_name] = y_hat
+
+                    # --- NN
+                    y_hat = train_predict_nn(df_X, df_y, df_X_test, params=params_nn)
+                    score_column_name = label + name_tag + "nn"
+                    predict_labels_df[score_column_name] = y_hat
+
+                    # --- LC
+                    y_hat = train_predict_lc(df_X, df_y, df_X_test, params=params_lc)
+                    score_column_name = label + name_tag + "lc"
+                    predict_labels_df[score_column_name] = y_hat
 
         # ===
         # futur feature set
@@ -270,23 +293,43 @@ def main(args=None):
                 df_y = train_df[label]
                 df_y_test = predict_df[label]
 
-                # --- GB
-                score_column_name = label + name_tag + "gb"
-                print(f"Train-predict '{score_column_name}'... ")
-                y_hat = train_predict_gb(df_X, df_y, df_X_test, params=params_gb)
-                predict_labels_df[score_column_name] = y_hat
+                if P.use_multiprocessing:
+                    # Submit train-predict algorithms to the pool
+                    execution_results = dict()
+                    with ProcessPoolExecutor(max_workers=P.max_workers) as executor:
+                        # --- GB
+                        score_column_name = label + name_tag + "gb"
+                        execution_results[score_column_name] = executor.submit(train_predict_gb, df_X, df_y, df_X_test, params_gb)
 
-                # --- NN
-                score_column_name = label + name_tag + "nn"
-                print(f"Train-predict '{score_column_name}'... ")
-                y_hat = train_predict_nn(df_X, df_y, df_X_test, params=params_nn)
-                predict_labels_df[score_column_name] = y_hat
+                        # --- NN
+                        score_column_name = label + name_tag + "nn"
+                        execution_results[score_column_name] = executor.submit(train_predict_nn, df_X, df_y, df_X_test, params_nn)
 
-                # --- LC
-                score_column_name = label + name_tag + "lc"
-                print(f"Train-predict '{score_column_name}'... ")
-                y_hat = train_predict_lc(df_X, df_y, df_X_test, params=params_lc)
-                predict_labels_df[score_column_name] = y_hat
+                        # --- LC
+                        score_column_name = label + name_tag + "lc"
+                        execution_results[score_column_name] = executor.submit(train_predict_lc, df_X, df_y, df_X_test, params_lc)
+
+                    # Process the results as the tasks are finished
+                    for score_column_name, future in execution_results.items():
+                        predict_labels_df[score_column_name] = future.result()
+                        if future.exception():
+                            print(f"Exception while train-predict {score_column_name}.")
+                            return
+                else:  # No multiprocessing - sequential execution
+                    # --- GB
+                    y_hat = train_predict_gb(df_X, df_y, df_X_test, params=params_gb)
+                    score_column_name = label + name_tag + "gb"
+                    predict_labels_df[score_column_name] = y_hat
+
+                    # --- NN
+                    y_hat = train_predict_nn(df_X, df_y, df_X_test, params=params_nn)
+                    score_column_name = label + name_tag + "nn"
+                    predict_labels_df[score_column_name] = y_hat
+
+                    # --- LC
+                    y_hat = train_predict_lc(df_X, df_y, df_X_test, params=params_lc)
+                    score_column_name = label + name_tag + "lc"
+                    predict_labels_df[score_column_name] = y_hat
 
         #
         # Append predicted *rows* to the end of previous predicted rows
