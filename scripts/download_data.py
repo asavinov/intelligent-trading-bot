@@ -49,9 +49,9 @@ def get_klines_all(symbol, freq, save=False):
     # ---
     # Uncomment 3 lines to get futures:
     # ---
-    App.client.API_URL = "https://fapi.binance.com/fapi"
-    App.client.PRIVATE_API_VERSION = "v1"
-    App.client.PUBLIC_API_VERSION = "v1"
+    #App.client.API_URL = "https://fapi.binance.com/fapi"
+    #App.client.PRIVATE_API_VERSION = "v1"
+    #App.client.PUBLIC_API_VERSION = "v1"
     # ---
 
     filename = f"{symbol}-{freq}-klines.csv"

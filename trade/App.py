@@ -119,8 +119,10 @@ class App:
                 "features_horizon": 800,  # History needed to compute derived features
             },
             "model": {
-                "buy_threshold": 0.135,  # Optimal: 0.135
-                "sell_threshold": -0.2,  # Optimal: -0.2
+                # Model 1 (without trends): [0.135, -0.2]
+                # Model 2 (with trends): [0.06, -0.13]
+                "buy_threshold": 0.06,
+                "sell_threshold": -0.13,
             },
             "signal": None,
         },

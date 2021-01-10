@@ -90,15 +90,15 @@ score as difference (high_k-low_k):
 
 grid_signals = [
     {
-        "entry_threshold": [
-            0.00, 0.01, 0.02, 0.03, 0.04, 0.05, 0.06, 0.07, 0.08, 0.09,
-            0.10, 0.11, 0.12, 0.13, 0.14, 0.15, 0.16, 0.17, 0.18, 0.19, 0.20,
-            #0.12, 0.125, 0.13, 0.135, 0.14, 0.145, 0.15, 0.155, 0.16, 0.165, 0.17,
+        "buy_threshold": [
+            #0.00, 0.01, 0.02, 0.03, 0.04, 0.05, 0.06, 0.07, 0.08, 0.09,
+            #0.10, 0.11, 0.12, 0.13, 0.14, 0.15, 0.16, 0.17, 0.18, 0.19, 0.20,
+            0.05, 0.055, 0.06, 0.065, 0.07, 0.075, 0.08, 0.085, 0.09, 0.095, 0.10, 0.105, 0.11, 0.115, 0.12, 0.125, 0.13, 0.135, 0.14, 0.145, 0.15, 0.155, 0.16, 0.165, 0.17, 0.175, 0.18, 0.185, 0.19, 0.195, 0.20, 0.205, 0.21, 0.215, 0.22,
         ],  # Buy BTC when higher than this value
-        "exit_threshold": [
-            -0.00, -0.01, -0.02, -0.03, -0.04, -0.05, -0.06, -0.07, -0.08, -0.09,
-            -0.10, -0.11, -0.12, -0.13, -0.14, -0.15, -0.16, -0.17, -0.18, -0.19, -0.20,
-            #-0.14, -0.145, -0.15, -0.155, -0.16, -0.165, -0.17, -0.175, -0.18, -0.185, -0.19, -0.195, -0.20,
+        "sell_threshold": [
+            #-0.00, -0.01, -0.02, -0.03, -0.04, -0.05, -0.06, -0.07, -0.08, -0.09,
+            #-0.10, -0.11, -0.12, -0.13, -0.14, -0.15, -0.16, -0.17, -0.18, -0.19, -0.20,
+            -0.05, -0.055, -0.06, -0.065, -0.07, -0.075, -0.08, -0.085, -0.09, -0.095, -0.10, -0.105, -0.11, -0.115, -0.12, -0.125, -0.13, -0.135, -0.14, -0.145, -0.15, -0.155, -0.16, -0.165, -0.17, -0.175, -0.18, -0.185, -0.19, -0.195, -0.20, -0.205, -0.21, -0.215, -0.22,
         ],  # Sell BTC when lower than this value
 
         "transaction_fee": [0.005],  # Portion of total transaction amount
@@ -113,6 +113,8 @@ grid_signals = [
 # Parameters
 #
 class P:
+    feature_sets = ["kline", ]  # "futur"
+
     in_path_name = r"C:\DATA2\BITCOIN\GENERATED"
     #in_file_name = r"_BTCUSDT-1m-rolling-predictions-no-weights.csv"
     #in_file_name = r"_BTCUSDT-1m-rolling-predictions-with-weights.csv"
@@ -122,8 +124,8 @@ class P:
     out_path_name = r"_TEMP_FEATURES"
     out_file_name = r"_BTCUSDT-1m-signals"
 
-    simulation_start = 10  # 10 Default 0, 129_600 (1.5.)
-    simulation_end = -10  # -10, -43_199 (1.10.) Default till end of input data. Negative value is shift from the end
+    simulation_start = 0  # Good start is 2019-06-01 - after it we have stable movement
+    simulation_end = -86399  # After 86399=2020-11-01 there sharp grow which we want to exclude
 
 def main(args=None):
 
@@ -149,40 +151,43 @@ def main(args=None):
     #
     # Compute final score (as average over different predictions)
     #
-    # high kline: 3 algorithms for all 3 levels
-    in_df["high_k"] = \
-        in_df["high_10_k_gb"] + in_df["high_10_k_nn"] + in_df["high_10_k_lc"] + \
-        in_df["high_15_k_gb"] + in_df["high_15_k_nn"] + in_df["high_15_k_lc"] + \
-        in_df["high_20_k_gb"] + in_df["high_20_k_nn"] + in_df["high_20_k_lc"]
-    in_df["high_k"] /= 9
+    if "kline" in P.feature_sets:
+        # high kline: 3 algorithms for all 3 levels
+        in_df["high_k"] = \
+            in_df["high_10_k_gb"] + in_df["high_10_k_nn"] + in_df["high_10_k_lc"] + \
+            in_df["high_15_k_gb"] + in_df["high_15_k_nn"] + in_df["high_15_k_lc"] + \
+            in_df["high_20_k_gb"] + in_df["high_20_k_nn"] + in_df["high_20_k_lc"]
+        in_df["high_k"] /= 9
 
-    # low kline: 3 algorithms for all 3 levels
-    in_df["low_k"] = \
-        in_df["low_10_k_gb"] + in_df["low_10_k_nn"] + in_df["low_10_k_lc"] + \
-        in_df["low_15_k_gb"] + in_df["low_15_k_nn"] + in_df["low_15_k_lc"] + \
-        in_df["low_20_k_gb"] + in_df["low_20_k_nn"] + in_df["low_20_k_lc"]
-    in_df["low_k"] /= 9
+        # low kline: 3 algorithms for all 3 levels
+        in_df["low_k"] = \
+            in_df["low_10_k_gb"] + in_df["low_10_k_nn"] + in_df["low_10_k_lc"] + \
+            in_df["low_15_k_gb"] + in_df["low_15_k_nn"] + in_df["low_15_k_lc"] + \
+            in_df["low_20_k_gb"] + in_df["low_20_k_nn"] + in_df["low_20_k_lc"]
+        in_df["low_k"] /= 9
 
-    # high futur: 3 algorithms for all 3 levels
-    in_df["high_f"] = \
-        in_df["high_10_f_gb"] + in_df["high_10_f_nn"] + in_df["high_10_f_lc"] + \
-        in_df["high_15_f_gb"] + in_df["high_15_f_nn"] + in_df["high_15_f_lc"] + \
-        in_df["high_20_f_gb"] + in_df["high_20_f_nn"] + in_df["high_20_f_lc"]
-    in_df["high_f"] /= 9
+        # By algorithm
+        in_df["high_k_gb"] = (in_df["high_10_k_gb"] + in_df["high_15_k_gb"] + in_df["high_20_k_gb"]) / 3
+        in_df["low_k_gb"] = (in_df["low_10_k_gb"] + in_df["low_15_k_gb"] + in_df["low_20_k_gb"]) / 3
 
-    # low kline: 3 algorithms for all 3 levels
-    in_df["low_f"] = \
-        in_df["low_10_f_gb"] + in_df["low_10_f_nn"] + in_df["low_10_f_lc"] + \
-        in_df["low_15_f_gb"] + in_df["low_15_f_nn"] + in_df["low_15_f_lc"] + \
-        in_df["low_20_f_gb"] + in_df["low_20_f_nn"] + in_df["low_20_f_lc"]
-    in_df["low_f"] /= 9
+    if "futur" in P.feature_sets:
+        # high futur: 3 algorithms for all 3 levels
+        in_df["high_f"] = \
+            in_df["high_10_f_gb"] + in_df["high_10_f_nn"] + in_df["high_10_f_lc"] + \
+            in_df["high_15_f_gb"] + in_df["high_15_f_nn"] + in_df["high_15_f_lc"] + \
+            in_df["high_20_f_gb"] + in_df["high_20_f_nn"] + in_df["high_20_f_lc"]
+        in_df["high_f"] /= 9
 
-    # By algorithm
-    in_df["high_k_gb"] = (in_df["high_10_k_gb"] + in_df["high_15_k_gb"] + in_df["high_20_k_gb"]) / 3
-    in_df["high_f_gb"] = (in_df["high_10_f_gb"] + in_df["high_15_f_gb"] + in_df["high_20_f_gb"]) / 3
+        # low kline: 3 algorithms for all 3 levels
+        in_df["low_f"] = \
+            in_df["low_10_f_gb"] + in_df["low_10_f_nn"] + in_df["low_10_f_lc"] + \
+            in_df["low_15_f_gb"] + in_df["low_15_f_nn"] + in_df["low_15_f_lc"] + \
+            in_df["low_20_f_gb"] + in_df["low_20_f_nn"] + in_df["low_20_f_lc"]
+        in_df["low_f"] /= 9
 
-    in_df["low_k_gb"] = (in_df["low_10_k_gb"] + in_df["low_15_k_gb"] + in_df["low_20_k_gb"]) / 3
-    in_df["low_f_gb"] = (in_df["low_10_f_gb"] + in_df["low_15_f_gb"] + in_df["low_20_f_gb"]) / 3
+        # By algorithm
+        in_df["high_f_gb"] = (in_df["high_10_f_gb"] + in_df["high_15_f_gb"] + in_df["high_20_f_gb"]) / 3
+        in_df["low_f_gb"] = (in_df["low_10_f_gb"] + in_df["low_15_f_gb"] + in_df["low_20_f_gb"]) / 3
 
     # High and low
     # Both k and f
@@ -295,8 +300,8 @@ def simulate_trade(df, model: dict):
     #
     # Model parameters
     #
-    entry_threshold = float(model.get("entry_threshold"))
-    exit_threshold = float(model.get("exit_threshold"))
+    buy_threshold = float(model.get("buy_threshold"))
+    sell_threshold = float(model.get("sell_threshold"))
     transaction_fee = float(model.get("transaction_fee"))
     transaction_price_adjustment = float(model.get("transaction_price_adjustment"))
 
@@ -343,7 +348,7 @@ def simulate_trade(df, model: dict):
         previous_price = previous_transaction["price"] if previous_transaction else None
         profit = (close_price - previous_price) if previous_price else None
 
-        if score > entry_threshold:
+        if score > buy_threshold:
             buy_signal_count += 1
 
             if is_buy_mode:  # Buy mode. Enter market by buying BTC
@@ -356,7 +361,7 @@ def simulate_trade(df, model: dict):
                 transactions.append(transaction)
                 is_buy_mode = False
 
-        elif score < exit_threshold:
+        elif score < sell_threshold:
             sell_signal_count += 1
 
             if not is_buy_mode:  # Sell mode. Exit market by selling BTC

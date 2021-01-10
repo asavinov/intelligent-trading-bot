@@ -147,11 +147,19 @@ async def main_trader_task():
     if status == "SOLD" and signal_side == "BUY":
         # -----
         await new_limit_order(side=SIDE_BUY)
-        App.config["trader"]["state"]["status"] = "BUYING"
+
+        if App.config["trader"]["parameters"]["no_trades_only_data_processing"]:
+            pass  # Never change status if orders not executed
+        else:
+            App.config["trader"]["state"]["status"] = "BUYING"
     elif status == "BOUGHT" and signal_side == "SELL":
         # -----
         await new_limit_order(side=SIDE_SELL)
-        App.config["trader"]["state"]["status"] = "SELLING"
+
+        if App.config["trader"]["parameters"]["no_trades_only_data_processing"]:
+            pass  # Never change status if orders not executed
+        else:
+            App.config["trader"]["state"]["status"] = "SELLING"
 
     log.info(f"<=== End trade task.")
 
@@ -360,7 +368,10 @@ async def new_limit_order(side):
         price=price_str,
     )
 
-    order = execute_order(order_spec)
+    if App.config["trader"]["parameters"]["no_trades_only_data_processing"]:
+        print(f"NOT executed order spec: {order_spec}")
+    else:
+        order = execute_order(order_spec)
 
     #
     # Store/log order object in our records (only after confirmation of success)

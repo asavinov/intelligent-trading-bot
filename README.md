@@ -99,10 +99,12 @@ Notes:
 
 #### 6. Train prediction models
 
-Here we regularly train prediciton models to be used in the production service as parameters of the corresponding predicted feature generation procedures.
+Here we regularly train prediction models to be used in the production service as parameters of the corresponding predicted feature generation procedures.
 
 Notes:
 * There can be many predicted features and models, for example, for spot and future markets or based on different prediction algorithms or historic horizons
+* The procedure will consume feature matrix and hence the following files should be updated: source data, merge files, generate features (no need to generate rolling features).
+* The generated models have to be copied to the folder where they are found by the signal/trade server
 
 Script: train_predict_models.py 
 

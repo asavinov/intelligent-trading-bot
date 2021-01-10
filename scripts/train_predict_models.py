@@ -34,7 +34,7 @@ Parameters:
 # Parameters
 #
 class P:
-    feature_sets = ["kline", "futur"]
+    feature_sets = ["kline"]  # futur
 
     labels = App.config["labels"]
     features_kline = App.config["features_kline"]
@@ -119,7 +119,13 @@ def main(args=None):
         in_df[label] = in_df[label].astype(int)  # "category" NN does not work without this
 
     # Select necessary features and label
-    in_df = in_df[P.features_kline + P.features_futur + P.labels]
+    all_features = []
+    if "kline" in P.feature_sets:
+        all_features += P.features_kline
+    if "futur" in P.feature_sets:
+        all_features += P.features_futur
+    all_features += P.labels
+    in_df = in_df[all_features]
 
     # Spot and futures have different available histories. If we drop nans in all of them, then we get a very short data frame (corresponding to futureus which have little data)
     # So we do not drop data here but rather when we select necessary input features
@@ -155,25 +161,25 @@ def main(args=None):
             # --- GB
             score_column_name = label + name_tag + "gb"
             print(f"Train '{score_column_name}'... ")
-            model_scaler = train_gb(df_X, df_y, params=params_gb)
-            models[score_column_name] = model_scaler
-            df_y_hat = predict_gb(model_scaler, df_X)
+            model_pair = train_gb(df_X, df_y, params=params_gb)
+            models[score_column_name] = model_pair
+            df_y_hat = predict_gb(model_pair, df_X)
             scores[score_column_name] = compute_scores(df_y, df_y_hat)
 
             # --- NN
             score_column_name = label + name_tag + "nn"
             print(f"Train '{score_column_name}'... ")
-            model_scaler = train_nn(df_X, df_y, params=params_nn)
-            models[score_column_name] = model_scaler
-            df_y_hat = predict_nn(model_scaler, df_X)
+            model_pair = train_nn(df_X, df_y, params=params_nn)
+            models[score_column_name] = model_pair
+            df_y_hat = predict_nn(model_pair, df_X)
             scores[score_column_name] = compute_scores(df_y, df_y_hat)
 
             # --- LC
             score_column_name = label + name_tag + "lc"
             print(f"Train '{score_column_name}'... ")
-            model_scaler = train_lc(df_X, df_y, params=params_lc)
-            models[score_column_name] = model_scaler
-            df_y_hat = predict_lc(model_scaler, df_X)
+            model_pair = train_lc(df_X, df_y, params=params_lc)
+            models[score_column_name] = model_pair
+            df_y_hat = predict_lc(model_pair, df_X)
             scores[score_column_name] = compute_scores(df_y, df_y_hat)
 
     # ===
@@ -197,57 +203,57 @@ def main(args=None):
             # --- GB
             score_column_name = label + name_tag + "gb"
             print(f"Train '{score_column_name}'... ")
-            model_scaler = train_gb(df_X, df_y, params=params_gb)
-            models[score_column_name] = model_scaler
-            df_y_hat = predict_gb(model_scaler, df_X)
+            model_pair = train_gb(df_X, df_y, params=params_gb)
+            models[score_column_name] = model_pair
+            df_y_hat = predict_gb(model_pair, df_X)
             scores[score_column_name] = compute_scores(df_y, df_y_hat)
 
             # --- NN
             score_column_name = label + name_tag + "nn"
             print(f"Train '{score_column_name}'... ")
-            model_scaler = train_nn(df_X, df_y, params=params_nn)
-            models[score_column_name] = model_scaler
-            df_y_hat = predict_nn(model_scaler, df_X)
+            model_pair = train_nn(df_X, df_y, params=params_nn)
+            models[score_column_name] = model_pair
+            df_y_hat = predict_nn(model_pair, df_X)
             scores[score_column_name] = compute_scores(df_y, df_y_hat)
 
             # --- LC
             score_column_name = label + name_tag + "lc"
             print(f"Train '{score_column_name}'... ")
-            model_scaler = train_lc(df_X, df_y, params=params_lc)
-            models[score_column_name] = model_scaler
-            df_y_hat = predict_lc(model_scaler, df_X)
+            model_pair = train_lc(df_X, df_y, params=params_lc)
+            models[score_column_name] = model_pair
+            df_y_hat = predict_lc(model_pair, df_X)
             scores[score_column_name] = compute_scores(df_y, df_y_hat)
 
-        #
-        # Store all models in files
-        #
-        for score_column_name, model_pair in models.items():
-            save_model_pair(out_path, score_column_name, model_pair)
+    #
+    # Store all collected models in files
+    #
+    for score_column_name, model_pair in models.items():
+        save_model_pair(out_path, score_column_name, model_pair)
 
-        print(f"Models stored in path: {out_path.absolute()}")
+    print(f"Models stored in path: {out_path.absolute()}")
 
-        #
-        # Store scores
-        #
-        lines = list()
-        for score_column_name, score in scores.items():
-            line = score_column_name + ", " + str(score)
-            lines.append(line)
+    #
+    # Store scores
+    #
+    lines = list()
+    for score_column_name, score in scores.items():
+        line = score_column_name + ", " + str(score)
+        lines.append(line)
 
-        metrics_file_name = out_path.joinpath("metrics").with_suffix(".txt")
-        with open(metrics_file_name, 'a+') as f:
-            f.write("\n".join(lines) + "\n")
+    metrics_file_name = out_path.joinpath("metrics").with_suffix(".txt")
+    with open(metrics_file_name, 'a+') as f:
+        f.write("\n".join(lines) + "\n")
 
-        print(f"Metrics stored in path: {metrics_file_name.absolute()}")
+    print(f"Metrics stored in path: {metrics_file_name.absolute()}")
 
-        #
-        # Store accuracies
-        #
+    #
+    # Store accuracies
+    #
 
-        #
-        # End
-        #
-        elapsed = datetime.now() - start_dt
+    #
+    # End
+    #
+    elapsed = datetime.now() - start_dt
 
     print(f"Finished in {int(elapsed.total_seconds())} seconds.")
 
