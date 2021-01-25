@@ -188,8 +188,10 @@ def train_nn(df_X, df_y, params: dict):
     reg_l2 = 0.001
 
     model.add(
-        Dense(n_features, activation='sigmoid', input_dim=n_features, kernel_regularizer=l2(reg_l2))
+        Dense(n_features, activation='sigmoid', input_dim=n_features)  # , kernel_regularizer=l2(reg_l2)
     )
+
+    model.add(Dense(n_features // 2, activation='sigmoid'))  # One hidden layer
 
     #model.add(Dense(layers[0], activation='sigmoid', input_dim=n_features, kernel_regularizer=l2(reg_l2)))
     #if len(layers) > 1:

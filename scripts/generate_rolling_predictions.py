@@ -62,10 +62,10 @@ class P:
     out_file_name = r"BTCUSDT-1m-features-rolling.csv"
 
     # First row for starting predictions: "2020-02-01 00:00:00" - minimum start for futures
-    prediction_start_str = "2019-08-01 00:00:00"
+    prediction_start_str = "2019-07-01 00:00:00"
     # How frequently re-train models: 1 day: 1_440 = 60 * 24, one week: 10_080
-    prediction_length = 1*7*1440
-    prediction_count = 74  # How many prediction steps. If None or 0, then from prediction start till the data end
+    prediction_length = 2*7*1440
+    prediction_count = 40  # How many prediction steps. If None or 0, then from prediction start till the data end
 
     use_multiprocessing = True
     max_workers = 8  # None means number of processors
@@ -87,7 +87,7 @@ params_gb = {
 params_nn = {
     "layers": [29],  # It is equal to the number of input features (different for spot and futur)
     "learning_rate": 0.001,
-    "n_epochs": 20,
+    "n_epochs": 60,
     "bs": 64,
 }
 

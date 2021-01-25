@@ -92,12 +92,14 @@ grid_signals = [
     {
         "buy_threshold": [
             #0.00, 0.01, 0.02, 0.03, 0.04, 0.05, 0.06, 0.07, 0.08, 0.09,
-            #0.10, 0.11, 0.12, 0.13, 0.14, 0.15, 0.16, 0.17, 0.18, 0.19, 0.20,
+            #0.30, 0.31, 0.32, 0.33, 0.34, 0.35, 0.36, 0.37, 0.38, 0.39, 0.40, 0.41, 0.42, 0.43, 0.44, 0.45, 0.46, 0.47, 0.48, 0.49, 0.50
+
             0.05, 0.055, 0.06, 0.065, 0.07, 0.075, 0.08, 0.085, 0.09, 0.095, 0.10, 0.105, 0.11, 0.115, 0.12, 0.125, 0.13, 0.135, 0.14, 0.145, 0.15, 0.155, 0.16, 0.165, 0.17, 0.175, 0.18, 0.185, 0.19, 0.195, 0.20, 0.205, 0.21, 0.215, 0.22,
         ],  # Buy BTC when higher than this value
         "sell_threshold": [
             #-0.00, -0.01, -0.02, -0.03, -0.04, -0.05, -0.06, -0.07, -0.08, -0.09,
-            #-0.10, -0.11, -0.12, -0.13, -0.14, -0.15, -0.16, -0.17, -0.18, -0.19, -0.20,
+            #-0.30, -0.31, -0.32, -0.33, -0.34, -0.35, -0.36, -0.37, -0.38, -0.39, -0.40, -0.41, -0.42, -0.43, -0.44, -0.45, -0.46, -0.47, -0.48, -0.49, -0.50
+
             -0.05, -0.055, -0.06, -0.065, -0.07, -0.075, -0.08, -0.085, -0.09, -0.095, -0.10, -0.105, -0.11, -0.115, -0.12, -0.125, -0.13, -0.135, -0.14, -0.145, -0.15, -0.155, -0.16, -0.165, -0.17, -0.175, -0.18, -0.185, -0.19, -0.195, -0.20, -0.205, -0.21, -0.215, -0.22,
         ],  # Sell BTC when lower than this value
 
@@ -125,7 +127,7 @@ class P:
     out_file_name = r"_BTCUSDT-1m-signals"
 
     simulation_start = 0  # Good start is 2019-06-01 - after it we have stable movement
-    simulation_end = -86399  # After 86399=2020-11-01 there sharp grow which we want to exclude
+    simulation_end = -102_239  # After 102_239=2020-11-01 there sharp grow which we want to exclude
 
 def main(args=None):
 
@@ -166,9 +168,9 @@ def main(args=None):
             in_df["low_20_k_gb"] + in_df["low_20_k_nn"] + in_df["low_20_k_lc"]
         in_df["low_k"] /= 9
 
-        # By algorithm
-        in_df["high_k_gb"] = (in_df["high_10_k_gb"] + in_df["high_15_k_gb"] + in_df["high_20_k_gb"]) / 3
-        in_df["low_k_gb"] = (in_df["low_10_k_gb"] + in_df["low_15_k_gb"] + in_df["low_20_k_gb"]) / 3
+        # By algorithm type
+        in_df["high_k_nn"] = (in_df["high_10_k_nn"] + in_df["high_15_k_nn"] + in_df["high_20_k_nn"]) / 3
+        in_df["low_k_nn"] = (in_df["low_10_k_nn"] + in_df["low_15_k_nn"] + in_df["low_20_k_nn"]) / 3
 
     if "futur" in P.feature_sets:
         # high futur: 3 algorithms for all 3 levels
@@ -186,20 +188,21 @@ def main(args=None):
         in_df["low_f"] /= 9
 
         # By algorithm
-        in_df["high_f_gb"] = (in_df["high_10_f_gb"] + in_df["high_15_f_gb"] + in_df["high_20_f_gb"]) / 3
-        in_df["low_f_gb"] = (in_df["low_10_f_gb"] + in_df["low_15_f_gb"] + in_df["low_20_f_gb"]) / 3
+        in_df["high_f_nn"] = (in_df["high_10_f_nn"] + in_df["high_15_f_nn"] + in_df["high_20_f_nn"]) / 3
+        in_df["low_f_nn"] = (in_df["low_10_f_nn"] + in_df["low_15_f_nn"] + in_df["low_20_f_nn"]) / 3
 
     # High and low
     # Both k and f
     #in_df["high"] = (in_df["high_k"] + in_df["high_f"]) / 2
     #in_df["low"] = (in_df["low_k"] + in_df["low_f"]) / 2
 
-    # Only k
-    in_df["high"] = (in_df["high_k"]) / 1
-    in_df["low"] = (in_df["low_k"]) / 1
+    # Only k and all algorithms
+    in_df["high"] = (in_df["high_k"])
+    in_df["low"] = (in_df["low_k"])
 
-    #in_df["high"] = (in_df["high_k_gb"]) / 1
-    #in_df["low"] = (in_df["low_k_gb"]) / 1
+    # Using one NN algorithm only
+    #in_df["high"] = (in_df["high_k_nn"])
+    #in_df["low"] = (in_df["low_k_nn"])
 
     # Final score: proportion to the sum
     high_and_low = in_df["high"] + in_df["low"]

@@ -69,7 +69,7 @@ params_gb = {
 params_nn = {
     "layers": [29],  # It is equal to the number of input features (different for spot and futur)
     "learning_rate": 0.001,
-    "n_epochs": 20,
+    "n_epochs": 60,
     "bs": 64,
 }
 

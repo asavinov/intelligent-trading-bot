@@ -121,8 +121,9 @@ class App:
             "model": {
                 # Model 1 (without trends): [0.135, -0.2]
                 # Model 2 (with trends): [0.06, -0.13]
-                "buy_threshold": 0.06,
-                "sell_threshold": -0.13,
+                # Model 3 (new NN params): [0.215, -0.215]
+                "buy_threshold": 0.215,
+                "sell_threshold": -0.215,
             },
             "signal": None,
         },
@@ -171,8 +172,8 @@ class App:
 
             "parameters": {
                 # For debugging: determine what parts of code will be executed
-                "no_trades_only_data_processing": True,  # in market or out of market processing is excluded (all below parameters ignored)
-                "test_order_before_submit": True,  # Send test submit to the server as part of validation
+                "no_trades_only_data_processing": False,  # in market or out of market processing is excluded (all below parameters ignored)
+                "test_order_before_submit": False,  # Send test submit to the server as part of validation
                 "simulate_order_execution": False,  # Instead of real orders, simulate their execution (immediate buy/sell market orders and use high price of klines for limit orders)
 
                 "percentage_used_for_trade": 99,  # in % to the available USDT quantity, that is, we will derive how much BTC to buy using this percentage

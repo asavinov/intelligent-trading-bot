@@ -15,6 +15,10 @@ from binance.exceptions import *
 from binance.helpers import date_to_milliseconds, interval_to_milliseconds
 from binance.enums import *
 
+PACKAGE_PARENT = '..'
+SCRIPT_DIR = os.path.dirname(os.path.realpath(os.path.join(os.getcwd(), os.path.expanduser(__file__))))
+sys.path.append(os.path.normpath(os.path.join(SCRIPT_DIR, PACKAGE_PARENT)))
+
 from common.utils import *
 from trade.App import *
 from trade.Database import *
