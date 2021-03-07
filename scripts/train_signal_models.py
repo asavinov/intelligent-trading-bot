@@ -14,6 +14,7 @@ from sklearn import metrics
 from sklearn.model_selection import ParameterGrid
 
 from common.utils import *
+from common.signal_generation import *
 
 """
 By signal generation model we mean simple rules with some thresholds as parameters.
@@ -94,13 +95,25 @@ grid_signals = [
             #0.00, 0.01, 0.02, 0.03, 0.04, 0.05, 0.06, 0.07, 0.08, 0.09,
             #0.30, 0.31, 0.32, 0.33, 0.34, 0.35, 0.36, 0.37, 0.38, 0.39, 0.40, 0.41, 0.42, 0.43, 0.44, 0.45, 0.46, 0.47, 0.48, 0.49, 0.50
 
-            0.05, 0.055, 0.06, 0.065, 0.07, 0.075, 0.08, 0.085, 0.09, 0.095, 0.10, 0.105, 0.11, 0.115, 0.12, 0.125, 0.13, 0.135, 0.14, 0.145, 0.15, 0.155, 0.16, 0.165, 0.17, 0.175, 0.18, 0.185, 0.19, 0.195, 0.20, 0.205, 0.21, 0.215, 0.22,
+            #0.05, 0.055, 0.06, 0.065, 0.07, 0.075, 0.08, 0.085, 0.09, 0.095,
+            #0.10, 0.105, 0.11, 0.115, 0.12, 0.125, 0.13, 0.135, 0.14, 0.145,
+            #0.15, 0.155, 0.16, 0.165, 0.17, 0.175, 0.18, 0.185, 0.19, 0.195,
+            0.20, 0.21, 0.22, 0.23, 0.24, 0.25, 0.26, 0.27, 0.28, 0.29,
+            0.30, 0.31, 0.32, 0.33, 0.34, 0.35, 0.36, 0.37, 0.38, 0.39,
+            0.40, 0.41, 0.42, 0.43, 0.44, 0.45, 0.46, 0.47, 0.48, 0.49,
+            0.50,
         ],  # Buy BTC when higher than this value
         "sell_threshold": [
             #-0.00, -0.01, -0.02, -0.03, -0.04, -0.05, -0.06, -0.07, -0.08, -0.09,
             #-0.30, -0.31, -0.32, -0.33, -0.34, -0.35, -0.36, -0.37, -0.38, -0.39, -0.40, -0.41, -0.42, -0.43, -0.44, -0.45, -0.46, -0.47, -0.48, -0.49, -0.50
 
-            -0.05, -0.055, -0.06, -0.065, -0.07, -0.075, -0.08, -0.085, -0.09, -0.095, -0.10, -0.105, -0.11, -0.115, -0.12, -0.125, -0.13, -0.135, -0.14, -0.145, -0.15, -0.155, -0.16, -0.165, -0.17, -0.175, -0.18, -0.185, -0.19, -0.195, -0.20, -0.205, -0.21, -0.215, -0.22,
+            #-0.05, -0.055, -0.06, -0.065, -0.07, -0.075, -0.08, -0.085, -0.09, -0.095,
+            #-0.10, -0.105, -0.11, -0.115, -0.12, -0.125, -0.13, -0.135, -0.14, -0.145,
+            #-0.15, -0.155, -0.16, -0.165, -0.17, -0.175, -0.18, -0.185, -0.19, -0.195,
+            -0.20, -0.21, -0.22, -0.23, -0.24, -0.25, -0.26, -0.27, -0.28, -0.29,
+            -0.30, -0.31, -0.32, -0.33, -0.34, -0.35, -0.36, -0.37, -0.38, -0.39,
+            -0.40, -0.41, -0.42, -0.43, -0.44, -0.45, -0.46, -0.47, -0.48, -0.49,
+            -0.50,
         ],  # Sell BTC when lower than this value
 
         "transaction_fee": [0.005],  # Portion of total transaction amount
@@ -127,12 +140,16 @@ class P:
     out_file_name = r"_BTCUSDT-1m-signals"
 
     simulation_start = 0  # Good start is 2019-06-01 - after it we have stable movement
-    simulation_end = -102_239  # After 102_239=2020-11-01 there sharp grow which we want to exclude
+    simulation_end = -162_719  # After 2020-11-01 there is sharp growth which we might want to exclude
 
-def main(args=None):
+def generate_score_and_forecast():
+    """
+    Read rolling predictions, generate score column according to its definition and then its forecast according to the forecast model.
+    Store the result (rolling forecast with additional columns) in a separate file.
 
-    start_dt = datetime.now()
-
+    TODO: We can include also 2 steps ahead forecasts
+    Idea: we can exclude intervals with low forecast error. Either correlation for last window or goodness of fit of latest train
+    """
     #
     # Load data with rolling label score predictions
     #
@@ -152,75 +169,70 @@ def main(args=None):
 
     #
     # Compute final score (as average over different predictions)
+    # "score" column is added
     #
-    if "kline" in P.feature_sets:
-        # high kline: 3 algorithms for all 3 levels
-        in_df["high_k"] = \
-            in_df["high_10_k_gb"] + in_df["high_10_k_nn"] + in_df["high_10_k_lc"] + \
-            in_df["high_15_k_gb"] + in_df["high_15_k_nn"] + in_df["high_15_k_lc"] + \
-            in_df["high_20_k_gb"] + in_df["high_20_k_nn"] + in_df["high_20_k_lc"]
-        in_df["high_k"] /= 9
+    in_df = generate_score(in_df, P.feature_sets)  # "score" columns is added
 
-        # low kline: 3 algorithms for all 3 levels
-        in_df["low_k"] = \
-            in_df["low_10_k_gb"] + in_df["low_10_k_nn"] + in_df["low_10_k_lc"] + \
-            in_df["low_15_k_gb"] + in_df["low_15_k_nn"] + in_df["low_15_k_lc"] + \
-            in_df["low_20_k_gb"] + in_df["low_20_k_nn"] + in_df["low_20_k_lc"]
-        in_df["low_k"] /= 9
+    #
+    # Load forecast model and generate forecast column
+    #
+    model_params = pd.read_json("_sarimax_model_all.json", typ='series')
 
-        # By algorithm type
-        in_df["high_k_nn"] = (in_df["high_10_k_nn"] + in_df["high_15_k_nn"] + in_df["high_20_k_nn"]) / 3
-        in_df["low_k_nn"] = (in_df["low_10_k_nn"] + in_df["low_15_k_nn"] + in_df["low_20_k_nn"]) / 3
+    is_all_fitted_values = True
+    if is_all_fitted_values:
+        history = in_df["score"]
+        forecast = fitted_forecast(history, model_order=(1, 0, 4), result_params=model_params)
+        # Forecast has all indexes
+    else:
+        history_length = 100
+        history = in_df["score"].iloc[: history_length]
+        predict = in_df["score"].iloc[history_length:]
+        forecast = rolling_forecast(history, predict, model_order=(1, 0, 4), result_params=model_params)
+        # First 100 values are not predicted and have NaNs
 
-    if "futur" in P.feature_sets:
-        # high futur: 3 algorithms for all 3 levels
-        in_df["high_f"] = \
-            in_df["high_10_f_gb"] + in_df["high_10_f_nn"] + in_df["high_10_f_lc"] + \
-            in_df["high_15_f_gb"] + in_df["high_15_f_nn"] + in_df["high_15_f_lc"] + \
-            in_df["high_20_f_gb"] + in_df["high_20_f_nn"] + in_df["high_20_f_lc"]
-        in_df["high_f"] /= 9
+    # Add column.
+    # We need to shift forecast backwards values because they are stored in the next indexes (for which it is done)
+    forecast = forecast.shift(-1)
+    in_df['score_forecast_1'] = forecast
 
-        # low kline: 3 algorithms for all 3 levels
-        in_df["low_f"] = \
-            in_df["low_10_f_gb"] + in_df["low_10_f_nn"] + in_df["low_10_f_lc"] + \
-            in_df["low_15_f_gb"] + in_df["low_15_f_nn"] + in_df["low_15_f_lc"] + \
-            in_df["low_20_f_gb"] + in_df["low_20_f_nn"] + in_df["low_20_f_lc"]
-        in_df["low_f"] /= 9
+    #
+    # Store csv
+    #
+    out_name = Path(P.in_file_name).stem + "-scores"
+    out_path = Path(P.in_path_name).joinpath(out_name)
 
-        # By algorithm
-        in_df["high_f_nn"] = (in_df["high_10_f_nn"] + in_df["high_15_f_nn"] + in_df["high_20_f_nn"]) / 3
-        in_df["low_f_nn"] = (in_df["low_10_f_nn"] + in_df["low_15_f_nn"] + in_df["low_20_f_nn"]) / 3
+    in_df.to_csv(out_path.with_suffix('.csv'), index=False, float_format="%.4f")
 
-    # High and low
-    # Both k and f
-    #in_df["high"] = (in_df["high_k"] + in_df["high_f"]) / 2
-    #in_df["low"] = (in_df["low_k"] + in_df["low_f"]) / 2
+    print(f"FINISHED computing forecasts. ")
 
-    # Only k and all algorithms
-    in_df["high"] = (in_df["high_k"])
-    in_df["low"] = (in_df["low_k"])
 
-    # Using one NN algorithm only
-    #in_df["high"] = (in_df["high_k_nn"])
-    #in_df["low"] = (in_df["low_k_nn"])
+def main(args=None):
+    start_dt = datetime.now()
 
-    # Final score: proportion to the sum
-    high_and_low = in_df["high"] + in_df["low"]
-    in_df["score"] = ((in_df["high"] / high_and_low) * 2) - 1.0  # in [-1, +1]
+    use_forecast_score = True
 
-    # Final score: abs difference betwee high and low (scaled to [-1,+1] maybe)
-    #in_df["score"] = in_df["high"] - in_df["low"]
-    from sklearn.preprocessing import StandardScaler
-    #in_df["score"] = StandardScaler().fit_transform(in_df["score"])
+    #
+    # Load data with rolling label score predictions
+    #
+    print(f"Loading data with label rolling predict scores from input file...")
 
-    #in_df["score"] = in_df["score"].rolling(window=10, min_periods=1).apply(np.nanmean)
+    if use_forecast_score:
+        in_name = Path(P.in_file_name).stem + "-scores"
+    else:
+        in_name = Path(P.in_file_name).stem
+    in_path = Path(P.in_path_name).joinpath(in_name).with_suffix(".csv")
+
+    in_df = pd.read_csv(in_path, parse_dates=['timestamp'], nrows=P.in_nrows)
 
     #
     # Select data
     #
 
     # Selecting only needed rows increases performance in several times (~4 times faster)
-    in_df = in_df[["timestamp", "high", "low", "close", "score",]]
+    if use_forecast_score:
+        in_df = in_df[["timestamp", "high", "low", "close", "score", "score_forecast_1"]]
+    else:
+        in_df = in_df[["timestamp", "high", "low", "close", "score"]]
 
     # Select the necessary interval of data
     if not P.simulation_start:
@@ -337,6 +349,7 @@ def simulate_trade(df, model: dict):
         timestamp = row.timestamp
 
         score = row.score
+        score_forecast_1 = row.score_forecast_1
 
         #
         # Table has missing data
@@ -351,7 +364,7 @@ def simulate_trade(df, model: dict):
         previous_price = previous_transaction["price"] if previous_transaction else None
         profit = (close_price - previous_price) if previous_price else None
 
-        if score > buy_threshold:
+        if score > buy_threshold:  # score > buy_threshold
             buy_signal_count += 1
 
             if is_buy_mode:  # Buy mode. Enter market by buying BTC
@@ -364,7 +377,7 @@ def simulate_trade(df, model: dict):
                 transactions.append(transaction)
                 is_buy_mode = False
 
-        elif score < sell_threshold:
+        elif score < sell_threshold:  # score < sell_threshold
             sell_signal_count += 1
 
             if not is_buy_mode:  # Sell mode. Exit market by selling BTC
@@ -424,6 +437,42 @@ def simulate_trade(df, model: dict):
 
     return performance
 
+def rolling_forecast_with_retrain(sr: pd.Series, history_length, p, q):
+    """p is AR. q is MA. Both can be integers or lists."""
+    from statsmodels.tsa.arima.model import ARIMA
+    import statsmodels.api as sm
+
+    result = pd.Series(index=sr.index)
+    for i in range(history_length, len(sr)):
+        start = i-history_length
+        start = 0 if start < 0 else start
+        sub_sr = sr.iloc[start: i]
+
+        #model = ARIMA(sub_sr, order=(p, 0, q))
+        #model_fit = model.fit()
+
+        model = sm.tsa.statespace.SARIMAX(sub_sr, order=(p, 0, q), enforce_stationarity=False, enforce_invertibility=False)
+        model_fit = model.fit(disp=False)
+
+        # It returns time series starting with next index so we simply take first element
+        val = model_fit.forecast().iloc[0]
+
+        result.iloc[i] = val
+
+    return result
+
+def optimize_rolling_forecast():
+    # In loop for all parameters, generate rolling forecast and its metrics. Choose the best parameters.
+
+    in_path = Path(P.in_path_name).joinpath(P.in_file_name)
+
+    in_df = pd.read_csv(in_path, parse_dates=['timestamp'], nrows=P.in_nrows)
+
+    sr = pd.Series([1,2,3,4,5,4,3,4,5,6,8,9,3,2,3,6,5,4,3])
+    sr_forecast = rolling_forecast(sr, history_length=6, order=(1, 0, 0))
+
+    pass
 
 if __name__ == '__main__':
+    #generate_score_and_forecast()
     main(sys.argv[1:])

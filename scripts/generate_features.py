@@ -92,11 +92,11 @@ def main(args=None):
     #
     # Store feature matrix in output file
     #
-    print(f"Storing feature matrix with {len(in_df)} records and {len(in_df.columns)} columns in output file...")
-
     out_path = Path(P.out_path_name)
     out_path.mkdir(parents=True, exist_ok=True)  # Ensure that folder exists
     out_path = out_path.joinpath(P.out_file_name)
+
+    print(f"Storing feature matrix with {len(in_df)} records and {len(in_df.columns)} columns in output file...")
 
     in_df.to_csv(out_path.with_suffix('.csv'), index=False, float_format="%.4f")
 
@@ -104,6 +104,7 @@ def main(args=None):
 
     elapsed = datetime.now() - start_dt
     print(f"Finished feature generation in {int(elapsed.total_seconds())} seconds")
+    print(f"Output file location: {out_path}")
 
 if __name__ == '__main__':
     main(sys.argv[1:])

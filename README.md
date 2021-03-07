@@ -110,7 +110,7 @@ Script: train_predict_models.py
 
 #### 7. Train signal models
 
-Here we find best parameters for signal generation like thresholds.
+Here we find the best parameters for signal generation like thresholds.
 
 * Train signal models. The input is a feature matrix with all scores (predicted features). Our goal is to define a feature the output of which will be directly used for buy/sell decisions. We need search for the best hyper-parameters starting from simple score threshold and ending with some data mining algorithm.
   * Script: scripts.train_signal_models.py or "python start.py train_signal_models.py"

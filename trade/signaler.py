@@ -45,7 +45,7 @@ async def main_signaler_task():
     if data_provider_problems_exist():
         await data_provider_health_check()
         if data_provider_problems_exist():
-            log.error(f"Problems with the data provider server found. Skip. Will try later.")
+            log.error(f"Problems with the data provider server found. No signaling, no trade. Will try next time.")
             return
 
     #
@@ -54,6 +54,7 @@ async def main_signaler_task():
     res = await sync_data_collector_task()
 
     if res > 0:
+        log.error(f"Problem getting data from the server. No signaling, no trade. Will try next time.")
         return
 
     # Now the local database is up-to-date with latest (klines) data from the market and hence can use for analysis
@@ -124,6 +125,11 @@ async def sync_data_collector_task():
 
         # Add to the database (will overwrite existing klines if any)
         if res and res.keys():
+            # res is dict for symbol, which is a list of record lists of 12 fields
+            # ==============================
+            # TODO: We need to check these fields for validity (presence, non-null)
+            # TODO: We can load maximum 999 latest klines, so if more 1600, then some other method
+            # TODO: Print somewhere diagnostics about how many lines are in history buffer of db, and if nans are found
             results.update(res)
             try:
                 added_count = App.database.store_klines(res)
@@ -142,18 +148,26 @@ async def request_klines(symbol, freq, limit):
 
     :return: Dict with the symbol as a key and a list of klines as a value. One kline is also a list.
     """
+    klines_per_request = 400
+
     now_ts = now_timestamp()
 
     startTime, endTime = get_interval(freq)
 
     klines = []
     try:
-        # INFO:
-        # - startTime: include all intervals (ids) with same or greater id: if within interval then excluding this interval; if is equal to open time then include this interval
-        # - endTime: include all intervals (ids) with same or smaller id: if equal to left border then return this interval, if within interval then return this interval
-        # - It will return also incomplete current interval (in particular, we could collect approximate klines for higher frequencies by requesting incomplete intervals)
-        klines = App.client.get_klines(symbol=symbol, interval=freq, limit=limit, endTime=now_ts)
-        # Return: list of lists, that is, one kline is a list (not dict) with items ordered: timestamp, open, high, low, close etc.
+        if limit <= klines_per_request:  # Server will return these number of klines in one request
+            # INFO:
+            # - startTime: include all intervals (ids) with same or greater id: if within interval then excluding this interval; if is equal to open time then include this interval
+            # - endTime: include all intervals (ids) with same or smaller id: if equal to left border then return this interval, if within interval then return this interval
+            # - It will return also incomplete current interval (in particular, we could collect approximate klines for higher frequencies by requesting incomplete intervals)
+            klines = App.client.get_klines(symbol=symbol, interval=freq, limit=limit, endTime=now_ts)
+            # Return: list of lists, that is, one kline is a list (not dict) with items ordered: timestamp, open, high, low, close etc.
+        else:
+            # https://sammchardy.github.io/binance/2018/01/08/historical-data-download-binance.html
+            # get_historical_klines(symbol, interval, start_str, end_str=None, limit=500)
+            start_ts = now_ts - (limit+1) * 60_000  # Subtract the number of minutes from now ts
+            klines = App.client.get_historical_klines(symbol=symbol, interval=freq, start_str=start_ts, end_str=now_ts)
     except BinanceRequestException as bre:
         # {"code": 1103, "msg": "An unknown parameter was sent"}
         log.error(f"BinanceRequestException while requesting klines: {bre}")

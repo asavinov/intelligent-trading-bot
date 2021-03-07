@@ -170,11 +170,14 @@ def main(args=None):
     #
     # Store file with features
     #
-    df_out.to_csv(out_file_name, index=True)  # float_format="%.6f"
+    out_path = Path(out_file_name).absolute()
+
+    df_out.to_csv(out_path, index=True)  # float_format="%.6f"
     print(f"Stored output merged file with {len(df_out)} records. Range: ({start}, {end})")
 
     elapsed = datetime.now() - start_dt
     print(f"Finished processing in {int(elapsed.total_seconds())} seconds.")
+    print(f"Output file location: {out_path}")
 
 
 if __name__ == '__main__':

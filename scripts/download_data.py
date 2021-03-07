@@ -59,8 +59,10 @@ def get_klines_all(symbol, freq, save=False):
     if os.path.isfile(filename):
         data_df = pd.read_csv(filename)
         data_df['timestamp'] = pd.to_datetime(data_df['timestamp'])
+        print(f"Downloaded data will be appended to the existing file {filename}")
     else:
         data_df = pd.DataFrame()
+        print(f"File not found. All data will be downloaded and stored in newly created file.")
 
     oldest_point, newest_point = minutes_of_new_data(symbol, freq, data_df)
 

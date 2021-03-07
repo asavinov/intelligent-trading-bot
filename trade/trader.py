@@ -84,10 +84,12 @@ async def main_trader_task():
             log.error(f"Bad order or order status {order}. Full reset/init needed.")
             return
         if order_status == ORDER_STATUS_FILLED:
-            log.info(f"Limit sell order filled. {order}")
+            log.info(f"Limit order filled. {order}")
             if status == "BUYING":
+                print(f"===> BOUGHT: {order}")
                 App.config["trader"]["state"]["status"] = "BOUGHT"
             elif status == "SELLING":
+                print(f"<=== SOLD: {order}")
                 App.config["trader"]["state"]["status"] = "SOLD"
             log.info(f'New trade mode: {App.config["trader"]["state"]["status"]}')
         elif order_status == ORDER_STATUS_REJECTED or order_status == ORDER_STATUS_EXPIRED or order_status == ORDER_STATUS_CANCELED:
@@ -123,8 +125,12 @@ async def main_trader_task():
     # In future, we might kill only after some timeout
     if status == "BUYING" or status == "SELLING":  # Still not sold for 1 minute
         # -----
-        await cancel_order()
-        await asyncio.sleep(1)  # Wait for a second
+        order_status = await cancel_order()
+        if not order_status:
+            # Cancel exception (the order still exists) or the order was filled and does not exist
+            await update_trade_status()
+            return
+        await asyncio.sleep(1)  # Wait for a second till the balance is updated
         if status == "BUYING":
             App.config["trader"]["state"]["status"] = "SOLD"
         elif status == "SELLING":
@@ -135,10 +141,12 @@ async def main_trader_task():
     #
 
     status = App.config["trader"]["state"]["status"]
-    if signal_side in ["BUY", "SELL"]:
-        print("SIGNAL: " + str(signal))
+    if signal_side == "BUY":
+        print(f"===> BUY SIGNAL {signal}: ")
+    elif signal_side == "SELL":
+        print(f"<=== SELL SIGNAL: {signal}")
     else:
-        print("SCORE: " + str(signal.get("score")))
+        print(f"SCORE: {signal.get('score'):+.3f}. PRICE: {signal.get('close_price'):.2f}")
 
     # Update account balance etc. what is needed for trade
     # -----
@@ -149,7 +157,8 @@ async def main_trader_task():
         await new_limit_order(side=SIDE_BUY)
 
         if App.config["trader"]["parameters"]["no_trades_only_data_processing"]:
-            pass  # Never change status if orders not executed
+            print("SKIP TRADING due to 'no_trades_only_data_processing' parameter True")
+            # Never change status if orders not executed
         else:
             App.config["trader"]["state"]["status"] = "BUYING"
     elif status == "BOUGHT" and signal_side == "SELL":
@@ -157,7 +166,8 @@ async def main_trader_task():
         await new_limit_order(side=SIDE_SELL)
 
         if App.config["trader"]["parameters"]["no_trades_only_data_processing"]:
-            pass  # Never change status if orders not executed
+            print("SKIP TRADING due to 'no_trades_only_data_processing' parameter True")
+            # Never change status if orders not executed
         else:
             App.config["trader"]["state"]["status"] = "SELLING"
 
@@ -295,7 +305,7 @@ async def cancel_order():
         new_order = App.client.cancel_order(symbol=symbol, orderId=order_id)
     except Exception as e:
         log.error(f"Binance exception in 'cancel_order' {e}")
-        return
+        return None
 
     # TODO: There is small probability that the order will be filled just before we want to kill it
     #   We need to somehow catch and process this case

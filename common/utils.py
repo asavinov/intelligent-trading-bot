@@ -371,11 +371,11 @@ def mean_volumes(depth: list, windows: list, bin_size: 1.0):
 
     ret = {}
     for length in windows:
-        density = np.mean(bid_volumes[0:min(length, len(bid_volumes))])
+        density = np.nanmean(bid_volumes[0:min(length, len(bid_volumes))])
         feature_name = f"bids_{length}"
         ret[feature_name] = density
 
-        density = np.mean(ask_volumes[0:min(length, len(ask_volumes))])
+        density = np.nanmean(ask_volumes[0:min(length, len(ask_volumes))])
         feature_name = f"asks_{length}"
         ret[feature_name] = density
 

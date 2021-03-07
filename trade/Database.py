@@ -66,7 +66,7 @@ class Database:
             return None
 
     def get_last_kline_ts(self, symbol):
-        """Open time of the last kline. It is simultaniously kline id. Add 1m if the end is needed."""
+        """Open time of the last kline. It is simultaneously kline id. Add 1m if the end is needed."""
         last_kline = self.get_last_kline(symbol=symbol)
         if not last_kline:
             return 0
@@ -87,7 +87,7 @@ class Database:
     def store_klines(self, data: dict):
         """
         Store latest klines for the specified symbols.
-        Existing klines for the symbol and timestamp will be replaced.
+        Existing klines for the symbol and timestamp will be overwritten.
 
         :param data: Dict of lists with symbol as a key, and list of klines for this symbol as a value.
             Example: { 'BTCUSDT': [ [], [], [] ] }

@@ -116,14 +116,14 @@ class App:
         "signaler": {
             "analysis": {  # Same for all symbols
                 "folder": "_TEMP_MODELS",
-                "features_horizon": 800,  # History needed to compute derived features
+                "features_horizon": 1440+160,  # History needed to compute derived features. Take base aggregation from feature generation code and add something
             },
             "model": {
                 # Model 1 (without trends): [0.135, -0.2]
                 # Model 2 (with trends): [0.06, -0.13]
                 # Model 3 (new NN params): [0.215, -0.215]
-                "buy_threshold": 0.215,
-                "sell_threshold": -0.215,
+                "buy_threshold": 0.4,
+                "sell_threshold": -0.44,
             },
             "signal": None,
         },
@@ -177,7 +177,7 @@ class App:
                 "simulate_order_execution": False,  # Instead of real orders, simulate their execution (immediate buy/sell market orders and use high price of klines for limit orders)
 
                 "percentage_used_for_trade": 99,  # in % to the available USDT quantity, that is, we will derive how much BTC to buy using this percentage
-                "limit_price_adjustment": 0.001,  # Limit price of orders will be better (higher or lower) than the latest close price (0 means no change)
+                "limit_price_adjustment": -0.0001,  # Limit price of orders will be better than the latest close price (0 means no change, positive - better for us, negative - worse for us)
 
 
 
