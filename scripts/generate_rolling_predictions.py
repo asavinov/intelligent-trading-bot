@@ -65,7 +65,7 @@ class P:
     prediction_start_str = "2019-07-01 00:00:00"
     # How frequently re-train models: 1 day: 1_440 = 60 * 24, one week: 10_080
     prediction_length = 2*7*1440
-    prediction_count = 43  # How many prediction steps. If None or 0, then from prediction start till the data end
+    prediction_count = 48  # How many prediction steps. If None or 0, then from prediction start till the data end. Use: https://www.timeanddate.com/date/duration.html
 
     use_multiprocessing = True
     max_workers = 8  # None means number of processors

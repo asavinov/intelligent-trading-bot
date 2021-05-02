@@ -116,7 +116,9 @@ class App:
         "signaler": {
             "analysis": {  # Same for all symbols
                 "folder": "_TEMP_MODELS",
-                "features_horizon": 1440+160,  # History needed to compute derived features. Take base aggregation from feature generation code and add something
+                # History needed to compute derived features
+                # Take base aggregation from feature generation code and add something
+                "features_horizon": 1440+160,
             },
             "model": {
                 # Model 1 (without trends): [0.135, -0.2]
@@ -201,27 +203,10 @@ class App:
                 "order": None,  # Latest or current order
                 "order_time": None,  # Order submission time
 
-                # What we possess. Can be set by the sync/recover function or updated by the trade algorithm
+                # Available assets
+                # Can be set by the sync/recover function or updated by the trading algorithm
                 "base_quantity": "0.04108219",  # BTC owned (on account, already bought, available for trade)
                 "quote_quantity": "1000.0",  # USDT owned (on account, available for trade)
-
-
-
-
-
-                # Set by analysis procedure like signals
-                "buy_signal": 0,
-                "buy_signal_scores": [],
-                "sell_signal": 0,
-
-                # State. Can be initialized (if necessary), e.g., by sync function
-                "in_market": False,  # True if we bought and posses BTC and False otherwise. Note that we might fail in creating a sell order.
-
-                "buy_order": None,  # Latest order used to buy BTC or None if not in the market
-                "buy_order_price": "8000.0",  # Price of latest executed buy order used to enter the market.
-
-                "sell_order": None,  # Latest active limit (or market in case of force sell) sell order. Must exist if in market - error if it does not. Can be updated by sync function.
-                "sell_order_time": None,  # Sell order creation time in millis (13 digits)
             },
         },
     }
