@@ -17,7 +17,7 @@ from trade.App import *
 from trade.Database import *
 
 import logging
-log = logging.getLogger('collector')
+log = logging.getLogger('collector_depth')
 
 #
 # Request order book every 5 seconds and store in the local in-memory database
@@ -29,7 +29,8 @@ log = logging.getLogger('collector')
 #   - Error handling: recovery from errors: no connection (maybe disconnect wifi), request errors etc.
 #   - (LOW) uniform config for our logs maybe via App so that we can forward all of them to a file
 
-async def sync_depth_collector_task():
+
+async def main_collector_depth_task():
     """It will be executed for each depth collection, for example, every 5 seconds."""
     log.info(f"===> Start depth collection task.")
     start_time = datetime.utcnow()
@@ -89,6 +90,7 @@ async def sync_depth_collector_task():
     duration = (end_time-start_time).total_seconds()
     log.info(f"<=== End depth collection task. {len(results)} responses stored. {duration:.2f} seconds processing time.")
 
+
 async def request_depth(symbol, freq, limit):
     """Request order book data from the service for one symbol."""
     requestTime = now_timestamp()
@@ -125,7 +127,8 @@ async def request_depth(symbol, freq, limit):
 
     return depth
 
-def start_collector():
+
+def start_collector_depth():
     #
     # Initialize data state, connections and listeners
     #
@@ -146,14 +149,14 @@ def start_collector():
 
     if freq == "5s":
         App.sched.add_job(
-            lambda: asyncio.run_coroutine_threadsafe(sync_depth_collector_task(), App.loop),
+            lambda: asyncio.run_coroutine_threadsafe(main_collector_depth_task(), App.loop),
             trigger='cron',
             second='*/5',
             id = 'sync_depth_collector_task'
         )
     elif freq == "1m":
         App.sched.add_job(
-            lambda: asyncio.run_coroutine_threadsafe(sync_depth_collector_task(), App.loop),
+            lambda: asyncio.run_coroutine_threadsafe(main_collector_depth_task(), App.loop),
             trigger='cron',
             minute='*',
             id='sync_depth_collector_task'
@@ -180,12 +183,13 @@ def start_collector():
 
     return 0
 
+
 if __name__ == "__main__":
     App.database = Database(None)
     App.client = Client(api_key=App.config["api_key"], api_secret=App.config["api_secret"])
     App.loop = asyncio.get_event_loop()
     try:
-        App.loop.run_until_complete(sync_depth_collector_task())
+        App.loop.run_until_complete(main_collector_depth_task())
     except KeyboardInterrupt:
         pass
     finally:

@@ -10,61 +10,21 @@ import asyncio
 
 from binance.client import Client
 
+import trade
 from common.utils import *
 from trade.App import *
 from trade.Database import *
-from trade.collector import *
+from trade.collector_depth import *
 from trade.trader import *
 
 import logging
 log = logging.getLogger('trade')
 
-__version__ = '0.1.0-SNAPSHOT'
-
-"""
-async def scheduler():
-    while True:
-        # sleep until the next whole second
-        now = time.time()
-        await asyncio.sleep(math.ceil(now) - now)
-
-        # execute any scheduled tasks
-        await for task in scheduled_tasks(time.time()):
-            await task()
-
-#
-# From here: https://stackoverflow.com/questions/51292027/how-to-schedule-a-task-in-asyncio-so-it-runs-at-a-certain-date
-#
-async def wait_for(dt):
-    # sleep until the specified datetime
-    while True:
-        now = datetime.datetime.now()
-        remaining = (dt - now).total_seconds()
-        if remaining < 86400:
-            break
-        # asyncio.sleep doesn't like long sleeps, so don't sleep more
-        # than a day at a time
-        await asyncio.sleep(86400)
-    await asyncio.sleep(remaining)
-
-async def run_at(dt, coro):
-    await wait_for(dt)
-    return await coro
-
-# Example
-async def hello():
-    print('hello')
-
-loop = asyncio.get_event_loop()
-# print hello ten years after this answer was written
-loop.create_task(run_at(datetime.datetime(2028, 7, 11, 23, 36), hello()))
-loop.run_forever()
-"""
 
 def main(args = None):
     if not args: args = sys.argv[1:]
 
-    programVersion = 'Version ' + __version__
+    programVersion = 'Version ' + trade.__version__
     programDescription = 'Trading application ' + programVersion
 
     parser = argparse.ArgumentParser(description=programDescription)
@@ -108,8 +68,8 @@ def main(args = None):
     try:
         if command == "trade":
             exitcode = start_trader()
-        elif command == "collector":
-            exitcode = start_collector()
+        elif command == "collector_depth":
+            exitcode = start_collector_depth()
         else:
             print(f"Unknown command {command}. Exit")
             exitcode = 1

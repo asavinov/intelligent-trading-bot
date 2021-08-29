@@ -29,7 +29,7 @@ logging.basicConfig(
     #datefmt = '%Y-%m-%d %H:%M:%S',
 )
 
-async def main_signaler_task():
+async def main_collector_task():
     """
     It is a highest level task which is added to the event loop and executed normally every 1 minute and then it calls other tasks.
     """

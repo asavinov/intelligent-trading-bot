@@ -40,8 +40,10 @@ log = logging.getLogger('server')
 
 async def main_task():
     """This task will be executed regularly according to the schedule"""
-    await main_signaler_task()
+    await main_collector_task()
+
     # await main_trader_task()
+
     await notify_telegram()
 
 

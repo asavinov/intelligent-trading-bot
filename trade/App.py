@@ -39,7 +39,7 @@ class App:
     quote_quantity = "1000.0"  # USDT owned (on account, available for trade)
 
     #
-    # Trder. Status data retrieved from the server. Below are examples only.
+    # Trader. Status data retrieved from the server. Below are examples only.
     #
     system_status = {"status": 0, "msg": "normal"}  # 0: normal，1：system maintenance
     symbol_info = {
@@ -86,7 +86,7 @@ class App:
         "base_asset": "BTC",
         "quote_asset": "USDT",
 
-        # === NAMES ===
+        # === analyzer (NAMES, also for scripts) ===
 
         # Target columns with true values which will be predicted
         # Leave only what we want to be generated (e.g., only one label for debug purposes)
