@@ -17,7 +17,7 @@ from binance.enums import *
 
 from common.utils import *
 from trade.App import *
-from trade.Database import *
+from trade.analyzer import *
 
 import logging
 log = logging.getLogger('trader')
@@ -221,7 +221,7 @@ async def update_trade_status():
         # -----
         await update_account_balance()
 
-        last_kline = App.database.get_last_kline(symbol)
+        last_kline = App.analyzer.get_last_kline(symbol)
         last_close_price = to_decimal(last_kline[4])  # Close price of kline has index 4 in the list
 
         base_quantity = App.base_quantity  # BTC
@@ -358,7 +358,7 @@ async def new_limit_order(side):
     #
     # Find limit price (from signal, last kline and adjustment parameters)
     #
-    last_kline = App.database.get_last_kline(symbol)
+    last_kline = App.analyzer.get_last_kline(symbol)
     last_close_price = to_decimal(last_kline[4])  # Close price of kline has index 4 in the list
     if not last_close_price:
         log.error(f"Cannot determine last close price in order to create a market buy order.")

@@ -8,7 +8,8 @@ class App:
     # System
     loop = None  # asyncio main loop
     sched = None  # Scheduler
-    database = None  # Store and analyze data
+
+    analyzer = None  # Store and analyze data
 
     # Connector client
     client = None
@@ -74,7 +75,7 @@ class App:
     # Constant configuration parameters
     #
     config = {
-        "command": "collector",  # "collector" "trader"
+        "command": "",  # "collector" "trader"
 
         "api_key": "***REMOVED***",
         "api_secret": "***REMOVED***",

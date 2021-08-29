@@ -23,9 +23,9 @@ sys.path.append(os.path.normpath(os.path.join(SCRIPT_DIR, PACKAGE_PARENT)))
 
 from common.utils import *
 from trade.App import *
-from trade.Database import *
 
-from trade.signaler import *
+from trade.collector import *
+from trade.analyzer import *
 from trade.notifier import *
 from trade.trader import *
 
@@ -40,11 +40,26 @@ log = logging.getLogger('server')
 
 async def main_task():
     """This task will be executed regularly according to the schedule"""
-    await main_collector_task()
+    res = await main_collector_task()
+    if res:
+        return res
 
+    # TODO: Validation
+    #last_kline_ts = App.analyzer.get_last_kline_ts(symbol)
+    #if last_kline_ts + 60_000 != startTime:
+    #    log.error(f"Problem during analysis. Last kline end ts {last_kline_ts + 60_000} not equal to start of current interval {startTime}.")
+
+    # Generate signals (derived features, predictions)
+    # TODO: execute in external process/worker
+    App.analyzer.analyze()
+    # Signal is stored in App.signal
+
+    # Now we have a list of signals and can make trade decisions using trading logic and trade
     # await main_trader_task()
 
     await notify_telegram()
+
+    return
 
 
 def start_server():
@@ -55,20 +70,20 @@ def start_server():
     #
     symbol = App.config["symbol"]
 
-    print(f"Initializing signaler server. Trade symbol {symbol}. ")
+    print(f"Initializing server. Trade symbol {symbol}. ")
 
     #
     # Connect to the server and update/initialize our system state
     #
     App.client = Client(api_key=App.config["api_key"], api_secret=App.config["api_secret"])
 
-    App.database = Database(None)
+    App.analyzer = Analyzer(None)
 
     App.loop = asyncio.get_event_loop()
 
     # Do one time server check and state update
     try:
-        App.loop.run_until_complete(signaler.data_provider_health_check())
+        App.loop.run_until_complete(data_provider_health_check())
     except Exception as e:
         print(f"Problems during health check (connectivity, server etc.) {e}")
 
@@ -80,7 +95,7 @@ def start_server():
 
     # Do one time data update (cold start)
     try:
-        App.loop.run_until_complete(signaler.sync_data_collector_task())
+        App.loop.run_until_complete(sync_data_collector_task())
     except Exception as e:
         print(f"Problems during initial data collection. {e}")
 
@@ -92,7 +107,7 @@ def start_server():
 
     # Initialize trade status (account, balances, orders etc.)
     try:
-        App.loop.run_until_complete(trader.update_trade_status())
+        App.loop.run_until_complete(update_trade_status())
     except Exception as e:
         print(f"Problems trade status sync. {e}")
 
@@ -152,18 +167,18 @@ if __name__ == "__main__":
     os.exit()
 
     # Short version of start_trader (main procedure) for testing/debug purposes
-    App.database = Database(None)
+    App.analyzer = Analyzer(None)
     App.client = Client(api_key=App.config["api_key"], api_secret=App.config["api_secret"])
     App.loop = asyncio.get_event_loop()
     try:
         log.debug("Start in debug mode.")
         log.info("Start testing in main.")
 
-        App.loop.run_until_complete(signaler.data_provider_health_check())
+        App.loop.run_until_complete(data_provider_health_check())
 
-        App.loop.run_until_complete(signaler.sync_data_collector_task())
+        App.loop.run_until_complete(sync_data_collector_task())
 
-        App.database.analyze("BTCUSDT")
+        App.analyzer.analyze()
 
         # App.loop.run_until_complete(sync_signaler_task())
 

@@ -17,17 +17,18 @@ from binance.enums import *
 
 from common.utils import *
 from trade.App import *
-from trade.Database import *
+from trade.analyzer import *
 
 import logging
-log = logging.getLogger('signaler')
+log = logging.getLogger('collector')
 logging.basicConfig(
-    filename="signaler.log",  # parameter in App
+    filename="collector.log",  # parameter in App
     level=logging.DEBUG,
     #format = "%(asctime)s.%(msecs)03d %(levelname)s %(module)s - %(funcName)s: %(message)s",
     format = "%(asctime)s %(levelname)s %(message)s",
     #datefmt = '%Y-%m-%d %H:%M:%S',
 )
+
 
 async def main_collector_task():
     """
@@ -37,7 +38,7 @@ async def main_collector_task():
     startTime, endTime = get_interval("1m")
     now_ts = now_timestamp()
 
-    log.info(f"===> Start signaler task. Timestamp {now_ts}. Interval [{startTime},{endTime}].")
+    log.info(f"===> Start collector task. Timestamp {now_ts}. Interval [{startTime},{endTime}].")
 
     #
     # 0. Check server state (if necessary)
@@ -46,7 +47,7 @@ async def main_collector_task():
         await data_provider_health_check()
         if data_provider_problems_exist():
             log.error(f"Problems with the data provider server found. No signaling, no trade. Will try next time.")
-            return
+            return 1
 
     #
     # 1. Ensure that we are up-to-date with klines
@@ -55,36 +56,15 @@ async def main_collector_task():
 
     if res > 0:
         log.error(f"Problem getting data from the server. No signaling, no trade. Will try next time.")
-        return
+        return 1
 
-    # Now the local database is up-to-date with latest (klines) data from the market and hence can use for analysis
-
-    #
-    # 2. Derive features by using latest (up-to-date) daa from local db
-    #
-
-    # Generate features, generate predictions, generate signals
-    # We use latest trained models (they are supposed to be periodically re-trained)
-    App.database.analyze(symbol)
-
-    # Now we have a list of signals and can make trade decisions using trading logic and trade
-    # Signal is stored in App.signal
-
-    # TODO: Validation
-    #last_kline_ts = App.database.get_last_kline_ts(symbol)
-    #if last_kline_ts + 60_000 != startTime:
-    #    log.error(f"Problem during analysis. Last kline end ts {last_kline_ts + 60_000} not equal to start of current interval {startTime}.")
-
-    log.info(f"<=== End signaler task.")
+    log.info(f"<=== End collector task.")
+    return 0
 
 #
 # Request/update market data
 #
 
-# Load order book (order book could be requested along with klines)
-# order_book = App.client.get_order_book(symbol="BTCUSDT", limit=100)  # 100-1_000
-# order_book_ticker = App.client.get_orderbook_ticker(symbol="BTCUSDT")  # dict: "bidPrice", "bidQty", "askPrice", "askQty",
-# print(order_book_ticker)
 
 async def sync_data_collector_task():
     """
@@ -102,7 +82,7 @@ async def sync_data_collector_task():
 
     # Request newest data
     # We do this in any case in order to update our state (data, orders etc.)
-    missing_klines_count = App.database.get_missing_klines_count(symbol)
+    missing_klines_count = App.analyzer.get_missing_klines_count(symbol)
 
     #coros = [request_klines(sym, "1m", 5) for sym in symbols]
     tasks = [asyncio.create_task(request_klines(sym, "1m", missing_klines_count+1)) for sym in symbols]
@@ -132,7 +112,7 @@ async def sync_data_collector_task():
             # TODO: Print somewhere diagnostics about how many lines are in history buffer of db, and if nans are found
             results.update(res)
             try:
-                added_count = App.database.store_klines(res)
+                added_count = App.analyzer.store_klines(res)
             except Exception as e:
                 log.error(f"Error storing kline result in the database. Exception: {e}")
                 return 1
@@ -141,6 +121,7 @@ async def sync_data_collector_task():
             return 1
 
     return 0
+
 
 async def request_klines(symbol, freq, limit):
     """
@@ -200,6 +181,7 @@ async def request_klines(symbol, freq, limit):
 #
 # Server and account info
 #
+
 
 async def data_provider_health_check():
     """

@@ -17,7 +17,8 @@ from common.signal_generation import *
 import logging
 log = logging.getLogger('DB')
 
-class Database:
+
+class Analyzer:
     """
     In-memory database which represents the current state of the (trading) environment including its history.
 
@@ -50,7 +51,6 @@ class Database:
         #
         # Start a thread for storing data
         #
-
 
     #
     # Data state operations
@@ -231,18 +231,19 @@ class Database:
                 with open(file, 'a+') as f:
                     f.write(data_str + "\n")
 
-
     #
     # Analysis (features, predictions, signals etc.)
     #
 
-    def analyze(self, symbol):
+    def analyze(self):
         """
         1. Convert klines to df
         2. Derive (compute) features (use same function as for model training)
         3. Derive (predict) labels by applying models trained for each label
         4. Generate buy/sell signals by applying rule models trained for best overall trade performance
         """
+        symbol = App.config["symbol"]
+
         klines = self.klines.get(symbol)
         last_kline_ts = self.get_last_kline_ts(symbol)
 
@@ -341,7 +342,7 @@ class Database:
 
 
 if __name__ == "__main__":
-    db = Database(None)
+    db = Analyzer(None)
     db.queue.put({"e": "depth", "s": "BTCUSDT", "price": 12.34})
     db.queue.put({"e": "kline", "s": "ETHBTC", "price": 23.45})
     db.queue.put({"e": "kline", "s": "ETHBTC", "price": 45.67})

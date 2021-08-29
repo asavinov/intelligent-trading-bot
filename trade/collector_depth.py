@@ -14,7 +14,7 @@ from binance.client import Client
 
 from common.utils import *
 from trade.App import *
-from trade.Database import *
+from trade.analyzer import *
 
 import logging
 log = logging.getLogger('collector_depth')
@@ -58,7 +58,7 @@ async def main_collector_depth_task():
             results.append(res)
             try:
                 # Add to the database
-                added_count = App.database.store_depth([res], freq)
+                added_count = App.analyzer.store_depth([res], freq)
             except Exception as e:
                 log.error(f"Error storing order book resultin the database.")
         except TimeoutError as te:
@@ -84,7 +84,7 @@ async def main_collector_depth_task():
     #
     # Store the results
     #
-    #added_count = App.database.store_depth(results, freq)
+    #added_count = App.analyzer.store_depth(results, freq)
 
     end_time = datetime.utcnow()
     duration = (end_time-start_time).total_seconds()
@@ -132,7 +132,7 @@ def start_collector_depth():
     #
     # Initialize data state, connections and listeners
     #
-    App.database = Database(None)
+    App.analyzer = Analyzer(None)
 
     App.client = Client(api_key=App.config["api_key"], api_secret=App.config["api_secret"])
 
@@ -185,7 +185,7 @@ def start_collector_depth():
 
 
 if __name__ == "__main__":
-    App.database = Database(None)
+    App.analyzer = Analyzer(None)
     App.client = Client(api_key=App.config["api_key"], api_secret=App.config["api_secret"])
     App.loop = asyncio.get_event_loop()
     try:

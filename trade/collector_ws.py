@@ -15,7 +15,7 @@ from binance.websockets import BinanceSocketManager
 
 from common.utils import *
 from trade.App import *
-from trade.Database import *
+from trade.analyzer import *
 
 import logging
 log = logging.getLogger('collector_ws')
@@ -83,7 +83,7 @@ def process_message(msg):
     #print(f"Event symbol: {event_symbol}, Event channel: {event_channel}")
 
     # Submit a task to our main event queue
-    App.database.queue.put(event)
+    App.analyzer.queue.put(event)
 
 
 def start_collector_ws():
@@ -92,7 +92,7 @@ def start_collector_ws():
     #
     # Initialize data state, connections and listeners
     #
-    App.database = Database(None)
+    App.analyzer = Analyzer(None)
 
     App.client = Client(api_key=App.config["api_key"], api_secret=App.config["api_secret"])
 
@@ -167,10 +167,10 @@ def start_collector_ws():
     try:
         while True:
             time.sleep(saving_period)
-            event_count = App.database.queue.qsize()
+            event_count = App.analyzer.queue.qsize()
             if event_count > 0:
                 print(f"Storing {event_count} events.")
-                App.database.store_queue()
+                App.analyzer.store_queue()
             else:
                 # Reconnect
                 print(f"No incoming messages. Trying to reconnect.")

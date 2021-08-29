@@ -13,7 +13,7 @@ from binance.client import Client
 import trade
 from common.utils import *
 from trade.App import *
-from trade.Database import *
+from trade.analyzer import *
 from trade.collector_depth import *
 from trade.trader import *
 
