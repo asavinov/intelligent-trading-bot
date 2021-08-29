@@ -28,7 +28,7 @@ async def sync_trader_task_OLD():
     """
     It is a highest level task which is added to the event loop and executed normally every 1 minute and then it calls other tasks.
     """
-    symbol = App.config["trader"]["symbol"]
+    symbol = App.config["symbol"]
     startTime, endTime = get_interval("1m")
     now_ts = now_timestamp()
 
@@ -62,7 +62,7 @@ async def sync_trader_task_OLD():
     if is_buy_signal:
         log.debug(f"\n==============  BUY SIGNAL  ==============. Scores: {buy_signal_scores}\n")
 
-    if App.config["trader"]["parameters"]["no_trades_only_data_processing"]:
+    if App.config["trader"]["no_trades_only_data_processing"]:
         log.info(f"<=== End trade task. Only data operations performed (trading is disabled).")
         return
 
@@ -130,7 +130,7 @@ async def in_market_trade():
     else:  # Order still exists and is active
         now_ts = now_timestamp()
 
-        sell_timeout = App.config["trader"]["parameters"]["sell_timeout"]  # Seconds
+        sell_timeout = App.config["trader"]["sell_timeout"]  # Seconds
         creation_ts = App.sell_order_time
 
         if (now_ts - creation_ts) >= (sell_timeout * 1_000):
@@ -194,7 +194,7 @@ async def new_market_buy_order():
     """
     Submit a new market buy order. Wait until it is executed.
     """
-    symbol = App.config["trader"]["symbol"]
+    symbol = App.config["symbol"]
 
     #
     # Get latest market parameters
@@ -219,7 +219,7 @@ async def new_market_buy_order():
     # Determine BTC quantity to buy depending on how much USDT we have and what is the latest price taking into account possible price increase
     #
     quote_quantity = App.quote_quantity
-    percentage_used_for_trade = App.config["trader"]["parameters"]["percentage_used_for_trade"]
+    percentage_used_for_trade = App.config["trader"]["percentage_used_for_trade"]
     quantity = (quote_quantity * percentage_used_for_trade) / 100.0 / last_close_price
     quantity = to_decimal(quantity)
     # Alternatively, we can pass quoteOrderQty in USDT (how much I want to spend)
@@ -255,7 +255,7 @@ async def new_market_sell_order():
     It is a blocking request until everything is sold.
     The function determines the total quantity of btc we possess and then creates a market order.
     """
-    symbol = App.config["trader"]["symbol"]
+    symbol = App.config["symbol"]
 
     #
     # We want to sell all BTC we own.
@@ -304,7 +304,7 @@ async def force_sell():
     Force sell available btc and exit market.
     We kill an existing limit sell order (if any) and then create a new sell market order.
     """
-    symbol = App.config["trader"]["symbol"]
+    symbol = App.config["symbol"]
 
     sell_order = App.sell_order
     sell_order_id = sell_order.get("orderId", 0) if sell_order else 0
@@ -417,7 +417,7 @@ async def update_state_and_health_check():
     This function is called when we want to get complete real (true) state, for example, after re-start or network problem.
     It sets our state by requesting information from the server.
     """
-    symbol = App.config["trader"]["symbol"]
+    symbol = App.config["symbol"]
 
     # Get server state (ping) and trade status (e.g., trade can be suspended on some symbol)
     system_status = App.client.get_system_status()
@@ -456,12 +456,12 @@ async def update_state_and_health_check():
     App.account_status = 0
 
     # Get current balances (available funds)
-    #balance = App.client.get_asset_balance(asset=App.config["trader"]["base_asset"])
-    balance = next((b for b in account_info.get("balances", []) if b.get("asset") == App.config["trader"]["base_asset"]), {})
+    #balance = App.client.get_asset_balance(asset=App.config["base_asset"])
+    balance = next((b for b in account_info.get("balances", []) if b.get("asset") == App.config["base_asset"]), {})
     App.base_quantity = Decimal(balance.get("free", "0.00000000"))
 
-    #balance = App.client.get_asset_balance(asset=App.config["trader"]["quote_asset"])
-    balance = next((b for b in account_info.get("balances", []) if b.get("asset") == App.config["trader"]["quote_asset"]), {})
+    #balance = App.client.get_asset_balance(asset=App.config["quote_asset"])
+    balance = next((b for b in account_info.get("balances", []) if b.get("asset") == App.config["quote_asset"]), {})
     App.quote_quantity = Decimal(balance.get("free", "0.00000000"))
 
     # Get current active orders

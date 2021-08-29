@@ -51,7 +51,7 @@ def start_server():
     #
     # Validation
     #
-    symbol = App.config["trader"]["symbol"]
+    symbol = App.config["symbol"]
 
     print(f"Initializing signaler server. Trade symbol {symbol}. ")
 

@@ -33,7 +33,7 @@ async def main_signaler_task():
     """
     It is a highest level task which is added to the event loop and executed normally every 1 minute and then it calls other tasks.
     """
-    symbol = App.config["trader"]["symbol"]
+    symbol = App.config["symbol"]
     startTime, endTime = get_interval("1m")
     now_ts = now_timestamp()
 
@@ -97,7 +97,7 @@ async def sync_data_collector_task():
     - We update only local state by loading latest data. If it is necessary to initialize the db then another function should be used.
     """
 
-    symbol = App.config["trader"]["symbol"]
+    symbol = App.config["symbol"]
     symbols = [symbol]  # In future, we might want to collect other data, say, from other cryptocurrencies
 
     # Request newest data
@@ -205,7 +205,7 @@ async def data_provider_health_check():
     """
     Request information about the data provider server state.
     """
-    symbol = App.config["trader"]["symbol"]
+    symbol = App.config["symbol"]
 
     # Get server state (ping) and trade status (e.g., trade can be suspended on some symbol)
     system_status = App.client.get_system_status()

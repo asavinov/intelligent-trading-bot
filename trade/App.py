@@ -83,6 +83,10 @@ class App:
         "api_key": "***REMOVED***",
         "api_secret": "***REMOVED***",
 
+        "symbol": "BTCUSDT",
+        "base_asset": "BTC",
+        "quote_asset": "USDT",
+
         # === NAMES ===
 
         # Target columns with true values which will be predicted
@@ -181,27 +185,18 @@ class App:
         # === TRADER SERVER ===
         "trader": {
             "folder": "DATA",
-            "symbol": "BTCUSDT",
-            "base_asset": "BTC",
-            "quote_asset": "USDT",
 
-            "parameters": {
-                # For debugging: determine what parts of code will be executed
-                "no_trades_only_data_processing": False,  # in market or out of market processing is excluded (all below parameters ignored)
-                "test_order_before_submit": False,  # Send test submit to the server as part of validation
-                "simulate_order_execution": False,  # Instead of real orders, simulate their execution (immediate buy/sell market orders and use high price of klines for limit orders)
+            # For debugging: determine what parts of code will be executed
+            "no_trades_only_data_processing": False,  # in market or out of market processing is excluded (all below parameters ignored)
+            "test_order_before_submit": False,  # Send test submit to the server as part of validation
+            "simulate_order_execution": False,  # Instead of real orders, simulate their execution (immediate buy/sell market orders and use high price of klines for limit orders)
 
-                "percentage_used_for_trade": 99,  # in % to the available USDT quantity, that is, we will derive how much BTC to buy using this percentage
-                "limit_price_adjustment": -0.0001,  # Limit price of orders will be better than the latest close price (0 means no change, positive - better for us, negative - worse for us)
+            "percentage_used_for_trade": 99,  # in % to the available USDT quantity, that is, we will derive how much BTC to buy using this percentage
+            "limit_price_adjustment": -0.0001,  # Limit price of orders will be better than the latest close price (0 means no change, positive - better for us, negative - worse for us)
 
-
-
-
-                # Signal model (trade strategy)
-                "sell_timeout": 70,  # Seconds
-                "percentage_sell_price": 1.018,  # our planned profit per trade via limit sell order (part of the model)
-            },
-
+            # Signal model (trade strategy) - currently NOT USED
+            "sell_timeout": 70,  # Seconds
+            "percentage_sell_price": 1.018,  # our planned profit per trade via limit sell order (part of the model)
         },
     }
 

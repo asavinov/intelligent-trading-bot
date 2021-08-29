@@ -77,7 +77,7 @@ async def main_trader_task():
     """
     It is a highest level task which is added to the event loop and executed normally every 1 minute and then it calls other tasks.
     """
-    symbol = App.config["trader"]["symbol"]
+    symbol = App.config["symbol"]
     startTime, endTime = get_interval("1m")
     now_ts = now_timestamp()
 
@@ -179,7 +179,7 @@ async def main_trader_task():
         # -----
         await new_limit_order(side=SIDE_BUY)
 
-        if App.config["trader"]["parameters"]["no_trades_only_data_processing"]:
+        if App.config["trader"]["no_trades_only_data_processing"]:
             print("SKIP TRADING due to 'no_trades_only_data_processing' parameter True")
             # Never change status if orders not executed
         else:
@@ -188,7 +188,7 @@ async def main_trader_task():
         # -----
         await new_limit_order(side=SIDE_SELL)
 
-        if App.config["trader"]["parameters"]["no_trades_only_data_processing"]:
+        if App.config["trader"]["no_trades_only_data_processing"]:
             print("SKIP TRADING due to 'no_trades_only_data_processing' parameter True")
             # Never change status if orders not executed
         else:
@@ -207,7 +207,7 @@ async def update_trade_status():
     # GET /api/v3/openOrders - get current open orders
     # GET /api/v3/allOrders - get all orders: active, canceled, or filled
 
-    symbol = App.config["trader"]["symbol"]
+    symbol = App.config["symbol"]
 
     # -----
     try:
@@ -257,7 +257,7 @@ async def update_order_status():
     - only one or no orders can be active currently, but in future there can be many orders
     - if no order id(s) is provided then retrieve all existing orders
     """
-    symbol = App.config["trader"]["symbol"]
+    symbol = App.config["symbol"]
 
     # Get currently active order and id (if any)
     order = App.order
@@ -287,7 +287,7 @@ async def update_account_balance():
     """Get available assets (as decimal)."""
 
     try:
-        balance = App.client.get_asset_balance(asset=App.config["trader"]["base_asset"])
+        balance = App.client.get_asset_balance(asset=App.config["base_asset"])
     except Exception as e:
         log.error(f"Binance exception in 'get_asset_balance' {e}")
         return
@@ -295,7 +295,7 @@ async def update_account_balance():
     App.base_quantity = Decimal(balance.get("free", "0.00000000"))  # BTC
 
     try:
-        balance = App.client.get_asset_balance(asset=App.config["trader"]["quote_asset"])
+        balance = App.client.get_asset_balance(asset=App.config["quote_asset"])
     except Exception as e:
         log.error(f"Binance exception in 'get_asset_balance' {e}")
         return
@@ -313,7 +313,7 @@ async def cancel_order():
     Kill existing sell order. It is a blocking request, that is, it waits for the end of the operation.
     Info: DELETE /api/v3/order - cancel order
     """
-    symbol = App.config["trader"]["symbol"]
+    symbol = App.config["symbol"]
 
     # Get currently active order and id (if any)
     order = App.order
@@ -352,7 +352,7 @@ async def new_limit_order(side):
     Create a new limit sell order with the amount we current have.
     The amount is total amount and price is determined according to our strategy (either fixed increase or increase depending on the signal).
     """
-    symbol = App.config["trader"]["symbol"]
+    symbol = App.config["symbol"]
     now_ts = now_timestamp()
 
     #
@@ -364,7 +364,7 @@ async def new_limit_order(side):
         log.error(f"Cannot determine last close price in order to create a market buy order.")
         return None
 
-    price_adjustment = App.config["trader"]["parameters"]["limit_price_adjustment"]
+    price_adjustment = App.config["trader"]["limit_price_adjustment"]
     if side == SIDE_BUY:
         price = last_close_price * Decimal(1.0 - price_adjustment)  # Adjust price slightly lower
     elif side == SIDE_SELL:
@@ -379,7 +379,7 @@ async def new_limit_order(side):
     if side == SIDE_BUY:
         # Find how much quantity we can buy for all available USD using the computed price
         quantity = App.quote_quantity  # USD
-        percentage_used_for_trade = App.config["trader"]["parameters"]["percentage_used_for_trade"]
+        percentage_used_for_trade = App.config["trader"]["percentage_used_for_trade"]
         quantity = (quantity * percentage_used_for_trade) / Decimal(100.0)  # Available for trade
         quantity = quantity / price  # BTC to buy
         # Alternatively, we can pass quoteOrderQty in USDT (how much I want to spend)
@@ -401,7 +401,7 @@ async def new_limit_order(side):
         price=price_str,
     )
 
-    if App.config["trader"]["parameters"]["no_trades_only_data_processing"]:
+    if App.config["trader"]["no_trades_only_data_processing"]:
         print(f"NOT executed order spec: {order_spec}")
     else:
         order = execute_order(order_spec)
@@ -419,7 +419,7 @@ def execute_order(order: dict):
 
     # TODO: Check validity, e.g., against filters (min, max) and our own limits
 
-    if App.config["trader"]["parameters"]["test_order_before_submit"]:
+    if App.config["trader"]["test_order_before_submit"]:
         try:
             log.info(f"Submitting test order: {order}")
             test_response = App.client.create_test_order(**order)  # Returns {} if ok. Does not check available balances - only trade rules
@@ -428,7 +428,7 @@ def execute_order(order: dict):
             # TODO: Reset/resync whole account
             return
 
-    if App.config["trader"]["parameters"]["simulate_order_execution"]:
+    if App.config["trader"]["simulate_order_execution"]:
         # TODO: Simply store order so that later we can check conditions of its execution
         print(order)
         print(App.signal)
