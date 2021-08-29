@@ -53,19 +53,19 @@ class P:
     labels_horizon = 180  # Labels are generated using this number of steps ahead (max label window)
 
     in_path_name = r"C:\DATA2\BITCOIN\GENERATED"  # File with all necessary derived features
-    in_file_name = r"BTCUSDT-1m-features.csv"
+    in_file_name = r"ETHUSDT-1m-features.csv"
     in_nrows = 100_000_000
     in_nrows_tail = None  # How many last rows to select (for testing)
     skiprows = 500_000
 
     out_path_name = r"_TEMP_FEATURES"
-    out_file_name = r"BTCUSDT-1m-features-rolling.csv"
+    out_file_name = r"ETHUSDT-1m-features-rolling.csv"
 
     # First row for starting predictions: "2020-02-01 00:00:00" - minimum start for futures
     prediction_start_str = "2019-07-01 00:00:00"
     # How frequently re-train models: 1 day: 1_440 = 60 * 24, one week: 10_080
     prediction_length = 2*7*1440
-    prediction_count = 48  # How many prediction steps. If None or 0, then from prediction start till the data end. Use: https://www.timeanddate.com/date/duration.html
+    prediction_count = 53  # How many prediction steps. If None or 0, then from prediction start till the data end. Use: https://www.timeanddate.com/date/duration.html
 
     use_multiprocessing = True
     max_workers = 8  # None means number of processors

@@ -17,6 +17,7 @@ from sklearn.metrics import recall_score
 from sklearn.metrics import f1_score
 
 from sklearn.linear_model import LogisticRegression, SGDClassifier
+from sklearn.svm import SVC
 
 import lightgbm as lgbm
 
@@ -314,6 +315,80 @@ def train_lc(df_X, df_y, params: dict):
     return (model, scaler)
 
 def predict_lc(models: tuple, df_X_test):
+    """
+    Use the model(s) to make predictions for the test data.
+    The first model is a prediction model and the second model (optional) is a scaler.
+    """
+    scaler = models[1]
+    is_scale = scaler is not None
+
+    input_index = df_X_test.index
+    if is_scale:
+        df_X_test = scaler.transform(df_X_test)
+        df_X_test = pd.DataFrame(data=df_X_test, index=input_index)
+    else:
+        df_X_test = df_X_test
+
+    df_X_test_nonans = df_X_test.dropna()  # Drop nans, create gaps in index
+    nonans_index = df_X_test_nonans.index
+
+    y_test_hat_nonans = models[0].predict_proba(df_X_test_nonans.values)  # It returns pairs or probas for 0 and 1
+    y_test_hat_nonans = y_test_hat_nonans[:, 1]  # Or y_test_hat.flatten()
+    y_test_hat_nonans = pd.Series(data=y_test_hat_nonans, index=nonans_index)  # Attach indexes with gaps
+
+    df_ret = pd.DataFrame(index=input_index)  # Create empty dataframe with original index
+    df_ret["y_hat"] = y_test_hat_nonans  # Join using indexes
+    sr_ret = df_ret["y_hat"]  # This series has all original input indexes but NaNs where input is NaN
+
+    return sr_ret
+
+#
+# SVC - SVN Classifier
+#
+
+def train_predict_svc(df_X, df_y, df_X_test, params: dict):
+    """
+    Train model with the specified hyper-parameters and return its predictions for the test data.
+    """
+    models = train_lc(df_X, df_y, params)
+    y_test_hat = predict_lc(models, df_X_test)
+    return y_test_hat
+
+def train_svc(df_X, df_y, params: dict):
+    """
+    Train model with the specified hyper-parameters and return this model (and scaler if any).
+    """
+    is_scale = params.get("is_scale", True)
+
+    #
+    # Prepare data
+    #
+    if is_scale:
+        scaler = StandardScaler()
+        scaler.fit(df_X)
+        X_train = scaler.transform(df_X)
+    else:
+        scaler = None
+        X_train = df_X.values
+
+    y_train = df_y.values
+
+    #
+    # Create model
+    #
+    args = params.copy()
+    del args["is_scale"]
+    args['probability'] = True  # Required to use predict_proba()
+    model = SVC(**args)
+
+    #
+    # Train
+    #
+    model.fit(X_train, y_train)
+
+    return (model, scaler)
+
+def predict_svc(models: tuple, df_X_test):
     """
     Use the model(s) to make predictions for the test data.
     The first model is a prediction model and the second model (optional) is a scaler.

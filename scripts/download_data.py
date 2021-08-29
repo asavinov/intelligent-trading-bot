@@ -12,7 +12,7 @@ from tqdm import tqdm_notebook #(Optional, used for progress-bars)
 import asyncio
 
 from binance.client import Client
-from binance.websockets import BinanceSocketManager
+from binance.streams import BinanceSocketManager
 from binance.enums import *
 
 # DO NOT INCLUDE because it has function klines_to_df with the same name but different implementation (name conflict)
@@ -147,7 +147,7 @@ def klines_to_df(klines, df):
         'trades': 'int64',
         'tb_base_av': 'float64',
         'tb_quote_av': 'float64',
-        'ignore': 'int64',
+        'ignore': 'float64',
     }
     data = data.astype(dtypes)
 
@@ -361,7 +361,7 @@ if __name__ == '__main__':
     
     #get_exchange_info()
 
-    # BTCUSDT ETHBTC IOTAUSDT
+    # BTCUSDT ETHBTC IOTAUSDT ETHUSDT LTCUSDT
     # IOTABTC IOTAETH
     get_klines_all("BTCUSDT", "1m", save=True)
 

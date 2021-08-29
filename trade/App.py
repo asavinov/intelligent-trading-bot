@@ -121,11 +121,9 @@ class App:
                 "features_horizon": 1440+160,
             },
             "model": {
-                # Model 1 (without trends): [0.135, -0.2]
-                # Model 2 (with trends): [0.06, -0.13]
-                # Model 3 (new NN params): [0.215, -0.215]
-                "buy_threshold": 0.4,
-                "sell_threshold": -0.44,
+                # Model 4 [0.4, -0.44]
+                "buy_threshold": 0.25,
+                "sell_threshold": -0.52,
             },
             "signal": None,
         },
@@ -264,4 +262,19 @@ def problems_exist():
 
 
 if __name__ == "__main__":
+    import requests
+
+    bot_token = "***REMOVED***"
+    chat_id = "-***REMOVED***"  #"***REMOVED***" (al su) "-***REMOVED***" (ITB)
+    text = "Score: *123*"
+
+    #bot = telegram.Bot(token=token)
+    #bot.sendMessage(chat_id="***REMOVED***", text=text, parse_mode=telegram.ParseMode.HTML)
+
+    # It does not work for users (number) - chat not found error
+    url = 'https://api.telegram.org/bot' + bot_token + '/sendMessage?chat_id=' + chat_id + '&parse_mode=markdown&text=' + text
+
+    response = requests.get(url)
+    response_json = response.json()
+
     pass

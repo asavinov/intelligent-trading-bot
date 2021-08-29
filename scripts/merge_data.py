@@ -23,9 +23,9 @@ Output file has continuous index by removing possible gaps in input files.
 """
 
 
-symbol = "BTCUSDT"  # BTCUSDT ETHBTC IOTAUSDT
+symbol = "ETHUSDT"  # BTCUSDT ETHUSDT LTCUSDT
 
-kline_file_name = r"C:\DATA2\BITCOIN\DOWNLOADED\BTCUSDT-1m-klines.csv"
+kline_file_name = r"C:\DATA2\BITCOIN\DOWNLOADED\ETHUSDT-1m-klines.csv"
 
 futur_file_name = r"C:\DATA2\BITCOIN\DOWNLOADED\BTCUSDT-1m-futurs.csv"
 
@@ -37,7 +37,7 @@ depth_file_names = [  # Leave empty to skip
     #r"C:\DATA2\BITCOIN\GENERATED\depth-BTCUSDT-batch5.csv",
 ]
 
-out_file_name = r"BTCUSDT-1m.csv"
+out_file_name = r"ETHUSDT-1m.csv"
 
 futur_column_prefix = "f_"
 range_type = "kline"  # Selector: kline, futur, depth, merged (common range)

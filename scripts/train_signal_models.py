@@ -22,7 +22,7 @@ Training such a model is performed by brute force by training out all parameters
 Back testing is performed using an available feature matrix with all rolling predictions.
 The output is an ordered list of top performing threshold-based signal generation models.
 
-One approach is to use two parameters which determine entry and exit thresholds for a position (BTC). They need not be symmetric.
+One approach is to use two parameters which determine entry and exit thresholds for a position. They need not be symmetric.
 These parameters are compared with the final prediction in [-1, +1] which expresses our consolidated future trend. 
 We might introduce one or two additional parameters to eliminate jitter if it happens. 
 Another way to reduce jitter is to smooth the final score so that it simply does not change quickly.
@@ -30,19 +30,6 @@ Yet, if we entry and exist thresholds are significantly different then jitter sh
 This approach does not try to optimize each transaction by searching individual best (but rare) entry-exit point.
 Instead, it tries to find maximums and minimums by switching the side at these points.
 We switch side independent of any other factors - simply because of the future trend and more opportunities on this new side.
-
-Performance is determined by how much can be earned with these parameters.
-We follow the strategy of switching the side or enter-exit strategy.
-Note that this strategy does not have time outs or main asset.
-Instead of main asset, we can use non-symmetric entry-exit thresholds which result in having higher
-probability of one side/asset than the other.
-
-We can also assign higher weight to recent performance.
-Another adjustment is transaction fee which punishes models with many transactions.
-
-Another, original, strategy is to have USD as main asset and then enter (buy BTC) only with 
-the purpose to earn while exiting. Note that this strategy could be also modelled 
-if the two thresholds are not symmetric.
 
 NEXT:
 !!!- Implement signal generation server with real-time updates and notifying some other
@@ -66,29 +53,6 @@ One way to implement it, is to use this special kind of order (take profit) whic
 Yet, we need to model this logic manually.
 """
 
-"""
-BEST:
-without fees or weights (simple mode): 
-kf: (0.07, -0.2), profit 8600, per month 960, avg 33, percent 41%, #/month 29
-k: (0.14, -0.17), profit 9222, per month 1030, avg 46, percent 41%, #/month 22
-k: (0.135, -0.155), profit 9588, per month 1071, avg 44, percent 42%, # 24
-+++ k: (0.135, -0.2), profit 9285, per month 1037, avg 53, percent 44%, # 19
-k2: (), profit 8180, per month 914, 19, percent 38, 47
-k3: (0.13,-0.13), profit 8800, per month 985, avg 39, percent 40%, #/month 25
-k5: (0.13,-0.13), profit 8800, per month 985, avg 39, percent 40, # 25 - ???
-k10: (0, -0.13), profit 8920, per month 996, avg 19, percent 36, #52
-f: (0.07, -0.16), profit 5360, per month 600, avg 8.3, percent 39%, #/month 72
-
-k_nn: (0.18, -0.04), profit 8521, per month 951, avg 10.6, 39%, #90 - many low profit transactions
-kf_nn: (0, -0.2), profit 8900, per month 995, avg 11.5, 36%, #86 
-kf_lc: (0.03, -0.2), profit 7318, per month 817, avg 18.5, 38%, #44
-kf_gb: (0, -0.12), profit 6338, per month 708, avg 9.11, 41%, #77
-
-score as difference (high_k-low_k):
-(0.03, -0.05), profit 8388, per month 937, avg 30, 45%, #30
-
-"""
-
 grid_signals = [
     {
         "buy_threshold": [
@@ -101,8 +65,8 @@ grid_signals = [
             0.20, 0.21, 0.22, 0.23, 0.24, 0.25, 0.26, 0.27, 0.28, 0.29,
             0.30, 0.31, 0.32, 0.33, 0.34, 0.35, 0.36, 0.37, 0.38, 0.39,
             0.40, 0.41, 0.42, 0.43, 0.44, 0.45, 0.46, 0.47, 0.48, 0.49,
-            0.50,
-        ],  # Buy BTC when higher than this value
+            0.50, 0.51, 0.52, 0.53, 0.54, 0.55, 0.56, 0.57, 0.58, 0.59,
+        ],  # Buy when higher than this value
         "sell_threshold": [
             #-0.00, -0.01, -0.02, -0.03, -0.04, -0.05, -0.06, -0.07, -0.08, -0.09,
             #-0.30, -0.31, -0.32, -0.33, -0.34, -0.35, -0.36, -0.37, -0.38, -0.39, -0.40, -0.41, -0.42, -0.43, -0.44, -0.45, -0.46, -0.47, -0.48, -0.49, -0.50
@@ -113,8 +77,8 @@ grid_signals = [
             -0.20, -0.21, -0.22, -0.23, -0.24, -0.25, -0.26, -0.27, -0.28, -0.29,
             -0.30, -0.31, -0.32, -0.33, -0.34, -0.35, -0.36, -0.37, -0.38, -0.39,
             -0.40, -0.41, -0.42, -0.43, -0.44, -0.45, -0.46, -0.47, -0.48, -0.49,
-            -0.50,
-        ],  # Sell BTC when lower than this value
+            -0.50, -0.51, -0.52, -0.53, -0.54, -0.55, -0.56, -0.57, -0.58, -0.59,
+        ],  # Sell when lower than this value
 
         "transaction_fee": [0.005],  # Portion of total transaction amount
         "transaction_price_adjustment": [0.005],  # The real execution price is worse than we assume
@@ -133,14 +97,14 @@ class P:
     in_path_name = r"C:\DATA2\BITCOIN\GENERATED"
     #in_file_name = r"_BTCUSDT-1m-rolling-predictions-no-weights.csv"
     #in_file_name = r"_BTCUSDT-1m-rolling-predictions-with-weights.csv"
-    in_file_name = r"BTCUSDT-1m-features-rolling.csv"
+    in_file_name = r"ETHUSDT-1m-features-rolling.csv"
     in_nrows = 100_000_000
 
     out_path_name = r"_TEMP_FEATURES"
-    out_file_name = r"_BTCUSDT-1m-signals"
+    out_file_name = r"_ETHUSDT-1m-signals"
 
-    simulation_start = 0  # Good start is 2019-06-01 - after it we have stable movement
-    simulation_end = -162_719  # After 2020-11-01 there is sharp growth which we might want to exclude
+    simulation_start = 263519   # Good start is 2019-06-01 - after it we have stable movement
+    simulation_end = -0  # After 2020-11-01 there is sharp growth which we might want to exclude
 
 def generate_score_and_forecast():
     """
@@ -209,7 +173,7 @@ def generate_score_and_forecast():
 def main(args=None):
     start_dt = datetime.now()
 
-    use_forecast_score = True
+    use_forecast_score = False
 
     #
     # Load data with rolling label score predictions
@@ -223,6 +187,12 @@ def main(args=None):
     in_path = Path(P.in_path_name).joinpath(in_name).with_suffix(".csv")
 
     in_df = pd.read_csv(in_path, parse_dates=['timestamp'], nrows=P.in_nrows)
+
+    #
+    # Compute final score (as average over different predictions)
+    # "score" column is added
+    #
+    in_df = generate_score(in_df, P.feature_sets)  # "score" columns is added
 
     #
     # Select data
@@ -344,18 +314,19 @@ def simulate_trade(df, model: dict):
 
         # Current market parameters
         close_price = row.close
+        if not close_price:  # Missing data
+            continue
         high_price = row.high
         low_price = row.high
         timestamp = row.timestamp
 
         score = row.score
-        score_forecast_1 = row.score_forecast_1
-
-        #
-        # Table has missing data
-        #
-        if not (close_price and score):
+        if not score:  # Missing data
             continue
+
+        use_forecast_score = False
+        if use_forecast_score:
+            score_forecast_1 = row.score_forecast_1
 
         #
         # Apply model parameters and generate buy/sell (enter/exit) signal
