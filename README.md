@@ -1,4 +1,32 @@
 -----
+# REFACTORING
+
+!!! Strategy: open-source signaller with telegram. No trader but show its existence. No collector/training - only ready models (use yours if you want)
+
+Refactor and prepare for re-usable project:
+- Introduce trade pair parameter and then use everywhere
+- Maybe separate signaler running parameters from trader running parameters (and generic server/requestor running parameter). Currently they are in flat strucre.
+  One approach is to use Signaler class, Trader class similar to App (and App is for requestor and system things)
+- Separate App instance (variable) state and (static) configuration parameters
+- Read parameters from config (yaml or json)
+- !!! Rework conception. Currently, we have start_collector(), start_trader() etc. What we want is 
+to have one server and a config parameter which specifies which functions to include in man task.
+Note that collector is not signaler. Collector requests data and stores it (regularly) to file.
+ 
+For trade integration:
+- Config parameters for the sequence of main task: signaler, trader, notifier etc. (string name and then resolve)
+  Accordingly, define standard signature for these functions and what they know, say, App config.
+- In future, we want to have the ability to run separately signaler, trader, notifier etc.
+In this case, the main question is how to send signals. Currently, the latest signal is stored in 
+running parameters, and the trader will read this value. We want to send signals to different sinks:
+internal (well defined, configured) variable, message queue/topic, telegram channel etc. Same for reading
+signals: internal configured variable, input topic/queue, telegram channel etc.
+
+Technical tasks for others:
+- Move scheduler parameters out of code to config
+- Use asyncio requests instead of requests (what for? for example, integrate later FastAPI server)
+
+
 # Conventions
 
 ## Input data

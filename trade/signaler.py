@@ -68,7 +68,7 @@ async def main_signaler_task():
     App.database.analyze(symbol)
 
     # Now we have a list of signals and can make trade decisions using trading logic and trade
-    # Signal is stored in App.config["signaler"]["signal"]
+    # Signal is stored in App.signal
 
     # TODO: Validation
     #last_kline_ts = App.database.get_last_kline_ts(symbol)
@@ -214,9 +214,9 @@ async def data_provider_health_check():
     #    "msg": "normal"  # normal or System maintenance.
     #}
     if not system_status or system_status.get("status") != 0:
-        App.config["trader"]["state"]["server_status"] = 1
+        App.server_status = 1
         return 1
-    App.config["trader"]["state"]["server_status"] = 0
+    App.server_status = 0
 
     # Ping the server
 

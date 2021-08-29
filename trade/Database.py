@@ -337,7 +337,7 @@ class Database:
             #signal = dict()
             pass
 
-        App.config["signaler"]["signal"] = signal
+        App.signal = signal
 
 
 if __name__ == "__main__":

@@ -11,6 +11,7 @@ import asyncio
 import requests
 
 from apscheduler.schedulers.background import BackgroundScheduler
+from apscheduler.schedulers.asyncio import AsyncIOScheduler
 
 from binance.client import Client
 from binance.exceptions import *
@@ -36,6 +37,13 @@ log = logging.getLogger('server')
 #
 # Main procedure
 #
+
+async def main_task():
+    """This task will be executed regularly according to the schedule"""
+    await signaler.main_signaler_task()
+    # await trader.main_trader_task()
+    await notify_telegram()
+
 
 def start_server():
     #getcontext().prec = 8
@@ -91,29 +99,17 @@ def start_server():
         return
 
     print(f"Finished trade status sync (account, balances etc.)")
-    print(f'BTC: {str(App.config["trader"]["state"]["base_quantity"])}')
-    print(f'USD: {str(App.config["trader"]["state"]["quote_quantity"])}')
+    print(f'BTC: {str(App.base_quantity)}')
+    print(f'USD: {str(App.quote_quantity)}')
 
     #
-    # Register schedulers
+    # Register scheduler
     #
 
-    # INFO: Scheduling:
-    #     - https://medium.com/greedygame-engineering/an-elegant-way-to-run-periodic-tasks-in-python-61b7c477b679
-    #     - https://schedule.readthedocs.io/en/stable/ https://github.com/dbader/schedule - 6.6k
-    #     - https://github.com/agronholm/apscheduler/blob/master/docs/index.rst - 2.1k
-    #       - https://apscheduler.readthedocs.io/en/latest/modules/schedulers/asyncio.html
-    #     - https://docs.python.org/3/library/sched.html
-
-    App.sched = BackgroundScheduler(
-        daemon=False)  # Daemon flag is passed to Thread (False means the program will not exit until all Threads are finished)
+    #App.sched = BackgroundScheduler(daemon=False)  # Daemon flag is passed to Thread (False means the program will not exit until all Threads are finished)
+    App.sched = AsyncIOScheduler()
     # logging.getLogger('apscheduler.executors.default').setLevel(logging.WARNING)
     logging.getLogger('apscheduler').setLevel(logging.WARNING)
-
-    async def main_task():
-        await signaler.main_signaler_task()
-        await trader.main_trader_task()
-        await notify_telegram()
 
     App.sched.add_job(
         # We register a normal Python function as a call back.
@@ -121,11 +117,12 @@ def start_server():
         # INFO: Creating/adding asyncio tasks from another thread
         # - https://docs.python.org/3/library/asyncio-task.html#scheduling-from-other-threads
         # - App.loop.call_soon_threadsafe(sync_responder)  # This works, but takes a normal funciton (not awaitable), which has to call coroutine: eventLoop.create_task(coroutine())
-        lambda: asyncio.run_coroutine_threadsafe(main_task(), App.loop),
+        #lambda: asyncio.run_coroutine_threadsafe(main_task(), App.loop),
+        main_task,
         trigger='cron',
         # second='*/30',
         minute='*',
-        id='sync_signaler_task'
+        id='main_task'
     )
 
     App.sched.start()  # Start scheduler (essentially, start the thread)
@@ -139,7 +136,6 @@ def start_server():
         App.loop.run_forever()  # Blocking. Run until stop() is called
     except KeyboardInterrupt:
         print(f"KeyboardInterrupt.")
-        pass
     finally:
         App.loop.close()
         print(f"Event loop closed.")
@@ -150,8 +146,8 @@ def start_server():
 
 
 async def notify_telegram():
-    status = App.config["trader"]["state"]["status"]
-    signal = App.config["signaler"]["signal"]
+    status = App.status
+    signal = App.signal
     signal_side = signal.get("side")
     score = signal.get('score')
 

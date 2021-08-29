@@ -1,30 +1,81 @@
 from typing import Union
 import json
 
+
 class App:
-    """
-    Static global parameters visible and accessible from all parts of the application.
-    """
-
-    """
-    Approach 1: direct access to globals from other modules:
-    from trade.App import App
-    api_key = App.api_key
-    """
+    """Globally visible variables."""
 
     #
-    # Transient data
+    # Server instance variables
     #
-    client = None
+
+    # System
     loop = None  # asyncio main loop
     sched = None  # Scheduler
-    database = None
-    log = None
+    database = None  # Store and analyze data
+
+    # Connector client
+    client = None
+
+    # WebSocket for push notifications
     bm = None
     conn_key = None  # Socket
 
+    signal = None,
+
     #
-    # Persistent configuration
+    # State of the server (updated after each interval)
+    #
+    # State 0 or None or empty means ok. String and other non empty objects mean error
+    error_status = 0  # Networks, connections, exceptions etc. what does not allow us to work at all
+    server_status = 0  # If server allow us to trade (maintenance, down etc.)
+    account_status = 0  # If account allows us to trade (funds, suspended etc.)
+    trade_state_status = 0  # Something wrong with our trading logic (wrong use, inconsistent state etc. what we cannot recover)
+
+    # Trade status
+    status = None  # BOUGHT, SOLD, BUYING, SELLING
+    order = None  # Latest or current order
+    order_time = None  # Order submission time
+
+    # Available assets for trade
+    # Can be set by the sync/recover function or updated by the trading algorithm
+    base_quantity = "0.04108219"  # BTC owned (on account, already bought, available for trade)
+    quote_quantity = "1000.0"  # USDT owned (on account, available for trade)
+
+    #
+    # Trder. Status data retrieved from the server. Below are examples only.
+    #
+    system_status = {"status": 0, "msg": "normal"}  # 0: normal，1：system maintenance
+    symbol_info = {
+        "symbol": "BTCUSDT",
+        "status": "TRADING",
+        "baseAsset": "BTC",
+        "baseAssetPrecision": 8,
+        "quoteAsset": "USDT",
+        "quotePrecision": 8,
+        "orderTypes": ["LIMIT", "LIMIT_MAKER", "MARKET", "STOP_LOSS_LIMIT", "TAKE_PROFIT_LIMIT"],
+        "icebergAllowed": True,
+        "ocoAllowed": True,
+        "isSpotTradingAllowed": True,
+        "isMarginTradingAllowed": True,
+        "filters": [],
+    }
+    account_info = {
+        "makerCommission": 15,
+        "takerCommission": 15,
+        "buyerCommission": 0,
+        "sellerCommission": 0,
+        "canTrade": True,
+        "canWithdraw": True,
+        "canDeposit": True,
+        "balances": [
+            {"asset": "BTC", "free": "4723846.89208129", "locked": "0.00000000"},
+            {"asset": "LTC", "free": "4763368.68006011", "locked": "0.00000000"},
+        ]
+    }
+
+    #
+    # Constant configuration parameters
     #
     config = {
         "command": "collector",  # "collector" "trader"
@@ -125,46 +176,10 @@ class App:
                 "buy_threshold": 0.25,
                 "sell_threshold": -0.52,
             },
-            "signal": None,
         },
 
         # === TRADER SERVER ===
         "trader": {
-            #
-            # Status data retrieved from the server. Below are examples only.
-            #
-            "system_status": {"status": 0, "msg": "normal"},  # 0: normal，1：system maintenance
-            "symbol_info": {
-                "symbol": "BTCUSDT",
-                "status": "TRADING",
-                "baseAsset": "BTC",
-                "baseAssetPrecision": 8,
-                "quoteAsset": "USDT",
-                "quotePrecision": 8,
-                "orderTypes": ["LIMIT", "LIMIT_MAKER", "MARKET", "STOP_LOSS_LIMIT", "TAKE_PROFIT_LIMIT"],
-                "icebergAllowed": True,
-                "ocoAllowed": True,
-                "isSpotTradingAllowed": True,
-                "isMarginTradingAllowed": True,
-                "filters": [],
-            },
-            "account_info": {
-                "makerCommission": 15,
-                "takerCommission": 15,
-                "buyerCommission": 0,
-                "sellerCommission": 0,
-                "canTrade": True,
-                "canWithdraw": True,
-                "canDeposit": True,
-                "balances": [
-                    {"asset": "BTC", "free": "4723846.89208129", "locked": "0.00000000"},
-                    {"asset": "LTC", "free": "4763368.68006011", "locked": "0.00000000"},
-                ]
-            },
-
-            #
-            # Static parameters of trader
-            #
             "folder": "DATA",
             "symbol": "BTCUSDT",
             "base_asset": "BTC",
@@ -187,25 +202,6 @@ class App:
                 "percentage_sell_price": 1.018,  # our planned profit per trade via limit sell order (part of the model)
             },
 
-            #
-            # Dynamic state being changed regularly
-            #
-            "state": {  # Current state updated after each trade session
-                # State 0 or None or empty means ok. String and other non emty objects mean error
-                "error_status": 0,  # Networks, connections, exceptions etc. what does not allow us to work at all
-                "server_status": 0,  # If server allow us to trade (maintenance, down etc.)
-                "account_status": 0,  # If account allows us to trade (funds, suspended etc.)
-                "trade_state_status": 0,  # Something wrong with our trading logic (wrong use, inconsistent state etc. what we cannot recover)
-
-                "status": None,  # BOUGHT, SOLD, BUYING, SELLING
-                "order": None,  # Latest or current order
-                "order_time": None,  # Order submission time
-
-                # Available assets
-                # Can be set by the sync/recover function or updated by the trading algorithm
-                "base_quantity": "0.04108219",  # BTC owned (on account, already bought, available for trade)
-                "quote_quantity": "1000.0",  # USDT owned (on account, available for trade)
-            },
         },
     }
 
@@ -243,20 +239,20 @@ class Debug:
 
 
 def data_provider_problems_exist():
-    if App.config["trader"]["state"]["error_status"] != 0:
+    if App.error_status != 0:
         return True
-    if App.config["trader"]["state"]["server_status"] != 0:
+    if App.server_status != 0:
         return True
     return False
 
 def problems_exist():
-    if App.config["trader"]["state"]["error_status"] != 0:
+    if App.error_status != 0:
         return True
-    if App.config["trader"]["state"]["server_status"] != 0:
+    if App.server_status != 0:
         return True
-    if App.config["trader"]["state"]["account_status"] != 0:
+    if App.account_status != 0:
         return True
-    if App.config["trader"]["state"]["trade_state_status"] != 0:
+    if App.trade_state_status != 0:
         return True
     return False
 

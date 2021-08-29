@@ -87,14 +87,14 @@ async def main_trader_task():
     # Sync trade status, check running orders (orders, account etc.)
     #
 
-    status = App.config["trader"]["state"]["status"]
+    status = App.status
 
     if status == "BUYING" or status == "SELLING":
         # We expect that an order was created before and now we need to check if it still exists or was executed
         # -----
         order_status = await update_order_status()
 
-        order = App.config["trader"]["state"]["order"]
+        order = App.order
         # If order status executed then change the status
         # Status codes: NEW PARTIALLY_FILLED FILLED CANCELED PENDING_CANCEL(currently unused) REJECTED EXPIRED
 
@@ -110,18 +110,18 @@ async def main_trader_task():
             log.info(f"Limit order filled. {order}")
             if status == "BUYING":
                 print(f"===> BOUGHT: {order}")
-                App.config["trader"]["state"]["status"] = "BOUGHT"
+                App.status = "BOUGHT"
             elif status == "SELLING":
                 print(f"<=== SOLD: {order}")
-                App.config["trader"]["state"]["status"] = "SOLD"
-            log.info(f'New trade mode: {App.config["trader"]["state"]["status"]}')
+                App.status = "SOLD"
+            log.info(f'New trade mode: {App.status}')
         elif order_status == ORDER_STATUS_REJECTED or order_status == ORDER_STATUS_EXPIRED or order_status == ORDER_STATUS_CANCELED:
             log.error(f"Failed to fill order with order status {order_status}")
             if status == "BUYING":
-                App.config["trader"]["state"]["status"] = "SOLD"
+                App.status = "SOLD"
             elif status == "SELLING":
-                App.config["trader"]["state"]["status"] = "BOUGHT"
-            log.info(f'New trade mode: {App.config["trader"]["state"]["status"]}')
+                App.status = "BOUGHT"
+            log.info(f'New trade mode: {App.status}')
         elif order_status == ORDER_STATUS_PENDING_CANCEL:
             return  # Currently do nothing. Check next time.
         elif order_status == ORDER_STATUS_PARTIALLY_FILLED:
@@ -139,8 +139,8 @@ async def main_trader_task():
     # Prepare. Kill or update existing orders (if necessary)
     #
 
-    status = App.config["trader"]["state"]["status"]
-    signal = App.config["signaler"]["signal"]
+    status = App.status
+    signal = App.signal
     signal_side = signal.get("side")
 
     # If not sold for 1 minute, then kill and then a new order will be created below if there is signal
@@ -155,15 +155,15 @@ async def main_trader_task():
             return
         await asyncio.sleep(1)  # Wait for a second till the balance is updated
         if status == "BUYING":
-            App.config["trader"]["state"]["status"] = "SOLD"
+            App.status = "SOLD"
         elif status == "SELLING":
-            App.config["trader"]["state"]["status"] = "BOUGHT"
+            App.status = "BOUGHT"
 
     #
     # Trade by creating orders
     #
 
-    status = App.config["trader"]["state"]["status"]
+    status = App.status
     if signal_side == "BUY":
         print(f"===> BUY SIGNAL {signal}: ")
     elif signal_side == "SELL":
@@ -183,7 +183,7 @@ async def main_trader_task():
             print("SKIP TRADING due to 'no_trades_only_data_processing' parameter True")
             # Never change status if orders not executed
         else:
-            App.config["trader"]["state"]["status"] = "BUYING"
+            App.status = "BUYING"
     elif status == "BOUGHT" and signal_side == "SELL":
         # -----
         await new_limit_order(side=SIDE_SELL)
@@ -192,7 +192,7 @@ async def main_trader_task():
             print("SKIP TRADING due to 'no_trades_only_data_processing' parameter True")
             # Never change status if orders not executed
         else:
-            App.config["trader"]["state"]["status"] = "SELLING"
+            App.status = "SELLING"
 
     log.info(f"<=== End trade task.")
 
@@ -224,22 +224,22 @@ async def update_trade_status():
         last_kline = App.database.get_last_kline(symbol)
         last_close_price = to_decimal(last_kline[4])  # Close price of kline has index 4 in the list
 
-        base_quantity = App.config["trader"]["state"]["base_quantity"]  # BTC
+        base_quantity = App.base_quantity  # BTC
         btc_assets_in_usd = base_quantity * last_close_price  # Cost of available BTC in USD
 
-        usd_assets = App.config["trader"]["state"]["quote_quantity"]  # USD
+        usd_assets = App.quote_quantity  # USD
 
         if usd_assets >= btc_assets_in_usd:
-            App.config["trader"]["state"]["status"] = "SOLD"
+            App.status = "SOLD"
         else:
-            App.config["trader"]["state"]["status"] = "BOUGHT"
+            App.status = "BOUGHT"
 
     elif len(open_orders) == 1:
         order = open_orders[0]
         if order.get("side") == SIDE_SELL:
-            App.config["trader"]["state"]["status"] = "SELLING"
+            App.status = "SELLING"
         elif order.get("side") == SIDE_BUY:
-            App.config["trader"]["state"]["status"] = "BUYING"
+            App.status = "BUYING"
         else:
             log.error(f"Neither SELL nor BUY side of the order {order}.")
             return None
@@ -260,7 +260,7 @@ async def update_order_status():
     symbol = App.config["trader"]["symbol"]
 
     # Get currently active order and id (if any)
-    order = App.config["trader"]["state"]["order"]
+    order = App.order
     order_id = order.get("orderId", 0) if order else 0
     if not order_id:
         log.error(f"Wrong state or use: check order status cannot find the order id.")
@@ -292,7 +292,7 @@ async def update_account_balance():
         log.error(f"Binance exception in 'get_asset_balance' {e}")
         return
 
-    App.config["trader"]["state"]["base_quantity"] = Decimal(balance.get("free", "0.00000000"))  # BTC
+    App.base_quantity = Decimal(balance.get("free", "0.00000000"))  # BTC
 
     try:
         balance = App.client.get_asset_balance(asset=App.config["trader"]["quote_asset"])
@@ -300,7 +300,7 @@ async def update_account_balance():
         log.error(f"Binance exception in 'get_asset_balance' {e}")
         return
 
-    App.config["trader"]["state"]["quote_quantity"] = Decimal(balance.get("free", "0.00000000"))  # USD
+    App.quote_quantity = Decimal(balance.get("free", "0.00000000"))  # USD
 
     pass
 
@@ -316,7 +316,7 @@ async def cancel_order():
     symbol = App.config["trader"]["symbol"]
 
     # Get currently active order and id (if any)
-    order = App.config["trader"]["state"]["order"]
+    order = App.order
     order_id = order.get("orderId", 0) if order else 0
     if order_id == 0:
         # TODO: Maybe retrieve all existing (sell, limit) orders
@@ -378,14 +378,14 @@ async def new_limit_order(side):
     #
     if side == SIDE_BUY:
         # Find how much quantity we can buy for all available USD using the computed price
-        quantity = App.config["trader"]["state"]["quote_quantity"]  # USD
+        quantity = App.quote_quantity  # USD
         percentage_used_for_trade = App.config["trader"]["parameters"]["percentage_used_for_trade"]
         quantity = (quantity * percentage_used_for_trade) / Decimal(100.0)  # Available for trade
         quantity = quantity / price  # BTC to buy
         # Alternatively, we can pass quoteOrderQty in USDT (how much I want to spend)
     elif side == SIDE_SELL:
         # All available BTCs
-        quantity = App.config["trader"]["state"]["base_quantity"]  # BTC
+        quantity = App.base_quantity  # BTC
 
     quantity_str = round_down_str(quantity, 6)
 
@@ -409,8 +409,8 @@ async def new_limit_order(side):
     #
     # Store/log order object in our records (only after confirmation of success)
     #
-    App.config["trader"]["state"]["order"] = order
-    App.config["trader"]["state"]["order_time"] = now_ts
+    App.order = order
+    App.order_time = now_ts
 
     return order
 
@@ -431,7 +431,7 @@ def execute_order(order: dict):
     if App.config["trader"]["parameters"]["simulate_order_execution"]:
         # TODO: Simply store order so that later we can check conditions of its execution
         print(order)
-        print(App.config["signaler"]["signal"])
+        print(App.signal)
         pass
     else:
         # -----
