@@ -5,10 +5,6 @@ import json
 class App:
     """Globally visible variables."""
 
-    #
-    # Server instance variables
-    #
-
     # System
     loop = None  # asyncio main loop
     sched = None  # Scheduler
@@ -21,7 +17,7 @@ class App:
     bm = None
     conn_key = None  # Socket
 
-    signal = None,
+    signal = None,  # Latest signal "BUY", "SELL"
 
     #
     # State of the server (updated after each interval)
@@ -82,6 +78,9 @@ class App:
 
         "api_key": "***REMOVED***",
         "api_secret": "***REMOVED***",
+
+        "telegram_bot_token": "***REMOVED***",
+        "telegram_chat_id": "***REMOVED***",  #"***REMOVED***" (al su) "-***REMOVED***" (ITB)
 
         "symbol": "BTCUSDT",
         "base_asset": "BTC",

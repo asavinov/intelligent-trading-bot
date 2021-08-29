@@ -1,13 +1,12 @@
 import os
 import sys
-import argparse
 import math, time
 from datetime import datetime
 from decimal import *
 
 import pandas as pd
-import asyncio
 
+import asyncio
 import requests
 
 from apscheduler.schedulers.background import BackgroundScheduler
@@ -26,8 +25,9 @@ from common.utils import *
 from trade.App import *
 from trade.Database import *
 
-import signaler
-import trader
+from trade.signaler import *
+from trade.notifier import *
+from trade.trader import *
 
 import logging
 
@@ -40,8 +40,8 @@ log = logging.getLogger('server')
 
 async def main_task():
     """This task will be executed regularly according to the schedule"""
-    await signaler.main_signaler_task()
-    # await trader.main_trader_task()
+    await main_signaler_task()
+    # await main_trader_task()
     await notify_telegram()
 
 
@@ -143,25 +143,6 @@ def start_server():
         print(f"Scheduler shutdown.")
 
     return 0
-
-
-async def notify_telegram():
-    status = App.status
-    signal = App.signal
-    signal_side = signal.get("side")
-    score = signal.get('score')
-
-    sign = "+++>>>" if score > 0 else "---<<<"
-
-    message = f"{sign} {score:+.2f}. PRICE: {int(signal.get('close_price'))}. STATUS: {status}"
-
-    bot_token = "***REMOVED***"
-    chat_id = "***REMOVED***"  #"***REMOVED***" (al su) "-***REMOVED***" (ITB)
-
-    url = 'https://api.telegram.org/bot' + bot_token + '/sendMessage?chat_id=' + chat_id + '&parse_mode=markdown&text=' + message
-
-    response = requests.get(url)
-    response_json = response.json()
 
 
 if __name__ == "__main__":
