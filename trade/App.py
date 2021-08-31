@@ -77,11 +77,13 @@ class App:
     config = {
         "command": "",  # "collector" "trader"
 
-        "api_key": "***REMOVED***",
-        "api_secret": "***REMOVED***",
+        # Binance
+        "api_key": "",
+        "api_secret": "",
 
-        "telegram_bot_token": "***REMOVED***",
-        "telegram_chat_id": "***REMOVED***",  #"***REMOVED***" (al su) "-***REMOVED***" (ITB)
+        # Telegram
+        "telegram_bot_token": "",
+        "telegram_chat_id": "",
 
         "symbol": "BTCUSDT",
         "base_asset": "BTC",

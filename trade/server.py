@@ -3,6 +3,7 @@ import sys
 import math, time
 from datetime import datetime
 from decimal import *
+import click
 
 import pandas as pd
 
@@ -62,7 +63,15 @@ async def main_task():
     return
 
 
-def start_server():
+@click.command()
+@click.option('--config_file', type=click.Path(), default='', help='Configuration file name')
+def start_server(config_file):
+
+    if config_file:
+        with open(config_file) as json_file:
+            config_json = json.load(json_file)
+            App.config.update(config_json)
+
     #getcontext().prec = 8
 
     #
