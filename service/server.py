@@ -18,17 +18,13 @@ from binance.exceptions import *
 from binance.helpers import date_to_milliseconds, interval_to_milliseconds
 from binance.enums import *
 
-PACKAGE_PARENT = '..'
-SCRIPT_DIR = os.path.dirname(os.path.realpath(os.path.join(os.getcwd(), os.path.expanduser(__file__))))
-sys.path.append(os.path.normpath(os.path.join(SCRIPT_DIR, PACKAGE_PARENT)))
-
 from common.utils import *
-from trade.App import *
+from service.App import *
 
-from trade.collector import *
-from trade.analyzer import *
-from trade.notifier import *
-from trade.trader import *
+from service.collector import *
+from service.analyzer import *
+from service.notifier import *
+from service.trader import *
 
 import logging
 
@@ -64,11 +60,12 @@ async def main_task():
 
 
 @click.command()
-@click.option('--config_file', type=click.Path(), default='', help='Configuration file name')
+@click.option('--config_file', '-c', type=click.Path(), default='', help='Configuration file name')
 def start_server(config_file):
 
     if config_file:
-        with open(config_file) as json_file:
+        config_file_path = PACKAGE_ROOT / config_file
+        with open(config_file_path) as json_file:
             config_json = json.load(json_file)
             App.config.update(config_json)
 
@@ -173,36 +170,3 @@ def start_server(config_file):
 
 if __name__ == "__main__":
     start_server()
-    os.exit()
-
-    # Short version of start_trader (main procedure) for testing/debug purposes
-    App.analyzer = Analyzer(None)
-    App.client = Client(api_key=App.config["api_key"], api_secret=App.config["api_secret"])
-    App.loop = asyncio.get_event_loop()
-    try:
-        log.debug("Start in debug mode.")
-        log.info("Start testing in main.")
-
-        App.loop.run_until_complete(data_provider_health_check())
-
-        App.loop.run_until_complete(sync_data_collector_task())
-
-        App.analyzer.analyze()
-
-        # App.loop.run_until_complete(sync_signaler_task())
-
-    except BinanceAPIException as be:
-        # IP is not registred in binance
-        # BinanceAPIException: APIError(code=-2015): Invalid API-key, IP, or permissions for action
-        # APIError(code=-1021): Timestamp for this request was 1000ms ahead of the server's time.
-        print(be)
-    except KeyboardInterrupt:
-        pass
-    except Exception as e:
-        log.error(f"Exception {e}")
-    finally:
-        log.info(f"Finished.")
-        App.loop.close()
-        # App.sched.shutdown()
-
-    pass

@@ -10,7 +10,7 @@ from sklearn.metrics import confusion_matrix
 from sklearn.metrics import roc_auc_score
 from sklearn.metrics import average_precision_score
 
-from trade.App import App
+from service.App import App
 from common.signal_generation import *
 
 

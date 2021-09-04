@@ -4,7 +4,7 @@ import asyncio
 import requests
 
 from common.utils import *
-from trade.App import *
+from service.App import *
 
 
 async def notify_telegram():

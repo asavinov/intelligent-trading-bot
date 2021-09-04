@@ -14,8 +14,8 @@ from binance.client import Client
 from binance.websockets import BinanceSocketManager
 
 from common.utils import *
-from trade.App import *
-from trade.analyzer import *
+from service.App import *
+from service.analyzer import *
 
 import logging
 log = logging.getLogger('collector_ws')

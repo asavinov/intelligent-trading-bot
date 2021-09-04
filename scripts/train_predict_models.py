@@ -8,7 +8,7 @@ import pickle
 import numpy as np
 import pandas as pd
 
-from trade.App import App
+from service.App import App
 from common.utils import *
 from common.classifiers import *
 from common.feature_generation import *

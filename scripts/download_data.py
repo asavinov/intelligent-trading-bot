@@ -17,7 +17,7 @@ from binance.enums import *
 
 # DO NOT INCLUDE because it has function klines_to_df with the same name but different implementation (name conflict)
 #from common.utils import *
-from trade.App import App
+from service.App import App
 
 """
 The script is intended for retrieving data from binance server: klines, server info etc.

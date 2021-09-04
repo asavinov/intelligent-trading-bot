@@ -16,8 +16,8 @@ from binance.helpers import date_to_milliseconds, interval_to_milliseconds
 from binance.enums import *
 
 from common.utils import *
-from trade.App import *
-from trade.analyzer import *
+from service.App import *
+from service.analyzer import *
 
 import logging
 log = logging.getLogger('collector')

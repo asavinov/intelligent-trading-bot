@@ -9,7 +9,7 @@ import numpy as np
 import pandas as pd
 
 from common.utils import *
-from trade.App import *
+from service.App import *
 from common.classifiers import *
 from common.feature_generation import *
 from common.signal_generation import *
