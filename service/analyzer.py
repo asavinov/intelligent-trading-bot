@@ -8,14 +8,14 @@ import queue
 import numpy as np
 import pandas as pd
 
-from common.utils import *
 from service.App import *
+from common.utils import *
 from common.classifiers import *
 from common.feature_generation import *
 from common.signal_generation import *
 
 import logging
-log = logging.getLogger('DB')
+log = logging.getLogger('analyzer')
 
 
 class Analyzer:
@@ -257,9 +257,13 @@ class Analyzer:
         feature_sets = ["kline"]
         algorithms = ["gb", "nn", "lc"]
 
-        model_path = App.config["signaler"]["analysis"]["folder"]
-
         if not self.models:
+            model_path = App.config["signaler"]["analysis"]["folder"]
+            model_path = Path(model_path)
+            if not model_path.is_absolute():
+                model_path = PACKAGE_ROOT / model_path
+            model_path = model_path.resolve()
+
             self.models = load_models(model_path, labels, feature_sets, algorithms)
 
         #
@@ -342,11 +346,4 @@ class Analyzer:
 
 
 if __name__ == "__main__":
-    db = Analyzer(None)
-    db.queue.put({"e": "depth", "s": "BTCUSDT", "price": 12.34})
-    db.queue.put({"e": "kline", "s": "ETHBTC", "price": 23.45})
-    db.queue.put({"e": "kline", "s": "ETHBTC", "price": 45.67})
-
-    db.store_queue("5s")
-
     pass

@@ -83,7 +83,7 @@ class App:
     # Constant configuration parameters
     #
     config = {
-        "command": "",  # "collector" "trader"
+        "actions": ["notify"],  # Values: notify, trade
 
         # Binance
         "api_key": "",
@@ -156,31 +156,10 @@ class App:
             "bids_20_2","bids_20_5","bids_20_10", "asks_20_2","asks_20_5","asks_20_10",
         ],
 
-        # === COLLECTOR SERVER ===
-        "collector": {
-            "folder": "DATA",
-            "flush_period": 300,  # seconds
-            "depth": {
-                "folder": "DEPTH",
-                "symbols": ["BTCUSDT", "ETHBTC", "ETHUSDT", "IOTAUSDT", "IOTABTC", "IOTAETH"],
-                "limit": 100,  # Legal values (depth): '5, 10, 20, 50, 100, 500, 1000, 5000' <100 weight=1
-                "freq": "1m",  # Binance standard frequency: 5s, 1m etc.
-            },
-            "stream": {
-                "folder": "STREAM",
-                # Stream formats:
-                # For kline channel: <symbol>@kline_<interval>, Event type: "e": "kline", Symbol: "s": "BNBBTC"
-                # For depth channel: <symbol>@depth<levels>[@100ms], Event type: NO, Symbol: NO
-                # btcusdt@ticker
-                "channels": ["kline_1m", "depth20"],  # kline_1m, depth20, depth5
-                "symbols": ["BTCUSDT", "ETHBTC", "ETHUSDT", "IOTAUSDT", "IOTABTC", "IOTAETH"],  # "BTCUSDT", "ETHBTC", "ETHUSDT", "IOTAUSDT", "IOTABTC", "IOTAETH"
-            }
-        },
-
         # === SIGNALER SERVER ===
         "signaler": {
             "analysis": {  # Same for all symbols
-                "folder": "_TEMP_MODELS",
+                "folder": "MODELS",
                 # History needed to compute derived features
                 # Take base aggregation from feature generation code and add something
                 "features_horizon": 1440+160,
@@ -208,39 +187,29 @@ class App:
             "sell_timeout": 70,  # Seconds
             "percentage_sell_price": 1.018,  # our planned profit per trade via limit sell order (part of the model)
         },
+
+        # === COLLECTORS ===
+        "collector": {
+            "folder": "DATA",
+            "flush_period": 300,  # seconds
+            "depth": {
+                "folder": "DEPTH",
+                "symbols": ["BTCUSDT", "ETHBTC", "ETHUSDT", "IOTAUSDT", "IOTABTC", "IOTAETH"],
+                "limit": 100,  # Legal values (depth): '5, 10, 20, 50, 100, 500, 1000, 5000' <100 weight=1
+                "freq": "1m",  # Binance standard frequency: 5s, 1m etc.
+            },
+            "stream": {
+                "folder": "STREAM",
+                # Stream formats:
+                # For kline channel: <symbol>@kline_<interval>, Event type: "e": "kline", Symbol: "s": "BNBBTC"
+                # For depth channel: <symbol>@depth<levels>[@100ms], Event type: NO, Symbol: NO
+                # btcusdt@ticker
+                "channels": ["kline_1m", "depth20"],  # kline_1m, depth20, depth5
+                "symbols": ["BTCUSDT", "ETHBTC", "ETHUSDT", "IOTAUSDT", "IOTABTC", "IOTAETH"],
+                # "BTCUSDT", "ETHBTC", "ETHUSDT", "IOTAUSDT", "IOTABTC", "IOTAETH"
+            }
+        },
     }
-
-    """
-    Approach 2: Indirect access via static methods
-    port = App.conf("MYSQL_PORT")
-    App.set("username", "hi")
-    """
-    __conf = {
-        "username": "",
-        "password": "",
-        "MYSQL_PORT": 3306,
-        "MYSQL_DATABASE": 'mydb',
-        "MYSQL_DATABASE_TABLES": ['tb_users', 'tb_groups']
-    }
-    __setters = ["username", "password"]  # A list of (configuration) names which can be set
-
-    @staticmethod
-    def conf(name):
-        return App.__conf[name]
-
-    @staticmethod
-    def set(name, value):
-        if name in App.__setters:
-            App.__conf[name] = value
-        else:
-            raise NameError("Name not accepted in set() method")
-
-    # TODO: Lock for synchronization of access to shared resources
-    # INFO: use queue instead of asynchio https://docs.python.org/3/library/queue.html
-
-
-class Debug:
-    parameter_debug = 234
 
 
 def data_provider_problems_exist():
@@ -249,6 +218,7 @@ def data_provider_problems_exist():
     if App.server_status != 0:
         return True
     return False
+
 
 def problems_exist():
     if App.error_status != 0:

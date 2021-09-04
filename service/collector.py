@@ -8,15 +8,13 @@ from decimal import *
 import pandas as pd
 import asyncio
 
-from apscheduler.schedulers.background import BackgroundScheduler
-
 from binance.client import Client
 from binance.exceptions import *
 from binance.helpers import date_to_milliseconds, interval_to_milliseconds
 from binance.enums import *
 
-from common.utils import *
 from service.App import *
+from common.utils import *
 from service.analyzer import *
 
 import logging

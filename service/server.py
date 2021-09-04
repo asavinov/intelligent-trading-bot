@@ -5,22 +5,12 @@ from datetime import datetime
 from decimal import *
 import click
 
-import pandas as pd
-
 import asyncio
-import requests
 
-from apscheduler.schedulers.background import BackgroundScheduler
 from apscheduler.schedulers.asyncio import AsyncIOScheduler
 
-from binance.client import Client
-from binance.exceptions import *
-from binance.helpers import date_to_milliseconds, interval_to_milliseconds
-from binance.enums import *
-
-from common.utils import *
 from service.App import *
-
+from common.utils import *
 from service.collector import *
 from service.analyzer import *
 from service.notifier import *
@@ -47,14 +37,19 @@ async def main_task():
     #    log.error(f"Problem during analysis. Last kline end ts {last_kline_ts + 60_000} not equal to start of current interval {startTime}.")
 
     # Generate signals (derived features, predictions)
-    # TODO: execute in external process/worker
-    App.analyzer.analyze()
+    try:
+        analyze_task = await App.loop.run_in_executor(None, App.analyzer.analyze)
+    except Exception as e:
+        print(f"Error while analyzing data: {e}")
+        return
     # Signal is stored in App.signal
 
-    # Now we have a list of signals and can make trade decisions using trading logic and trade
-    # await main_trader_task()
+    if "notify" in App.config["actions"]:
+        notify_task = App.loop.create_task(notify_telegram())
 
-    await notify_telegram()
+    # Now we have a list of signals and can make trade decisions using trading logic and trade
+    if "trade" in App.config["actions"]:
+        trade_task = App.loop.create_task(main_trader_task())
 
     return
 
@@ -112,35 +107,29 @@ def start_server(config_file):
     print(f"Finished initial data collection.")
 
     # Initialize trade status (account, balances, orders etc.)
-    try:
-        App.loop.run_until_complete(update_trade_status())
-    except Exception as e:
-        print(f"Problems trade status sync. {e}")
+    if "trade" in App.config["actions"]:
+        try:
+            App.loop.run_until_complete(update_trade_status())
+        except Exception as e:
+            print(f"Problems trade status sync. {e}")
 
-    if data_provider_problems_exist():
-        print(f"Problems trade status sync.")
-        return
+        if data_provider_problems_exist():
+            print(f"Problems trade status sync.")
+            return
 
-    print(f"Finished trade status sync (account, balances etc.)")
-    print(f'BTC: {str(App.base_quantity)}')
-    print(f'USD: {str(App.quote_quantity)}')
+        print(f"Finished trade status sync (account, balances etc.)")
+        print(f'BTC: {str(App.base_quantity)}')
+        print(f'USD: {str(App.quote_quantity)}')
 
     #
     # Register scheduler
     #
 
-    #App.sched = BackgroundScheduler(daemon=False)  # Daemon flag is passed to Thread (False means the program will not exit until all Threads are finished)
     App.sched = AsyncIOScheduler()
     # logging.getLogger('apscheduler.executors.default').setLevel(logging.WARNING)
     logging.getLogger('apscheduler').setLevel(logging.WARNING)
 
     App.sched.add_job(
-        # We register a normal Python function as a call back.
-        # The only role of this function is to add an asyncio task to the event loop
-        # INFO: Creating/adding asyncio tasks from another thread
-        # - https://docs.python.org/3/library/asyncio-task.html#scheduling-from-other-threads
-        # - App.loop.call_soon_threadsafe(sync_responder)  # This works, but takes a normal funciton (not awaitable), which has to call coroutine: eventLoop.create_task(coroutine())
-        #lambda: asyncio.run_coroutine_threadsafe(main_task(), App.loop),
         main_task,
         trigger='cron',
         # second='*/30',

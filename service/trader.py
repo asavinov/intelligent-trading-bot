@@ -8,19 +8,17 @@ from decimal import *
 import pandas as pd
 import asyncio
 
-from apscheduler.schedulers.background import BackgroundScheduler
-
 from binance.client import Client
 from binance.exceptions import *
 from binance.helpers import date_to_milliseconds, interval_to_milliseconds
 from binance.enums import *
 
-from common.utils import *
 from service.App import *
+from common.utils import *
 from service.analyzer import *
 
 import logging
-log = logging.getLogger('service')
+log = logging.getLogger('trader')
 logging.basicConfig(
     filename="trader.log",  # parameter in App
     level=logging.DEBUG,
@@ -29,49 +27,6 @@ logging.basicConfig(
     #datefmt = '%Y-%m-%d %H:%M:%S',
 )
 
-# TODO:
-# - simulation mode when orders are created as local variable. execution of orders is somehow estimated, e.g., from previous kline (high-low)
-# - ensure/validate that orders have valid parameters
-# - check/ensure that now_timestamp return UTC millis
-# - surround all python-binance calls with try-catch
-
-"""
-Redesign for plug-in architecture
-Requirements:
-- Server consumes models and parameters but is independent of the model training etc.
-- Server model use must rely on the same hyper-parameters and options returned from training: column names, features names, feature definitions, algorithms etc.
-  As a result, we can separately train models and features, and these models and feature definitions are directly used at run-time
-- Separate signler and trader parameterization
-- Crypto-pair parameter
-- Plug-in parameterization: feature generation: 
-  - feature definitions as Python functions with standard API (like data and model)
-  - Maybe somehow use prosto
-  - feature parameters as json files or programmatically
-  - input data specification: feature names
-  - Criterion: it has to be possible to re-definie feature set or individual features by using configs
-- Plug-in parameterization: ML models:
-  - train and predict phases have to use the same definitions
-  - Hyper-parameters for training
-  - input data specification: feature names etc.
-- Trading model parameters:
-  - when and how to trade
-
-"""
-
-"""
-High level logic:
-- Before applying the main logic of switching, we need to sync the current state which can lead to switch from buying-selling to bought-sold, respectively.
-Here we check the status of (possible) orders (state buying-selling has one-to-one relation with the existence of buy-sell orders still not executed). 
-- Q: is canceling order is immediate operation? Can we meet an async "cancel" task which is still being awaited?
-  Or we assume that canceling must be executed immediately or at least we do not do anything until an order is canceled?
-- the basis is that at each iteration, we compare new desired state represented by signal with the current state (bought, buying, sold, selling).
-thus we need to switch from 4 current states to 2 target states buying or selling (we cannot switch immediately to buy or sell as desired).
-- Sometimes we do not need change anything if the target direction/state is the same as the intermediate one. 
-- Sometimes we need to cancel orders if the target direction/state is opposite to the current intermediate state.
-- Sometimes we need to create a new order (maybe right after cancelling an existing one).
-- How to cancel order if it still does not execute (price is too bad)? Timeout? Or price update?
-  One approach is mechanism of price update - for that purpose, we need to cancel-create_new order 
-"""
 
 async def main_trader_task():
     """

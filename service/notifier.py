@@ -3,8 +3,8 @@ import sys
 import asyncio
 import requests
 
-from common.utils import *
 from service.App import *
+from common.utils import *
 
 
 async def notify_telegram():
