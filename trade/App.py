@@ -255,19 +255,4 @@ def problems_exist():
 
 
 if __name__ == "__main__":
-    import requests
-
-    bot_token = "***REMOVED***"
-    chat_id = "-***REMOVED***"  #"***REMOVED***" (al su) "-***REMOVED***" (ITB)
-    text = "Score: *123*"
-
-    #bot = telegram.Bot(token=token)
-    #bot.sendMessage(chat_id="***REMOVED***", text=text, parse_mode=telegram.ParseMode.HTML)
-
-    # It does not work for users (number) - chat not found error
-    url = 'https://api.telegram.org/bot' + bot_token + '/sendMessage?chat_id=' + chat_id + '&parse_mode=markdown&text=' + text
-
-    response = requests.get(url)
-    response_json = response.json()
-
     pass
