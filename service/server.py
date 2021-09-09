@@ -58,11 +58,7 @@ async def main_task():
 @click.option('--config_file', '-c', type=click.Path(), default='', help='Configuration file name')
 def start_server(config_file):
 
-    if config_file:
-        config_file_path = PACKAGE_ROOT / config_file
-        with open(config_file_path) as json_file:
-            config_json = json.load(json_file)
-            App.config.update(config_json)
+    load_config(config_file)
 
     #getcontext().prec = 8
 

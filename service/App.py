@@ -232,5 +232,13 @@ def problems_exist():
     return False
 
 
+def load_config(config_file):
+    if config_file:
+        config_file_path = PACKAGE_ROOT / config_file
+        with open(config_file_path) as json_file:
+            config_json = json.load(json_file)
+            App.config.update(config_json)
+
+
 if __name__ == "__main__":
     pass

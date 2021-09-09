@@ -1,62 +1,63 @@
-# Data/knowledge processing pipeline
+# Scripts
 
-## Main steps
+Scripts are used for retrieving data, computing derived features, training ML models, hyper-parameter search, training signal models.
 
-Note: see also start.py
+Most scripts rely on the `App` class and its configuration parameters.
 
-#### 1. Download historic (klines) data
+## Download historic (klines) data
 
-* Download historic data. Currently we use 2 separate sources stored in 2 separate files:
+Execute: `python -m scripts.download_data`
+
+Notes:
+* Edit main in binance-data.py by setting necessary symbol and function arguments
+* Script can be started from local folder and will store result in this folder.
+* The script will check if the previous file in the current folder and append it with new data. If not found, then new file is created and all data will be retrieved
+* Currently we use 2 separate sources stored in 2 separate files:
   * klines (spot market), its history is quite long
   * futures (also klines but from futures market), its history is relative short
 
-* Script: `scripts.download_data.py` or `python start.py download_data`
+## Merge historic data into one dataset
 
-* Script can be started from local folder and will store result in this folder.
+Execute: `python -m scripts.merge_data`
 
 Notes:
-* Edit main in binance-data.py by setting necessary symbol
-* Run script binance-data.py which will directly call get_klines_all()
-* Get klines for futures: Use the same function get_klines_all() but uncomment the section at the beginning.
-
-#### 2. Merge historic data into one dataset
-
-* Merge historic data into one dataset. We analyse data using one common raster and different column names. Also, we fix problems with gaps by producing a uniform time raster. Note that columns from different source files will have different history length so short file will have Nones in the long file.
-
-* Script: `scripts.merge_data.py`
-
+* Set source file paths in the script
+* Merge historic data into one dataset. We analyse data using one common time raster and different column names. Also, we fix problems with gaps by producing a uniform time raster. Note that columns from different source files will have different history length so short files will have Nones in the long file.
 * If necessary, edit input data file locations as absolute paths
 
-#### 3. Generate feature matrix
+## Generate feature matrix
 
-* Generate features. Here we compute derived features (also using window-functions) and produce a final feature matrix. We also compute target features (labels). Note that we compute many possible features and labels but not all of them have to be used. In parameters, we define past history length (windows) and future horizon for labels. Currently, we generate 3 kinds of features independently: klines features (source 1), future features (source 2), and label features (our possible predictions targets).
+Execute: `python -m scripts.generate_features`
 
-* Script: `scripts.generate_features.py` or `python start.py generate_features`
+Here we compute derived features (also using window-functions) and produce a feature matrix. We also compute target features (labels). Note that we compute many possible features and labels but not all of them have to be used. In parameters, we define past history length (windows) and future horizon for labels. Currently, we generate 3 kinds of features independently: klines features (source 1), future features (source 2), and label features (our possible predictions targets).
 
 Notes:
-* The goal here is to load source (kline) data, generate derived features and labels, and store the result in output file. The output is supposed to be used for other procedures like training prediction models.
+* Check and set input and output directories and file names
 * Ensure that latest source data has been downloaded from binance server (previous step)
+* The goal s to load source (kline) data, generate derived features and labels, and store the result in output file. The output is supposed to be used for other procedures like training prediction models.
 * Max past window and max future horizon are currently not used (None will be stored)
-* Future horizon for labels is hard-coded (currently 300). Change if necessary
+* Future horizon for labels is hard-coded. Change if necessary
 * If necessary, uncomment line with storing to parquet (install the packages)
-* Output file will store features and labels as they are implemented in the trade module. Copy the header line to get the list.
+* Output file will store features and labels as they are implemented in the trade module
 * Same number of lines in output as in input file
-* Approximate time: ~20-30 minutes (on YOGA)
+* Approximate time: ~20-30 minutes
 
-#### 4. Generate rolling predictions
+## Generate rolling predictions
 
-* Generate rolling predictions. Here we train a model using previous data less frequently, say, once per day or week, but use much more previous data than in typical window-based features. We apply then one constant model to predict values for the future time until it is re-trained again using the newest data. (If the re-train frequency is equal to sample rate, that is, we do it for each new row, then we get normal window-based derived feature with large window sizes.) Each feature is based on some algorithm with some hyper-parameters and some history length. This procedure does not choose best hyper-parameters - for that purpose we need some other procedure, which will optimize the predicted values with the real ones. Normally, the target values of these features are directly related to what we really want to predict, that is, to some label. Output of this procedure is same file (feature matrix) with additional predicted features (scores). This file however will be much shorter because we need some quite long history for some features (say, 1 year). Note that for applying rolling predictions, we have to know hyper-parameters which can be found by a simpler procedure.
+Execute: `python -m scripts.generate_rolling_predictions`
 
-* Script: `scripts.generate_rolling_predictions.py` or `python start.py generate_rolling_predictions.py`
+Generate rolling predictions. Here we train a model using previous data less frequently, say, once per day or week, but use much more previous data than in typical window-based features. We apply then one constant model to predict values for the future time until it is re-trained again using the newest data. (If the re-train frequency is equal to sample rate, that is, we do it for each new row, then we get normal window-based derived feature with large window sizes.) Each feature is based on some algorithm with some hyper-parameters and some history length. This procedure does not choose best hyper-parameters - for that purpose we need some other procedure, which will optimize the predicted values with the real ones. Normally, the target values of these features are directly related to what we really want to predict, that is, to some label. Output of this procedure is same file (feature matrix) with additional predicted features (scores). This file however will be much shorter because we need some quite long history for some features (say, 1 year). Note that for applying rolling predictions, we have to know hyper-parameters which can be found by a simpler procedure.
 
 Notes:
 * Prerequisite: We already have to know the best prediction model(s) and its best parameters
 * There can be several models used for rolling predictions
 * Essentially, the predicting models are treated here as (more complex) feature definitions
 * Choose the best model and its parameters using grid search (below)
-* The results of this step are consumed by signal generator
+* The results of this step are consumed by signal generator and backtesting
 
-#### 5. (Grid) search for best parameters of and/or best prediction models
+## (Grid) search for best parameters of and/or best prediction models
+
+Execute: `python -m scripts.grid_search`
 
 The goal is to find the best prediction models, and their best parameters using hyper-parameter optimization. The results of this step are certain model (like nn, gradient boosting etc.) and, importantly, its best hyper-parameters.
 
@@ -64,9 +65,9 @@ Notes:
 * The results are consumed by the rolling prediction step
 * There can be many algorithms and many historic horizons or input feature set
 
-* Script: `grid_search.py`
+## Train prediction models
 
-#### 6. Train prediction models
+Execute: `python -m scripts.train_predict_models` 
 
 Here we regularly train prediction models to be used in the production service as parameters of the corresponding predicted feature generation procedures.
 
@@ -75,15 +76,13 @@ Notes:
 * The procedure will consume feature matrix and hence the following files should be updated: source data, merge files, generate features (no need to generate rolling features).
 * The generated models have to be copied to the folder where they are found by the signal/trade server
 
-Script: `train_predict_models.py` 
-
-#### 7. Train signal models
+## Train signal models
 
 Here we find the best parameters for signal generation like thresholds.
 
-* Train signal models. The input is a feature matrix with all scores (predicted features). Our goal is to define a feature the output of which will be directly used for buy/sell decisions. We need search for the best hyper-parameters starting from simple score threshold and ending with some data mining algorithm.
+Execute: `python -m scripts.train_signal_models`
 
-* Script: `scripts.train_signal_models.py` or `python start.py train_signal_models.py`
+The input is a feature matrix with all scores (predicted features). Our goal is to define a feature the output of which will be directly used for buy/sell decisions. We need search for the best hyper-parameters starting from simple score threshold and ending with some data mining algorithm.
 
 Notes:
 * We consume the results of rolling predictions

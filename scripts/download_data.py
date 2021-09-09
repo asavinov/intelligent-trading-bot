@@ -40,19 +40,16 @@ App.client = Client(api_key=App.config["api_key"], api_secret=App.config["api_se
 # Historic data
 #
 
-def get_klines_all(symbol, freq, save=False):
+def get_klines_all(symbol, freq, save=False, futures=False):
     """
     Retrieving historic klines from binance server.
 
     Client.get_historical_klines
     """
-    # ---
-    # Uncomment 3 lines to get futures:
-    # ---
-    #App.client.API_URL = "https://fapi.binance.com/fapi"
-    #App.client.PRIVATE_API_VERSION = "v1"
-    #App.client.PUBLIC_API_VERSION = "v1"
-    # ---
+    if futures:
+        App.client.API_URL = "https://fapi.binance.com/fapi"
+        App.client.PRIVATE_API_VERSION = "v1"
+        App.client.PUBLIC_API_VERSION = "v1"
 
     filename = f"{symbol}-{freq}-klines.csv"
 
@@ -354,17 +351,4 @@ def main(args=None):
 
 
 if __name__ == '__main__':
-    #loop = asyncio.get_event_loop()
-    #loop.run_until_complete(get_futures_klines_all("BTCUSDT", "1m", save=True))
-   
-    #check_market_stream()
-    
-    #get_exchange_info()
-
-    # BTCUSDT ETHBTC IOTAUSDT ETHUSDT LTCUSDT
-    # IOTABTC IOTAETH
-    get_klines_all("BTCUSDT", "1m", save=True)
-
-    #for symbol in symbols
-    #    get_all_binance(symbol, "1m", save=True)
-    pass
+    get_klines_all("BTCUSDT", "1m", save=True, futures=False)
