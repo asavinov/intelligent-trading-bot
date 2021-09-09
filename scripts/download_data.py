@@ -7,6 +7,7 @@ import time
 from datetime import timedelta, datetime
 from dateutil import parser
 from tqdm import tqdm_notebook #(Optional, used for progress-bars)
+import click
 
 #import aiohttp
 import asyncio
@@ -17,7 +18,7 @@ from binance.enums import *
 
 # DO NOT INCLUDE because it has function klines_to_df with the same name but different implementation (name conflict)
 #from common.utils import *
-from service.App import App
+from service.App import *
 
 """
 The script is intended for retrieving data from binance server: klines, server info etc.
@@ -40,23 +41,42 @@ App.client = Client(api_key=App.config["api_key"], api_secret=App.config["api_se
 # Historic data
 #
 
-def get_klines_all(symbol, freq, save=False, futures=False):
+@click.command()
+@click.option('--config_file', '-c', type=click.Path(), default='', help='Configuration file name')
+def get_klines_all(config_file):
     """
     Retrieving historic klines from binance server.
 
     Client.get_historical_klines
     """
+    load_config(config_file)
+
+    symbol = App.config["symbol"]
+    freq = "1m"
+    save = True
+    futures = False
+    data_path = Path(App.config["data_folder"])
+    if not data_path.is_dir():
+        print(f"Data folder does not exist: {data_path}")
+        return
+
     if futures:
         App.client.API_URL = "https://fapi.binance.com/fapi"
         App.client.PRIVATE_API_VERSION = "v1"
         App.client.PUBLIC_API_VERSION = "v1"
 
-    filename = f"{symbol}-{freq}-klines.csv"
+    print(f"Downloader parameters. Symbol {symbol}. Frequency: {freq}. Save: {save}. Futures: {futures}.")
 
-    if os.path.isfile(filename):
-        data_df = pd.read_csv(filename)
+    if futures:
+        filename = f"{symbol}-{freq}-futurs.csv"
+    else:
+        filename = f"{symbol}-{freq}-klines.csv"
+    file_path = (data_path / filename).resolve()
+
+    if file_path.is_file():
+        data_df = pd.read_csv(file_path)
         data_df['timestamp'] = pd.to_datetime(data_df['timestamp'])
-        print(f"Downloaded data will be appended to the existing file {filename}")
+        print(f"File found. Downloaded data will be appended to the existing file {file_path}")
     else:
         data_df = pd.DataFrame()
         print(f"File not found. All data will be downloaded and stored in newly created file.")
@@ -82,7 +102,7 @@ def get_klines_all(symbol, freq, save=False, futures=False):
     data_df = klines_to_df(klines, data_df)
 
     if save:
-        data_df.to_csv(filename)
+        data_df.to_csv(file_path)
 
     print('All caught up..!')
 
@@ -351,4 +371,4 @@ def main(args=None):
 
 
 if __name__ == '__main__':
-    get_klines_all("BTCUSDT", "1m", save=True, futures=False)
+    get_klines_all()

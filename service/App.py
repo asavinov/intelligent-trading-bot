@@ -97,6 +97,9 @@ class App:
         "base_asset": "BTC",
         "quote_asset": "USDT",
 
+        # File locations
+        "data_folder": "",
+
         # === analyzer (NAMES, also for scripts) ===
 
         # Target columns with true values which will be predicted

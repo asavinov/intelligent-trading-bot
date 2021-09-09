@@ -7,10 +7,12 @@ import time
 from datetime import timedelta, datetime
 from dateutil import parser
 from tqdm import tqdm_notebook #(Optional, used for progress-bars)
+import click
 
 import numpy as np
 
 from common.utils import *
+from service.App import *
 from common.feature_generation import *
 
 """
@@ -23,12 +25,6 @@ Output file has continuous index by removing possible gaps in input files.
 """
 
 
-symbol = "BTCUSDT"  # BTCUSDT ETHUSDT LTCUSDT
-
-kline_file_name = r"C:\DATA2\BITCOIN\DOWNLOADED\BTCUSDT-1m-klines.csv"
-
-futur_file_name = r"C:\DATA2\BITCOIN\DOWNLOADED\BTCUSDT-1m-futurs.csv"
-
 depth_file_names = [  # Leave empty to skip
     #r"C:\DATA2\BITCOIN\GENERATED\depth-BTCUSDT-batch1.csv",
     #r"C:\DATA2\BITCOIN\GENERATED\depth-BTCUSDT-batch2.csv",
@@ -36,8 +32,6 @@ depth_file_names = [  # Leave empty to skip
     #r"C:\DATA2\BITCOIN\GENERATED\depth-BTCUSDT-batch4.csv",
     #r"C:\DATA2\BITCOIN\GENERATED\depth-BTCUSDT-batch5.csv",
 ]
-
-out_file_name = r"BTCUSDT-1m.csv"
 
 futur_column_prefix = "f_"
 range_type = "kline"  # Selector: kline, futur, depth, merged (common range)
@@ -55,10 +49,10 @@ def get_symbol_files(symbol):
     paths = Path(in_path_name).rglob(file_pattern)
     return list(paths)
 
-def load_futur_files():
+def load_futur_files(futur_file_path):
     """Return a data frame with future features."""
 
-    df = pd.read_csv(futur_file_name, parse_dates=['timestamp'])
+    df = pd.read_csv(futur_file_path, parse_dates=['timestamp'])
     start = df["timestamp"].iloc[0]
     end = df["timestamp"].iloc[-1]
 
@@ -68,10 +62,10 @@ def load_futur_files():
 
     return df, start, end
 
-def load_kline_files():
+def load_kline_files(kline_file_path):
     """Return a data frame with kline features."""
 
-    df = pd.read_csv(kline_file_name, parse_dates=['timestamp'])
+    df = pd.read_csv(kline_file_path, parse_dates=['timestamp'])
     start = df["timestamp"].iloc[0]
     end = df["timestamp"].iloc[-1]
 
@@ -109,13 +103,26 @@ def load_depth_files():
 
     return dfs, start, end
 
-def main(args=None):
+
+@click.command()
+@click.option('--config_file', '-c', type=click.Path(), default='', help='Configuration file name')
+def main(config_file):
+    load_config(config_file)
+
+    freq = "1m"
+    symbol = App.config["symbol"]
+    data_path = Path(App.config["data_folder"])
+    if not data_path.is_dir():
+        print(f"Data folder does not exist: {data_path}")
+        return
 
     start_dt = datetime.now()
     print(f"Start processing...")
 
-    k_df, k_start, k_end = load_kline_files()
-    f_df, f_start, f_end = load_futur_files()
+    kline_file_path = data_path / f"{symbol}-{freq}-klines.csv"
+    k_df, k_start, k_end = load_kline_files(kline_file_path)
+    futur_file_path = data_path / f"{symbol}-{freq}-futurs.csv"
+    f_df, f_start, f_end = load_futur_files(futur_file_path)
     if depth_file_names:
         d_dfs, d_start, d_end = load_depth_files()
     else:
@@ -170,7 +177,8 @@ def main(args=None):
     #
     # Store file with features
     #
-    out_path = Path(out_file_name).absolute()
+    out_file_name = f"{symbol}-{freq}.csv"
+    out_path = (data_path / out_file_name).resolve()
 
     df_out.to_csv(out_path, index=True)  # float_format="%.6f"
     print(f"Stored output merged file with {len(df_out)} records. Range: ({start}, {end})")

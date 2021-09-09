@@ -6,7 +6,7 @@ Most scripts rely on the `App` class and its configuration parameters.
 
 ## Download historic (klines) data
 
-Execute: `python -m scripts.download_data`
+Execute: `python -m scripts.download_data -c config.json`
 
 Notes:
 * Edit main in binance-data.py by setting necessary symbol and function arguments
@@ -16,23 +16,21 @@ Notes:
   * klines (spot market), its history is quite long
   * futures (also klines but from futures market), its history is relative short
 
-## Merge historic data into one dataset
+## Merge several historic datasets into one dataset
 
-Execute: `python -m scripts.merge_data`
+Execute: `python -m scripts.merge_data -c config.json`
 
 Notes:
-* Set source file paths in the script
 * Merge historic data into one dataset. We analyse data using one common time raster and different column names. Also, we fix problems with gaps by producing a uniform time raster. Note that columns from different source files will have different history length so short files will have Nones in the long file.
 * If necessary, edit input data file locations as absolute paths
 
 ## Generate feature matrix
 
-Execute: `python -m scripts.generate_features`
+Execute: `python -m scripts.generate_features -c config.json`
 
 Here we compute derived features (also using window-functions) and produce a feature matrix. We also compute target features (labels). Note that we compute many possible features and labels but not all of them have to be used. In parameters, we define past history length (windows) and future horizon for labels. Currently, we generate 3 kinds of features independently: klines features (source 1), future features (source 2), and label features (our possible predictions targets).
 
 Notes:
-* Check and set input and output directories and file names
 * Ensure that latest source data has been downloaded from binance server (previous step)
 * The goal s to load source (kline) data, generate derived features and labels, and store the result in output file. The output is supposed to be used for other procedures like training prediction models.
 * Max past window and max future horizon are currently not used (None will be stored)
@@ -40,11 +38,10 @@ Notes:
 * If necessary, uncomment line with storing to parquet (install the packages)
 * Output file will store features and labels as they are implemented in the trade module
 * Same number of lines in output as in input file
-* Approximate time: ~20-30 minutes
 
 ## Generate rolling predictions
 
-Execute: `python -m scripts.generate_rolling_predictions`
+Execute: `python -m scripts.generate_rolling_predictions -c config.json`
 
 Generate rolling predictions. Here we train a model using previous data less frequently, say, once per day or week, but use much more previous data than in typical window-based features. We apply then one constant model to predict values for the future time until it is re-trained again using the newest data. (If the re-train frequency is equal to sample rate, that is, we do it for each new row, then we get normal window-based derived feature with large window sizes.) Each feature is based on some algorithm with some hyper-parameters and some history length. This procedure does not choose best hyper-parameters - for that purpose we need some other procedure, which will optimize the predicted values with the real ones. Normally, the target values of these features are directly related to what we really want to predict, that is, to some label. Output of this procedure is same file (feature matrix) with additional predicted features (scores). This file however will be much shorter because we need some quite long history for some features (say, 1 year). Note that for applying rolling predictions, we have to know hyper-parameters which can be found by a simpler procedure.
 

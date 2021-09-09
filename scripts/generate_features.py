@@ -4,20 +4,14 @@ from datetime import datetime, timezone, timedelta
 from typing import Union
 import json
 import pickle
+import click
 
 import numpy as np
 import pandas as pd
 
+from service.App import *
 from common.feature_generation import *
 from common.label_generation import *
-
-"""
-Compute derived features from source data and store then in an output file.
-This file can be then used to train models and tune hyper-parameters.
-It will generate *all* features as defined in the corresponding procedures (so that we should select only the necessary ones for prediction).
-It will generate all labels as defined in the procedure (so that only the necessary labels should be chosen later for prediction).
-!!! Make sure that *last* dates are the same - otherwise some last data will be empty which is worse for training
-"""
 
 #
 # Parameters
@@ -25,16 +19,20 @@ It will generate all labels as defined in the procedure (so that only the necess
 class P:
     feature_sets = ["kline", ]  # "futur"
 
-    in_path_name = r"C:\DATA2\BITCOIN\GENERATED"
-    in_file_name = r"BTCUSDT-1m.csv"
     in_nrows = 100_000_000
 
-    out_path_name = r"_TEMP_FEATURES"
-    out_file_name = r"BTCUSDT-1m-features"
 
+@click.command()
+@click.option('--config_file', '-c', type=click.Path(), default='', help='Configuration file name')
+def main(config_file):
+    load_config(config_file)
 
-def main(args=None):
-    in_df = None
+    freq = "1m"
+    symbol = App.config["symbol"]
+    data_path = Path(App.config["data_folder"])
+    if not data_path.is_dir():
+        print(f"Data folder does not exist: {data_path}")
+        return
 
     start_dt = datetime.now()
 
@@ -42,13 +40,11 @@ def main(args=None):
     # Load historic data
     #
     print(f"Loading data from source file...")
-    in_path = Path(P.in_path_name).joinpath(P.in_file_name)
+
+    in_path = (data_path / f"{symbol}-{freq}.csv").resolve()
     in_df = pd.read_csv(in_path, parse_dates=['timestamp'], nrows=P.in_nrows)
 
     print(f"Finished loading {len(in_df)} records with {len(in_df.columns)} columns.")
-
-    # For testing only
-    #in_df = in_df.tail(1_000)
 
     #
     # Generate derived features
@@ -92,13 +88,12 @@ def main(args=None):
     #
     # Store feature matrix in output file
     #
-    out_path = Path(P.out_path_name)
-    out_path.mkdir(parents=True, exist_ok=True)  # Ensure that folder exists
-    out_path = out_path.joinpath(P.out_file_name)
+    out_file_name = f"{symbol}-{freq}-features.csv"
+    out_path = (data_path / out_file_name).resolve()
 
     print(f"Storing feature matrix with {len(in_df)} records and {len(in_df.columns)} columns in output file...")
 
-    in_df.to_csv(out_path.with_suffix('.csv'), index=False, float_format="%.4f")
+    in_df.to_csv(out_path, index=False, float_format="%.4f")
 
     #in_df.to_parquet(out_path.with_suffix('.parquet'), engine='auto', compression=None, index=None, partition_cols=None)
 
@@ -108,4 +103,4 @@ def main(args=None):
 
 
 if __name__ == '__main__':
-    main(sys.argv[1:])
+    main()

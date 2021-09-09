@@ -6,11 +6,12 @@ from typing import Union
 import json
 import pickle
 from concurrent.futures import ProcessPoolExecutor
+import click
 
 import numpy as np
 import pandas as pd
 
-from service.App import App
+from service.App import *
 from common.utils import *
 from common.classifiers import *
 from common.feature_generation import *
@@ -35,7 +36,7 @@ class P:
     # These source columns will be added to the output file
     in_features_kline = [
         "timestamp",
-        "open","high","low","close","volume",
+        "open", "high", "low", "close", "volume",
         #"close_time",
         #"quote_av","trades","tb_base_av","tb_quote_av","ignore",
     ]
@@ -46,16 +47,11 @@ class P:
     features_depth = App.config["features_depth"]
 
     #features_horizon = 720  # Features are generated using this past window length (max feature window)
-    labels_horizon = 180  # Labels are generated using this number of steps ahead (max label window)
+    labels_horizon = 180  # Labels are generated using this number of steps ahead (max label window). We want to forecast what happens during this period ahead
 
-    in_path_name = r"C:\DATA2\BITCOIN\GENERATED"  # File with all necessary derived features
-    in_file_name = r"BTCUSDT-1m-features.csv"
     in_nrows = 100_000_000
     in_nrows_tail = None  # How many last rows to select (for testing)
     skiprows = 500_000
-
-    out_path_name = r"_TEMP_FEATURES"
-    out_file_name = r"BTCUSDT-1m-features-rolling.csv"
 
     # First row for starting predictions: "2020-02-01 00:00:00" - minimum start for futures
     prediction_start_str = "2019-07-01 00:00:00"
@@ -96,11 +92,23 @@ params_lc = {
     "max_iter": 200,
 }
 
+
 #
 # Main
 #
 
-def main(args=None):
+@click.command()
+@click.option('--config_file', '-c', type=click.Path(), default='', help='Configuration file name')
+def main(config_file):
+    load_config(config_file)
+
+    freq = "1m"
+    symbol = App.config["symbol"]
+    data_path = Path(App.config["data_folder"])
+    if not data_path.is_dir():
+        print(f"Data folder does not exist: {data_path}")
+        return
+
     start_dt = datetime.now()
 
     #
@@ -108,17 +116,18 @@ def main(args=None):
     #
     print(f"Loading feature matrix from input file...")
 
-    in_path = Path(P.in_path_name).joinpath(P.in_file_name)
+    in_file_name = f"{symbol}-{freq}-features.csv"
+    in_path = data_path / in_file_name
     if not in_path.exists():
         print(f"ERROR: Input file does not exist: {in_path}")
         return
 
-    if P.in_file_name.endswith(".csv"):
+    if in_file_name.endswith(".csv"):
         in_df = pd.read_csv(in_path, parse_dates=['timestamp'], nrows=P.in_nrows)  # , skiprows=range(1,P.skiprows)
         #in_df.to_pickle('aaa.pickle')
-    elif P.in_file_name.endswith(".parquet"):
+    elif in_file_name.endswith(".parquet"):
         in_df = pd.read_parquet(in_path)
-    elif P.in_file_name.endswith(".pickle"):
+    elif in_file_name.endswith(".pickle"):
         in_df = pd.read_pickle(in_path)
     else:
         print(f"ERROR: Unknown input file extension. Only csv and parquet are supported.")
@@ -357,11 +366,10 @@ def main(args=None):
     #
     print(f"Storing output file...")
 
-    out_path = Path(P.out_path_name)
-    out_path.mkdir(parents=True, exist_ok=True)  # Ensure that folder exists
-    out_path = out_path.joinpath(P.out_file_name)
+    out_file_name = f"{symbol}-{freq}-features-rolling.csv"
+    out_path = data_path / out_file_name
 
-    out_df.to_csv(out_path.with_suffix('.csv'), index=False, float_format="%.4f")
+    out_df.to_csv(out_path, index=False, float_format="%.4f")
 
     #out_df.to_parquet(out_path.with_suffix('.parquet'), engine='auto', compression=None, index=None, partition_cols=None)
 
@@ -399,4 +407,4 @@ def main(args=None):
 
 
 if __name__ == '__main__':
-    main(sys.argv[1:])
+    main()
