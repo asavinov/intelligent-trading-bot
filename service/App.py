@@ -93,7 +93,7 @@ class App:
         "telegram_bot_token": "",
         "telegram_chat_id": "",
 
-        "symbol": "ETHUSDT",  # BTCUSDT ETHUSDT
+        "symbol": "BTCUSDT",  # BTCUSDT ETHUSDT
         "base_asset": "BTC",  # BTC ETH
         "quote_asset": "USDT",
 
@@ -176,8 +176,6 @@ class App:
 
         # === TRADER SERVER ===
         "trader": {
-            "folder": "DATA",
-
             # For debugging: determine what parts of code will be executed
             "no_trades_only_data_processing": False,  # in market or out of market processing is excluded (all below parameters ignored)
             "test_order_before_submit": False,  # Send test submit to the server as part of validation

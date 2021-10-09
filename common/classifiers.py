@@ -23,10 +23,10 @@ import lightgbm as lgbm
 
 import tensorflow as tf
 
+from tensorflow.keras.optimizers import *
+from keras.regularizers import *
 from keras.models import Sequential, save_model, load_model
 from keras.layers import Dense, Dropout
-from keras.optimizers import *
-from keras.regularizers import *
 from keras.callbacks import *
 
 #

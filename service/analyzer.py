@@ -46,7 +46,19 @@ class Analyzer:
 
         self.queue = queue.Queue()
 
-        self.models = None
+        #
+        # Load models
+        #
+        model_path = App.config["model_folder"]
+        model_path = Path(model_path)
+        if not model_path.is_absolute():
+            model_path = PACKAGE_ROOT / model_path
+        model_path = model_path.resolve()
+
+        labels = App.config["labels"]
+        feature_sets = ["kline"]
+        algorithms = ["gb", "nn", "lc"]
+        self.models = load_models(model_path, labels, feature_sets, algorithms)
 
         #
         # Start a thread for storing data
@@ -250,31 +262,14 @@ class Analyzer:
         log.info(f"Analyze {symbol}. {len(klines)} klines in the database. Last kline timestamp: {last_kline_ts}")
 
         #
-        # 0.
-        # Load models (parameters of transformations)
-        #
-        labels = App.config["labels"]
-        feature_sets = ["kline"]
-        algorithms = ["gb", "nn", "lc"]
-
-        if not self.models:
-            model_path = App.config["model_folder"]
-            model_path = Path(model_path)
-            if not model_path.is_absolute():
-                model_path = PACKAGE_ROOT / model_path
-            model_path = model_path.resolve()
-
-            self.models = load_models(model_path, labels, feature_sets, algorithms)
-
-        #
         # 1.
-        # Produce a data frame with source data
+        # Produce a data frame with înput data
         #
         df = klines_to_df(klines)
 
         #
         # 2.
-        # Generate all necessary derived features (many will be Null due to short history)
+        # Generate all necessary derived features (NaNs are possible due to short history)
         #
         features_out = generate_features(df)
 
@@ -299,6 +294,8 @@ class Analyzer:
                 df_y_hat = predict_nn(model_pair, predict_df)
             elif score_column_name.endswith("_lc"):
                 df_y_hat = predict_lc(model_pair, predict_df)
+            else:
+                raise ValueError(f"Unknown column name algorithm suffix {score_column_name[-3:]}. Currently only '_gb', '_nn', '_lc' are supported.")
             score_df[score_column_name] = df_y_hat
 
         # Now we have all predictions (score columns) needed to make a buy/sell decision - many predictions for each true label column
@@ -327,9 +324,8 @@ class Analyzer:
         timestamp = row.name
         close_time = row.name+timedelta(minutes=1)  # row.close_time
 
-        # Generate signal
+        # Thresholds
         model = App.config["signaler"]["model"]
-        #model = {"buy_threshold": 0.135, "sell_threshold": -0.2}
 
         signal = dict(side=None, score=score, close_price=close_price, close_time=close_time)
         if not score:

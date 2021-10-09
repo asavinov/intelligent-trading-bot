@@ -67,14 +67,14 @@ def start_server(config_file):
     #
     symbol = App.config["symbol"]
 
-    print(f"Initializing server. Trade symbol {symbol}. ")
+    print(f"Initializing server. Trade pair: {symbol}. ")
 
     #
     # Connect to the server and update/initialize our system state
     #
     App.client = Client(api_key=App.config["api_key"], api_secret=App.config["api_secret"])
 
-    App.analyzer = Analyzer(None)
+    App.analyzer = Analyzer(App.config)
 
     App.loop = asyncio.get_event_loop()
 
@@ -90,7 +90,7 @@ def start_server(config_file):
 
     print(f"Finished health check (connection, server status etc.)")
 
-    # Do one time data update (cold start)
+    # Do one time data load (cold start)
     try:
         App.loop.run_until_complete(sync_data_collector_task())
     except Exception as e:
@@ -114,8 +114,8 @@ def start_server(config_file):
             return
 
         print(f"Finished trade status sync (account, balances etc.)")
-        print(f'BTC: {str(App.base_quantity)}')
-        print(f'USD: {str(App.quote_quantity)}')
+        print(f"Balance: {App.config['base_asset']} = {str(App.base_quantity)}")
+        print(f"Balance: {App.config['quote_asset']} = {str(App.quote_quantity)}")
 
     #
     # Register scheduler
