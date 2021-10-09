@@ -109,12 +109,11 @@ def main(config_file):
         print(f"Data folder does not exist: {data_path}")
         return
 
-    start_dt = datetime.now()
-
     #
     # Load feature matrix
     #
     print(f"Loading feature matrix from input file...")
+    start_dt = datetime.now()
 
     in_file_name = f"{symbol}-{freq}-features.csv"
     in_path = data_path / in_file_name

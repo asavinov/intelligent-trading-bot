@@ -258,7 +258,7 @@ class Analyzer:
         algorithms = ["gb", "nn", "lc"]
 
         if not self.models:
-            model_path = App.config["signaler"]["analysis"]["folder"]
+            model_path = App.config["model_folder"]
             model_path = Path(model_path)
             if not model_path.is_absolute():
                 model_path = PACKAGE_ROOT / model_path

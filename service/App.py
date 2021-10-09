@@ -93,12 +93,13 @@ class App:
         "telegram_bot_token": "",
         "telegram_chat_id": "",
 
-        "symbol": "BTCUSDT",
-        "base_asset": "BTC",
+        "symbol": "ETHUSDT",  # BTCUSDT ETHUSDT
+        "base_asset": "BTC",  # BTC ETH
         "quote_asset": "USDT",
 
         # File locations
         "data_folder": "",
+        "model_folder": "",
 
         # === analyzer (NAMES, also for scripts) ===
 
@@ -162,7 +163,6 @@ class App:
         # === SIGNALER SERVER ===
         "signaler": {
             "analysis": {  # Same for all symbols
-                "folder": "MODELS",
                 # History needed to compute derived features
                 # Take base aggregation from feature generation code and add something
                 "features_horizon": 1440+160,

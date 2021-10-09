@@ -19,7 +19,7 @@ from common.label_generation import *
 class P:
     feature_sets = ["kline", ]  # "futur"
 
-    in_nrows = 100_000_000
+    in_nrows = 10_000_000
 
 
 @click.command()
@@ -39,9 +39,10 @@ def main(config_file):
     #
     # Load historic data
     #
-    print(f"Loading data from source file...")
-
     in_path = (data_path / f"{symbol}-{freq}.csv").resolve()
+
+    print(f"Loading data from source file {str(in_path)}...")
+
     in_df = pd.read_csv(in_path, parse_dates=['timestamp'], nrows=P.in_nrows)
 
     print(f"Finished loading {len(in_df)} records with {len(in_df.columns)} columns.")

@@ -43,7 +43,7 @@ App.client = Client(api_key=App.config["api_key"], api_secret=App.config["api_se
 
 @click.command()
 @click.option('--config_file', '-c', type=click.Path(), default='', help='Configuration file name')
-def get_klines_all(config_file):
+def main(config_file):
     """
     Retrieving historic klines from binance server.
 
@@ -64,6 +64,9 @@ def get_klines_all(config_file):
         App.client.API_URL = "https://fapi.binance.com/fapi"
         App.client.PRIVATE_API_VERSION = "v1"
         App.client.PUBLIC_API_VERSION = "v1"
+
+    start_dt = datetime.now()
+    print(f"Start downloading klines...")
 
     print(f"Downloader parameters. Symbol {symbol}. Frequency: {freq}. Save: {save}. Futures: {futures}.")
 
@@ -105,6 +108,9 @@ def get_klines_all(config_file):
         data_df.to_csv(file_path)
 
     print('All caught up..!')
+
+    elapsed = datetime.now() - start_dt
+    print(f"Finished downloading data in {int(elapsed.total_seconds())} seconds.")
 
     return data_df
 
@@ -359,16 +365,6 @@ def user_message_fn(msg):
     print(f"Message type: {msg['e']}")
     print(msg)
 
-def main(args=None):
-
-    start_dt = datetime.now()
-    print(f"Start downloading klines...")
-
-    get_klines_all("BTCUSDT", "1m", save=True)
-
-    elapsed = datetime.now() - start_dt
-    print(f"Finished downloading data in {int(elapsed.total_seconds())} seconds.")
-
 
 if __name__ == '__main__':
-    get_klines_all()
+    main()

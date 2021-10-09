@@ -4,11 +4,12 @@ from datetime import datetime, timezone, timedelta
 from typing import Union
 import json
 import pickle
+import click
 
 import numpy as np
 import pandas as pd
 
-from service.App import App
+from service.App import *
 from common.utils import *
 from common.classifiers import *
 from common.feature_generation import *
@@ -30,6 +31,7 @@ Parameters:
   If no env parameters are set, then the hard-coded defaults will be used - CHECK defaults because there are debug and production values    
 """
 
+
 #
 # Parameters
 #
@@ -44,16 +46,12 @@ class P:
     #features_horizon = 720  # Features are generated using this past window length
     labels_horizon = 180  # Labels are generated using this number of steps ahead
 
-    in_path_name = r"C:\DATA2\BITCOIN\GENERATED"  # File with all necessary derived features
-    in_file_name = r"BTCUSDT-1m-features.csv"
     in_nrows = 10_000_000  # <-- PARAMETER
     in_nrows_tail = None  # How many last rows to select (for testing)
 
-    out_path_name = r"_TEMP_MODELS"
-    out_file_name = r""
 
 #
-# (Best) algorithm parameters (found by and copied from grid search scripts)
+# (Best) train parameters (found by and copied from grid search scripts)
 #
 
 params_gb = {
@@ -83,29 +81,38 @@ params_lc = {
 }
 
 
-def main(args=None):
-    in_df = None
+@click.command()
+@click.option('--config_file', '-c', type=click.Path(), default='', help='Configuration file name')
+def main(config_file):
+    load_config(config_file)
 
-    out_path = Path(P.out_path_name)
+    freq = "1m"
+    symbol = App.config["symbol"]
+    data_path = Path(App.config["data_folder"])
+    if not data_path.is_dir():
+        print(f"Data folder does not exist: {data_path}")
+        return
+    out_path = Path(App.config["model_folder"])
     out_path.mkdir(parents=True, exist_ok=True)  # Ensure that folder exists
-
-    start_dt = datetime.now()
 
     #
     # Load feature matrix
     #
     print(f"Loading feature matrix from input file...")
+    start_dt = datetime.now()
 
-    in_path = Path(P.in_path_name).joinpath(P.in_file_name)
+    in_file_name = f"{symbol}-{freq}-features.csv"
+    in_path = data_path / in_file_name
     if not in_path.exists():
         print(f"ERROR: Input file does not exist: {in_path}")
         return
 
-    if P.in_file_name.endswith(".csv"):
+    in_df = None
+    if in_file_name.endswith(".csv"):
         in_df = pd.read_csv(in_path, parse_dates=['timestamp'], nrows=P.in_nrows)
-    elif P.in_file_name.endswith(".parquet"):
+    elif in_file_name.endswith(".parquet"):
         in_df = pd.read_parquet(in_path)
-    elif P.in_file_name.endswith(".pickle"):
+    elif in_file_name.endswith(".pickle"):
         in_df = pd.read_pickle(in_path)
     else:
         print(f"ERROR: Unknown input file extension. Only csv and parquet are supported.")
