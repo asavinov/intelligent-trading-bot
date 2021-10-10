@@ -261,9 +261,8 @@ def main(config_file):
     # End
     #
     elapsed = datetime.now() - start_dt
-
     print(f"Finished in {int(elapsed.total_seconds())} seconds.")
 
 
 if __name__ == '__main__':
-    main(sys.argv[1:])
+    main()

@@ -43,6 +43,8 @@ Execute: `python -m scripts.generate_features -c config.json`
 Parameters:
 * `symbol` pair to load
 * `data_folder` data folder
+* Input: data file with raw values
+* Output: feature matrix
 
 Purpose: Compute derived features and derived labels by attaching them as new columns and producing a feature matrix
 
@@ -59,7 +61,14 @@ Notes:
 
 ## Train prediction models
 
-Execute: `python -m scripts.train_predict_models` 
+Execute: `python -m scripts.train_predict_models -c config.json`
+
+Parameters:
+* `symbol` pair to load
+* `data_folder` data folder
+* Hyper-parameters: currently specified in code in `train_predict_models.py`
+* Input: feature matrix
+* Output: train model files
 
 Purpose: Train models using the latest data (feature matrix) so that these models can be used for prediction in the service
 
@@ -75,6 +84,9 @@ Execute: `python -m scripts.generate_rolling_predictions -c config.json`
 Parameters:
 * `symbol` pair to load
 * `data_folder` data folder
+* Hyper-parameters: currently specified in code in `generate_rolling_predictions.py`
+* Input data: feature matrix
+* Output: data file with rolling predictions
 
 Purpose: Simulate train-predict step by moving in time as if we ware doing it in real service, that is, add a new data batch, use the available data for training a new model, use this model for predictions, save these predictions, add new data batch and so on
 
@@ -90,13 +102,21 @@ Notes:
 
 ## Train signal models
 
-Execute: `python -m scripts.train_signal_models`
+Execute: `python -m scripts.train_signal_models -c config.json`
+
+Parameters:
+* `symbol` pair to load
+* `data_folder` data folder
+* Hyper-parameters: currently specified in code in `generate_rolling_predictions.py`
+* Input data: rolling predictions
+* Output: table with signal generation parameters and the corresponding performance
 
 Purpose: Find the best parameters for signal generation like score thresholds by analyzing the results of rolling predictions
 
 The input is a feature matrix with all scores (predicted features). Our goal is to define a feature the output of which will be directly used for buy/sell decisions. We need search for the best hyper-parameters starting from simple score threshold and ending with some data mining algorithm.
 
 Notes:
+* Important: we use a procedure for final score computation which must be the same as in the service during online signal generation
 * We consume the results of rolling predictions
 * We assume that rolling prediction produce many highly informative features
 * The grid search (brute force) of this step has to test our trading strategy using back testing as (direct) metric. In other words, trading performance on historic data is our metric for brute force or simple ML 

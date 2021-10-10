@@ -90,17 +90,17 @@ def main(config_file):
     # Store feature matrix in output file
     #
     out_file_name = f"{symbol}-{freq}-features.csv"
-    out_path = (data_path / out_file_name).resolve()
+    out_file = (data_path / out_file_name).resolve()
 
     print(f"Storing feature matrix with {len(in_df)} records and {len(in_df.columns)} columns in output file...")
 
-    in_df.to_csv(out_path, index=False, float_format="%.4f")
+    in_df.to_csv(out_file, index=False, float_format="%.4f")
 
     #in_df.to_parquet(out_path.with_suffix('.parquet'), engine='auto', compression=None, index=None, partition_cols=None)
 
     elapsed = datetime.now() - start_dt
     print(f"Finished feature generation in {int(elapsed.total_seconds())} seconds")
-    print(f"Output file location: {out_path}")
+    print(f"Output file location: {out_file}")
 
 
 if __name__ == '__main__':

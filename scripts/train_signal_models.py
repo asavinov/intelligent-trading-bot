@@ -5,6 +5,7 @@ from datetime import datetime, timezone, timedelta
 from typing import Union
 import json
 import pickle
+import click
 
 import numpy as np
 import pandas as pd
@@ -13,6 +14,7 @@ from sklearn.model_selection import train_test_split
 from sklearn import metrics
 from sklearn.model_selection import ParameterGrid
 
+from service.App import *
 from common.utils import *
 from common.signal_generation import *
 
@@ -94,14 +96,7 @@ grid_signals = [
 class P:
     feature_sets = ["kline", ]  # "futur"
 
-    in_path_name = r"C:\DATA2\BITCOIN\GENERATED"
-    #in_file_name = r"_BTCUSDT-1m-rolling-predictions-no-weights.csv"
-    #in_file_name = r"_BTCUSDT-1m-rolling-predictions-with-weights.csv"
-    in_file_name = r"ETHUSDT-1m-features-rolling.csv"
     in_nrows = 100_000_000
-
-    out_path_name = r"_TEMP_FEATURES"
-    out_file_name = r"_ETHUSDT-1m-signals"
 
     simulation_start = 263519   # Good start is 2019-06-01 - after it we have stable movement
     simulation_end = -0  # After 2020-11-01 there is sharp growth which we might want to exclude
@@ -170,29 +165,49 @@ def generate_score_and_forecast():
     print(f"FINISHED computing forecasts. ")
 
 
-def main(args=None):
-    start_dt = datetime.now()
+@click.command()
+@click.option('--config_file', '-c', type=click.Path(), default='', help='Configuration file name')
+def main(config_file):
+    load_config(config_file)
 
-    use_forecast_score = False
+    freq = "1m"
+    symbol = App.config["symbol"]
+    data_path = Path(App.config["data_folder"])
+    if not data_path.is_dir():
+        print(f"Data folder does not exist: {data_path}")
+        return
+    out_path = Path(App.config["data_folder"])
+    out_path.mkdir(parents=True, exist_ok=True)  # Ensure that folder exists
 
     #
     # Load data with rolling label score predictions
     #
     print(f"Loading data with label rolling predict scores from input file...")
+    start_dt = datetime.now()
 
+    use_forecast_score = False
     if use_forecast_score:
-        in_name = Path(P.in_file_name).stem + "-scores"
+        in_file_name = f"{symbol}-{freq}-features-rolling-scores.csv"
     else:
-        in_name = Path(P.in_file_name).stem
-    in_path = Path(P.in_path_name).joinpath(in_name).with_suffix(".csv")
+        in_file_name = f"{symbol}-{freq}-features-rolling.csv"
+
+    in_path = data_path / in_file_name
+    if not in_path.exists():
+        print(f"ERROR: Input file does not exist: {in_path}")
+        return
 
     in_df = pd.read_csv(in_path, parse_dates=['timestamp'], nrows=P.in_nrows)
 
+    print(f"Rolling predictions loaded. Length: {len(in_df)}. Width: {len(in_df.columns)}")
+
     #
     # Compute final score (as average over different predictions)
-    # "score" column is added
+    # This function adds "score" column
+    # Important: we need to use the same final score as later in the service
     #
-    in_df = generate_score(in_df, P.feature_sets)  # "score" columns is added
+    in_df = generate_score(in_df, P.feature_sets)
+
+    print(f"Score column generated.")
 
     #
     # Select data
@@ -215,7 +230,7 @@ def main(args=None):
     in_df = in_df.iloc[P.simulation_start:P.simulation_end]
 
     #
-    # Loop on all trade hyper-models
+    # Loop over all trade hyper-models (possible threshold combinations)
     #
     grid = ParameterGrid(grid_signals)
     models = list(grid)  # List of model dicts
@@ -251,22 +266,22 @@ def main(args=None):
     #
     # Store simulation parameters and performance
     #
-    out_path = Path(P.out_path_name)
-    out_path.mkdir(parents=True, exist_ok=True)  # Ensure that folder exists
-    out_path = out_path.joinpath(P.out_file_name)
+    out_file_name = f"{symbol}-{freq}-signals.txt"
+    out_file = (out_path / out_file_name).resolve()
 
-    if out_path.with_suffix('.txt').is_file():
+    if out_file.is_file():
         add_header = False
     else:
         add_header = True
-    with open(out_path.with_suffix('.txt'), "a+") as f:
+    with open(out_file, "a+") as f:
         if add_header:
             f.write(header_str + "\n")
         #f.writelines(lines)
         f.write("\n".join(lines))
         f.write("\n")
 
-    pass
+    elapsed = datetime.now() - start_dt
+    print(f"Finished in {int(elapsed.total_seconds())} seconds.")
 
 
 def simulate_trade(df, model: dict):
@@ -446,4 +461,4 @@ def optimize_rolling_forecast():
 
 if __name__ == '__main__':
     #generate_score_and_forecast()
-    main(sys.argv[1:])
+    main()
