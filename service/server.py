@@ -60,17 +60,18 @@ def start_server(config_file):
 
     load_config(config_file)
 
+    symbol = App.config["symbol"]
+
+    print(f"Initializing server. Trade pair: {symbol}. ")
+
     #getcontext().prec = 8
 
     #
     # Validation
     #
-    symbol = App.config["symbol"]
-
-    print(f"Initializing server. Trade pair: {symbol}. ")
 
     #
-    # Connect to the server and update/initialize our system state
+    # Connect to the server and update/initialize the system state
     #
     App.client = Client(api_key=App.config["api_key"], api_secret=App.config["api_secret"])
 

@@ -3,6 +3,7 @@ import pytest
 from common.utils import *
 from common.classifiers import *
 
+
 def test_nan_handling_predict():
 	"""Predicted input has nans. These nans rows have to be removed before prediction but the output has to contain all rows including these nan rows."""
 

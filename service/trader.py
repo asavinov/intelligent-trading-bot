@@ -153,6 +153,7 @@ async def main_trader_task():
 
     return
 
+
 #
 # Order and asset status
 #
@@ -203,6 +204,7 @@ async def update_trade_status():
         log.error(f"Wrong state. More than one open order. Fix manually.")
         return None
 
+
 async def update_order_status():
     """
     Update information about the current order and return its execution status.
@@ -238,6 +240,7 @@ async def update_order_status():
     # Now order["status"] contains the latest status of the order
     return order["status"]
 
+
 async def update_account_balance():
     """Get available assets (as decimal)."""
 
@@ -258,6 +261,7 @@ async def update_account_balance():
     App.quote_quantity = Decimal(balance.get("free", "0.00000000"))  # USD
 
     pass
+
 
 #
 # Cancel and liquidation orders
@@ -297,6 +301,7 @@ async def cancel_order():
 
     # Now order["status"] contains the latest status of the order
     return order["status"]
+
 
 #
 # Order creation
@@ -368,6 +373,7 @@ async def new_limit_order(side):
     App.order_time = now_ts
 
     return order
+
 
 def execute_order(order: dict):
     """Validate and submit order"""

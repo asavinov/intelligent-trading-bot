@@ -114,6 +114,7 @@ def main(config_file):
 
     return data_df
 
+
 #
 # Static data
 #
@@ -130,6 +131,7 @@ def get_exchange_info():
 
     return
 
+
 def get_account_info():
     orders = App.client.get_all_orders(symbol='BTCUSDT')
     trades = App.client.get_my_trades(symbol='BTCUSDT')
@@ -137,8 +139,10 @@ def get_account_info():
     status = App.client.get_account_status()
     details = App.client.get_asset_details()
 
+
 def get_market_info():
     depth = App.client.get_order_book(symbol='BTCUSDT')
+
 
 #
 # Utility
@@ -157,6 +161,7 @@ def minutes_of_new_data(symbol, freq, data):
     new = pd.to_datetime(new_info[-1][0], unit='ms')
     
     return old, new
+
 
 # NOTE: this function is different from same in trade.utils
 def klines_to_df(klines, df):
@@ -187,6 +192,7 @@ def klines_to_df(klines, df):
     df.set_index('timestamp', inplace=True)
 
     return df
+
 
 #
 # Streaming functions (do not work - for test purposes)
@@ -272,6 +278,7 @@ async def get_futures_klines_all(symbol, freq, save = False):
 
     pass
 
+
 def check_market_stream():
     """
     Streams: 
@@ -335,9 +342,11 @@ def check_market_stream():
     from twisted.internet import reactor
     reactor.stop()
 
+
 def message_fn(msg):
     #print(f"Message type: {msg['e']}")
     print(msg)
+
 
 def check_market_stream_multiplex():
     """
@@ -346,8 +355,10 @@ def check_market_stream_multiplex():
     bm = BinanceSocketManager(App.client)
     conn_key = bm.start_multiplex_socket(['bnbbtc@aggTrade', 'neobtc@ticker'], multiples_fn)
 
+
 def multiples_fn(msg):
     print("stream: {} data: {}".format(msg['stream'], msg['data']))
+
 
 def check_user_stream():
     """
@@ -360,6 +371,7 @@ def check_user_stream():
 
     # The Manager handles keeping the socket alive.
     bm.start_user_socket(user_message_fn)
+
 
 def user_message_fn(msg):
     print(f"Message type: {msg['e']}")

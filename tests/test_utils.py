@@ -5,6 +5,7 @@ from common.utils import *
 from common.utils import add_area_ratio
 from common.signal_generation import *
 
+
 def test_decimal():
 	val = "4.1E-7"
 	dec = to_decimal(val)
@@ -23,6 +24,7 @@ def test_decimal():
 	assert round_down_str(to_sell, 6) == "0.011854"  # We need to round but so smaller value (otherwise exception with not enough funds)
 
 	pass
+
 
 def test_signal_generation():
 	data = [
@@ -46,6 +48,7 @@ def test_signal_generation():
 	# Check values of signal columns
 	assert [1,1,0] == list(df["buy"])
 	assert [0,0,1] == list(df["sell"])
+
 
 def test_depth_density():
 	# Example 1
@@ -128,6 +131,7 @@ def test_depth_density():
 
 	pass
 
+
 def test_area_ratio():
 	price = [10, 20, 30, 20, 10, 20, 30]
 	df = pd.DataFrame(data={"price": price})
@@ -143,6 +147,7 @@ def test_area_ratio():
 	assert df[df.columns[1]].iloc[1] == 0  # 1 is less and 1 is greater than this one
 
 	pass
+
 
 def test_linear_trends():
 	price = [10, 20, 40, 40, 30, 10]

@@ -109,6 +109,7 @@ symbol = "BTCUSDT"  # BTCUSDT ETHBTC IOTAUSDT
 in_path_name = r"C:\DATA2\BITCOIN\COLLECTED\DEPTH\batch6-partial-till-0307"
 #in_path_name = r"C:\DATA2\BITCOIN\COLLECTED\DEPTH\_test_"
 
+
 #
 # Historic data
 #
@@ -121,6 +122,7 @@ def get_symbol_files(symbol):
     file_pattern = f"*{symbol}*.txt"
     paths = Path(in_path_name).rglob(file_pattern)
     return list(paths)
+
 
 def find_depth_statistics():
     """Utility to research the depth data by computing: price span (min, max, mean)"""
@@ -163,6 +165,7 @@ def find_depth_statistics():
     print(f"Bid vols: min={np.min(bid_vols):.2f}, max={np.max(bid_vols):.2f}, mean={np.mean(bid_vols):.2f}")
     print(f"Ask vols: min={np.min(ask_vols):.2f}, max={np.max(ask_vols):.2f}, mean={np.mean(ask_vols):.2f}")
     print(f"Bad lines: {bad_lines}")
+
 
 def main(args=None):
 

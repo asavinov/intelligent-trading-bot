@@ -13,6 +13,7 @@ from sklearn import linear_model
 
 from binance.helpers import date_to_milliseconds, interval_to_milliseconds
 
+
 #
 # Decimals
 #
@@ -28,15 +29,18 @@ def to_decimal(value):
     ret = Decimal(str(value)).quantize(rr, rounding=ROUND_DOWN)
     return ret
 
+
 def round_str(value, digits):
     rr = Decimal(1) / (Decimal(10) ** digits)  # Result for 8 digits: 0.00000001
     ret = Decimal(str(value)).quantize(rr, rounding=ROUND_HALF_UP)
     return f"{ret:.{digits}f}"
 
+
 def round_down_str(value, digits):
     rr = Decimal(1) / (Decimal(10) ** digits)  # Result for 8 digits: 0.00000001
     ret = Decimal(str(value)).quantize(rr, rounding=ROUND_DOWN)
     return f"{ret:.{digits}f}"
+
 
 #
 # Date and time
@@ -97,6 +101,7 @@ def get_interval(freq: str, timestamp: int=None):
 
     return int(start * 1000), int(end * 1000)
 
+
 def now_timestamp():
     """
     INFO:
@@ -107,6 +112,7 @@ def now_timestamp():
     :rtype: int
     """
     return int(datetime.utcnow().replace(tzinfo=timezone.utc).timestamp() * 1000)
+
 
 def find_index(df: pd.DataFrame, date_str: str, column_name: str= "timestamp"):
     """
@@ -132,6 +138,7 @@ def find_index(df: pd.DataFrame, date_str: str, column_name: str= "timestamp"):
 
     return id
 
+
 #
 # Depth processing
 #
@@ -156,6 +163,7 @@ def price_to_volume(side, depth, price_limit):
 
     return orders[-1][1]  # Last element contains cumulative volume
 
+
 def volume_to_price(side, depth, volume_limit):
     """
     Given volume, compute the corresponding limit from the depth data on the specified side.
@@ -173,6 +181,7 @@ def volume_to_price(side, depth, volume_limit):
     orders = [o for o in orders if o[1] <= volume_limit]
     return orders[-1][0]  # Last element contains cumulative volume
 
+
 def depth_accumulate(depth: list, start, end):
     """
     Convert a list of bid/ask volumes into an accumulated (monotonically increasing) volume curve.
@@ -185,6 +194,7 @@ def depth_accumulate(depth: list, start, end):
         prev_value = point[1]
 
     return depth
+
 
 def discretize(side: str, depth: list, bin_size: float, start: float):
     """
@@ -283,6 +293,7 @@ def discretize(side: str, depth: list, bin_size: float, start: float):
 
     return bin_volumes
 
+
 # OBSOLETE: Because works only for increasing prices (ask). Use general version instead.
 def discretize_ask(depth: list, bin_size: float, start: float):
     """
@@ -359,6 +370,7 @@ def discretize_ask(depth: list, bin_size: float, start: float):
 
     return bin_volumes
 
+
 def mean_volumes(depth: list, windows: list, bin_size: 1.0):
     """
     Density. Mean volume per price unit (bin) computed using the specified number of price bins.
@@ -380,6 +392,7 @@ def mean_volumes(depth: list, windows: list, bin_size: 1.0):
         ret[feature_name] = density
 
     return ret
+
 
 #
 # Klnes processing
@@ -417,6 +430,7 @@ def klines_to_df(klines: list):
 
     return df
 
+
 #
 # Feature/label generation utilities
 #
@@ -425,6 +439,7 @@ def to_diff_NEW(sr):
     # TODO: Use an existing library function to compute difference
     #   We used it in fast hub for computing datetime difference - maybe we can use it for numeric diffs
     pass
+
 
 def to_diff(sr):
     """
@@ -438,15 +453,19 @@ def to_diff(sr):
     diff = sr.rolling(window=2, min_periods=2).apply(diff_fn, raw=True)
     return diff
 
+
 def add_past_weighted_aggregations(df, column_name: str, weight_column_name: str, fn, windows: Union[int, list[int]], suffix=None, rel_column_name: str = None, rel_factor: float = 1.0):
     return _add_weighted_aggregations(df, False, column_name, weight_column_name, fn, windows, suffix, rel_column_name, rel_factor)
+
 
 def add_past_aggregations(df, column_name: str, fn, windows: Union[int, list[int]], suffix=None, rel_column_name: str = None, rel_factor: float = 1.0):
     return _add_aggregations(df, False, column_name, fn, windows, suffix, rel_column_name, rel_factor)
 
+
 def add_future_aggregations(df, column_name: str, fn, windows: Union[int, list[int]], suffix=None, rel_column_name: str = None, rel_factor: float = 1.0):
     return _add_aggregations(df, True, column_name, fn, windows, suffix, rel_column_name, rel_factor)
     #return _add_weighted_aggregations(df, True, column_name, None, fn, windows, suffix, rel_column_name, rel_factor)
+
 
 def _add_aggregations(df, is_future: bool, column_name: str, fn, windows: Union[int, list[int]], suffix=None, rel_column_name: str = None, rel_factor: float = 1.0):
     """
@@ -497,6 +516,7 @@ def _add_aggregations(df, is_future: bool, column_name: str, fn, windows: Union[
             df[feature_name] = rel_factor * feature
 
     return features
+
 
 def _add_weighted_aggregations(df, is_future: bool, column_name: str, weight_column_name: str, fn, windows: Union[int, list[int]], suffix=None, rel_column_name: str = None, rel_factor: float = 1.0):
     """
@@ -550,6 +570,7 @@ def _add_weighted_aggregations(df, is_future: bool, column_name: str, weight_col
 
     return features
 
+
 def add_area_ratio(df, is_future: bool, column_name: str, windows: Union[int, list[int]], suffix=None):
     """
     For past, we take this element and compare the previous sub-series: the area under and over this element
@@ -594,6 +615,7 @@ def add_area_ratio(df, is_future: bool, column_name: str, windows: Union[int, li
 
     return features
 
+
 def add_threshold_feature(df, column_name: str, thresholds: list, out_names: list):
     """
 
@@ -618,6 +640,7 @@ def add_threshold_feature(df, column_name: str, thresholds: list, out_names: lis
                 df[out_name] = df[column_name] >= threshold  # All lows are greater than the (negative) threshold
 
     return out_names
+
 
 # TODO: DEPRCATED: check that it is not used. Or refactor by using no apply (direct computation of relative) and remove row filter
 def ___add_label_column(df, window, threshold, max_column_name='<HIGH>', ref_column_name='<CLOSE>',
@@ -659,6 +682,7 @@ def ___add_label_column(df, window, threshold, max_column_name='<HIGH>', ref_col
     # df.drop(columns=['max'], inplace=True)  # Not needed anymore
 
     return df
+
 
 def add_linear_trends(df, is_future: bool, column_name: str, windows: Union[int, list[int]], suffix=None):
     """
@@ -712,33 +736,4 @@ def add_linear_trends(df, is_future: bool, column_name: str, windows: Union[int,
 
 
 if __name__ == "__main__":
-
-    print(now_timestamp())
-
-    # INFO:
-    # timedelta(seconds=1)
-    # timedelta(minutes=1))
-    # timedelta(hours=1))
-    # datetime.now()
-    # datetime.utcnow()
-    # datetime.today()
-    # pd.to_datetime(df['Millisecond'], unit='ms')
-    # datetime.datetime.fromtimestamp(milliseconds/1000.0)
-
-
-    #raster = pd.date_range(start, end, tz=timezone.utc, normalize=True, closed="left", freq="1T")
-    #raster = pd.interval_range(start, end, tz=timezone.utc, normalize=True, closed="left", freq="1S")
-    #raster = pd.period_range(start, end, tz=timezone.utc, normalize=True, closed="left", freq="1S")
-
-
-    ts = 1502942460000
-
-    ts_now = datetime.now()
-    ts_today =  datetime.today()
-    ts_utcnow = datetime.utcnow()
-    ts_dt = datetime.fromtimestamp(ts/1000.0)
-
-    ts_pd = pd.to_datetime(ts, unit='ms')
-    ts_pd = pd.to_datetime(ts, unit='ms', utc=True)
-
     pass

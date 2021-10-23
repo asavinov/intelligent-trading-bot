@@ -14,6 +14,7 @@ Label generation.
 (True) labels are features computed from future data but stored as properties of the current row (in contrast to normal features which are computed from past data).
 """
 
+
 def generate_labels_thresholds(df, horizon=180):
     """
     Generate (compute) a number of labels similar to other derived features but using future data.
@@ -74,6 +75,7 @@ def generate_labels_thresholds(df, horizon=180):
 
     return labels
 
+
 def generate_labels_sim(df, horizon):
     labels = []
 
@@ -95,6 +97,7 @@ def generate_labels_sim(df, horizon):
 
     return labels
 
+
 def generate_labels_regressor(df, horizon):
     labels = []
 
@@ -107,6 +110,7 @@ def generate_labels_regressor(df, horizon):
     # "low_min"
 
     return labels
+
 
 if __name__ == "__main__":
     pass

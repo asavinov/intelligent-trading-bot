@@ -24,11 +24,6 @@ log = logging.getLogger('collector_depth')
 # The collected results are stored in files - one per day
 #
 
-# TODO:
-#   - How to catch exceptions from within asyncio awaitables?
-#   - Error handling: recovery from errors: no connection (maybe disconnect wifi), request errors etc.
-#   - (LOW) uniform config for our logs maybe via App so that we can forward all of them to a file
-
 
 async def main_collector_depth_task():
     """It will be executed for each depth collection, for example, every 5 seconds."""

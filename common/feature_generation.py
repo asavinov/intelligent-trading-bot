@@ -16,6 +16,7 @@ These features are computed using explict transformations.
 Also, no parameter training is performed.
 """
 
+
 def generate_features(df, use_differences=False):
     """
     Generate derived features by adding them as new columns to the data frame.
@@ -86,6 +87,7 @@ def generate_features(df, use_differences=False):
 
     return features
 
+
 def generate_features_futur(df, use_differences=False):
     """
     Generate derived features for futures.
@@ -153,6 +155,7 @@ def generate_features_futur(df, use_differences=False):
     df.drop(columns=to_drop, inplace=True)
 
     return features
+
 
 def generate_features_depth(df, use_differences=False):
     """
@@ -240,6 +243,7 @@ def generate_features_depth(df, use_differences=False):
 
     return features
 
+
 def depth_to_df(depth: list):
     """
     Input is a list of json objects each representing current market depth with a list bids and asks
@@ -313,6 +317,7 @@ def depth_to_df(depth: list):
     df_out = df_out.join(df)
 
     return df_out
+
 
 def depth_to_features(entry: list, windows: list, bin_size: float):
     """Convert one record of market depth to a dict of features"""

@@ -35,6 +35,7 @@ log = logging.getLogger('collector_ws')
 #   - recover after lost/bad connection (errors)
 #   - continuation of connection (confirmation responses) - chect if it is done automatically by the client
 
+
 def process_message(msg):
     if msg is None:
         print(f"Empty message received")
@@ -197,6 +198,7 @@ def start_collector_ws():
     print(f"End collecting data using WebSocket streams.")
 
     return 0
+
 
 if __name__ == "__main__":
     start_collector_ws()

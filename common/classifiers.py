@@ -29,6 +29,7 @@ from keras.models import Sequential, save_model, load_model
 from keras.layers import Dense, Dropout
 from keras.callbacks import *
 
+
 #
 # GB
 #
@@ -40,6 +41,7 @@ def train_predict_gb(df_X, df_y, df_X_test, params: dict):
     models = train_gb(df_X, df_y, params)
     y_test_hat = predict_gb(models, df_X_test)
     return y_test_hat
+
 
 def train_gb(df_X, df_y, params: dict):
     """
@@ -114,6 +116,7 @@ def train_gb(df_X, df_y, params: dict):
 
     return (model, scaler)
 
+
 def predict_gb(models: tuple, df_X_test):
     """
     Use the model(s) to make predictions for the test data.
@@ -141,6 +144,7 @@ def predict_gb(models: tuple, df_X_test):
 
     return sr_ret
 
+
 #
 # NN
 #
@@ -152,6 +156,7 @@ def train_predict_nn(df_X, df_y, df_X_test, params: dict):
     models = train_nn(df_X, df_y, params)
     y_test_hat = predict_nn(models, df_X_test)
     return y_test_hat
+
 
 def train_nn(df_X, df_y, params: dict):
     """
@@ -240,6 +245,7 @@ def train_nn(df_X, df_y, params: dict):
 
     return (model, scaler)
 
+
 def predict_nn(models: tuple, df_X_test):
     """
     Use the model(s) to make predictions for the test data.
@@ -268,6 +274,7 @@ def predict_nn(models: tuple, df_X_test):
 
     return sr_ret
 
+
 #
 # LC - Linear Classifier
 #
@@ -279,6 +286,7 @@ def train_predict_lc(df_X, df_y, df_X_test, params: dict):
     models = train_lc(df_X, df_y, params)
     y_test_hat = predict_lc(models, df_X_test)
     return y_test_hat
+
 
 def train_lc(df_X, df_y, params: dict):
     """
@@ -314,6 +322,7 @@ def train_lc(df_X, df_y, params: dict):
 
     return (model, scaler)
 
+
 def predict_lc(models: tuple, df_X_test):
     """
     Use the model(s) to make predictions for the test data.
@@ -342,6 +351,7 @@ def predict_lc(models: tuple, df_X_test):
 
     return sr_ret
 
+
 #
 # SVC - SVN Classifier
 #
@@ -353,6 +363,7 @@ def train_predict_svc(df_X, df_y, df_X_test, params: dict):
     models = train_lc(df_X, df_y, params)
     y_test_hat = predict_lc(models, df_X_test)
     return y_test_hat
+
 
 def train_svc(df_X, df_y, params: dict):
     """
@@ -388,6 +399,7 @@ def train_svc(df_X, df_y, params: dict):
 
     return (model, scaler)
 
+
 def predict_svc(models: tuple, df_X_test):
     """
     Use the model(s) to make predictions for the test data.
@@ -416,6 +428,7 @@ def predict_svc(models: tuple, df_X_test):
 
     return sr_ret
 
+
 #
 # Utils
 #
@@ -439,6 +452,7 @@ def save_model_pair(model_path, score_column_name: str, model_pair: tuple):
         model_file_name = model_path.joinpath(score_column_name).with_suffix(model_extension)
         dump(model, model_file_name)
 
+
 def load_model_pair(model_path, score_column_name: str):
     """Load a pair consisting of scaler model (possibly null) and prediction model from two files."""
     if not isinstance(model_path, Path):
@@ -458,6 +472,7 @@ def load_model_pair(model_path, score_column_name: str):
 
     return (model, scaler)
 
+
 def load_models(model_path, labels: list, feature_sets: list, algorithms: list):
     """Load all model pairs for all combinations of the model parameters and return as a dict."""
     models = {}
@@ -466,6 +481,7 @@ def load_models(model_path, labels: list, feature_sets: list, algorithms: list):
         model_pair = load_model_pair(model_path, score_column_name)
         models[score_column_name] = model_pair
     return models
+
 
 def compute_scores(y_true, y_hat):
     """Compute several scores and return them as dict."""

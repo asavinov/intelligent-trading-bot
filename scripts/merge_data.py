@@ -36,6 +36,7 @@ depth_file_names = [  # Leave empty to skip
 futur_column_prefix = "f_"
 range_type = "kline"  # Selector: kline, futur, depth, merged (common range)
 
+
 #
 # Historic data
 #
@@ -48,6 +49,7 @@ def get_symbol_files(symbol):
     file_pattern = f"*{symbol}*.txt"
     paths = Path(in_path_name).rglob(file_pattern)
     return list(paths)
+
 
 def load_futur_files(futur_file_path):
     """Return a data frame with future features."""
@@ -62,6 +64,7 @@ def load_futur_files(futur_file_path):
 
     return df, start, end
 
+
 def load_kline_files(kline_file_path):
     """Return a data frame with kline features."""
 
@@ -74,6 +77,7 @@ def load_kline_files(kline_file_path):
     print(f"Loaded kline file with {len(df)} records in total. Range: ({start}, {end})")
 
     return df, start, end
+
 
 def load_depth_files():
     """Return a list of data frames with depth features."""
