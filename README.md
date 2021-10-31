@@ -1,3 +1,12 @@
+```
+  ___       _       _ _ _                  _     _____              _ _               ____        _    _________________
+ |_ _|_ __ | |_ ___| | (_) __ _  ___ _ __ | |_  |_   _| __ __ _  __| (_)_ __   __ _  | __ )  ___ | |_  ₿ Ξ ₳ ₮ ✕ ◎ ● Ð Ł
+  | || '_ \| __/ _ \ | | |/ _` |/ _ \ '_ \| __|   | || '__/ _` |/ _` | | '_ \ / _` | |  _ \ / _ \| __| Ƀ Ⱥ ∞ ξ ◈ ꜩ ɱ ε ɨ
+  | || | | | ||  __/ | | | (_| |  __/ | | | |_    | || | | (_| | (_| | | | | | (_| | | |_) | (_) | |_  Ɓ ΜĐ ⓩ Ο Ӿ Ɍ ȿ
+ |___|_| |_|\__\___|_|_|_|\__, |\___|_| |_|\__|   |_||_|  \__,_|\__,_|_|_| |_|\__, | |____/ \___/ \__|  ________________
+                          |___/                                               |___/                   
+```
+
 > [![https://t.me/intelligent_trading_signals](https://img.shields.io/badge/Telegram-2CA5E0?logo=telegram&style=for-the-badge&logoColor=white)](https://t.me/intelligent_trading_signals) 📈 <span style="font-size:1.5em;">Intelligent Trading Signals</span> 📉 <https://t.me/intelligent_trading_signals>
 
 # Intelligent trading bot
