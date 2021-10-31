@@ -4,7 +4,7 @@ Scripts are used for retrieving data, computing derived features, training ML mo
 
 Most scripts rely on the `App` class and its configuration parameters. They also load a configuration file with credentials and some other parameters which overwrite those in the `App.config`. Many more specific parameters or parameters used for debugging are defined in code itself.
 
-## Download historic (klines) data
+## Download the latest historic data
 
 Execute: `python -m scripts.download_data -c config.json`
 

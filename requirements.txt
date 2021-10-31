@@ -1,8 +1,8 @@
 numpy>=1.19.*
-pandas>=0.25.*
+pandas>=1.1.*
 scikit-learn>=1.*
-scipy>=1.6.*  # Will be automatically installed as a dep of scikit-learn
-statsmodels>=0.10.*
+scipy>=1.7.*  # Will be automatically installed as a dep of scikit-learn
+statsmodels>=0.12.*
 patsy>=0.5.*
 
 #python-snappy  # Compression for fastparquet (gzip is always available)
@@ -14,10 +14,11 @@ pytorch # conda install pytorch torchvision cpuonly -c pytorch
 tensorflow>=2.6.*  # pip install --upgrade tensorflow
 keras  # pip install --upgrade keras
 
-apscheduler>=3.7.*  # "conda install -c conda-forge apscheduler"
-python-binance>=0.7.*  # "pip install python-binance". It has to executed from Anaconda prompt.
+apscheduler>=3.8.*  # "conda install -c conda-forge apscheduler"
+python-binance>=1.0.*  # "pip install python-binance". It has to executed from Anaconda prompt.
 
 #
 # Utilities
 #
 #tenacity
+click

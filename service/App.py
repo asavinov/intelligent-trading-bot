@@ -93,8 +93,8 @@ class App:
         "telegram_bot_token": "",
         "telegram_chat_id": "",
 
-        "symbol": "ETHUSDT",  # BTCUSDT ETHUSDT
-        "base_asset": "ETH",  # BTC ETH
+        "symbol": "",  # BTCUSDT ETHUSDT - use config
+        "base_asset": "BTC",  # BTC ETH
         "quote_asset": "USDT",
 
         # File locations
@@ -162,15 +162,15 @@ class App:
 
         # === SIGNALER SERVER ===
         "signaler": {
-            "notification_threshold": 0.1,
+            "notification_threshold": 3,  # Score within this number of steps will not be notified
             "analysis": {  # Same for all symbols
                 # History needed to compute derived features. Take maximum aggregation windows from feature generation code (and add something to be sure that we have all what is needed)
                 "features_horizon": 1440+160,
             },
             "model": {
                 # Models: [0.4, -0.44], [0.25, -0.52]
-                "buy_threshold": +0.25,
-                "sell_threshold": -0.25,
+                "buy_threshold": +0.15,
+                "sell_threshold": -0.15,
             },
         },
 

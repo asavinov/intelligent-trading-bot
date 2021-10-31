@@ -265,13 +265,21 @@ class Analyzer:
         # 1.
         # Produce a data frame with înput data
         #
-        df = klines_to_df(klines)
+        try:
+            df = klines_to_df(klines)
+        except Exception as e:
+            print(f"Error in klines_to_df: {e}")
+            return
 
         #
         # 2.
         # Generate all necessary derived features (NaNs are possible due to short history)
         #
-        features_out = generate_features(df)
+        try:
+            features_out = generate_features(df)
+        except Exception as e:
+            print(f"Error in generate_features: {e}")
+            return
 
         # Now we have as many additional columns as we have defined derived features
 
@@ -287,16 +295,20 @@ class Analyzer:
 
         # Do prediction by applying models to the data
         score_df = pd.DataFrame(index=predict_df.index)
-        for score_column_name, model_pair in self.models.items():
-            if score_column_name.endswith("_gb"):
-                df_y_hat = predict_gb(model_pair, predict_df)
-            elif score_column_name.endswith("_nn"):
-                df_y_hat = predict_nn(model_pair, predict_df)
-            elif score_column_name.endswith("_lc"):
-                df_y_hat = predict_lc(model_pair, predict_df)
-            else:
-                raise ValueError(f"Unknown column name algorithm suffix {score_column_name[-3:]}. Currently only '_gb', '_nn', '_lc' are supported.")
-            score_df[score_column_name] = df_y_hat
+        try:
+            for score_column_name, model_pair in self.models.items():
+                if score_column_name.endswith("_gb"):
+                    df_y_hat = predict_gb(model_pair, predict_df)
+                elif score_column_name.endswith("_nn"):
+                    df_y_hat = predict_nn(model_pair, predict_df)
+                elif score_column_name.endswith("_lc"):
+                    df_y_hat = predict_lc(model_pair, predict_df)
+                else:
+                    raise ValueError(f"Unknown column name algorithm suffix {score_column_name[-3:]}. Currently only '_gb', '_nn', '_lc' are supported.")
+                score_df[score_column_name] = df_y_hat
+        except Exception as e:
+            print(f"Error in predict: {e}")
+            return
 
         # Now we have all predictions (score columns) needed to make a buy/sell decision - many predictions for each true label column
         # We will need only the latest row for signal generation
@@ -335,10 +347,11 @@ class Analyzer:
         elif score < model.get("sell_threshold"):
             signal["side"] = "SELL"
         else:
-            #signal = dict()
-            pass
+            signal["side"] = ""
 
         App.signal = signal
+
+        log.info(f"Analyze finished. Score: {score:+.2f}. Signal: {signal['side']}. Price: {int(close_price):,}")
 
 
 if __name__ == "__main__":
