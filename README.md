@@ -8,7 +8,7 @@
 ₿   Ξ   ₳   ₮   ✕   ◎   ●   Ð   Ł   Ƀ   Ⱥ   ∞   ξ   ◈   ꜩ   ɱ   ε   ɨ   Ɓ   Μ   Đ  ⓩ  Ο   Ӿ   Ɍ  ȿ
 ```
 
-> [![https://t.me/intelligent_trading_signals](https://img.shields.io/badge/Telegram-2CA5E0?logo=telegram&style=for-the-badge&logoColor=white)](https://t.me/intelligent_trading_signals) 📈 <span style="font-size:1.5em;">Intelligent Trading Signals</span> 📉 <https://t.me/intelligent_trading_signals>
+> [![https://t.me/intelligent_trading_signals](https://img.shields.io/badge/Telegram-2CA5E0?logo=telegram&style=for-the-badge&logoColor=white)](https://t.me/intelligent_trading_signals) 📈 **<span style="font-size:1.5em;">[Intelligent Trading Signals](https://t.me/intelligent_trading_signals)</span>** 📉 **<https://t.me/intelligent_trading_signals>**
 
 # Intelligent trading bot
 
@@ -23,7 +23,7 @@ Note that is an experimental project aimed at studying how various machine learn
 
 This software is running in a cloud and sends its signals to this Telegram channel:
 
-📈 **Intelligent Trading Signals** 📉 <https://t.me/intelligent_trading_signals>
+📈 **[Intelligent Trading Signals](https://t.me/intelligent_trading_signals)** 📉 **<https://t.me/intelligent_trading_signals>**
 
 Everybody can subscribe to the channel to get the impression about the signals this bot generates.
 
@@ -31,10 +31,10 @@ Currently, the bot is configured using the following parameters:
 * Exchange: Binance
 * Cryptocurrency: ₿ Bitcoin
 * Frequency: 1 minute
-* Score is between -1 and +1. -1 means decrease, and +1 means increase.
-* Filter: notification is sent to the channel only if score is greater than ±0.15
+* Score between -1 and +1. <0 means decrease, and >0 means increase
+* Filter: notifications are sent only if score is greater than ±0.15
 * One increase/decrease sign is added for each step of 0.5 (after the filter threshold) 
-* Prediction horizon 3 hours ahead. For example, if the score is +0.25 then the price is likely to increase during next 3 hours
+* Prediction horizon 3 hours ahead. For example, if the score is +0.25 then the price is likely to increase 1-2% during next 3 hours
 * History taken into account for forecasts: 12-24 hours
 
 There are silent periods when the score in lower than the threshold (currently 0.15) and no notifications are sent to the channel. If the score is greater than the threshold, then every minute a notification is sent which looks like 
