@@ -90,16 +90,16 @@ class App:
         "api_secret": "",
 
         # Telegram
-        "telegram_bot_token": "",
-        "telegram_chat_id": "",
+        "telegram_bot_token": "",  # Source address of messages
+        "telegram_chat_id": "",  # Destination address of messages
 
         "symbol": "",  # BTCUSDT ETHUSDT - use config
-        "base_asset": "BTC",  # BTC ETH
-        "quote_asset": "USDT",
+        "base_asset": "",  # BTC ETH
+        "quote_asset": "",
 
         # File locations
-        "data_folder": "",
-        "model_folder": "",
+        "data_folder": "",  # It is needed for model training
+        "model_folder": "",  # It is needed by signaler at run time
 
         # === analyzer (NAMES, also for scripts) ===
 
@@ -162,7 +162,7 @@ class App:
 
         # === SIGNALER SERVER ===
         "signaler": {
-            "notification_threshold": 3,  # Score within this number of steps will not be notified
+            "notification_threshold": 4,  # Score within this number of steps will not be notified
             "analysis": {  # Same for all symbols
                 # History needed to compute derived features. Take maximum aggregation windows from feature generation code (and add something to be sure that we have all what is needed)
                 "features_horizon": 1440+160,
