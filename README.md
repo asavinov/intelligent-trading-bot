@@ -30,11 +30,11 @@ Everybody can subscribe to the channel to get the impression about the signals t
 Currently, the bot is configured using the following parameters:
 * Exchange: Binance
 * Cryptocurrency: ₿ Bitcoin
-* Frequency: 1 minute
-* Score between -1 and +1. <0 means decrease, and >0 means increase
-* Filter: notifications are sent only if score is greater than ±0.15
-* One increase/decrease sign is added for each step of 0.5 (after the filter threshold) 
-* Prediction horizon 3 hours ahead. For example, if the score is +0.25 then the price is likely to increase 1-2% during next 3 hours
+* Analysis frequency: 1 minute (currently the only option)
+* Score between -1 and +1. <0 means likely to decrease, and >0 means likely to increase
+* Filter: notifications are sent only if score is greater than ±0.20 (can be parameterized)
+* One increase/decrease sign is added for each step of 0.05 (exceeding the filter threshold) 
+* Prediction horizon 3 hours ahead. For example, if the score is +0.25 then the price is likely to increase 1-2% during next 3 hours. Note that the algorithm is trained for high (for increase) and low (for decrease) prices - not for close prices
 * History taken into account for forecasts: 12-24 hours
 
 There are silent periods when the score in lower than the threshold (currently 0.15) and no notifications are sent to the channel. If the score is greater than the threshold, then every minute a notification is sent which looks like 
@@ -43,30 +43,51 @@ There are silent periods when the score in lower than the threshold (currently 0
 
 The first number is the latest close price. The score -0.26 means that it is very likely to see the price 1-2% lower than the current close price during next few hours. The three decrease signs mean three 0.5 steps after the threshold 0.15.
 
-# Signaler
+# Signaler service
 
-The signaler performs the following steps to make a decision about buying or selling an asset:
-* Retrieve the latest data from the server
-* Compute derived features based on the latest history
-* Apply several (previously trained) ML models by forecasting some future values (not necessarily prices) which are also treated as (more complex) derived features
-* Aggregate the results of forecasting produced by different ML models by computing the final score which reflects the strength of the upward or downward trend. Positive score means growth and negative score means fall
-* Apply a previously trained signal model to make a decision about buying or selling. The signal models are trained separately and are relatively simple in comparison to the forecasting ML models
+Every minute, the signaler performs the following steps to make a prediction about whether the price is likely to increase or decrease:
+* Retrieve the latest data from the server and update the current data window which includes some history
+* Compute derived features based on the nearest history collected (which now includes the latest data)
+* Apply several (previously trained) ML models by forecasting some future values (not necessarily prices) which are also treated as (more complex) derived features. We apply several forecasting models (currently, Gradient Boosting, Neural network, and Linear regression) to several target variables describing future decrease, future increase with different horizons
+* Aggregate the results of forecasting produced by different ML models and compute the final score which reflects the strength of the upward or downward trend. Here we use many previously computed scores as inputs and derive one output score. Currently, it is implemented as an aggregation procedure but it could be based on a dedicated ML model trained on previously collected scores and the target variable. Positive score means growth and negative score means fall
+* Use the final score for notifications
 
-The final result of the signaler is the score (between -1 and +1) and the signal (BUY or SELL). The score can be used for further decisions while signal is supposed to be used for executing real transactions.
+Notes:
+* The final result of the signaler is the score (between -1 and +1). The score should be used for further decisions about buying or selling by taking into account other parameters and data sources.
+* For the signaler service to work, trained models have to be available and stored in the model folder `model_folder`. The models are trained in batch mode and the process is described in the corresponding section.
 
 Starting the service: `python3 -m service.server -c config.json`
 
 # Training machine learning models
 
+For the signaler service to work, a number of ML models must be trained and the model files available for the service. All scripts run in batch mode by loading some input data and storing some output files. The scripts are implemented in the `scripts` module.
+
 The following batch scripts are used to train the models needed by the signaler:
 * Download the latest historic data: `python -m scripts.download_data -c config.json`
+  * The result is one output file with the name pattern: `{symbol}-{freq}-klines.csv`
+  * It uses Binance API but you can use any other data source or download data manually using other scripts
 * Merge several historic datasets into one dataset: `python -m scripts.merge_data -c config.json`
+  * This script solves two problems: 1) there could be other sources like depth data or futures 2) a data source may have gaps so we need to produce a regular time raster in the output file
+  * The result is one output file with the name pattern: `{symbol}-{freq}.csv`
 * Generate feature matrix: `python -m scripts.generate_features -c config.json`
+  * This script computes all dervied features and labels defined programmatically
+  * The result is one output file with the name pattern: `{symbol}-{freq}-features.csv`
+  * It may take hours to compute because it runs in non-incremental mode, that is, computes the features for all the available data even if only the latest small portion was really updated
 * Train prediction models: `python -m scripts.train_predict_models -c config.json`
+  * This script uses all input features and all generated labels to train several ML models with pre-defined hyper-parameters
+  * Hyper-parameter tuning is not part of this procedure, that is, it is assumed that we already have good hyper-parameters
+  * The results are stored as multiple model files in the model folder and the file names encode the following model dimensions: label being used as a target variable like `high_10`, input data like `k` (klines) or `f` (futures), algorithm like `gb` (gradient boosting), `nn` (neural network) or `lc` (linear classifier).
+  * The model folder also contains `metrics.txt` with the scores of the trained models
 
-There exist also batch scripts for hyper-parameter tuning and signal model generation based on backtesting:
-* Generate rolling predictions which simulate what we do by regularly re-training the models and using them for prediction: `python -m scripts.generate_rolling_predictions -c config.json`
-* Train signal models for choosing best thresholds for sell-buy signals which produce best performance on historic data: `python -m scripts.train_signal_models -c config.json` 
+# Hyper-parameter tuning
+
+There are two problems:
+* How to choose best hyper-parameters for our ML models. This problem can be solved in a classical way, e.g., by grid search. For example, for Gradient Boosting, we train the model on the same data using different hyper-parameters and then select those showing best score. This approach has one drawback - we optimize it for best score which is not trading performance, which means that the trading performance is not guaranteed to be good (and in fact it will not be good). Yet, we do not have any other approach. As a workaround, we use this score as an intermediate feature with the goal to optimize trading performance on later stages.
+* If we compute the final aggregated score (like +0.21), then the question is should we buy, sell or do nothing? In fact, it is the most difficult question. To help answer it, additional scripts were developed for backtesting and optimizing buy-sell signal generation:
+  * Generate rolling predictions which simulate what we do by regularly re-training the models and using them for prediction: `python -m scripts.generate_rolling_predictions -c config.json`
+  * Train signal models for choosing best thresholds for sell-buy signals which produce best performance on historic data: `python -m scripts.train_signal_models -c config.json` 
+
+Yet, this advanced level of data analysis is work in progress, and it is also the most challenging part because here we cannot rely on the conventional ML approach. The goal is to find parameters to optimize the trading strategy which is a sequence of buy and sell transaction. Such a scenario is difficult to formally describe in conventional ML terms. The provided scripts are aimed at helping in such optimizations because they can generate data and then test different trading (currently, rule-based) strategies.
 
 # Configuration parameters
 
