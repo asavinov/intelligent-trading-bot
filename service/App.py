@@ -103,6 +103,8 @@ class App:
 
         # === analyzer (NAMES, also for scripts) ===
 
+        # Parameters of label generation
+        "label_horizon": 180,
         # Target columns with true values which will be predicted
         # Leave only what we want to be generated (e.g., only one label for debug purposes)
         "labels": [
@@ -116,15 +118,15 @@ class App:
             'close_area_future_60', 'close_area_future_120', 'close_area_future_180', 'close_area_future_300',
         ],
         "class_labels_all": [  # All existing target labels implemented in label generation procedure
-            'high_max_60','high_max_120','high_max_180',  # Maximum high (relative)
+            'high_max_180',  # Maximum high (relative)
             'high_10', 'high_15', 'high_20', 'high_25',  # At least one time above
             'high_01', 'high_02', 'high_03', 'high_04',  # Always below
 
-            'low_min_60','low_min_120','low_min_180',  # Minimum low (relative)
+            'low_min_180',  # Minimum low (relative)
             'low_01', 'low_02', 'low_03', 'low_04',  # Always above
             'low_10', 'low_15', 'low_20', 'low_25',  # At least one time below
 
-            'high_to_low_60','high_to_low_120','high_to_low_180',
+            'high_to_low_180',
 
             'close_area_future_60','close_area_future_120','close_area_future_180','close_area_future_300',
             ],

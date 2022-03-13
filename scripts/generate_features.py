@@ -83,9 +83,9 @@ def main(config_file):
     labels = []
 
     # Binary labels whether max has exceeded a threshold or not
-    labels += generate_labels_thresholds(in_df, horizon=180)
+    labels += generate_labels_thresholds(in_df, horizon=App.config["label_horizon"])
 
-    # Numeric label which is ration between areas over and under the latest price
+    # Numeric label which is a ratio between areas over and under the latest price
     labels += add_area_ratio(in_df, is_future=True, column_name="close", windows=[60, 120, 180, 300], suffix = "_area_future")
 
     print(f"Finished generating {len(labels)} labels")
