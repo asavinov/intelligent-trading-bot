@@ -129,7 +129,14 @@ class App:
             'close_area_future_60','close_area_future_120','close_area_future_180','close_area_future_300',
             ],
 
-        "features_kline": [  # Feature columns implemented (hard-coded) by feature generation function
+        # Parameters of feature generation.
+        # If these are changed, then feature names (below) will also have to be changed
+        "base_window_kline": 1440,
+        "windows_kline": [1, 5, 15, 60, 180, 720],
+        "area_windows_kline": [60, 120, 180, 300, 720],
+
+        # Feature column names returned by the feature generation function which we want to use for train/predict
+        "features_kline": [
             'close_1','close_5','close_15','close_60','close_180','close_720',
             'close_std_5','close_std_15','close_std_60','close_std_180','close_std_720',  # Removed "std_1" which is constant
             'volume_1','volume_5','volume_15','volume_60','volume_180','volume_720',

@@ -276,7 +276,11 @@ class Analyzer:
         # Generate all necessary derived features (NaNs are possible due to short history)
         #
         try:
-            features_out = generate_features(df)
+            features_out = generate_features(
+                df, use_differences=False,
+                base_window=App.config["base_window_kline"], windows=App.config["windows_kline"],
+                area_windows=App.config["area_windows_kline"]
+            )
         except Exception as e:
             print(f"Error in generate_features: {e}")
             return

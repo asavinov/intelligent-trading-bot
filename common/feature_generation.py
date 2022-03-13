@@ -17,16 +17,20 @@ Also, no parameter training is performed.
 """
 
 
-def generate_features(df, use_differences=False):
+def generate_features(df,use_differences, base_window, windows, area_windows):
     """
     Generate derived features by adding them as new columns to the data frame.
-    This (same) function must be used for both training and prediction.
-    If we use it for training to produce models then this same function has to be used before applying these models.
-    """
-    # Parameters of moving averages
-    windows = [1, 5, 15, 60, 180, 720]
-    base_window = 1440
+    It is important that the same parameters are used for both training and prediction.
 
+    Most features compute rolling aggregation. However, instead of absolute values, the difference
+    of this rolling aggregation to the (longer) base rolling aggregation is computed.
+
+    The window sizes are used for encoding feature/column names and might look like 'close_120'
+    for average close price for the last 120 minutes (relative to the average base price).
+    The column names are needed when preparing data for training or prediction.
+    The easiest way to get them is to return from this function and copy and the
+    corresponding config attribute.
+    """
     features = []
     to_drop = []
 
@@ -78,7 +82,7 @@ def generate_features(df, use_differences=False):
     # ['tb_quote_1', 'tb_quote_2', 'tb_quote_5', 'tb_quote_20', 'tb_quote_60', 'tb_quote_180']
 
     # Area over and under latest close price
-    features += add_area_ratio(df, is_future=False, column_name="close", windows=[60, 120, 180, 300, 720], suffix = "_area")
+    features += add_area_ratio(df, is_future=False, column_name="close", windows=area_windows, suffix = "_area")
 
     # Linear trend
     features += add_linear_trends(df, is_future=False, column_name="close", windows=windows[1:], suffix="_trend")  # window 1 excluded

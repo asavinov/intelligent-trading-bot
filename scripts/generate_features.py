@@ -53,7 +53,11 @@ def main(config_file):
 
     if "kline" in P.feature_sets:
         print(f"Generating klines features...")
-        k_features = generate_features(in_df)
+        k_features = generate_features(
+            in_df, use_differences=False,
+            base_window=App.config["base_window_kline"], windows=App.config["windows_kline"],
+            area_windows=App.config["area_windows_kline"]
+        )
         print(f"Finished generating {len(k_features)} kline features")
     else:
         k_features = []
