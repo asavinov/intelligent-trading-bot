@@ -78,7 +78,7 @@ params_lc = {
 def main(config_file):
     load_config(config_file)
 
-    labels_horizon = 180  # Labels are generated using this number of steps ahead
+    label_horizon = App.config["label_horizon"]  # Labels are generated using this number of steps ahead
     labels = App.config["labels"]
 
     #features_horizon = 720  # Features are generated using this past window length
@@ -142,7 +142,7 @@ def main(config_file):
     in_df = in_df.reset_index(drop=True)  # We must reset index after removing rows to remove gaps
 
     # Remove the tail data for which no labels are available (since their labels are computed from future which is not available)
-    in_df = in_df.head(-labels_horizon)
+    in_df = in_df.head(-label_horizon)
 
     models = dict()
     scores = dict()
