@@ -38,14 +38,6 @@ Parameters:
 class P:
     feature_sets = ["kline"]  # futur
 
-    labels = App.config["labels"]
-    features_kline = App.config["features_kline"]
-    features_futur = App.config["features_futur"]
-    features_depth = App.config["features_depth"]
-
-    #features_horizon = 720  # Features are generated using this past window length
-    labels_horizon = 180  # Labels are generated using this number of steps ahead
-
     in_nrows = 10_000_000  # <-- PARAMETER
     in_nrows_tail = None  # How many last rows to select (for testing)
 
@@ -86,6 +78,14 @@ params_lc = {
 def main(config_file):
     load_config(config_file)
 
+    labels_horizon = 180  # Labels are generated using this number of steps ahead
+    labels = App.config["labels"]
+
+    #features_horizon = 720  # Features are generated using this past window length
+    features_kline = App.config["features_kline"]
+    features_futur = App.config["features_futur"]
+    features_depth = App.config["features_depth"]
+
     freq = "1m"
     symbol = App.config["symbol"]
     data_path = Path(App.config["data_folder"])
@@ -122,27 +122,27 @@ def main(config_file):
     if P.in_nrows_tail:
         in_df = in_df.tail(P.in_nrows_tail)
 
-    for label in P.labels:
+    for label in labels:
         in_df[label] = in_df[label].astype(int)  # "category" NN does not work without this
 
     # Select necessary features and label
     all_features = []
     if "kline" in P.feature_sets:
-        all_features += P.features_kline
+        all_features += features_kline
     if "futur" in P.feature_sets:
-        all_features += P.features_futur
-    all_features += P.labels
+        all_features += features_futur
+    all_features += labels
     in_df = in_df[all_features]
 
     # Spot and futures have different available histories. If we drop nans in all of them, then we get a very short data frame (corresponding to futureus which have little data)
     # So we do not drop data here but rather when we select necessary input features
     # Nans result in constant accuracy and nan loss. MissingValues procedure does not work and produces exceptions
     pd.set_option('use_inf_as_na', True)
-    #in_df = in_df.dropna(subset=P.labels)
+    #in_df = in_df.dropna(subset=labels)
     in_df = in_df.reset_index(drop=True)  # We must reset index after removing rows to remove gaps
 
     # Remove the tail data for which no labels are available (since their labels are computed from future which is not available)
-    in_df = in_df.head(-P.labels_horizon)
+    in_df = in_df.head(-labels_horizon)
 
     models = dict()
     scores = dict()
@@ -151,7 +151,7 @@ def main(config_file):
     # kline feature set
     # ===
     if "kline" in P.feature_sets:
-        features = P.features_kline
+        features = features_kline
         name_tag = "_k_"
         train_length = int(1.5 * 525_600)  # 1.5 * 525_600
 
@@ -162,7 +162,7 @@ def main(config_file):
 
         df_X = train_df[features]
 
-        for label in P.labels:  # Train-predict different labels (and algorithms) using same X
+        for label in labels:  # Train-predict different labels (and algorithms) using same X
             df_y = train_df[label]
 
             # --- GB
@@ -193,7 +193,7 @@ def main(config_file):
     # futur feature set
     # ===
     if "futur" in P.feature_sets:
-        features = P.features_futur
+        features = features_futur
         name_tag = "_f_"
         train_length = int(4 * 43_800)
 
@@ -204,7 +204,7 @@ def main(config_file):
 
         df_X = train_df[features]
 
-        for label in P.labels:  # Train-predict different labels (and algorithms) using same X
+        for label in labels:  # Train-predict different labels (and algorithms) using same X
             df_y = train_df[label]
 
             # --- GB
