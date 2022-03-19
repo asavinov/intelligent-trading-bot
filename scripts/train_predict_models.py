@@ -17,18 +17,17 @@ from common.feature_generation import *
 """
 Use input feature matrix to train *one* label predict model for each label using all specified historic data.
 The output is a number of prediction models - one for each label and prediction algorithm (like gb or svm)
-The script will train models by using only one specified data range. For other (shorter or longer) data ranges, several runs with other parameters are needed.
-Accuracy (for the train data set) will be reported.
-No grid search or hyper-parameter optimization is done - use generate_rolling_predictions for that purpose (from some grid search driver).
+The script will train models by using only one specified data range. For other (shorter or longer) data ranges, 
+several runs with other parameters are needed. Accuracy (for the train data set) will be reported.
+No grid search or hyper-parameter optimization is done - use generate_rolling_predictions for that purpose 
+(from some grid search driver). This script is used to train models which will be used in the service.
 
 Parameters:
 - the data range always ends with last loaded (non-null) record
-- the algorithm will select and use for training features listed in "features_gb" (for GB) and "features_knn" (for KNN)
-  (same features must be used later for prediction so ensure that these lists are identical)
+- the algorithm will select and use for training features listed in config
 - models (for each algorithm) will be trained separately for the labels specified in the list "labels"
-  (the file model files will include these labels in the name so ensure this name convention in the predictions)
-- !!! train hyper-parameters will be read from env and passed to the training algorithm.
-  If no env parameters are set, then the hard-coded defaults will be used - CHECK defaults because there are debug and production values    
+- The hyper-parameters are specified in this script. They are supposed to be the best hyper-parameters
+obtained elsewhere (e.g., using grid search).   
 """
 
 
@@ -38,9 +37,15 @@ Parameters:
 class P:
     feature_sets = ["kline"]  # futur
 
-    in_nrows = 10_000_000  # <-- PARAMETER
+    in_nrows = 10_000_000  # For debugging
     in_nrows_tail = None  # How many last rows to select (for testing)
 
+    # How much data we want to use for training
+    kline_train_length = int(1.5 * 525_600)  # 1.5 * 525_600
+    futur_train_length = int(4 * 43_800)
+
+    # Whether to store file with predictions
+    store_predictions = False
 
 #
 # (Best) train parameters (found by and copied from grid search scripts)
@@ -126,13 +131,14 @@ def main(config_file):
         in_df[label] = in_df[label].astype(int)  # "category" NN does not work without this
 
     # Select necessary features and label
+    out_columns = ['timestamp', 'open', 'high', 'low', 'close', 'volume', 'close_time']
     all_features = []
     if "kline" in P.feature_sets:
         all_features += features_kline
     if "futur" in P.feature_sets:
         all_features += features_futur
     all_features += labels
-    in_df = in_df[all_features]
+    in_df = in_df[all_features + out_columns]
 
     # Spot and futures have different available histories. If we drop nans in all of them, then we get a very short data frame (corresponding to futureus which have little data)
     # So we do not drop data here but rather when we select necessary input features
@@ -147,17 +153,18 @@ def main(config_file):
     models = dict()
     scores = dict()
 
+    df_out = pd.DataFrame()  # Collect predictions
+
     # ===
     # kline feature set
     # ===
     if "kline" in P.feature_sets:
         features = features_kline
         name_tag = "_k_"
-        train_length = int(1.5 * 525_600)  # 1.5 * 525_600
 
-        print(f"Start training 'kline' package with {len(features)} features, name tag {name_tag}', and train length {train_length}")
+        print(f"Start training 'kline' package with {len(features)} features, name tag {name_tag}', and train length {P.kline_train_length}")
 
-        train_df = in_df.tail(train_length)
+        train_df = in_df.tail(P.kline_train_length)
         train_df = train_df.dropna(subset=features)
 
         df_X = train_df[features]
@@ -172,6 +179,7 @@ def main(config_file):
             models[score_column_name] = model_pair
             df_y_hat = predict_gb(model_pair, df_X)
             scores[score_column_name] = compute_scores(df_y, df_y_hat)
+            df_out[score_column_name] = df_y_hat
 
             # --- NN
             score_column_name = label + name_tag + "nn"
@@ -180,6 +188,7 @@ def main(config_file):
             models[score_column_name] = model_pair
             df_y_hat = predict_nn(model_pair, df_X)
             scores[score_column_name] = compute_scores(df_y, df_y_hat)
+            df_out[score_column_name] = df_y_hat
 
             # --- LC
             score_column_name = label + name_tag + "lc"
@@ -188,6 +197,7 @@ def main(config_file):
             models[score_column_name] = model_pair
             df_y_hat = predict_lc(model_pair, df_X)
             scores[score_column_name] = compute_scores(df_y, df_y_hat)
+            df_out[score_column_name] = df_y_hat
 
     # ===
     # futur feature set
@@ -195,11 +205,10 @@ def main(config_file):
     if "futur" in P.feature_sets:
         features = features_futur
         name_tag = "_f_"
-        train_length = int(4 * 43_800)
 
-        print(f"Start training 'futur' package with {len(features)} features, name tag {name_tag}', and train length {train_length}")
+        print(f"Start training 'futur' package with {len(features)} features, name tag {name_tag}', and train length {P.futur_train_length}")
 
-        train_df = in_df.tail(train_length)
+        train_df = in_df.tail(P.futur_train_length)
         train_df = train_df.dropna(subset=features)
 
         df_X = train_df[features]
@@ -214,6 +223,7 @@ def main(config_file):
             models[score_column_name] = model_pair
             df_y_hat = predict_gb(model_pair, df_X)
             scores[score_column_name] = compute_scores(df_y, df_y_hat)
+            df_out[score_column_name] = df_y_hat
 
             # --- NN
             score_column_name = label + name_tag + "nn"
@@ -222,6 +232,7 @@ def main(config_file):
             models[score_column_name] = model_pair
             df_y_hat = predict_nn(model_pair, df_X)
             scores[score_column_name] = compute_scores(df_y, df_y_hat)
+            df_out[score_column_name] = df_y_hat
 
             # --- LC
             score_column_name = label + name_tag + "lc"
@@ -230,6 +241,7 @@ def main(config_file):
             models[score_column_name] = model_pair
             df_y_hat = predict_lc(model_pair, df_X)
             scores[score_column_name] = compute_scores(df_y, df_y_hat)
+            df_out[score_column_name] = df_y_hat
 
     #
     # Store all collected models in files
@@ -254,8 +266,17 @@ def main(config_file):
     print(f"Metrics stored in path: {metrics_file_name.absolute()}")
 
     #
-    # Store accuracies
+    # Store predictions if necessary
     #
+    if P.store_predictions:
+        out_file_name = f"{symbol}-{freq}-predictions.csv"
+        out_path = data_path / out_file_name
+
+        # We do not store features. Only selected original data, labels, and their predictions
+        df_out = df_out.join(in_df[out_columns + labels])
+
+        df_out.to_csv(out_path, index=False)
+        print(f"Predictions stored in file: {out_path}. Length: {len(df_out)}. Columns: {len(df_out.columns)}")
 
     #
     # End
