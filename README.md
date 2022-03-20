@@ -87,11 +87,54 @@ Download data from different source feature sets and merge them into the common 
 
 ## Generate features
 
+`python -m scripts.generate_features -c config.json`
+
 Load merged source data, apply feature generation script and store a feature matrix with all possible derived features. Not all features will be then used. The script relies on a common feature definition function. Feature functions get some parameters like windows from the configuration. The same features must be used for on-line feature generation (in the service when they are generated for a micro-batch) and off-line feature generation.
 
 ## Generate labels
 
+`python -m scripts.generate_labels -c config.json`
+
 Load feature matrix, compute labels and store the result with additional columns in the output file. Features are not needed for label computation and they are stored unchanged in the output file. Currently, most label parameters are hard-coded.
+
+## Train prediction models
+
+`python -m scripts.train_predict_models -c config.json`
+
+Configuration:
+- List of features to be used are specified in configuration. They will be used to select columns for producing train set passed to the algorithms
+- List of labels for which models will be trained is specified in configuration
+- Algorithms trained are hard-coded and each algorithm adds its suffix to the output label prediction
+  - Algorithm hyper-parameters are hard-coded. These should be the same parameters as used in rolling predictions and other parts of the system (they are currently not shared)
+- All algorithms are applied to each selected feature set and the feature set adds a tag in the label prediction
+- Outputs: 
+  - trained models for all combinations of label-feature_set-algorithm - these model files will be used on-line in the service
+  - various (point-wise) scores for all trained models in a metrics.txt file
+  - data file with selected source columns, labels and their predictions
+
+# Hyper-parameter tuning - NEW
+
+The main questions we want to answer here are as follows:
+- What are the best feature parameters like sequence of window sizes and base window size.  
+- What are the best label parameters like prediction horizon, high-low thresholds or top-bot thresholds and tolerances
+
+Eventually, we would like to achieve highest overall performance but in many cases we need to first optimize point-wise classification scores, individual feature strength and other parameters
+
+## Optimize point-wise classification score
+
+- Optimize algorithm hyper-parameters
+- Select best algorithms, e.g., only NN
+- Optimize feature and label parameters
+
+## Optimize interval-wise classification score
+
+The basis for this optimization is a function which transforms point-wise label prediction to an interval prediction which is typically some aggregation of one point-wise label prediction.
+
+Optimize point-wise score aggregation parameters and the corresponding selection threshold parameters with the purpose to increase precision of interval classification. An interval is defined as bottom interval, top interval, high interval, low interval. For top-bot we compute them naturally as intervals. For high-low intervals are currently not defined.
+
+## Optimize trade signal performance
+
+Here we want to try different trade signal (aggregation and selection) parameters by computing their overall performance and finally choose the best parameters. The input is a file with close prices and point-wise predictions (for each label-feature_set-algorithm). They are used to generate trade signals and using them for simulating trades. 
 
 # Hyper-parameter tuning
 

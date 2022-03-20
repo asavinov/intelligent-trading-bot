@@ -45,7 +45,7 @@ class P:
     futur_train_length = int(4 * 43_800)
 
     # Whether to store file with predictions
-    store_predictions = False
+    store_predictions = True
 
 #
 # (Best) train parameters (found by and copied from grid search scripts)
@@ -106,7 +106,7 @@ def main(config_file):
     print(f"Loading feature matrix from input file...")
     start_dt = datetime.now()
 
-    in_file_name = f"{symbol}-{freq}-features.csv"
+    in_file_name = f"{symbol}-{freq}-matrix.csv"
     in_path = data_path / in_file_name
     if not in_path.exists():
         print(f"ERROR: Input file does not exist: {in_path}")
