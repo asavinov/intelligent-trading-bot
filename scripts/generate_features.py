@@ -11,7 +11,6 @@ import pandas as pd
 
 from service.App import *
 from common.feature_generation import *
-from common.label_generation import *
 
 #
 # Parameters
@@ -75,20 +74,6 @@ def main(config_file):
         print(f"Finished generating {len(f_features)} depth features")
     else:
         d_features = []
-
-    #
-    # Generate labels (always the same, currently based on kline data which must be therefore present)
-    #
-    print(f"Generating labels...")
-    labels = []
-
-    # Binary labels whether max has exceeded a threshold or not
-    labels += generate_labels_thresholds(in_df, horizon=App.config["label_horizon"])
-
-    # Numeric label which is a ratio between areas over and under the latest price
-    labels += add_area_ratio(in_df, is_future=True, column_name="close", windows=[60, 120, 180, 300], suffix = "_area_future")
-
-    print(f"Finished generating {len(labels)} labels")
 
     #
     # Store feature matrix in output file

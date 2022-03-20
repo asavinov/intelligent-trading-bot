@@ -79,6 +79,20 @@ The following batch scripts are used to train the models needed by the signaler:
   * The results are stored as multiple model files in the model folder and the file names encode the following model dimensions: label being used as a target variable like `high_10`, input data like `k` (klines) or `f` (futures), algorithm like `gb` (gradient boosting), `nn` (neural network) or `lc` (linear classifier).
   * The model folder also contains `metrics.txt` with the scores of the trained models
 
+# Training machine learning models - NEW
+
+## Downloading and merging source data
+
+Download data from different source feature sets and merge them into the common 1 minute raster.
+
+## Generate features
+
+Load merged source data, apply feature generation script and store a feature matrix with all possible derived features. Not all features will be then used. The script relies on a common feature definition function. Feature functions get some parameters like windows from the configuration. The same features must be used for on-line feature generation (in the service when they are generated for a micro-batch) and off-line feature generation.
+
+## Generate labels
+
+Load feature matrix, compute labels and store the result with additional columns in the output file. Features are not needed for label computation and they are stored unchanged in the output file. Currently, most label parameters are hard-coded.
+
 # Hyper-parameter tuning
 
 There are two problems:
