@@ -63,7 +63,7 @@ def confidence_mining():
     in_path = Path(P.in_path_name).joinpath(P.in_file_name)
     in_df = pd.read_csv(in_path, parse_dates=['timestamp'], nrows=P.in_nrows)
 
-    in_df = generate_score(in_df, P.feature_sets)  # "score" columns is added
+    in_df = generate_score_high_low(in_df, P.feature_sets)  # "score" columns is added
     # TODO: Our predictions are scores, therefore generate binary prediction (with some threshold, maybe derived from average score)
     feature_pred = ''  # Prediction (binary)
 

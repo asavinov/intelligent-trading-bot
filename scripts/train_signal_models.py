@@ -120,7 +120,7 @@ def generate_score_and_forecast():
     # Compute final score (as average over different predictions)
     # "score" column is added
     #
-    in_df = generate_score(in_df, P.feature_sets)  # "score" columns is added
+    in_df = generate_score_high_low(in_df, P.feature_sets)  # "score" columns is added
 
     #
     # Load forecast model and generate forecast column
@@ -195,7 +195,7 @@ def main(config_file):
     # This function adds "score" column
     # Important: we need to use the same final score as later in the service
     #
-    in_df = generate_score(in_df, P.feature_sets)
+    in_df = generate_score_high_low(in_df, P.feature_sets)
 
     print(f"Score column generated.")
 

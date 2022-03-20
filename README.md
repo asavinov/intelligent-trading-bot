@@ -132,6 +132,8 @@ The basis for this optimization is a function which transforms point-wise label 
 
 Optimize point-wise score aggregation parameters and the corresponding selection threshold parameters with the purpose to increase precision of interval classification. An interval is defined as bottom interval, top interval, high interval, low interval. For top-bot we compute them naturally as intervals. For high-low intervals are currently not defined.
 
+Currently we do not use this for one important reason. The thing is that finding how frequently we detect or miss intervals is not very important by itself. It is important whether we have false positive before an interval (which was detected) or after it. Therefore, an informative measure should take into whether an error happened before an interval or after it. However, if we have it, then it is essentially equivalent or very close to finding trade performance by means of trade simulation where such situations are taken into account automatically. 
+
 ## Optimize trade signal performance
 
 Here we want to try different trade signal (aggregation and selection) parameters by computing their overall performance and finally choose the best parameters. The input is a file with close prices and point-wise predictions (for each label-feature_set-algorithm). They are used to generate trade signals and using them for simulating trades. 
