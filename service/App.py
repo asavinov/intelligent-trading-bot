@@ -174,7 +174,7 @@ class App:
             "notification_threshold": 4,  # Score within this number of steps will not be notified
             "analysis": {  # Same for all symbols
                 # History needed to compute derived features. Take maximum aggregation windows from feature generation code (and add something to be sure that we have all what is needed)
-                "features_horizon": 1440+160,
+                "features_horizon": 20160+160,
             },
             "model": {
                 # Models: [0.4, -0.44], [0.25, -0.52]

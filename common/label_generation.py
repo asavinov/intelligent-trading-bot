@@ -76,6 +76,7 @@ def generate_labels_thresholds(df, horizon):
 
 
 def generate_labels_sim(df, horizon):
+    """Currently not used."""
     labels = []
 
     # Max high
@@ -98,6 +99,7 @@ def generate_labels_sim(df, horizon):
 
 
 def generate_labels_regressor(df, horizon):
+    """Labels for regression. Currently not used."""
     labels = []
 
     # Max high relative to close in percent
