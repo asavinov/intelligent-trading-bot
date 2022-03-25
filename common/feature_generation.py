@@ -7,6 +7,7 @@ import numpy as np
 import pandas as pd
 
 from common.utils import *
+from common.feature_generation_rolling_agg import *
 
 """
 Feature/label generation.
@@ -17,7 +18,7 @@ Also, no parameter training is performed.
 """
 
 
-def generate_features(df,use_differences, base_window, windows, area_windows):
+def generate_features(df,use_differences, base_window, windows, area_windows, last_rows: int = 0):
     """
     Generate derived features by adding them as new columns to the data frame.
     It is important that the same parameters are used for both training and prediction.
@@ -39,53 +40,46 @@ def generate_features(df,use_differences, base_window, windows, area_windows):
         df['volume'] = to_diff(df['volume'])
         df['trades'] = to_diff(df['trades'])
 
-    # close mean
+    # close rolling mean. format: 'close_<window>'
     weight_column_name = 'volume'  # None: no weighting; 'volume': volume average
-    to_drop += add_past_weighted_aggregations(df, 'close', weight_column_name, np.nanmean, base_window, suffix='')  # Base column
-    features += add_past_weighted_aggregations(df, 'close', weight_column_name, np.nanmean, windows, '', to_drop[-1], 100.0)
-    # ['close_1', 'close_2', 'close_5', 'close_20', 'close_60', 'close_180']
+    to_drop += add_past_weighted_aggregations(df, 'close', weight_column_name, np.nanmean, base_window, suffix='', last_rows=last_rows)  # Base column
+    features += add_past_weighted_aggregations(df, 'close', weight_column_name, np.nanmean, windows, '', to_drop[-1], 100.0, last_rows=last_rows)
 
-    # close std
-    to_drop += add_past_aggregations(df, 'close', np.nanstd, base_window)  # Base column
-    features += add_past_aggregations(df, 'close', np.nanstd, windows[1:], '_std', to_drop[-1], 100.0)  # window 1 excluded
-    # ['close_std_1', 'close_std_2', 'close_std_5', 'close_std_20', 'close_std_60', 'close_std_180']
+    # close rolling std. format: 'close_std_<window>'
+    to_drop += add_past_aggregations(df, 'close', np.nanstd, base_window, last_rows=last_rows)  # Base column
+    features += add_past_aggregations(df, 'close', np.nanstd, windows, '_std', to_drop[-1], 100.0, last_rows=last_rows)
 
-    # volume mean
-    to_drop += add_past_aggregations(df, 'volume', np.nanmean, base_window, suffix='')  # Base column
-    features += add_past_aggregations(df, 'volume', np.nanmean, windows, '', to_drop[-1], 100.0)
-    # ['volume_1', 'volume_2', 'volume_5', 'volume_20', 'volume_60', 'volume_180']
+    # volume rolling mean. format: 'volume_<window>'
+    to_drop += add_past_aggregations(df, 'volume', np.nanmean, base_window, suffix='', last_rows=last_rows)  # Base column
+    features += add_past_aggregations(df, 'volume', np.nanmean, windows, '', to_drop[-1], 100.0, last_rows=last_rows)
 
-    # Span: high-low difference
+    # Span: high-low difference. format: 'span_<window>'
     df['span'] = df['high'] - df['low']
     to_drop.append('span')
-    to_drop += add_past_aggregations(df, 'span', np.nanmean, base_window, suffix='')  # Base column
-    features += add_past_aggregations(df, 'span', np.nanmean, windows, '', to_drop[-1], 100.0)
-    # ['span_1', 'span_2', 'span_5', 'span_20', 'span_60', 'span_180']
+    to_drop += add_past_aggregations(df, 'span', np.nanmean, base_window, suffix='', last_rows=last_rows)  # Base column
+    features += add_past_aggregations(df, 'span', np.nanmean, windows, '', to_drop[-1], 100.0, last_rows=last_rows)
 
-    # Number of trades
-    to_drop += add_past_aggregations(df, 'trades', np.nanmean, base_window, suffix='')  # Base column
-    features += add_past_aggregations(df, 'trades', np.nanmean, windows, '', to_drop[-1], 100.0)
-    # ['trades_1', 'trades_2', 'trades_5', 'trades_20', 'trades_60', 'trades_180']
+    # Number of trades format: 'trades_<window>'
+    to_drop += add_past_aggregations(df, 'trades', np.nanmean, base_window, suffix='', last_rows=last_rows)  # Base column
+    features += add_past_aggregations(df, 'trades', np.nanmean, windows, '', to_drop[-1], 100.0, last_rows=last_rows)
 
-    # tb_base_av / volume varies around 0.5 in base currency
+    # tb_base_av / volume varies around 0.5 in base currency. format: 'tb_base_<window>>'
     df['tb_base'] = df['tb_base_av'] / df['volume']
     to_drop.append('tb_base')
-    to_drop += add_past_aggregations(df, 'tb_base', np.nanmean, base_window, suffix='')  # Base column
-    features += add_past_aggregations(df, 'tb_base', np.nanmean, windows, '', to_drop[-1], 100.0)
-    # ['tb_base_1', 'tb_base_2', 'tb_base_5', 'tb_base_20', 'tb_base_60', 'tb_base_180']
+    to_drop += add_past_aggregations(df, 'tb_base', np.nanmean, base_window, suffix='', last_rows=last_rows)  # Base column
+    features += add_past_aggregations(df, 'tb_base', np.nanmean, windows, '', to_drop[-1], 100.0, last_rows=last_rows)
 
-    # tb_quote_av / quote_av varies around 0.5 in quote currency
+    # tb_quote_av / quote_av varies around 0.5 in quote currency. format: 'tb_quote_<window>>'
     df['tb_quote'] = df['tb_quote_av'] / df['quote_av']
     to_drop.append('tb_quote')
-    to_drop += add_past_aggregations(df, 'tb_quote', np.nanmean, base_window, suffix='')  # Base column
-    features += add_past_aggregations(df, 'tb_quote', np.nanmean, windows, '', to_drop[-1], 100.0)
-    # ['tb_quote_1', 'tb_quote_2', 'tb_quote_5', 'tb_quote_20', 'tb_quote_60', 'tb_quote_180']
+    to_drop += add_past_aggregations(df, 'tb_quote', np.nanmean, base_window, suffix='', last_rows=last_rows)  # Base column
+    features += add_past_aggregations(df, 'tb_quote', np.nanmean, windows, '', to_drop[-1], 100.0, last_rows=last_rows)
 
     # Area over and under latest close price
-    features += add_area_ratio(df, is_future=False, column_name="close", windows=area_windows, suffix = "_area")
+    features += add_area_ratio(df, is_future=False, column_name="close", windows=area_windows, suffix = "_area", last_rows=last_rows)
 
     # Linear trend
-    features += add_linear_trends(df, is_future=False, column_name="close", windows=windows[1:], suffix="_trend")  # window 1 excluded
+    features += add_linear_trends(df, is_future=False, column_name="close", windows=windows, suffix="_trend", last_rows=last_rows)
 
     df.drop(columns=to_drop, inplace=True)
 
@@ -246,6 +240,32 @@ def generate_features_depth(df, use_differences=False):
     df.drop(columns=to_drop, inplace=True)
 
     return features
+
+
+def add_threshold_feature(df, column_name: str, thresholds: list, out_names: list):
+    """
+
+    :param df:
+    :param column_name: Column with values to compare with the thresholds
+    :param thresholds: List of thresholds. For each of them an output column will be generated
+    :param out_names: List of output column names (same length as thresholds)
+    :return: List of output column names
+    """
+
+    for i, threshold in enumerate(thresholds):
+        out_name = out_names[i]
+        if threshold > 0.0:  # Max high
+            if abs(threshold) >= 0.75:  # Large threshold
+                df[out_name] = df[column_name] >= threshold  # At least one high is greater than the threshold
+            else:  # Small threshold
+                df[out_name] = df[column_name] <= threshold  # All highs are less than the threshold
+        else:  # Min low
+            if abs(threshold) >= 0.75:  # Large negative threshold
+                df[out_name] = df[column_name] <= threshold  # At least one low is less than the (negative) threshold
+            else:  # Small threshold
+                df[out_name] = df[column_name] >= threshold  # All lows are greater than the (negative) threshold
+
+    return out_names
 
 
 def depth_to_df(depth: list):

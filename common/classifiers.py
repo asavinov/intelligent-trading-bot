@@ -210,7 +210,7 @@ def train_nn(df_X, df_y, params: dict):
     )
 
     # Compile model
-    optimizer = Adam(lr=learning_rate)
+    optimizer = Adam(learning_rate=learning_rate)
     model.compile(
         loss='binary_crossentropy',
         optimizer=optimizer,

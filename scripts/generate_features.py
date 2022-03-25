@@ -18,7 +18,9 @@ from common.feature_generation import *
 class P:
     feature_sets = ["kline", ]  # "futur"
 
-    in_nrows = 10_000_000
+    in_nrows = 50_000
+
+    out_file_suffix = "features"
 
 
 @click.command()
@@ -55,7 +57,7 @@ def main(config_file):
         k_features = generate_features(
             in_df, use_differences=False,
             base_window=App.config["base_window_kline"], windows=App.config["windows_kline"],
-            area_windows=App.config["area_windows_kline"]
+            area_windows=App.config["area_windows_kline"], last_rows=0
         )
         print(f"Finished generating {len(k_features)} kline features")
     else:
@@ -75,21 +77,33 @@ def main(config_file):
     else:
         d_features = []
 
+    all_features = k_features + f_features + d_features
+
     #
     # Store feature matrix in output file
     #
-    out_file_name = f"{symbol}-{freq}-features.csv"
-    out_file = (data_path / out_file_name).resolve()
+    out_file_name = f"{symbol}-{freq}-{P.out_file_suffix}.csv"
+    out_path = (data_path / out_file_name).resolve()
 
     print(f"Storing feature matrix with {len(in_df)} records and {len(in_df.columns)} columns in output file...")
 
-    in_df.to_csv(out_file, index=False, float_format="%.4f")
-
+    in_df.to_csv(out_path, index=False, float_format="%.4f")
     #in_df.to_parquet(out_path.with_suffix('.parquet'), engine='auto', compression=None, index=None, partition_cols=None)
+
+    #
+    # Store features
+    #
+    out_file_name = f"{symbol}-{freq}-{P.out_file_suffix}.txt"
+    out_path = (out_path / out_file_name).resolve()
+
+    with open(out_path, "a+") as f:
+        f.write(", ".join(f"'{all_features}'") + "\n")
+
+    print(f"Stored {len(all_features)} features in output file {out_path}")
 
     elapsed = datetime.now() - start_dt
     print(f"Finished feature generation in {int(elapsed.total_seconds())} seconds")
-    print(f"Output file location: {out_file}")
+    print(f"Output file location: {out_path}")
 
 
 if __name__ == '__main__':
