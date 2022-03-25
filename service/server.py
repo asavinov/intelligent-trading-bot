@@ -94,6 +94,8 @@ def start_server(config_file):
     # Do one time data load (cold start)
     try:
         App.loop.run_until_complete(sync_data_collector_task())
+        # First call may take a while because of big batch and hence we make second call into to get the (possible) newest klines not received by the first call
+        App.loop.run_until_complete(sync_data_collector_task())
     except Exception as e:
         print(f"Problems during initial data collection. {e}")
 

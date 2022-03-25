@@ -86,7 +86,7 @@ def aggregate_score(df, score_columns: List[str], signal_column: str, point_thre
     #
     # Average all buy and sell columns
     #
-    score_column = df[score_columns].sum(axis=1) / len(score_columns)
+    score_column = df[score_columns].mean(skipna=True, axis=1)
 
     #
     # Apply thresholds (if any)
@@ -98,16 +98,16 @@ def aggregate_score(df, score_columns: List[str], signal_column: str, point_thre
     # Moving average
     #
     if isinstance(window, int):
-        score_column = score_column.rolling(window, min_periods=window // 2).nanmean()
+        score_column = score_column.rolling(window, min_periods=window // 2).mean(skipna=True)
     elif isinstance(window, float):
-        score_column = score_column.ewm(span=window, min_periods=window // 2, adjust=False).nanmean()
+        score_column = score_column.ewm(span=window, min_periods=window // 2, adjust=False).mean(skipna=True)
 
     df[signal_column] = score_column
 
     return score_column
 
 
-def combined_relative_score(df, buy_column, sell_column, buy_sell_column):
+def combine_scores_relative(df, buy_column, sell_column, buy_column_out, sell_column_out):
     """
     Combine buy and sell scores and find relative scores.
     For example, if both scores are strong but equal then finally both will be 0
@@ -116,14 +116,35 @@ def combined_relative_score(df, buy_column, sell_column, buy_sell_column):
     # proportion to the sum
     high_and_low = df[buy_column] + df[sell_column]
     buy_sell_score = ((df[buy_column] / high_and_low) * 2) - 1.0  # in [-1, +1]
-    df[buy_sell_column] = buy_sell_score
+
+    df[buy_column_out] = buy_sell_score  # High values mean buy signal
+    #df[buy_column_out] = df[df[buy_column_out] < 0] = 0  # Set negative values to 0
+
+    df[sell_column_out] = -buy_sell_score  # High values mean sell signal
+    #df[sell_column_out] = df[df[sell_column_out] < 0] = 0  # Set negative values to 0
 
     # Final score: abs difference betweem high and low (scaled to [-1,+1] maybe)
     #in_df["score"] = in_df["high"] - in_df["low"]
-    from sklearn.preprocessing import StandardScaler
+    #from sklearn.preprocessing import StandardScaler
     #in_df["score"] = StandardScaler().fit_transform(in_df["score"])
 
-    return buy_sell_column
+    return buy_sell_score
+
+
+def combine_scores_difference(df, buy_column, sell_column, buy_column_out, sell_column_out):
+    """
+    """
+
+    # difference
+    high_and_low = df[buy_column] - df[sell_column]
+
+    df[buy_column_out] = high_and_low  # High values mean buy signal
+    #df[buy_column_out] = df[df[buy_column_out] < 0] = 0  # Set negative values to 0
+
+    df[sell_column_out] = -high_and_low  # High values mean sell signal
+    #df[sell_column_out] = df[df[sell_column_out] < 0] = 0  # Set negative values to 0
+
+    return high_and_low
 
 
 def generate_score_high_low(df, feature_sets):
@@ -276,58 +297,6 @@ def find_interval_score(df: pd.DataFrame, label_column: str, score_column: str, 
     interval_df = interval_df.reset_index(drop=False)
 
     return interval_df
-
-
-def performance_score(df, sell_signal_column, buy_signal_column, price_column):
-    """
-    top_score_column: boolean, true if top is reached - sell signal
-    bot_score_column: boolean, true if bottom is reached - buy signal
-    price_column: numeric price for computing profit
-
-    return performance: tuple, long and short performance as a sum of differences between two transactions
-
-    The functions switches the mode and searches for the very first signal of the opposite score.
-    When found, it again switches the mode and searches for the very first signal of the opposite score.
-
-    Essentially, it is one pass of trade simulation with concrete parameters.
-    """
-    is_buy_mode = True
-
-    performance_long = 0
-    long_count = 0
-    long_profitable = 0
-    longs = list()
-
-    performance_short = 0
-    short_count = 0
-    short_profitable = 0
-    shorts = list()
-
-    # The order of columns is important for itertuples
-    df = df[[sell_signal_column, buy_signal_column, price_column]]
-    for (index, top_score, bot_score, price) in df.itertuples(name=None):
-        if is_buy_mode:
-            # Check if minimum price
-            if bot_score:
-                profit = longs[-1][2] - price if len(longs) > 0 else 0
-                performance_short += profit
-                short_count += 1
-                if profit > 0:
-                    short_profitable += 1
-                shorts.append((index, is_buy_mode, price, profit))  # Bought
-                is_buy_mode = False
-        else:
-            # Check if maximum price
-            if top_score:
-                profit = price - shorts[-1][2] if len(shorts) > 0 else 0
-                performance_long += profit
-                long_count += 1
-                if profit > 0:
-                    long_profitable += 1
-                longs.append((index, is_buy_mode, price, profit))  # Sold
-                is_buy_mode = True
-
-    return performance_long, performance_short, long_count, short_count, long_profitable, short_profitable, longs, shorts
 
 
 # NOT USED

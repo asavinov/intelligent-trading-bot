@@ -55,10 +55,15 @@ class Analyzer:
             model_path = PACKAGE_ROOT / model_path
         model_path = model_path.resolve()
 
-        labels = App.config["labels"]
-        feature_sets = ["kline"]
-        algorithms = ["gb", "nn", "lc"]
-        self.models = load_models(model_path, labels, feature_sets, algorithms)
+        # TODO: OBSOLETE
+        #labels = App.config["labels"]
+        #feature_sets = ["kline"]
+        #algorithms = ["gb", "nn", "lc"]
+        #self.models = load_models(model_path, labels, feature_sets, algorithms)
+
+        buy_labels = App.config["buy_labels"]
+        sell_labels = App.config["sell_labels"]
+        self.models = {label: load_model_pair(model_path, label) for label in buy_labels + sell_labels}
 
         #
         # Start a thread for storing data
@@ -89,7 +94,7 @@ class Analyzer:
         now_ts = now_timestamp()
         last_kline_ts = self.get_last_kline_ts(symbol)
         if not last_kline_ts:
-            return App.config["signaler"]["analysis"]["features_horizon"]
+            return App.config["features_horizon"]
         end_of_last_kline = last_kline_ts + 60_000  # Plus 1m
 
         minutes = (now_ts - end_of_last_kline) / 60_000
@@ -133,7 +138,7 @@ class Analyzer:
             klines_data.extend(klines)
 
             # Remove too old klines
-            kline_window = App.config["signaler"]["analysis"]["features_horizon"]
+            kline_window = App.config["features_horizon"]
             to_delete = len(klines_data) - kline_window
             if to_delete > 0:
                 del klines_data[:to_delete]
@@ -279,7 +284,7 @@ class Analyzer:
             features_out = generate_features(
                 df, use_differences=False,
                 base_window=App.config["base_window_kline"], windows=App.config["windows_kline"],
-                area_windows=App.config["area_windows_kline"]
+                area_windows=App.config["area_windows_kline"], last_row_only=True
             )
         except Exception as e:
             print(f"Error in generate_features: {e}")
@@ -294,10 +299,10 @@ class Analyzer:
 
         # kline feature set
         features = App.config["features_kline"]
-        predict_df = df[features]
+        predict_df = df.iloc[-1:][features]
         # Do not drop nans because they will be processed by predictor
 
-        # Do prediction by applying models to the data
+        # Do prediction by applying all models (for the score columns declared in config) to the data
         score_df = pd.DataFrame(index=predict_df.index)
         try:
             for score_column_name, model_pair in self.models.items():
@@ -314,48 +319,63 @@ class Analyzer:
             print(f"Error in predict: {e}")
             return
 
-        # Now we have all predictions (score columns) needed to make a buy/sell decision - many predictions for each true label column
-        # We will need only the latest row for signal generation
+        # This df contains only one (last) record
+        df = predict_df.join(score_df)
+        #df = pd.concat([predict_df, score_df], axis=1)
 
         #
         # 4.
-        # Generate buy/sell signals using rules and thresholds
+        # Generate buy/sell signals using the signal model parameters
         #
-        all_scores = self.models.keys()
-        high_scores = [col for col in all_scores if "high_" in col]  # 3 algos x 3 thresholds x 1 k = 9
-        low_scores = [col for col in all_scores if "low_" in col]  # 3 algos x 3 thresholds x 1 k = 9
+        model = App.config["signal_model"]
+        buy_labels = App.config["buy_labels"]
+        sell_labels = App.config["sell_labels"]
 
-        # Compute final score column
-        score_df["high"] = score_df[high_scores].mean(axis=1)
-        score_df["low"] = score_df[low_scores].mean(axis=1)
-        high_and_low = score_df["high"] + score_df["low"]
-        score_df["score"] = ((score_df["high"] / high_and_low) * 2) - 1.0  # in [-1, +1]
+        # Produce boolean signal (buy and sell) columns from the current patience parameters
+        aggregate_score(df, [buy_labels], 'buy_score_column', model.get("buy_point_threshold"), model.get("buy_window"))
+        aggregate_score(df, [sell_labels], 'sell_score_column', model.get("sell_point_threshold"), model.get("sell_window"))
 
-        score = score_df.iloc[-1].score
+        if model.get("combine") == "relative":
+            combine_scores_relative(df, 'buy_score_column', 'sell_score_column', 'buy_score_column', 'sell_score_column')
+        elif model.get("combine") == "difference":
+            combine_scores_difference(df, 'buy_score_column', 'sell_score_column', 'buy_score_column', 'sell_score_column')
 
+        #
+        # 5.
+        # Collect results and create signal object
+        #
         row = df.iloc[-1]
-        close_price = row.close
-        high_price = row.high
-        low_price = row.high
-        timestamp = row.name
+
+        buy_score = row["buy_score_column"]
+        buy_signal = buy_score >= model.get("buy_signal_threshold")
+
+        sell_score = row["sell_score_column"]
+        sell_signal = sell_score >= model.get("sell_signal_threshold")
+
+        close_price = row["close"]
         close_time = row.name+timedelta(minutes=1)  # row.close_time
 
-        # Thresholds
-        model = App.config["signaler"]["model"]
+        signal = dict(
+            side=None,
+            buy_score=buy_score, sell_score=sell_score,
+            buy_signal=buy_signal, sell_signal=sell_signal,
+            close_price=close_price, close_time=close_time
+        )
 
-        signal = dict(side=None, score=score, close_price=close_price, close_time=close_time)
-        if not score:
-            signal = dict()
-        elif score > model.get("buy_threshold"):
+        if pd.isnull(buy_score) or pd.isnull(sell_score):
+            pass  # Something is wrong with the computation results
+        elif buy_signal and sell_signal:  # Both signals are true - should not happen
+            pass
+        elif buy_signal:
             signal["side"] = "BUY"
-        elif score < model.get("sell_threshold"):
+        elif sell_signal:
             signal["side"] = "SELL"
         else:
             signal["side"] = ""
 
         App.signal = signal
 
-        log.info(f"Analyze finished. Score: {score:+.2f}. Signal: {signal['side']}. Price: {int(close_price):,}")
+        log.info(f"Analyze finished. Signal: {signal['side']}. Buy score: {buy_score:+.2f}. Sell score: {sell_score:+.2f}. Price: {int(close_price):,}")
 
 
 if __name__ == "__main__":

@@ -46,8 +46,6 @@ NEXT:
 - alternative to smoothing, generate signal if 2 or more previous values are all higher/lower than threshold
 - OR, take generate signal when 2nd time crosses the threshold
 
-- simple extrapolation of score (forecast)
-
 - hybrid strategy: instead of simply waiting for signal and change point, we can introduce stop loss or take profit signals.
 These signals will allow us to take profit where we see it and it is large rather than wait for something in future.
 In other words, such signals are generated from reality (we can earn already now) rather then future.
@@ -87,72 +85,9 @@ class P:
 
     in_nrows = 100_000_000
 
+    predict_file_suffix = "features-rolling"  # Examples: features-rolling, features-rolling-scores, predictions
     simulation_start = 263519   # Good start is 2019-06-01 - after it we have stable movement
     simulation_end = -0  # After 2020-11-01 there is sharp growth which we might want to exclude
-
-
-def generate_score_and_forecast():
-    """
-    Read rolling predictions, generate score column according to its definition and then its forecast according to the forecast model.
-    Store the result (rolling forecast with additional columns) in a separate file.
-
-    TODO: We can include also 2 steps ahead forecasts
-    Idea: we can exclude intervals with low forecast error. Either correlation for last window or goodness of fit of latest train
-    """
-    #
-    # Load data with rolling label score predictions
-    #
-    print(f"Loading data with label rolling predict scores from input file...")
-
-    in_path = Path(P.in_path_name).joinpath(P.in_file_name)
-    if not in_path.exists():
-        print(f"ERROR: Input file does not exist: {in_path}")
-        return
-
-    if P.in_file_name.endswith(".csv"):
-        in_df = pd.read_csv(in_path, parse_dates=['timestamp'], nrows=P.in_nrows)
-    elif P.in_file_name.endswith(".parquet"):
-        in_df = pd.read_parquet(in_path)
-    else:
-        print(f"ERROR: Unknown input file extension. Only csv and parquet are supported.")
-
-    #
-    # Compute final score (as average over different predictions)
-    # "score" column is added
-    #
-    in_df = generate_score_high_low(in_df, P.feature_sets)  # "score" columns is added
-
-    #
-    # Load forecast model and generate forecast column
-    #
-    model_params = pd.read_json("_sarimax_model_all.json", typ='series')
-
-    is_all_fitted_values = True
-    if is_all_fitted_values:
-        history = in_df["score"]
-        forecast = fitted_forecast(history, model_order=(1, 0, 4), result_params=model_params)
-        # Forecast has all indexes
-    else:
-        history_length = 100
-        history = in_df["score"].iloc[: history_length]
-        predict = in_df["score"].iloc[history_length:]
-        forecast = rolling_forecast(history, predict, model_order=(1, 0, 4), result_params=model_params)
-        # First 100 values are not predicted and have NaNs
-
-    # Add column.
-    # We need to shift forecast backwards values because they are stored in the next indexes (for which it is done)
-    forecast = forecast.shift(-1)
-    in_df['score_forecast_1'] = forecast
-
-    #
-    # Store csv
-    #
-    out_name = Path(P.in_file_name).stem + "-scores"
-    out_path = Path(P.in_path_name).joinpath(out_name)
-
-    in_df.to_csv(out_path.with_suffix('.csv'), index=False, float_format="%.4f")
-
-    print(f"FINISHED computing forecasts. ")
 
 
 @click.command()
@@ -170,17 +105,12 @@ def main(config_file):
     out_path.mkdir(parents=True, exist_ok=True)  # Ensure that folder exists
 
     #
-    # Load data with rolling label score predictions
+    # Load data with (rolling) label point-wise predictions
     #
-    print(f"Loading data with label rolling predict scores from input file...")
+    print(f"Loading data with label (rolling) predict scores from input file...")
     start_dt = datetime.now()
 
-    use_forecast_score = False
-    if use_forecast_score:
-        in_file_name = f"{symbol}-{freq}-features-rolling-scores.csv"
-    else:
-        in_file_name = f"{symbol}-{freq}-features-rolling.csv"
-
+    in_file_name = f"{symbol}-{freq}-{P.predict_file_suffix}.csv"
     in_path = data_path / in_file_name
     if not in_path.exists():
         print(f"ERROR: Input file does not exist: {in_path}")
@@ -188,7 +118,7 @@ def main(config_file):
 
     in_df = pd.read_csv(in_path, parse_dates=['timestamp'], nrows=P.in_nrows)
 
-    print(f"Rolling predictions loaded. Length: {len(in_df)}. Width: {len(in_df.columns)}")
+    print(f"Predictions loaded. Length: {len(in_df)}. Width: {len(in_df.columns)}")
 
     #
     # Compute final score (as average over different predictions)
@@ -204,6 +134,7 @@ def main(config_file):
     #
 
     # Selecting only needed rows increases performance in several times (~4 times faster)
+    use_forecast_score = False
     if use_forecast_score:
         in_df = in_df[["timestamp", "high", "low", "close", "score", "score_forecast_1"]]
     else:
@@ -230,7 +161,7 @@ def main(config_file):
 
         start_dt = datetime.now()
         # ---
-        performance = simulate_trade(in_df, model)
+        performance = simulated_trade_performance(in_df, model)
         # ---
         elapsed = datetime.now() - start_dt
         print(f"Finished simulation {i} / {len(models)} in {elapsed.total_seconds():.1f} seconds.")
@@ -274,7 +205,7 @@ def main(config_file):
     print(f"Finished in {int(elapsed.total_seconds())} seconds.")
 
 
-def simulate_trade(df, model: dict):
+def simulated_trade_performance(df, model: dict):
     """
     It will use 1.0 as initial trade amount in USD.
     Overall performance will be the end amount with respect to the initial one.
@@ -413,44 +344,6 @@ def simulate_trade(df, model: dict):
 
     return performance
 
-def rolling_forecast_with_retrain(sr: pd.Series, history_length, p, q):
-    """p is AR. q is MA. Both can be integers or lists."""
-    from statsmodels.tsa.arima.model import ARIMA
-    import statsmodels.api as sm
-
-    result = pd.Series(index=sr.index)
-    for i in range(history_length, len(sr)):
-        start = i-history_length
-        start = 0 if start < 0 else start
-        sub_sr = sr.iloc[start: i]
-
-        #model = ARIMA(sub_sr, order=(p, 0, q))
-        #model_fit = model.fit()
-
-        model = sm.tsa.statespace.SARIMAX(sub_sr, order=(p, 0, q), enforce_stationarity=False, enforce_invertibility=False)
-        model_fit = model.fit(disp=False)
-
-        # It returns time series starting with next index so we simply take first element
-        val = model_fit.forecast().iloc[0]
-
-        result.iloc[i] = val
-
-    return result
-
-
-def optimize_rolling_forecast():
-    # In loop for all parameters, generate rolling forecast and its metrics. Choose the best parameters.
-
-    in_path = Path(P.in_path_name).joinpath(P.in_file_name)
-
-    in_df = pd.read_csv(in_path, parse_dates=['timestamp'], nrows=P.in_nrows)
-
-    sr = pd.Series([1,2,3,4,5,4,3,4,5,6,8,9,3,2,3,6,5,4,3])
-    sr_forecast = rolling_forecast(sr, history_length=6, order=(1, 0, 0))
-
-    pass
-
 
 if __name__ == '__main__':
-    #generate_score_and_forecast()
     main()

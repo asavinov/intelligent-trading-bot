@@ -89,11 +89,38 @@ Download data from different source feature sets and merge them into the common 
 
 `python -m scripts.generate_features -c config.json`
 
+Parameters in config: 
+```
+Example old parameters
+"base_window_kline": 1440,
+"windows_kline": [1, 5, 15, 60, 180, 720],
+"area_windows_kline": [60, 120, 180, 300, 720],
+```
+```
+Example new parameters
+"base_window_kline": 40320,
+"windows_kline": [1, 60, 360, 1440, 4320, 10080],
+"area_windows_kline": [60, 360, 1440, 4320, 10080],
+```
+
 Load merged source data, apply feature generation script and store a feature matrix with all possible derived features. Not all features will be then used. The script relies on a common feature definition function. Feature functions get some parameters like windows from the configuration. The same features must be used for on-line feature generation (in the service when they are generated for a micro-batch) and off-line feature generation.
 
 ## Generate labels
 
 `python -m scripts.generate_labels -c config.json`
+
+Parameters in code:
+- label_sets: "high-low", "top-bot" - which kind of labels we want to generate
+- in_file_suffix = "features" - input file
+
+Parameters for different label types:
+- high-low:
+  - Config: "label_horizon": 1440 - horizon for finding maximums and minimums
+  - In code: label_thresholds = [1.0, 1.5, 2.0, 2.5, 3.0] and [0.1, 0.2, 0.3, 0.4, 0.5]
+  - In code: windows=[60, 120, 180, 300] (currently this label is not used)
+- top-bot
+  - In code: levels (in percent): [0.06, 0.07, 0.08, 0.09, 0.10, 0.11, 0.12]
+  - In code: tolerances: 0.01, 0.02, 0.03
 
 Load feature matrix, compute labels and store the result with additional columns in the output file. Features are not needed for label computation and they are stored unchanged in the output file. Currently, most label parameters are hard-coded.
 
@@ -101,16 +128,43 @@ Load feature matrix, compute labels and store the result with additional columns
 
 `python -m scripts.train_predict_models -c config.json`
 
-Configuration:
-- List of features to be used are specified in configuration. They will be used to select columns for producing train set passed to the algorithms
-- List of labels for which models will be trained is specified in configuration
-- Algorithms trained are hard-coded and each algorithm adds its suffix to the output label prediction
-  - Algorithm hyper-parameters are hard-coded. These should be the same parameters as used in rolling predictions and other parts of the system (they are currently not shared)
-- All algorithms are applied to each selected feature set and the feature set adds a tag in the label prediction
-- Outputs: 
-  - trained models for all combinations of label-feature_set-algorithm - these model files will be used on-line in the service
-  - various (point-wise) scores for all trained models in a metrics.txt file
-  - data file with selected source columns, labels and their predictions
+Configuration in code:
+- Algorithms applied are hard-coded. Uncomment or introduce a list of algorithms
+- kline_train_length - how much (latest) data to use for training
+- hyper-parameters can be used for fine-tuning
+
+Configuration in config:
+- label_horizon - this number of rows will be removed from the head before training because we do not have labels (in fact, it makes sense only for high-low but still it is better remove some latest records)
+- labels - all algorithms will be trained for all labels. Choose labels for high-low or top-bot cases
+- features_kline - these columns will be selected for training
+
+Assumptions:
+- Algorithm hyper-parameters are defined
+- Feature matrix with labels is available
+
+## Prediction online based on trained models (service)
+
+`python3 -m service.server -c config.json`
+
+Assumptions:
+- Model files for prediction algorithms are available (stored in file system)
+- Signal model is available in config
+- Access to the exchange: API keys, credentials etc. (IP has to be whitelisted for trading)
+
+## TODO: Features for the last row only (optimization)
+
+rl.apply(lambda x: x.sum() if (x is not None) and len(x) >= 4 else 0.0) - bad. df can be large because of base aggregation while some features have small window so they still will be computed many times
+rl.apply(lambda x: x.sum() if (x is not None) and x.index[-1] == last_df_index else 0.0) - compute only if window end coincides with df  - should also work for exponential
+1. compute one value manually: val=sr.iloc[-window:0].sum
+2. set it either to the whole new feature column or create empty feature column and set to the last cell: df.at[df.index[-1], "b"]=val OR df.loc[df.index[-1], "b"]=val
+
+So two alternatives.
+- manually filter windows and compute only for the last one - will not work for ewm since it does not have apply with explicit window and custom function - only predefined functions
+- manually select window and compute single value by explicitly applying function to it - will not work with ewm
+  - if last_row_only is True, then instead of rolling/apply: 
+    - feature_value = fn(column.iloc[-w:]) - manually select window and aggregate
+    - feature = pd.Series(index=df.index, data=feature_value)
+  - note: does not work for future values (it works but the shift will make it meaningless- we anyway do not have a use case for that)
 
 # Hyper-parameter tuning - NEW
 

@@ -111,12 +111,9 @@ class App:
             'high_10', 'high_15', 'high_20',
             'low_10', 'low_15', 'low_20',
         ],
-        "labels_regr": [
-            'high_max_60','high_max_120','high_max_180',  # Maximum high (relative)
-            'low_min_60','low_min_120','low_min_180',  # Minimum low (relative)
-            'high_to_low_60', 'high_to_low_120', 'high_to_low_180',
-            'close_area_future_60', 'close_area_future_120', 'close_area_future_180', 'close_area_future_300',
-        ],
+        # These are predicted columns <label, feature_set, algorithm> as well as model (pair) names
+        "buy_labels": ['bot6_1_k_nn', 'bot6_2_k_nn', 'bot6_3_k_nn'],  # 'high_10', 'high_15', 'high_20'
+        "sell_labels": ['top6_1_k_nn', 'top6_2_k_nn', 'top6_3_k_nn'],  # 'low_10', 'low_15', 'low_20'
         "class_labels_all": [  # All existing target labels implemented in label generation procedure
             'high_max_180',  # Maximum high (relative)
             'high_10', 'high_15', 'high_20', 'high_25',  # At least one time above
@@ -136,6 +133,11 @@ class App:
         "base_window_kline": 1440,
         "windows_kline": [1, 5, 15, 60, 180, 720],
         "area_windows_kline": [60, 120, 180, 300, 720],
+
+        # History needed to compute derived features.
+        # Take maximum aggregation windows from feature generation code (and add something to be sure that we have all what is needed)
+        # Basically, should be equal to base_window_kline
+        "features_horizon": 1440+10,
 
         # Feature column names returned by the feature generation function which we want to use for train/predict
         "features_kline": [
@@ -170,17 +172,36 @@ class App:
         ],
 
         # === SIGNALER SERVER ===
-        "signaler": {
+        # It defines how signal scores, trade signals, and notification signals will be generated
+        # from point-wise prediction scores for two groups of labels
+        "signal_model": {
+            # First, aggregation in group over various algorithms and label parameters
+            "buy_point_threshold": 0.2,  # Second, produce boolean column (optional)
+            "buy_window": 5,  # Third, aggregate in time
+            # Now we have the final score
+            "buy_signal_threshold": 0.9,  # To decide whether to buy/sell after all aggregations/combinations
+            "buy_notify_threshold": 0.9,  # To decide whether to notify (can be an option of individual users/consumers)
+
+            "combine": "",  # "no_combine", "relative", "difference"  Find relative/difference
+
+            "sell_point_threshold": 0.2,
+            "sell_window": 5,
+            "sell_signal_threshold": 0.9,
+            "sell_notify_threshold": 0.9,
+
             "notification_threshold": 4,  # Score within this number of steps will not be notified
-            "analysis": {  # Same for all symbols
-                # History needed to compute derived features. Take maximum aggregation windows from feature generation code (and add something to be sure that we have all what is needed)
-                "features_horizon": 20160+160,
-            },
-            "model": {
-                # Models: [0.4, -0.44], [0.25, -0.52]
-                "buy_threshold": +0.15,
-                "sell_threshold": -0.15,
-            },
+        },
+        "signaler": {  # OBSOLETE: delete
+            #"notification_threshold": 4,  # Score within this number of steps will not be notified
+            #"analysis": {  # Same for all symbols
+            #    # History needed to compute derived features. Take maximum aggregation windows from feature generation code (and add something to be sure that we have all what is needed)
+            #    "features_horizon": 20160+160,
+            #},
+            #"model": {
+            #    # Models: [0.4, -0.44], [0.25, -0.52]
+            #    "buy_threshold": +0.15,
+            #    "sell_threshold": -0.15,
+            #}
         },
 
         # === TRADER SERVER ===

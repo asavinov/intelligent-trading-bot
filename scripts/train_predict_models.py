@@ -36,9 +36,13 @@ obtained elsewhere (e.g., using grid search).
 #
 class P:
     feature_sets = ["kline"]  # futur
+    algorithms = ["nn"]  # gb, nn, lc
 
-    in_nrows = 10_000_000  # For debugging
+    in_nrows = 100_000_000  # For debugging
     in_nrows_tail = None  # How many last rows to select (for testing)
+
+    in_file_suffix = "matrix"
+    predict_file_suffix = "predictions"
 
     # How much data we want to use for training
     kline_train_length = int(1.5 * 525_600)  # 1.5 * 525_600
@@ -103,15 +107,15 @@ def main(config_file):
     #
     # Load feature matrix
     #
-    print(f"Loading feature matrix from input file...")
     start_dt = datetime.now()
 
-    in_file_name = f"{symbol}-{freq}-matrix.csv"
+    in_file_name = f"{symbol}-{freq}-{P.in_file_suffix}.csv"
     in_path = data_path / in_file_name
     if not in_path.exists():
         print(f"ERROR: Input file does not exist: {in_path}")
         return
 
+    print(f"Loading feature matrix from input file: {in_path}")
     in_df = None
     if in_file_name.endswith(".csv"):
         in_df = pd.read_csv(in_path, parse_dates=['timestamp'], nrows=P.in_nrows)
@@ -173,31 +177,34 @@ def main(config_file):
             df_y = train_df[label]
 
             # --- GB
-            score_column_name = label + name_tag + "gb"
-            print(f"Train '{score_column_name}'... ")
-            model_pair = train_gb(df_X, df_y, params=params_gb)
-            models[score_column_name] = model_pair
-            df_y_hat = predict_gb(model_pair, df_X)
-            scores[score_column_name] = compute_scores(df_y, df_y_hat)
-            df_out[score_column_name] = df_y_hat
+            if "gb" in P.algorithms:
+                score_column_name = label + name_tag + "gb"
+                print(f"Train '{score_column_name}'... ")
+                model_pair = train_gb(df_X, df_y, params=params_gb)
+                models[score_column_name] = model_pair
+                df_y_hat = predict_gb(model_pair, df_X)
+                scores[score_column_name] = compute_scores(df_y, df_y_hat)
+                df_out[score_column_name] = df_y_hat
 
             # --- NN
-            score_column_name = label + name_tag + "nn"
-            print(f"Train '{score_column_name}'... ")
-            model_pair = train_nn(df_X, df_y, params=params_nn)
-            models[score_column_name] = model_pair
-            df_y_hat = predict_nn(model_pair, df_X)
-            scores[score_column_name] = compute_scores(df_y, df_y_hat)
-            df_out[score_column_name] = df_y_hat
+            if "nn" in P.algorithms:
+                score_column_name = label + name_tag + "nn"
+                print(f"Train '{score_column_name}'... ")
+                model_pair = train_nn(df_X, df_y, params=params_nn)
+                models[score_column_name] = model_pair
+                df_y_hat = predict_nn(model_pair, df_X)
+                scores[score_column_name] = compute_scores(df_y, df_y_hat)
+                df_out[score_column_name] = df_y_hat
 
             # --- LC
-            score_column_name = label + name_tag + "lc"
-            print(f"Train '{score_column_name}'... ")
-            model_pair = train_lc(df_X, df_y, params=params_lc)
-            models[score_column_name] = model_pair
-            df_y_hat = predict_lc(model_pair, df_X)
-            scores[score_column_name] = compute_scores(df_y, df_y_hat)
-            df_out[score_column_name] = df_y_hat
+            if "lc" in P.algorithms:
+                score_column_name = label + name_tag + "lc"
+                print(f"Train '{score_column_name}'... ")
+                model_pair = train_lc(df_X, df_y, params=params_lc)
+                models[score_column_name] = model_pair
+                df_y_hat = predict_lc(model_pair, df_X)
+                scores[score_column_name] = compute_scores(df_y, df_y_hat)
+                df_out[score_column_name] = df_y_hat
 
     # ===
     # futur feature set
@@ -217,31 +224,34 @@ def main(config_file):
             df_y = train_df[label]
 
             # --- GB
-            score_column_name = label + name_tag + "gb"
-            print(f"Train '{score_column_name}'... ")
-            model_pair = train_gb(df_X, df_y, params=params_gb)
-            models[score_column_name] = model_pair
-            df_y_hat = predict_gb(model_pair, df_X)
-            scores[score_column_name] = compute_scores(df_y, df_y_hat)
-            df_out[score_column_name] = df_y_hat
+            if "gb" in P.algorithms:
+                score_column_name = label + name_tag + "gb"
+                print(f"Train '{score_column_name}'... ")
+                model_pair = train_gb(df_X, df_y, params=params_gb)
+                models[score_column_name] = model_pair
+                df_y_hat = predict_gb(model_pair, df_X)
+                scores[score_column_name] = compute_scores(df_y, df_y_hat)
+                df_out[score_column_name] = df_y_hat
 
             # --- NN
-            score_column_name = label + name_tag + "nn"
-            print(f"Train '{score_column_name}'... ")
-            model_pair = train_nn(df_X, df_y, params=params_nn)
-            models[score_column_name] = model_pair
-            df_y_hat = predict_nn(model_pair, df_X)
-            scores[score_column_name] = compute_scores(df_y, df_y_hat)
-            df_out[score_column_name] = df_y_hat
+            if "nn" in P.algorithms:
+                score_column_name = label + name_tag + "nn"
+                print(f"Train '{score_column_name}'... ")
+                model_pair = train_nn(df_X, df_y, params=params_nn)
+                models[score_column_name] = model_pair
+                df_y_hat = predict_nn(model_pair, df_X)
+                scores[score_column_name] = compute_scores(df_y, df_y_hat)
+                df_out[score_column_name] = df_y_hat
 
             # --- LC
-            score_column_name = label + name_tag + "lc"
-            print(f"Train '{score_column_name}'... ")
-            model_pair = train_lc(df_X, df_y, params=params_lc)
-            models[score_column_name] = model_pair
-            df_y_hat = predict_lc(model_pair, df_X)
-            scores[score_column_name] = compute_scores(df_y, df_y_hat)
-            df_out[score_column_name] = df_y_hat
+            if "lc" in P.algorithms:
+                score_column_name = label + name_tag + "lc"
+                print(f"Train '{score_column_name}'... ")
+                model_pair = train_lc(df_X, df_y, params=params_lc)
+                models[score_column_name] = model_pair
+                df_y_hat = predict_lc(model_pair, df_X)
+                scores[score_column_name] = compute_scores(df_y, df_y_hat)
+                df_out[score_column_name] = df_y_hat
 
     #
     # Store all collected models in files
@@ -259,17 +269,18 @@ def main(config_file):
         line = score_column_name + ", " + str(score)
         lines.append(line)
 
-    metrics_file_name = out_path.joinpath("metrics").with_suffix(".txt")
-    with open(metrics_file_name, 'a+') as f:
+    metrics_file_name = f"{symbol}-{freq}-metrics.txt"
+    metrics_path = (out_path / metrics_file_name).resolve()
+    with open(metrics_path, 'a+') as f:
         f.write("\n".join(lines) + "\n")
 
-    print(f"Metrics stored in path: {metrics_file_name.absolute()}")
+    print(f"Metrics stored in path: {metrics_path.absolute()}")
 
     #
     # Store predictions if necessary
     #
     if P.store_predictions:
-        out_file_name = f"{symbol}-{freq}-predictions.csv"
+        out_file_name = f"{symbol}-{freq}-{P.predict_file_suffix}.csv"
         out_path = data_path / out_file_name
 
         # We do not store features. Only selected original data, labels, and their predictions
