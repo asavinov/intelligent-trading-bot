@@ -352,13 +352,4 @@ def generate_signals(df, models: dict):
 
 
 if __name__ == '__main__':
-    data = [
-        [1, 2, 3, 4],
-        [1, 2, 3, 4],
-        [1, 2, 3, 4]
-    ]
-
-    df = pd.DataFrame(data, columns=["price_column", "aaa", "bot_score_column", "top_score_column"])
-
-    performance_score(df, "top_score_column", "bot_score_column", "price_column", start=123)
     pass

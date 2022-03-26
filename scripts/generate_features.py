@@ -18,7 +18,7 @@ from common.feature_generation import *
 class P:
     feature_sets = ["kline", ]  # "futur"
 
-    in_nrows = 50_000
+    in_nrows = 100_000_000
 
     out_file_suffix = "features"
 

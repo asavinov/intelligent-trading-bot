@@ -122,7 +122,7 @@ Parameters for different label types:
   - In code: levels (in percent): [0.06, 0.07, 0.08, 0.09, 0.10, 0.11, 0.12]
   - In code: tolerances: 0.01, 0.02, 0.03
 
-Load feature matrix, compute labels and store the result with additional columns in the output file. Features are not needed for label computation and they are stored unchanged in the output file. Currently, most label parameters are hard-coded.
+Load feature matrix, compute labels and store the result with additional columns in the output file. Features are not needed for label computations and they are stored unchanged in the output file. Currently, most label parameters are hard-coded.
 
 ## Train prediction models
 
@@ -144,49 +144,39 @@ Assumptions:
 
 ## Prediction online based on trained models (service)
 
-`python3 -m service.server -c config.json`
+`python -m service.server -c config.json`
 
 Assumptions:
+- Features to select and feed prediction models
+- Buy and sell label scores used to select models and produce the corresponding score columns
 - Model files for prediction algorithms are available (stored in file system)
 - Signal model is available in config
 - Access to the exchange: API keys, credentials etc. (IP has to be whitelisted for trading)
 
-## TODO: Features for the last row only (optimization)
-
-rl.apply(lambda x: x.sum() if (x is not None) and len(x) >= 4 else 0.0) - bad. df can be large because of base aggregation while some features have small window so they still will be computed many times
-rl.apply(lambda x: x.sum() if (x is not None) and x.index[-1] == last_df_index else 0.0) - compute only if window end coincides with df  - should also work for exponential
-1. compute one value manually: val=sr.iloc[-window:0].sum
-2. set it either to the whole new feature column or create empty feature column and set to the last cell: df.at[df.index[-1], "b"]=val OR df.loc[df.index[-1], "b"]=val
-
-So two alternatives.
-- manually filter windows and compute only for the last one - will not work for ewm since it does not have apply with explicit window and custom function - only predefined functions
-- manually select window and compute single value by explicitly applying function to it - will not work with ewm
-  - if last_row_only is True, then instead of rolling/apply: 
-    - feature_value = fn(column.iloc[-w:]) - manually select window and aggregate
-    - feature = pd.Series(index=df.index, data=feature_value)
-  - note: does not work for future values (it works but the shift will make it meaningless- we anyway do not have a use case for that)
 
 # Hyper-parameter tuning - NEW
 
-The main questions we want to answer here are as follows:
-- What are the best feature parameters like sequence of window sizes and base window size.  
-- What are the best label parameters like prediction horizon, high-low thresholds or top-bot thresholds and tolerances
-
-Eventually, we would like to achieve highest overall performance but in many cases we need to first optimize point-wise classification scores, individual feature strength and other parameters
-
 ## Optimize point-wise classification score
+
+The goal is to find input feature parameters, output label defintions and algorithm hyper-parameters with the best scores as defined in ML (auc, average precision etc.)
 
 - Optimize algorithm hyper-parameters
 - Select best algorithms, e.g., only NN
 - Optimize feature and label parameters
 
+One way is to use `python -m scripts.train_predict_models -c config.json` which computes standard metrics for either score (label-feature_set-algorithm). We need to try out various feature definitions and label definitions.
+
 ## Optimize interval-wise classification score
+
+Once we have found features-labels-algorithms with the best standard scores, we can produce their predictions (batch or rolling) in the form of multiple score labels label-feature_set-algorithm. After that the question which signal parameters produce the best overall performance.
 
 The basis for this optimization is a function which transforms point-wise label prediction to an interval prediction which is typically some aggregation of one point-wise label prediction.
 
 Optimize point-wise score aggregation parameters and the corresponding selection threshold parameters with the purpose to increase precision of interval classification. An interval is defined as bottom interval, top interval, high interval, low interval. For top-bot we compute them naturally as intervals. For high-low intervals are currently not defined.
 
 Currently we do not use this for one important reason. The thing is that finding how frequently we detect or miss intervals is not very important by itself. It is important whether we have false positive before an interval (which was detected) or after it. Therefore, an informative measure should take into whether an error happened before an interval or after it. However, if we have it, then it is essentially equivalent or very close to finding trade performance by means of trade simulation where such situations are taken into account automatically. 
+
+One way is to use `python -m scripts.train_signal_models -c config.json` which computes performance for a space of signal parameters so that we can find best signal parameters. The input must contain predictions and can be generated by batch predictions and rolling predictions.
 
 ## Optimize trade signal performance
 

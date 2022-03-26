@@ -105,8 +105,7 @@ class App:
 
         # Parameters of label generation
         "label_horizon": 180,
-        # Target columns with true values which will be predicted
-        # Leave only what we want to be generated (e.g., only one label for debug purposes)
+        # For these labels models will be trained
         "labels": [
             'high_10', 'high_15', 'high_20',
             'low_10', 'low_15', 'low_20',
@@ -151,25 +150,6 @@ class App:
             'close_area_60', 'close_area_120', 'close_area_180', 'close_area_300', 'close_area_720',
             'close_trend_5', 'close_trend_15', 'close_trend_60', 'close_trend_180', 'close_trend_720',
         ],  # 51 features
-
-        "features_futur": [  # Feature columns implemented (hard-coded) by feature generation function
-            "f_close_1", "f_close_2", "f_close_5", "f_close_20", "f_close_60", "f_close_180",
-            "f_close_std_2", "f_close_std_5", "f_close_std_20", "f_close_std_60", "f_close_std_180",  # Removed "std_1" which is constant
-            "f_volume_1", "f_volume_2", "f_volume_5", "f_volume_20", "f_volume_60", "f_volume_180",
-            "f_span_1", "f_span_2", "f_span_5", "f_span_20", "f_span_60", "f_span_180",
-            "f_trades_1", "f_trades_2", "f_trades_5", "f_trades_20", "f_trades_60", "f_trades_180",
-            'f_close_area_20', 'f_close_area_60', 'f_close_area_120', 'f_close_area_180',
-            'close_trend_2', 'close_trend_5', 'close_trend_20', 'close_trend_60', 'close_trend_180',
-        ],  # 38 features
-
-        "features_depth": [
-            "gap_2","gap_5","gap_10",
-            "bids_1_2","bids_1_5","bids_1_10", "asks_1_2","asks_1_5","asks_1_10",
-            "bids_2_2","bids_2_5","bids_2_10", "asks_2_2","asks_2_5","asks_2_10",
-            "bids_5_2","bids_5_5","bids_5_10", "asks_5_2","asks_5_5","asks_5_10",
-            "bids_10_2","bids_10_5","bids_10_10", "asks_10_2","asks_10_5","asks_10_10",
-            "bids_20_2","bids_20_5","bids_20_10", "asks_20_2","asks_20_5","asks_20_10",
-        ],
 
         # === SIGNALER SERVER ===
         # It defines how signal scores, trade signals, and notification signals will be generated

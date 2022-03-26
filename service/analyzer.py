@@ -361,7 +361,7 @@ class Analyzer:
         close_time = row.name+timedelta(minutes=1)  # row.close_time
 
         signal = dict(
-            side=None,
+            side="",
             buy_score=buy_score, sell_score=sell_score,
             buy_signal=buy_signal, sell_signal=sell_signal,
             close_price=close_price, close_time=close_time

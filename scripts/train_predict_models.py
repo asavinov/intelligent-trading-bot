@@ -91,9 +91,9 @@ def main(config_file):
     labels = App.config["labels"]
 
     #features_horizon = 720  # Features are generated using this past window length
-    features_kline = App.config["features_kline"]
-    features_futur = App.config["features_futur"]
-    features_depth = App.config["features_depth"]
+    features_kline = App.config.get("features_kline")
+    features_futur = App.config.get("features_futur")
+    features_depth = App.config.get("features_depth")
 
     freq = "1m"
     symbol = App.config["symbol"]
