@@ -32,32 +32,24 @@ class P:
     # Each one is a separate procedure with its algorithm and (expected) input features
     # Leave only what we want to generate (say, only klines for debug purposes)
     feature_sets = ["kline", ]  # "futur"
-
-    # These source columns will be added to the output file
-    in_features_kline = [
-        "timestamp",
-        "open", "high", "low", "close", "volume",
-        #"close_time",
-        #"quote_av","trades","tb_base_av","tb_quote_av","ignore",
-    ]
-
-    labels = App.config["labels"]
-    features_kline = App.config["features_kline"]
-    features_futur = App.config["features_futur"]
-    features_depth = App.config["features_depth"]
-
-    #features_horizon = 720  # Features are generated using this past window length (max feature window)
-    labels_horizon = 180  # Labels are generated using this number of steps ahead (max label window). We want to forecast what happens during this period ahead
+    algorithms = ["nn"]  # gb, nn, lc
 
     in_nrows = 100_000_000
     in_nrows_tail = None  # How many last rows to select (for testing)
     skiprows = 500_000
 
+    in_file_suffix = "matrix"
+    predict_file_suffix = "predictions-rolling"
+
+    # How much data we want to use for training
+    kline_train_length = int(1.5 * 525_600)  # 1.5 * 525_600
+    futur_train_length = int(4 * 43_800)
+
     # First row for starting predictions: "2020-02-01 00:00:00" - minimum start for futures
     prediction_start_str = "2019-07-01 00:00:00"
     # How frequently re-train models: 1 day: 1_440 = 60 * 24, one week: 10_080
-    prediction_length = 2*7*1440
-    prediction_count = 59  # How many prediction steps. If None or 0, then from prediction start till the data end. Use: https://www.timeanddate.com/date/duration.html
+    prediction_length = 4*7*1440
+    prediction_count = 35  # How many prediction steps. If None or 0, then from prediction start till the data end. Use: https://www.timeanddate.com/date/duration.html
 
     use_multiprocessing = True
     max_workers = 8  # None means number of processors
@@ -102,6 +94,13 @@ params_lc = {
 def main(config_file):
     load_config(config_file)
 
+    label_horizon = App.config["label_horizon"]  # Labels are generated using this number of steps ahead
+    labels = App.config.get("labels")
+
+    features_kline = App.config.get("features_kline")
+    features_futur = App.config.get("features_futur")
+    features_depth = App.config.get("features_depth")
+
     freq = "1m"
     symbol = App.config["symbol"]
     data_path = Path(App.config["data_folder"])
@@ -112,18 +111,18 @@ def main(config_file):
     #
     # Load feature matrix
     #
-    print(f"Loading feature matrix from input file...")
     start_dt = datetime.now()
 
-    in_file_name = f"{symbol}-{freq}-features.csv"
+    in_file_name = f"{symbol}-{freq}-{P.in_file_suffix}.csv"
     in_path = data_path / in_file_name
     if not in_path.exists():
         print(f"ERROR: Input file does not exist: {in_path}")
         return
 
+    print(f"Loading feature matrix from input file: {in_path}")
+    in_df = None
     if in_file_name.endswith(".csv"):
-        in_df = pd.read_csv(in_path, parse_dates=['timestamp'], nrows=P.in_nrows)  # , skiprows=range(1,P.skiprows)
-        #in_df.to_pickle('aaa.pickle')
+        in_df = pd.read_csv(in_path, parse_dates=['timestamp'], nrows=P.in_nrows)
     elif in_file_name.endswith(".parquet"):
         in_df = pd.read_parquet(in_path)
     elif in_file_name.endswith(".pickle"):
@@ -136,23 +135,24 @@ def main(config_file):
     if P.in_nrows_tail:
         in_df = in_df.tail(P.in_nrows_tail)
 
-    for label in P.labels:
+    for label in labels:
         in_df[label] = in_df[label].astype(int)  # "category" NN does not work without this
 
     # Select necessary features and label
-    all_features = P.in_features_kline.copy()
+    out_columns = ['timestamp', 'open', 'high', 'low', 'close', 'volume', 'close_time']
+    all_features = []
     if "kline" in P.feature_sets:
-        all_features += P.features_kline
+        all_features += features_kline
     if "futur" in P.feature_sets:
-        all_features += P.features_futur
-    all_features += P.labels
-    in_df = in_df[all_features]
+        all_features += features_futur
+    all_features += labels
+    in_df = in_df[all_features + out_columns]
 
     # Spot and futures have different available histories. If we drop nans in all of them, then we get a very short data frame (corresponding to futureus which have little data)
     # So we do not drop data here but rather when we select necessary input features
     # Nans result in constant accuracy and nan loss. MissingValues procedure does not work and produces exceptions
     pd.set_option('use_inf_as_na', True)
-    #in_df = in_df.dropna(subset=P.labels)
+    #in_df = in_df.dropna(subset=labels)
     in_df = in_df.reset_index(drop=True)  # We must reset index after removing rows to remove gaps
 
     prediction_start = find_index(in_df, P.prediction_start_str)
@@ -193,9 +193,9 @@ def main(config_file):
         # kline feature set
         # ===
         if "kline" in P.feature_sets:
-            features = P.features_kline
+            features = features_kline
             name_tag = "_k_"
-            train_length = int(1.5 * 525_600)  # 1.5 * 525_600
+            train_length = P.kline_train_length
 
             print(f"Start training 'kline' package with {len(features)} features, name tag {name_tag}', and train length {train_length}")
 
@@ -208,7 +208,7 @@ def main(config_file):
 
             # We exclude recent objects from training, because they do not have labels yet - the labels are in future
             # In real (stream) data, we will have null labels for recent objects. During simulation, labels are available and hence we need to ignore/exclude them manually
-            train_end = predict_start - P.labels_horizon - 1
+            train_end = predict_start - label_horizon - 1
             train_start = train_end - train_length
             train_start = 0 if train_start < 0 else train_start
 
@@ -220,7 +220,7 @@ def main(config_file):
 
             print(f"Train range: [{train_start}, {train_end}]={train_end-train_start}. Prediction range: [{predict_start}, {predict_end}]={predict_end-predict_start}. ")
 
-            for label in P.labels:  # Train-predict different labels (and algorithms) using same X
+            for label in labels:  # Train-predict different labels (and algorithms) using same X
                 df_y = train_df[label]
                 df_y_test = predict_df[label]
 
@@ -229,16 +229,19 @@ def main(config_file):
                     execution_results = dict()
                     with ProcessPoolExecutor(max_workers=P.max_workers) as executor:
                         # --- GB
-                        score_column_name = label + name_tag + "gb"
-                        execution_results[score_column_name] = executor.submit(train_predict_gb, df_X, df_y, df_X_test, params_gb)
+                        if "gb" in P.algorithms:
+                            score_column_name = label + name_tag + "gb"
+                            execution_results[score_column_name] = executor.submit(train_predict_gb, df_X, df_y, df_X_test, params_gb)
 
                         # --- NN
-                        score_column_name = label + name_tag + "nn"
-                        execution_results[score_column_name] = executor.submit(train_predict_nn, df_X, df_y, df_X_test, params_nn)
+                        if "nn" in P.algorithms:
+                            score_column_name = label + name_tag + "nn"
+                            execution_results[score_column_name] = executor.submit(train_predict_nn, df_X, df_y, df_X_test, params_nn)
 
                         # --- LC
-                        score_column_name = label + name_tag + "lc"
-                        execution_results[score_column_name] = executor.submit(train_predict_lc, df_X, df_y, df_X_test, params_lc)
+                        if "lc" in P.algorithms:
+                            score_column_name = label + name_tag + "lc"
+                            execution_results[score_column_name] = executor.submit(train_predict_lc, df_X, df_y, df_X_test, params_lc)
 
                     # Process the results as the tasks are finished
                     for score_column_name, future in execution_results.items():
@@ -248,27 +251,30 @@ def main(config_file):
                             return
                 else:  # No multiprocessing - sequential execution
                     # --- GB
-                    y_hat = train_predict_gb(df_X, df_y, df_X_test, params=params_gb)
-                    score_column_name = label + name_tag + "gb"
-                    predict_labels_df[score_column_name] = y_hat
+                    if "gb" in P.algorithms:
+                        y_hat = train_predict_gb(df_X, df_y, df_X_test, params=params_gb)
+                        score_column_name = label + name_tag + "gb"
+                        predict_labels_df[score_column_name] = y_hat
 
                     # --- NN
-                    y_hat = train_predict_nn(df_X, df_y, df_X_test, params=params_nn)
-                    score_column_name = label + name_tag + "nn"
-                    predict_labels_df[score_column_name] = y_hat
+                    if "nn" in P.algorithms:
+                        y_hat = train_predict_nn(df_X, df_y, df_X_test, params=params_nn)
+                        score_column_name = label + name_tag + "nn"
+                        predict_labels_df[score_column_name] = y_hat
 
                     # --- LC
-                    y_hat = train_predict_lc(df_X, df_y, df_X_test, params=params_lc)
-                    score_column_name = label + name_tag + "lc"
-                    predict_labels_df[score_column_name] = y_hat
+                    if "lc" in P.algorithms:
+                        y_hat = train_predict_lc(df_X, df_y, df_X_test, params=params_lc)
+                        score_column_name = label + name_tag + "lc"
+                        predict_labels_df[score_column_name] = y_hat
 
         # ===
         # futur feature set
         # ===
         if "futur" in P.feature_sets:
-            features = P.features_futur
+            features = features_futur
             name_tag = "_f_"
-            train_length = int(4 * 43_800)
+            train_length = P.futur_train_length
 
             print(f"Start training 'futur' package with {len(features)} features, name tag {name_tag}', and train length {train_length}")
 
@@ -281,7 +287,7 @@ def main(config_file):
 
             # We exclude recent objects from training, because they do not have labels yet - the labels are in future
             # In real (stream) data, we will have null labels for recent objects. During simulation, labels are available and hence we need to ignore/exclude them manually
-            train_end = predict_start - P.labels_horizon - 1
+            train_end = predict_start - label_horizon - 1
             train_start = train_end - train_length
             train_start = 0 if train_start < 0 else train_start
 
@@ -293,7 +299,7 @@ def main(config_file):
 
             print(f"Train range: [{train_start}, {train_end}]={train_end-train_start}. Prediction range: [{predict_start}, {predict_end}]={predict_end-predict_start}. ")
 
-            for label in P.labels:  # Train-predict different labels (and algorithms) using same X
+            for label in labels:  # Train-predict different labels (and algorithms) using same X
                 df_y = train_df[label]
                 df_y_test = predict_df[label]
 
@@ -302,16 +308,19 @@ def main(config_file):
                     execution_results = dict()
                     with ProcessPoolExecutor(max_workers=P.max_workers) as executor:
                         # --- GB
-                        score_column_name = label + name_tag + "gb"
-                        execution_results[score_column_name] = executor.submit(train_predict_gb, df_X, df_y, df_X_test, params_gb)
+                        if "gb" in P.algorithms:
+                            score_column_name = label + name_tag + "gb"
+                            execution_results[score_column_name] = executor.submit(train_predict_gb, df_X, df_y, df_X_test, params_gb)
 
                         # --- NN
-                        score_column_name = label + name_tag + "nn"
-                        execution_results[score_column_name] = executor.submit(train_predict_nn, df_X, df_y, df_X_test, params_nn)
+                        if "nn" in P.algorithms:
+                            score_column_name = label + name_tag + "nn"
+                            execution_results[score_column_name] = executor.submit(train_predict_nn, df_X, df_y, df_X_test, params_nn)
 
                         # --- LC
-                        score_column_name = label + name_tag + "lc"
-                        execution_results[score_column_name] = executor.submit(train_predict_lc, df_X, df_y, df_X_test, params_lc)
+                        if "lc" in P.algorithms:
+                            score_column_name = label + name_tag + "lc"
+                            execution_results[score_column_name] = executor.submit(train_predict_lc, df_X, df_y, df_X_test, params_lc)
 
                     # Process the results as the tasks are finished
                     for score_column_name, future in execution_results.items():
@@ -321,19 +330,22 @@ def main(config_file):
                             return
                 else:  # No multiprocessing - sequential execution
                     # --- GB
-                    y_hat = train_predict_gb(df_X, df_y, df_X_test, params=params_gb)
-                    score_column_name = label + name_tag + "gb"
-                    predict_labels_df[score_column_name] = y_hat
+                    if "gb" in P.algorithms:
+                        y_hat = train_predict_gb(df_X, df_y, df_X_test, params=params_gb)
+                        score_column_name = label + name_tag + "gb"
+                        predict_labels_df[score_column_name] = y_hat
 
                     # --- NN
-                    y_hat = train_predict_nn(df_X, df_y, df_X_test, params=params_nn)
-                    score_column_name = label + name_tag + "nn"
-                    predict_labels_df[score_column_name] = y_hat
+                    if "nn" in P.algorithms:
+                        y_hat = train_predict_nn(df_X, df_y, df_X_test, params=params_nn)
+                        score_column_name = label + name_tag + "nn"
+                        predict_labels_df[score_column_name] = y_hat
 
                     # --- LC
-                    y_hat = train_predict_lc(df_X, df_y, df_X_test, params=params_lc)
-                    score_column_name = label + name_tag + "lc"
-                    predict_labels_df[score_column_name] = y_hat
+                    if "lc" in P.algorithms:
+                        y_hat = train_predict_lc(df_X, df_y, df_X_test, params=params_lc)
+                        score_column_name = label + name_tag + "lc"
+                        predict_labels_df[score_column_name] = y_hat
 
         #
         # Append predicted *rows* to the end of previous predicted rows
@@ -352,25 +364,18 @@ def main(config_file):
     print(f"Number of predicted columns {len(labels_hat_df.columns)}")
 
     #
-    # Prepare output
-    #
-
-    # Attach all original columns including true labels to the predicted labels
-    # Here we assume that df with predictions has the same index as the original df
-    out_columns = P.in_features_kline + P.labels
-    out_df = labels_hat_df.join(in_df[out_columns])
-
-    #
     # Store data
     #
-    print(f"Storing output file...")
-
-    out_file_name = f"{symbol}-{freq}-features-rolling.csv"
+    out_file_name = f"{symbol}-{freq}-{P.predict_file_suffix}.csv"
     out_path = data_path / out_file_name
 
-    out_df.to_csv(out_path, index=False, float_format="%.4f")
+    # We do not store features. Only selected original data, labels, and their predictions
+    out_df = labels_hat_df.join(in_df[out_columns + labels])
 
+    print(f"Storing output file...")
+    out_df.to_csv(out_path, index=False)
     #out_df.to_parquet(out_path.with_suffix('.parquet'), engine='auto', compression=None, index=None, partition_cols=None)
+    print(f"Predictions stored in file: {out_path}. Length: {len(out_df)}. Columns: {len(out_df.columns)}")
 
     #
     # Compute accuracy for the whole data set (all segments)

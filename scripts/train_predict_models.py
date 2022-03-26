@@ -157,7 +157,7 @@ def main(config_file):
     models = dict()
     scores = dict()
 
-    df_out = pd.DataFrame()  # Collect predictions
+    out_df = pd.DataFrame()  # Collect predictions
 
     # ===
     # kline feature set
@@ -184,7 +184,7 @@ def main(config_file):
                 models[score_column_name] = model_pair
                 df_y_hat = predict_gb(model_pair, df_X)
                 scores[score_column_name] = compute_scores(df_y, df_y_hat)
-                df_out[score_column_name] = df_y_hat
+                out_df[score_column_name] = df_y_hat
 
             # --- NN
             if "nn" in P.algorithms:
@@ -194,7 +194,7 @@ def main(config_file):
                 models[score_column_name] = model_pair
                 df_y_hat = predict_nn(model_pair, df_X)
                 scores[score_column_name] = compute_scores(df_y, df_y_hat)
-                df_out[score_column_name] = df_y_hat
+                out_df[score_column_name] = df_y_hat
 
             # --- LC
             if "lc" in P.algorithms:
@@ -204,7 +204,7 @@ def main(config_file):
                 models[score_column_name] = model_pair
                 df_y_hat = predict_lc(model_pair, df_X)
                 scores[score_column_name] = compute_scores(df_y, df_y_hat)
-                df_out[score_column_name] = df_y_hat
+                out_df[score_column_name] = df_y_hat
 
     # ===
     # futur feature set
@@ -231,7 +231,7 @@ def main(config_file):
                 models[score_column_name] = model_pair
                 df_y_hat = predict_gb(model_pair, df_X)
                 scores[score_column_name] = compute_scores(df_y, df_y_hat)
-                df_out[score_column_name] = df_y_hat
+                out_df[score_column_name] = df_y_hat
 
             # --- NN
             if "nn" in P.algorithms:
@@ -241,7 +241,7 @@ def main(config_file):
                 models[score_column_name] = model_pair
                 df_y_hat = predict_nn(model_pair, df_X)
                 scores[score_column_name] = compute_scores(df_y, df_y_hat)
-                df_out[score_column_name] = df_y_hat
+                out_df[score_column_name] = df_y_hat
 
             # --- LC
             if "lc" in P.algorithms:
@@ -251,7 +251,7 @@ def main(config_file):
                 models[score_column_name] = model_pair
                 df_y_hat = predict_lc(model_pair, df_X)
                 scores[score_column_name] = compute_scores(df_y, df_y_hat)
-                df_out[score_column_name] = df_y_hat
+                out_df[score_column_name] = df_y_hat
 
     #
     # Store all collected models in files
@@ -284,10 +284,11 @@ def main(config_file):
         out_path = data_path / out_file_name
 
         # We do not store features. Only selected original data, labels, and their predictions
-        df_out = df_out.join(in_df[out_columns + labels])
+        out_df = out_df.join(in_df[out_columns + labels])
 
-        df_out.to_csv(out_path, index=False)
-        print(f"Predictions stored in file: {out_path}. Length: {len(df_out)}. Columns: {len(df_out.columns)}")
+        print(f"Storing output file...")
+        out_df.to_csv(out_path, index=False)
+        print(f"Predictions stored in file: {out_path}. Length: {len(out_df)}. Columns: {len(out_df.columns)}")
 
     #
     # End

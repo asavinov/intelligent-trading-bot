@@ -9,7 +9,7 @@ patsy>=0.5.*
 #fastparquet  # "conda install -c conda-forge fastparquet"
 
 lightgbm>=3.3.*  # For Linux, glibc >= 2.14 is required. "conda install -c conda-forge lightgbm"
-pytorch # conda install pytorch torchvision cpuonly -c pytorch
+#pytorch # conda install pytorch torchvision cpuonly -c pytorch
 #fastai # pip install fastai
 tensorflow>=2.6.*  # pip install --upgrade tensorflow
 keras  # pip install --upgrade keras
