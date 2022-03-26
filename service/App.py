@@ -176,32 +176,20 @@ class App:
         # from point-wise prediction scores for two groups of labels
         "signal_model": {
             # First, aggregation in group over various algorithms and label parameters
-            "buy_point_threshold": 0.2,  # Second, produce boolean column (optional)
+            "buy_point_threshold": None,  # Second, produce boolean column (optional)
             "buy_window": 5,  # Third, aggregate in time
             # Now we have the final score
             "buy_signal_threshold": 0.9,  # To decide whether to buy/sell after all aggregations/combinations
-            "buy_notify_threshold": 0.9,  # To decide whether to notify (can be an option of individual users/consumers)
+            "buy_notify_threshold": 0.0,  # To decide whether to notify (can be an option of individual users/consumers)
 
             "combine": "",  # "no_combine", "relative", "difference"  Find relative/difference
 
-            "sell_point_threshold": 0.2,
+            "sell_point_threshold": None,
             "sell_window": 5,
             "sell_signal_threshold": 0.9,
-            "sell_notify_threshold": 0.9,
+            "sell_notify_threshold": 0.0,
 
-            "notification_threshold": 4,  # Score within this number of steps will not be notified
-        },
-        "signaler": {  # OBSOLETE: delete
-            #"notification_threshold": 4,  # Score within this number of steps will not be notified
-            #"analysis": {  # Same for all symbols
-            #    # History needed to compute derived features. Take maximum aggregation windows from feature generation code (and add something to be sure that we have all what is needed)
-            #    "features_horizon": 20160+160,
-            #},
-            #"model": {
-            #    # Models: [0.4, -0.44], [0.25, -0.52]
-            #    "buy_threshold": +0.15,
-            #    "sell_threshold": -0.15,
-            #}
+            "notify_icon_step": 0.2,  # For each step, one icon added
         },
 
         # === TRADER SERVER ===

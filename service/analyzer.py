@@ -280,17 +280,23 @@ class Analyzer:
         # 2.
         # Generate all necessary derived features (NaNs are possible due to short history)
         #
+
+        # We want to generate features only for last rows (for performance reasons)
+        # Therefore, determine how many last rows we actually need
+        buy_window = App.config["signal_model"]["buy_window"]
+        sell_window = App.config["signal_model"]["sell_window"]
+        last_rows = max(buy_window, sell_window) + 2
+
         try:
             features_out = generate_features(
                 df, use_differences=False,
                 base_window=App.config["base_window_kline"], windows=App.config["windows_kline"],
-                area_windows=App.config["area_windows_kline"], last_row_only=True
+                area_windows=App.config["area_windows_kline"], last_rows=last_rows
             )
         except Exception as e:
             print(f"Error in generate_features: {e}")
             return
-
-        # Now we have as many additional columns as we have defined derived features
+        df = df.iloc[-last_rows:]  # We will need only last rows
 
         #
         # 3.
@@ -299,8 +305,7 @@ class Analyzer:
 
         # kline feature set
         features = App.config["features_kline"]
-        predict_df = df.iloc[-1:][features]
-        # Do not drop nans because they will be processed by predictor
+        predict_df = df[features]
 
         # Do prediction by applying all models (for the score columns declared in config) to the data
         score_df = pd.DataFrame(index=predict_df.index)
@@ -320,7 +325,7 @@ class Analyzer:
             return
 
         # This df contains only one (last) record
-        df = predict_df.join(score_df)
+        df = df.join(score_df)
         #df = pd.concat([predict_df, score_df], axis=1)
 
         #
@@ -332,8 +337,8 @@ class Analyzer:
         sell_labels = App.config["sell_labels"]
 
         # Produce boolean signal (buy and sell) columns from the current patience parameters
-        aggregate_score(df, [buy_labels], 'buy_score_column', model.get("buy_point_threshold"), model.get("buy_window"))
-        aggregate_score(df, [sell_labels], 'sell_score_column', model.get("sell_point_threshold"), model.get("sell_window"))
+        aggregate_score(df, buy_labels, 'buy_score_column', model.get("buy_point_threshold"), model.get("buy_window"))
+        aggregate_score(df, sell_labels, 'sell_score_column', model.get("sell_point_threshold"), model.get("sell_window"))
 
         if model.get("combine") == "relative":
             combine_scores_relative(df, 'buy_score_column', 'sell_score_column', 'buy_score_column', 'sell_score_column')
@@ -375,7 +380,7 @@ class Analyzer:
 
         App.signal = signal
 
-        log.info(f"Analyze finished. Signal: {signal['side']}. Buy score: {buy_score:+.2f}. Sell score: {sell_score:+.2f}. Price: {int(close_price):,}")
+        log.info(f"Analyze finished. Signal: {signal['side']}. Buy score: {buy_score:+.3f}. Sell score: {sell_score:+.3f}. Price: {int(close_price):,}")
 
 
 if __name__ == "__main__":

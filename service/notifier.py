@@ -8,18 +8,44 @@ from common.utils import *
 
 
 async def notify_telegram():
-    status = App.status
-    signal = App.signal
-    notification_threshold = App.config["signaler"]["notification_threshold"]
     symbol = App.config["symbol"]
     base_asset =  App.config["base_asset"]
     quote_asset =  App.config["quote_asset"]
-    close_price = signal.get('close_price')
 
+    model = App.config["signal_model"]
+    buy_notify_threshold = model["buy_notify_threshold"]
+    sell_notify_threshold = model["sell_notify_threshold"]
+
+    status = App.status
+    signal = App.signal
     signal_side = signal.get("side")
-    score = signal.get('score')
+    close_price = signal.get('close_price')
+    buy_score = signal.get('buy_score')
+    sell_score = signal.get('sell_score')
 
-    # How many steps of the score
+    # Crypto Currency Symbols: https://github.com/yonilevy/crypto-currency-symbols
+    if base_asset == "BTC":
+        symbol_sign = "₿"
+    elif base_asset == "ETH":
+        symbol_sign = "Ξ"
+    else:
+        symbol_sign = base_asset
+
+    # Notification logic:
+    # Send in any case if there is trade signal
+    # Send message of one of signal scores is higher than the notification threshold (independent of trade signal)
+    if signal_side == "BUY":
+        message = f"📈 BUY: {symbol_sign} {int(close_price):,} Buy score: {buy_score:+.2f}"
+    elif signal_side == "SELL":
+        message = f"📉 SELL: {symbol_sign} {int(close_price):,} Sell score: {sell_score:+.2f}"
+    elif buy_score >= buy_notify_threshold or sell_score >= sell_notify_threshold:
+        message = f"SCORE: {symbol_sign} {int(close_price):,} Buy: {buy_score:+.2f}, Sell: {sell_score:+.2f}"
+    else:
+        message = ""
+    message = message.replace("+", "%2B")  # For Telegram to display plus sign
+
+    # Number of icons. How many steps of the score
+    """
     score_step_length = 0.05
     score_steps = np.abs(score) // score_step_length
 
@@ -32,17 +58,7 @@ async def notify_telegram():
         sign = "📉" * int(score_steps - notification_threshold + 1)  # 📉 <
     else:
         sign = ""
-
-    # Crypto Currency Symbols: https://github.com/yonilevy/crypto-currency-symbols
-    if base_asset == "BTC":
-        symbol_sign = "₿"
-    elif base_asset == "ETH":
-        symbol_sign = "Ξ"
-    else:
-        symbol_sign = base_asset
-
-    message = f"{symbol_sign} {int(close_price):,} {sign} Score: {score:+.2f}"
-    message = message.replace("+", "%2B")  # For Telegram to display plus sign
+    """
 
     #if signal_side in ["BUY", "SELL"]:
     #    message = f"*{message}. SIGNAL: {signal_side}*"
@@ -54,7 +70,9 @@ async def notify_telegram():
 
     try:
         response = requests.get(url)
-        #response_json = response.json()
+        response_json = response.json()
+        if not response_json.get('ok'):
+            print(f"Error sending notification.")
     except Exception as e:
         print(f"Error sending notification: {e}")
 
