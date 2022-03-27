@@ -157,16 +157,16 @@ class App:
         "signal_model": {
             # First, aggregation in group over various algorithms and label parameters
             "buy_point_threshold": None,  # Second, produce boolean column (optional)
-            "buy_window": 5,  # Third, aggregate in time
+            "buy_window": 7,  # Third, aggregate in time
             # Now we have the final score
-            "buy_signal_threshold": 0.9,  # To decide whether to buy/sell after all aggregations/combinations
+            "buy_signal_threshold": 0.45,  # To decide whether to buy/sell after all aggregations/combinations
             "buy_notify_threshold": 0.0,  # To decide whether to notify (can be an option of individual users/consumers)
 
             "combine": "",  # "no_combine", "relative", "difference"  Find relative/difference
 
             "sell_point_threshold": None,
-            "sell_window": 5,
-            "sell_signal_threshold": 0.9,
+            "sell_window": 7,
+            "sell_signal_threshold": 0.45,
             "sell_notify_threshold": 0.0,
 
             "notify_icon_step": 0.2,  # For each step, one icon added

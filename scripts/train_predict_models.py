@@ -45,7 +45,7 @@ class P:
     predict_file_suffix = "predictions"
 
     # How much data we want to use for training
-    kline_train_length = int(1.5 * 525_600)  # 1.5 * 525_600
+    kline_train_length = int(2.0 * 525_600)  # 1.5 * 525_600
     futur_train_length = int(4 * 43_800)
 
     # Whether to store file with predictions

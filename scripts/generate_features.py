@@ -94,7 +94,7 @@ def main(config_file):
     # Store features
     #
     out_file_name = f"{symbol}-{freq}-{P.out_file_suffix}.txt"
-    out_path = (out_path / out_file_name).resolve()
+    out_path = (data_path / out_file_name).resolve()
 
     with open(out_path, "a+") as f:
         f.write(", ".join(f"'{all_features}'") + "\n")

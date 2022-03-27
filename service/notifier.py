@@ -32,14 +32,14 @@ async def notify_telegram():
         symbol_sign = base_asset
 
     # Notification logic:
-    # Send in any case if there is trade signal
-    # Send message of one of signal scores is higher than the notification threshold (independent of trade signal)
+    # 1. Trade signal in the case it is suggested to really buy or sell: BUY or SELL and one corresponding score
+    # 2. Notification signal simply to provide information (separate criteria): both scores
     if signal_side == "BUY":
-        message = f"📈 BUY: {symbol_sign} {int(close_price):,} Buy score: {buy_score:+.2f}"
+        message = f"📈 *BUY*: {symbol_sign} {int(close_price):,} Buy score: {buy_score:+.2f}"
     elif signal_side == "SELL":
-        message = f"📉 SELL: {symbol_sign} {int(close_price):,} Sell score: {sell_score:+.2f}"
+        message = f"📉 *SELL*: {symbol_sign} {int(close_price):,} Sell score: {sell_score:+.2f}"
     elif buy_score >= buy_notify_threshold or sell_score >= sell_notify_threshold:
-        message = f"SCORE: {symbol_sign} {int(close_price):,} Buy: {buy_score:+.2f}, Sell: {sell_score:+.2f}"
+        message = f"SCORE: {symbol_sign} {int(close_price):,} 📈 {buy_score:+.2f}, 📉 {sell_score:+.2f}"
     else:
         message = ""
     message = message.replace("+", "%2B")  # For Telegram to display plus sign

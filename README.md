@@ -134,7 +134,7 @@ Configuration in code:
 - hyper-parameters can be used for fine-tuning
 
 Configuration in config:
-- label_horizon - this number of rows will be removed from the head before training because we do not have labels (in fact, it makes sense only for high-low but still it is better remove some latest records)
+- label_horizon - this number of rows will be removed from the head before training so train set will be smaller and latest records will not be used. It makes sense for high-low because labels are computed from future data
 - labels - all algorithms will be trained for all labels. Choose labels for high-low or top-bot cases
 - features_kline - these columns will be selected for training
 
@@ -155,6 +155,15 @@ Assumptions:
 
 
 # Hyper-parameter tuning - NEW
+
+General procedure for chosen features and labels (for some symbol):
+- Update data and generate features and labels
+- Generate prediction files for all label-k-algorithm: train_predict_models and generate_rolling_predictions
+- Choose desired top-bot threshold in % (it directly influences frequency of transactions), for example, 6%:
+  - Choose manually a subset of tolerances like 1-2-3 or 15-25 and set the corresponding buy/sell score labels
+  - Find coarse-grained best signal parameters for these two prediction files (coarse-grained grid)
+  - Find fine-grained best signal parameters (fine-grained grid around best coarse-grained parameters)
+  - Store the best signal model in configuration and use online
 
 ## Optimize point-wise classification score
 
