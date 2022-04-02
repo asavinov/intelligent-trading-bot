@@ -93,7 +93,8 @@ class App:
         "telegram_bot_token": "",  # Source address of messages
         "telegram_chat_id": "",  # Destination address of messages
 
-        "symbol": "",  # BTCUSDT ETHUSDT - use config
+        # Define one config for one symbol
+        "symbol": "",  # BTCUSDT ETHUSDT
         "base_asset": "",  # BTC ETH
         "quote_asset": "",
 
@@ -101,18 +102,56 @@ class App:
         "data_folder": "",  # It is needed for model training
         "model_folder": "",  # It is needed by signaler at run time
 
-        # === analyzer (NAMES, also for scripts) ===
+        # === FEATURE GENERATION ===
 
-        # Parameters of label generation
-        "label_horizon": 180,
-        # For these labels models will be trained
-        "labels": [
-            'high_10', 'high_15', 'high_20',
-            'low_10', 'low_15', 'low_20',
+        # If these are changed, then feature names (below) will also have to be changed
+        "base_window_kline": 40320,
+        "windows_kline": [1, 60, 360, 1440, 4320, 10080],
+        "area_windows_kline": [60, 360, 1440, 4320, 10080],
+
+        # History needed to compute derived features.
+        # Take maximum aggregation windows from feature generation code (and add something to be sure that we have all what is needed)
+        # Basically, should be equal to base_window_kline
+        "features_horizon": 40420,
+
+        # Feature column names returned by the feature generation function which we want to use for train/predict
+        "features_kline": [
+            "close_1","close_60","close_360","close_1440","close_4320","close_10080",
+            "close_std_60","close_std_360","close_std_1440","close_std_4320","close_std_10080",  # Removed "std_1"
+            "volume_1","volume_60","volume_360","volume_1440","volume_4320","volume_10080",
+            "span_1", "span_60", "span_360", "span_1440", "span_4320", "span_10080",
+            "trades_1","trades_60","trades_360","trades_1440","trades_4320","trades_10080",
+            "tb_base_1","tb_base_60","tb_base_360","tb_base_1440","tb_base_4320","tb_base_10080",
+            "tb_quote_1","tb_quote_60","tb_quote_360","tb_quote_1440","tb_quote_4320","tb_quote_10080",
+            "close_area_60", "close_area_360", "close_area_1440", "close_area_4320", "close_area_10080",
+            "close_trend_60", "close_trend_360", "close_trend_1440", "close_trend_4320", "close_trend_10080"
         ],
-        # These are predicted columns <label, feature_set, algorithm> as well as model (pair) names
-        "buy_labels": ['bot6_1_k_nn', 'bot6_2_k_nn', 'bot6_3_k_nn'],  # 'high_10', 'high_15', 'high_20'
-        "sell_labels": ['top6_1_k_nn', 'top6_2_k_nn', 'top6_3_k_nn'],  # 'low_10', 'low_15', 'low_20'
+
+        # === LABEL GENERATION ===
+
+        # This will be excluded from model training
+        # For high-low labels it should be label horizon. For top-bot it can be small
+        "label_horizon": 0,  # For high-low it should be 1440
+        # Models will be trained for these models
+        "labels": [
+            "bot4_1", "bot4_15", "bot4_2", "bot4_25", "bot4_3",
+            "top4_1", "top4_15", "top4_2", "top4_25", "top4_3",
+
+            "high_10", "high_15", "high_20", "high_25", "high_30",
+            "low_10", "low_15", "low_20", "low_25", "low_30"
+        ],
+        "_labels": [
+            "bot4_1", "bot4_15", "bot4_2", "bot4_25", "bot4_3",
+            "top4_1", "top4_15", "top4_2", "top4_25", "top4_3",
+            "bot5_1", "bot5_15", "bot5_2", "bot5_25", "bot5_3",
+            "top5_1", "top5_15", "top5_2", "top5_25", "top5_3",
+            "bot6_1", "bot6_15", "bot6_2", "bot6_25", "bot6_3",
+            "top6_1", "top6_15", "top6_2", "top6_25", "top6_3",
+            "bot7_1", "bot7_15", "bot7_2", "bot7_25", "bot7_3",
+            "top7_1", "top7_15", "top7_2", "top7_25", "top7_3",
+            "bot8_1", "bot8_15", "bot8_2", "bot8_25", "bot8_3",
+            "top8_1", "top8_15", "top8_2", "top8_25", "top8_3"
+        ],
         "class_labels_all": [  # All existing target labels implemented in label generation procedure
             'high_max_180',  # Maximum high (relative)
             'high_10', 'high_15', 'high_20', 'high_25',  # At least one time above
@@ -124,34 +163,17 @@ class App:
 
             'high_to_low_180',
 
-            'close_area_future_60','close_area_future_120','close_area_future_180','close_area_future_300',
-            ],
-
-        # Parameters of feature generation.
-        # If these are changed, then feature names (below) will also have to be changed
-        "base_window_kline": 1440,
-        "windows_kline": [1, 5, 15, 60, 180, 720],
-        "area_windows_kline": [60, 120, 180, 300, 720],
-
-        # History needed to compute derived features.
-        # Take maximum aggregation windows from feature generation code (and add something to be sure that we have all what is needed)
-        # Basically, should be equal to base_window_kline
-        "features_horizon": 1440+10,
-
-        # Feature column names returned by the feature generation function which we want to use for train/predict
-        "features_kline": [
-            'close_1','close_5','close_15','close_60','close_180','close_720',
-            'close_std_5','close_std_15','close_std_60','close_std_180','close_std_720',  # Removed "std_1" which is constant
-            'volume_1','volume_5','volume_15','volume_60','volume_180','volume_720',
-            'span_1', 'span_5', 'span_15', 'span_60', 'span_180', 'span_720',
-            'trades_1','trades_5','trades_15','trades_60','trades_180','trades_720',
-            'tb_base_1','tb_base_5','tb_base_15','tb_base_60','tb_base_180','tb_base_720',
-            'tb_quote_1','tb_quote_5','tb_quote_15','tb_quote_60','tb_quote_180','tb_quote_720',
-            'close_area_60', 'close_area_120', 'close_area_180', 'close_area_300', 'close_area_720',
-            'close_trend_5', 'close_trend_15', 'close_trend_60', 'close_trend_180', 'close_trend_720',
-        ],  # 51 features
+            'close_area_future_60', 'close_area_future_120', 'close_area_future_180', 'close_area_future_300',
+        ],
 
         # === SIGNALER SERVER ===
+
+        # These are predicted columns <label, feature_set, algorithm> as well as model (pair) names
+        "buy_labels": ["bot4_1_k_nn", "bot4_15_k_nn", "bot4_2_k_nn", "bot4_25_k_nn", "bot4_3_k_nn"],
+        "sell_labels": ["top4_1_k_nn", "top4_15_k_nn", "top4_2_k_nn", "top4_25_k_nn", "top4_3_k_nn"],
+        "_buy_labels": ["bot6_1_k_nn", "bot6_15_k_nn", "bot6_2_k_nn", "bot6_25_k_nn", "bot6_3_k_nn"],
+        "_sell_labels": ["top6_1_k_nn", "top6_15_k_nn", "top6_2_k_nn", "top6_25_k_nn", "top6_3_k_nn"],
+
         # It defines how signal scores, trade signals, and notification signals will be generated
         # from point-wise prediction scores for two groups of labels
         "signal_model": {

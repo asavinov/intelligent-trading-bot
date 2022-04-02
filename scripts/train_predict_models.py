@@ -151,8 +151,10 @@ def main(config_file):
     #in_df = in_df.dropna(subset=labels)
     in_df = in_df.reset_index(drop=True)  # We must reset index after removing rows to remove gaps
 
-    # Remove the tail data for which no labels are available (since their labels are computed from future which is not available)
-    in_df = in_df.head(-label_horizon)
+    # Remove the tail data for which no labels are available
+    # The reason is that these labels are computed from future which is not available
+    if label_horizon:
+        in_df = in_df.head(-label_horizon)
 
     models = dict()
     scores = dict()

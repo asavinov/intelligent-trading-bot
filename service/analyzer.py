@@ -55,12 +55,6 @@ class Analyzer:
             model_path = PACKAGE_ROOT / model_path
         model_path = model_path.resolve()
 
-        # TODO: OBSOLETE
-        #labels = App.config["labels"]
-        #feature_sets = ["kline"]
-        #algorithms = ["gb", "nn", "lc"]
-        #self.models = load_models(model_path, labels, feature_sets, algorithms)
-
         buy_labels = App.config["buy_labels"]
         sell_labels = App.config["sell_labels"]
         self.models = {label: load_model_pair(model_path, label) for label in buy_labels + sell_labels}

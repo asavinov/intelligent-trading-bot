@@ -64,7 +64,7 @@ class P:
 
     # Examples: features-rolling, features-rolling-scores, predictions
     # It must contain buy and sell predicted labels as specified in the config as well as close price and maybe some other column needed for trade simulation
-    predict_file_suffix = "predictions"
+    predict_file_suffix = "predictions-rolling"
     out_file_suffix = "signals"  # TXT file with result parameters and their performances
 
     # TODO: currently not used
@@ -83,8 +83,8 @@ class P:
 grid_signals = [
     {
         "buy_point_threshold": [None], # + np.arange(0.02, 0.20, 0.01).tolist(),  # None means do not use
-        "buy_window": [5, 6, 7, 8, 9, 10, 11, 12],  # [3, 4, 5, 6, 7, 8, 9, 10]
-        "buy_signal_threshold": [0.4, 0.42, 0.44, 0.46, 0.48, 0.5],  # [0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 1.0]
+        "buy_window": [1, 3, 5],  # [5, 6, 7, 8, 9, 10, 11, 12]
+        "buy_signal_threshold": [0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9],  # [0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 1.0]
 
         # If two groups are equal, then these values are ignored
         "sell_point_threshold": [None], # + np.arange(0.02, 0.20, 0.01).tolist()
@@ -248,7 +248,7 @@ def main(config_file):
         # Add a pair of two dicts: performance dict and model parameters dict
         #
         performance, long_performance, short_performance = \
-            simulated_trade_performance2(df, 'sell_signal_column', 'buy_signal_column', 'close')
+            simulated_trade_performance(df, 'sell_signal_column', 'buy_signal_column', 'close')
 
         performances.append(dict(
             model=model,
@@ -304,7 +304,7 @@ def main(config_file):
     print(f"Finished simulation in {int(elapsed.total_seconds())} seconds.")
 
 
-def simulated_trade_performance2(df, sell_signal_column, buy_signal_column, price_column):
+def simulated_trade_performance(df, sell_signal_column, buy_signal_column, price_column):
     """
     top_score_column: boolean, true if top is reached - sell signal
     bot_score_column: boolean, true if bottom is reached - buy signal

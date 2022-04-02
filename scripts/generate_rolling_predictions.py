@@ -32,7 +32,7 @@ class P:
     # Each one is a separate procedure with its algorithm and (expected) input features
     # Leave only what we want to generate (say, only klines for debug purposes)
     feature_sets = ["kline", ]  # "futur"
-    algorithms = ["nn"]  # gb, nn, lc
+    algorithms = ["gb", "nn", "lc"]  # gb, nn, lc
 
     in_nrows = 100_000_000
     in_nrows_tail = None  # How many last rows to select (for testing)
@@ -42,14 +42,14 @@ class P:
     predict_file_suffix = "predictions-rolling"
 
     # How much data we want to use for training
-    kline_train_length = int(1.5 * 525_600)  # 1.5 * 525_600
+    kline_train_length = int(2.0 * 525_600)  # 1.5 * 525_600
     futur_train_length = int(4 * 43_800)
 
     # First row for starting predictions: "2020-02-01 00:00:00" - minimum start for futures
-    prediction_start_str = "2019-07-01 00:00:00"
+    prediction_start_str = "2020-02-01 00:00:00"
     # How frequently re-train models: 1 day: 1_440 = 60 * 24, one week: 10_080
     prediction_length = 4*7*1440
-    prediction_count = 35  # How many prediction steps. If None or 0, then from prediction start till the data end. Use: https://www.timeanddate.com/date/duration.html
+    prediction_count = 28  # How many prediction steps. If None or 0, then from prediction start till the data end. Use: https://www.timeanddate.com/date/duration.html
 
     use_multiprocessing = True
     max_workers = 8  # None means number of processors
