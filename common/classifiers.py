@@ -177,6 +177,13 @@ def train_nn(df_X, df_y, params: dict):
 
     y_train = df_y.values
 
+    # TODO: Introduce parameter shifts_sizes=[1440]
+    # Shift and add same columns
+    #df_X = pd.concat([df_X, df_X.shift(1440)], axis=1, keys=('A', 'B'))
+    #df_X = df_X.iloc[1440:]
+    # Make same length as train set
+    #df_y = df_y.iloc[1440:]
+
     #
     # Create model
     #
@@ -197,7 +204,7 @@ def train_nn(df_X, df_y, params: dict):
         Dense(n_features, activation='sigmoid', input_dim=n_features)  # , kernel_regularizer=l2(reg_l2)
     )
 
-    model.add(Dense(n_features // 2, activation='sigmoid'))  # One hidden layer
+    model.add(Dense(n_features // 3, activation='sigmoid'))  # One hidden layer
 
     #model.add(Dense(layers[0], activation='sigmoid', input_dim=n_features, kernel_regularizer=l2(reg_l2)))
     #if len(layers) > 1:
@@ -223,8 +230,8 @@ def train_nn(df_X, df_y, params: dict):
 
     es = EarlyStopping(
         monitor="loss",  # val_loss loss
-        min_delta=0.0001,  # Minimum change qualified as improvement
-        patience=0,  # Number of epochs with no improvements
+        min_delta=0.001,  # Minimum change qualified as improvement
+        patience=1,  # Number of epochs with no improvements
         verbose=0,
         mode='auto',
     )
@@ -237,10 +244,11 @@ def train_nn(df_X, df_y, params: dict):
         y_train,
         batch_size=batch_size,
         epochs=n_epochs,
+        #validation_split=0.05,
         #validation_data=(X_validate, y_validate),
         #class_weight={0: 1, 1: 20},
         callbacks=[es],
-        verbose=0,
+        verbose=1,
     )
 
     return (model, scaler)
@@ -312,7 +320,8 @@ def train_lc(df_X, df_y, params: dict):
     #
     args = params.copy()
     del args["is_scale"]
-    args["n_jobs"] = 1
+    args["n_jobs"] = -1
+    args["verbose"] = 1
     model = LogisticRegression(**args)
 
     #

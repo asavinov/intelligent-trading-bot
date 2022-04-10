@@ -60,6 +60,27 @@ class Analyzer:
         self.models = {label: load_model_pair(model_path, label) for label in buy_labels + sell_labels}
 
         #
+        # Load latest transaction and (simulated) trade state
+        #
+        transaction_file = Path("transactions.txt")
+        t_dict = dict(timestamp=str(datetime.now()), price=0.0, profit=0.0, status="")
+        if transaction_file.is_file():
+            with open(transaction_file, "r") as f:
+                line = ""
+                for line in f:
+                    pass
+            if line:
+                t_dict = dict(zip("timestamp,price,profit,status".split(","), line.strip().split(",")))
+                t_dict["price"] = float(t_dict["price"])
+                t_dict["profit"] = float(t_dict["profit"])
+                #t_dict = json.loads(line)
+        else:  # Create file with header
+            pass
+            #with open(transaction_file, 'a+') as f:
+            #    f.write("timestamp,price,profit,status\n")
+        App.transaction = t_dict
+
+        #
         # Start a thread for storing data
         #
 
@@ -267,7 +288,7 @@ class Analyzer:
         try:
             df = klines_to_df(klines)
         except Exception as e:
-            print(f"Error in klines_to_df: {e}")
+            log.error(f"Error in klines_to_df method: {e}. Length klines: {len(klines)}")
             return
 
         #
@@ -288,9 +309,9 @@ class Analyzer:
                 area_windows=App.config["area_windows_kline"], last_rows=last_rows
             )
         except Exception as e:
-            print(f"Error in generate_features: {e}")
+            log.error(f"Error in generate_features: {e}. Length df: {len(df)}")
             return
-        df = df.iloc[-last_rows:]  # We will need only last rows
+        df = df.iloc[-last_rows:]  # We will need only several last rows
 
         #
         # 3.
@@ -300,6 +321,10 @@ class Analyzer:
         # kline feature set
         features = App.config["features_kline"]
         predict_df = df[features]
+        if predict_df.isnull().any().any():
+            null_columns = {k: v for k, v in predict_df.isnull().any().to_dict().items() if v}
+            log.error(f"Null in predict_df found. Columns with Null: {null_columns}")
+            return
 
         # Do prediction by applying all models (for the score columns declared in config) to the data
         score_df = pd.DataFrame(index=predict_df.index)
@@ -315,7 +340,7 @@ class Analyzer:
                     raise ValueError(f"Unknown column name algorithm suffix {score_column_name[-3:]}. Currently only '_gb', '_nn', '_lc' are supported.")
                 score_df[score_column_name] = df_y_hat
         except Exception as e:
-            print(f"Error in predict: {e}")
+            log.error(f"Error in predict: {e}. {score_column_name=}")
             return
 
         # This df contains only one (last) record
@@ -352,7 +377,7 @@ class Analyzer:
         sell_signal = sell_score >= model.get("sell_signal_threshold")
 
         close_price = row["close"]
-        close_time = row.name+timedelta(minutes=1)  # row.close_time
+        close_time = row.name+timedelta(minutes=1)  # Add 1 minute because timestamp is start of the interval
 
         signal = dict(
             side="",

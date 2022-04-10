@@ -68,7 +68,7 @@ params_gb = {
 params_nn = {
     "layers": [29],  # It is equal to the number of input features (different for spot and futur)
     "learning_rate": 0.001,
-    "n_epochs": 60,
+    "n_epochs": 20,
     "bs": 64,
 }
 
@@ -77,8 +77,8 @@ params_lc = {
     "penalty": "l2",
     "C": 1.0,
     "class_weight": None,
-    "solver": "liblinear",
-    "max_iter": 200,
+    "solver": "liblinear",  # liblinear lbfgs
+    "max_iter": 100,
 }
 
 

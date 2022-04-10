@@ -38,6 +38,7 @@ class App:
     trade_state_status = 0  # Something wrong with our trading logic (wrong use, inconsistent state etc. what we cannot recover)
 
     # Trade status
+    transaction = None
     status = None  # BOUGHT, SOLD, BUYING, SELLING
     order = None  # Latest or current order
     order_time = None  # Order submission time
@@ -131,18 +132,17 @@ class App:
 
         # This will be excluded from model training
         # For high-low labels it should be label horizon. For top-bot it can be small
-        "label_horizon": 0,  # For high-low it should be 1440
+        # TODO: we need different values for high-low and top-bot.
+        "label_horizon": 0,  # For high-low label generation and training it should be 1440
         # Models will be trained for these models
         "labels": [
             "bot4_1", "bot4_15", "bot4_2", "bot4_25", "bot4_3",
-            "top4_1", "top4_15", "top4_2", "top4_25", "top4_3",
-
-            "high_10", "high_15", "high_20", "high_25", "high_30",
-            "low_10", "low_15", "low_20", "low_25", "low_30"
+            "top4_1", "top4_15", "top4_2", "top4_25", "top4_3"
         ],
         "_labels": [
             "bot4_1", "bot4_15", "bot4_2", "bot4_25", "bot4_3",
             "top4_1", "top4_15", "top4_2", "top4_25", "top4_3",
+
             "bot5_1", "bot5_15", "bot5_2", "bot5_25", "bot5_3",
             "top5_1", "top5_15", "top5_2", "top5_25", "top5_3",
             "bot6_1", "bot6_15", "bot6_2", "bot6_25", "bot6_3",
@@ -150,7 +150,10 @@ class App:
             "bot7_1", "bot7_15", "bot7_2", "bot7_25", "bot7_3",
             "top7_1", "top7_15", "top7_2", "top7_25", "top7_3",
             "bot8_1", "bot8_15", "bot8_2", "bot8_25", "bot8_3",
-            "top8_1", "top8_15", "top8_2", "top8_25", "top8_3"
+            "top8_1", "top8_15", "top8_2", "top8_25", "top8_3",
+
+            "high_10", "high_15", "high_20", "high_25", "high_30",
+            "low_10", "low_15", "low_20", "low_25", "low_30"
         ],
         "class_labels_all": [  # All existing target labels implemented in label generation procedure
             'high_max_180',  # Maximum high (relative)
@@ -179,19 +182,20 @@ class App:
         "signal_model": {
             # First, aggregation in group over various algorithms and label parameters
             "buy_point_threshold": None,  # Second, produce boolean column (optional)
-            "buy_window": 7,  # Third, aggregate in time
+            "buy_window": 3,  # Third, aggregate in time
             # Now we have the final score
             "buy_signal_threshold": 0.45,  # To decide whether to buy/sell after all aggregations/combinations
-            "buy_notify_threshold": 0.0,  # To decide whether to notify (can be an option of individual users/consumers)
+            "buy_notify_threshold": 0.05,  # To decide whether to notify (can be an option of individual users/consumers)
 
             "combine": "",  # "no_combine", "relative", "difference"  Find relative/difference
 
             "sell_point_threshold": None,
             "sell_window": 7,
             "sell_signal_threshold": 0.45,
-            "sell_notify_threshold": 0.0,
+            "sell_notify_threshold": 0.05,
 
-            "notify_icon_step": 0.2,  # For each step, one icon added
+            "trade_icon_step": 0.05,  # For each step, one icon added
+            "notify_frequency_minutes": 5,  # 1m, 5m, 10m, 15m etc. Minutes will be divided by this number
         },
 
         # === TRADER SERVER ===

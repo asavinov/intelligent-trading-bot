@@ -64,7 +64,7 @@ class P:
 
     # Examples: features-rolling, features-rolling-scores, predictions
     # It must contain buy and sell predicted labels as specified in the config as well as close price and maybe some other column needed for trade simulation
-    predict_file_suffix = "predictions-rolling"
+    predict_file_suffix = "predictions"
     out_file_suffix = "signals"  # TXT file with result parameters and their performances
 
     # TODO: currently not used
@@ -83,8 +83,8 @@ class P:
 grid_signals = [
     {
         "buy_point_threshold": [None], # + np.arange(0.02, 0.20, 0.01).tolist(),  # None means do not use
-        "buy_window": [1, 3, 5],  # [5, 6, 7, 8, 9, 10, 11, 12]
-        "buy_signal_threshold": [0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9],  # [0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 1.0]
+        "buy_window": [1, 3, 5, 7, 10],  # [5, 6, 7, 8, 9, 10, 11, 12]
+        "buy_signal_threshold": [0.25, 0.3, 0.35, 0.4, 0.45, 0.5, 0.55],  # [0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 1.0]
 
         # If two groups are equal, then these values are ignored
         "sell_point_threshold": [None], # + np.arange(0.02, 0.20, 0.01).tolist()
