@@ -73,7 +73,7 @@ class P:
 
     # True if buy and sell hyper-parameters are equal
     # Only buy parameters will be used and sell parameters will be ignored
-    buy_sell_equal = True
+    buy_sell_equal = False
 
     topn_to_store = 20
 
@@ -83,13 +83,13 @@ class P:
 grid_signals = [
     {
         "buy_point_threshold": [None], # + np.arange(0.02, 0.20, 0.01).tolist(),  # None means do not use
-        "buy_window": [1, 3, 5, 7, 10],  # [5, 6, 7, 8, 9, 10, 11, 12]
-        "buy_signal_threshold": [0.25, 0.3, 0.35, 0.4, 0.45, 0.5, 0.55],  # [0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 1.0]
+        "buy_window": [3, 4, 5],  # [5, 6, 7, 8, 9, 10, 11, 12]
+        "buy_signal_threshold": [0.64, 0.65, 0.66, 0.68, 0.7, 0.72],  # [0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 1.0]
 
         # If two groups are equal, then these values are ignored
         "sell_point_threshold": [None], # + np.arange(0.02, 0.20, 0.01).tolist()
-        "sell_window": [5, 6, 7, 8, 9, 10, 11, 12],
-        "sell_signal_threshold": [0.4, 0.42, 0.44, 0.46, 0.48, 0.5],
+        "sell_window": [3, 4, 5],
+        "sell_signal_threshold": [0.64, 0.65, 0.66, 0.68, 0.7, 0.72],
 
         "combine": ["no_combine"],  # "no_combine", "relative", "difference"
     },

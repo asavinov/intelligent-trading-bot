@@ -278,8 +278,9 @@ class Analyzer:
 
         klines = self.klines.get(symbol)
         last_kline_ts = self.get_last_kline_ts(symbol)
+        last_kline_ts_str = str(pd.to_datetime(last_kline_ts, unit='ms'))
 
-        log.info(f"Analyze {symbol}. {len(klines)} klines in the database. Last kline timestamp: {last_kline_ts}")
+        log.info(f"Analyze {symbol}. {len(klines)} klines in the database. Last kline timestamp: {last_kline_ts_str}")
 
         #
         # 1.
@@ -290,6 +291,14 @@ class Analyzer:
         except Exception as e:
             log.error(f"Error in klines_to_df method: {e}. Length klines: {len(klines)}")
             return
+
+        source_columns = ['open', 'high', 'low', 'close', 'volume', 'close_time', 'quote_av', 'trades', 'tb_base_av', 'tb_quote_av']
+        if df.isnull().any().any():
+            null_columns = {k: v for k, v in df.isnull().any().to_dict().items() if v}
+            log.warning(f"Null in source data found. Columns with Null: {null_columns}")
+        # TODO: We might receive empty strings or 0s in numeric data - how can we detect them?
+
+        # TODO: Check that timestamps in 'close_time' are strictly consecutive
 
         #
         # 2.
@@ -328,14 +337,19 @@ class Analyzer:
 
         # Do prediction by applying all models (for the score columns declared in config) to the data
         score_df = pd.DataFrame(index=predict_df.index)
+        # TODO: Move all train/predict parameters to one place. Maybe also feature/label definitions.
+        #   Maybe they should be in App.config, but these fields could be initialized by loading from some central Python file
+        #   or special dedicated configuration section like features, labels, signaling, training, prediction etc.
+        #   The idea is that eventually we want to store these definitions centrally and then score different fully-defined workflows
+        from scripts.train_predict_models import params_nn, params_lc
         try:
             for score_column_name, model_pair in self.models.items():
                 if score_column_name.endswith("_gb"):
                     df_y_hat = predict_gb(model_pair, predict_df)
                 elif score_column_name.endswith("_nn"):
-                    df_y_hat = predict_nn(model_pair, predict_df)
+                    df_y_hat = predict_nn(model_pair, predict_df, params_nn)
                 elif score_column_name.endswith("_lc"):
-                    df_y_hat = predict_lc(model_pair, predict_df)
+                    df_y_hat = predict_lc(model_pair, predict_df, params_lc)
                 else:
                     raise ValueError(f"Unknown column name algorithm suffix {score_column_name[-3:]}. Currently only '_gb', '_nn', '_lc' are supported.")
                 score_df[score_column_name] = df_y_hat

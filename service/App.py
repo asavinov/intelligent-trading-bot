@@ -174,8 +174,8 @@ class App:
         # These are predicted columns <label, feature_set, algorithm> as well as model (pair) names
         "buy_labels": ["bot4_1_k_nn", "bot4_15_k_nn", "bot4_2_k_nn", "bot4_25_k_nn", "bot4_3_k_nn"],
         "sell_labels": ["top4_1_k_nn", "top4_15_k_nn", "top4_2_k_nn", "top4_25_k_nn", "top4_3_k_nn"],
-        "_buy_labels": ["bot6_1_k_nn", "bot6_15_k_nn", "bot6_2_k_nn", "bot6_25_k_nn", "bot6_3_k_nn"],
-        "_sell_labels": ["top6_1_k_nn", "top6_15_k_nn", "top6_2_k_nn", "top6_25_k_nn", "top6_3_k_nn"],
+        "_buy_labels": ["bot4_1_k_lc", "bot4_15_k_lc", "bot4_2_k_lc", "bot4_25_k_lc", "bot4_3_k_lc"],
+        "_sell_labels": ["top4_1_k_lc", "top4_15_k_lc", "top4_2_k_lc", "top4_25_k_lc", "top4_3_k_lc"],
 
         # It defines how signal scores, trade signals, and notification signals will be generated
         # from point-wise prediction scores for two groups of labels
@@ -184,18 +184,18 @@ class App:
             "buy_point_threshold": None,  # Second, produce boolean column (optional)
             "buy_window": 3,  # Third, aggregate in time
             # Now we have the final score
-            "buy_signal_threshold": 0.45,  # To decide whether to buy/sell after all aggregations/combinations
+            "buy_signal_threshold": 0.65,  # To decide whether to buy/sell after all aggregations/combinations
             "buy_notify_threshold": 0.05,  # To decide whether to notify (can be an option of individual users/consumers)
 
             "combine": "",  # "no_combine", "relative", "difference"  Find relative/difference
 
             "sell_point_threshold": None,
-            "sell_window": 7,
-            "sell_signal_threshold": 0.45,
-            "sell_notify_threshold": 0.05,
+            "sell_window": 3,
+            "sell_signal_threshold": 0.65,
+            "sell_notify_threshold": 0.1,
 
-            "trade_icon_step": 0.05,  # For each step, one icon added
-            "notify_frequency_minutes": 5,  # 1m, 5m, 10m, 15m etc. Minutes will be divided by this number
+            "trade_icon_step": 0.1,  # For each step, one icon added
+            "notify_frequency_minutes": 10,  # 1m, 5m, 10m, 15m etc. Minutes will be divided by this number
         },
 
         # === TRADER SERVER ===

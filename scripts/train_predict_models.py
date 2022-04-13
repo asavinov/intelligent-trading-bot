@@ -36,7 +36,7 @@ obtained elsewhere (e.g., using grid search).
 #
 class P:
     feature_sets = ["kline"]  # futur
-    algorithms = ["nn"]  # gb, nn, lc
+    algorithms = ["nn", "lc"]  # gb, nn, lc
 
     in_nrows = 100_000_000  # For debugging
     in_nrows_tail = None  # How many last rows to select (for testing)
@@ -45,7 +45,7 @@ class P:
     predict_file_suffix = "predictions"
 
     # How much data we want to use for training
-    kline_train_length = int(2.0 * 525_600)  # 1.5 * 525_600
+    kline_train_length = int(1.5 * 525_600)  # 1.5 * 525_600
     futur_train_length = int(4 * 43_800)
 
     # Whether to store file with predictions
@@ -63,22 +63,27 @@ params_gb = {
 
     "lambda_l1": 1.0,
     "lambda_l2": 1.0,
+    "shifts": [],
 }
 
 params_nn = {
-    "layers": [29],  # It is equal to the number of input features (different for spot and futur)
+    #"is_scale": True,  # by default True
+    "layers": [29],  # It is equal to the number of input features (different for spot and futur). Currently not used
     "learning_rate": 0.001,
-    "n_epochs": 20,
+    "n_epochs": 30,
     "bs": 64,
+    "shifts": [],
 }
 
 params_lc = {
-    "is_scale": False,
+    "is_scale": True,
     "penalty": "l2",
     "C": 1.0,
     "class_weight": None,
-    "solver": "liblinear",  # liblinear lbfgs
-    "max_iter": 100,
+    "solver": "sag",  # liblinear, lbfgs, sag/saga (stochastic gradient descent for large datasets, should be scaled)
+    "max_iter": 200,
+    "shifts": [],
+    #"tol": 0.1,  # Tolerance for performance (check how it influences precision)
 }
 
 
@@ -194,7 +199,7 @@ def main(config_file):
                 print(f"Train '{score_column_name}'... ")
                 model_pair = train_nn(df_X, df_y, params=params_nn)
                 models[score_column_name] = model_pair
-                df_y_hat = predict_nn(model_pair, df_X)
+                df_y_hat = predict_nn(model_pair, df_X, params_nn)
                 scores[score_column_name] = compute_scores(df_y, df_y_hat)
                 out_df[score_column_name] = df_y_hat
 
@@ -204,7 +209,7 @@ def main(config_file):
                 print(f"Train '{score_column_name}'... ")
                 model_pair = train_lc(df_X, df_y, params=params_lc)
                 models[score_column_name] = model_pair
-                df_y_hat = predict_lc(model_pair, df_X)
+                df_y_hat = predict_lc(model_pair, df_X, params_lc)
                 scores[score_column_name] = compute_scores(df_y, df_y_hat)
                 out_df[score_column_name] = df_y_hat
 
@@ -241,7 +246,7 @@ def main(config_file):
                 print(f"Train '{score_column_name}'... ")
                 model_pair = train_nn(df_X, df_y, params=params_nn)
                 models[score_column_name] = model_pair
-                df_y_hat = predict_nn(model_pair, df_X)
+                df_y_hat = predict_nn(model_pair, df_X, params_nn)
                 scores[score_column_name] = compute_scores(df_y, df_y_hat)
                 out_df[score_column_name] = df_y_hat
 
@@ -251,7 +256,7 @@ def main(config_file):
                 print(f"Train '{score_column_name}'... ")
                 model_pair = train_lc(df_X, df_y, params=params_lc)
                 models[score_column_name] = model_pair
-                df_y_hat = predict_lc(model_pair, df_X)
+                df_y_hat = predict_lc(model_pair, df_X, params_lc)
                 scores[score_column_name] = compute_scores(df_y, df_y_hat)
                 out_df[score_column_name] = df_y_hat
 

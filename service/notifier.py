@@ -51,12 +51,12 @@ async def notify_telegram():
         message = "🟢"*int(score_steps+1) + f" *BUY: {symbol_sign} {int(close_price):,} Buy score: {buy_score:+.2f}*"
     elif signal_side == "SELL":
         score_steps = (np.abs(sell_score - sell_signal_threshold) // trade_icon_step) if trade_icon_step else 0
-        message = "🔴"*int(score_steps+1) + f" *SELL: {symbol_sign} {int(close_price):,} Sell score: {sell_score:+.2f}*"
+        message = "🔴"*int(score_steps+1) + f" *SELL: {symbol_sign} {int(close_price):,} Sell score: {-sell_score:+.2f}*"
     elif (close_time.minute % notify_frequency_minutes) == 0:  # Info message with custom frequency
         if buy_score > sell_score:
             message = f"{symbol_sign} {int(close_price):,} 📈{buy_score:+.2f}"
         else:
-            message = f"{symbol_sign} {int(close_price):,} 📉{sell_score:+.2f}"
+            message = f"{symbol_sign} {int(close_price):,} 📉{-sell_score:+.2f}"
     message = message.replace("+", "%2B")  # For Telegram to display plus sign
 
     if not message:
