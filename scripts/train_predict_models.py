@@ -153,9 +153,9 @@ def main(config_file):
             if "gb" in P.algorithms:
                 score_column_name = label + name_tag + "gb"
                 print(f"Train '{score_column_name}'... ")
-                model_pair = train_gb(df_X, df_y, params=params_gb)
+                model_pair = train_gb(df_X, df_y, model_config=get_model("gb"))
                 models[score_column_name] = model_pair
-                df_y_hat = predict_gb(model_pair, df_X)
+                df_y_hat = predict_gb(model_pair, df_X, model_config=get_model("gb"))
                 scores[score_column_name] = compute_scores(df_y, df_y_hat)
                 out_df[score_column_name] = df_y_hat
 
@@ -163,9 +163,9 @@ def main(config_file):
             if "nn" in P.algorithms:
                 score_column_name = label + name_tag + "nn"
                 print(f"Train '{score_column_name}'... ")
-                model_pair = train_nn(df_X, df_y, params=params_nn)
+                model_pair = train_nn(df_X, df_y, model_config=get_model("nn"))
                 models[score_column_name] = model_pair
-                df_y_hat = predict_nn(model_pair, df_X, params_nn)
+                df_y_hat = predict_nn(model_pair, df_X, get_model("nn"))
                 scores[score_column_name] = compute_scores(df_y, df_y_hat)
                 out_df[score_column_name] = df_y_hat
 
@@ -173,9 +173,9 @@ def main(config_file):
             if "lc" in P.algorithms:
                 score_column_name = label + name_tag + "lc"
                 print(f"Train '{score_column_name}'... ")
-                model_pair = train_lc(df_X, df_y, params=params_lc)
+                model_pair = train_lc(df_X, df_y, model_config=get_model("lc"))
                 models[score_column_name] = model_pair
-                df_y_hat = predict_lc(model_pair, df_X, params_lc)
+                df_y_hat = predict_lc(model_pair, df_X, get_model("lc"))
                 scores[score_column_name] = compute_scores(df_y, df_y_hat)
                 out_df[score_column_name] = df_y_hat
 
@@ -200,9 +200,9 @@ def main(config_file):
             if "gb" in P.algorithms:
                 score_column_name = label + name_tag + "gb"
                 print(f"Train '{score_column_name}'... ")
-                model_pair = train_gb(df_X, df_y, params=params_gb)
+                model_pair = train_gb(df_X, df_y, model_config=get_model("gb"))
                 models[score_column_name] = model_pair
-                df_y_hat = predict_gb(model_pair, df_X)
+                df_y_hat = predict_gb(model_pair, df_X, model_config=get_model("gb"))
                 scores[score_column_name] = compute_scores(df_y, df_y_hat)
                 out_df[score_column_name] = df_y_hat
 
@@ -210,9 +210,9 @@ def main(config_file):
             if "nn" in P.algorithms:
                 score_column_name = label + name_tag + "nn"
                 print(f"Train '{score_column_name}'... ")
-                model_pair = train_nn(df_X, df_y, params=params_nn)
+                model_pair = train_nn(df_X, df_y, model_config=get_model("nn"))
                 models[score_column_name] = model_pair
-                df_y_hat = predict_nn(model_pair, df_X, params_nn)
+                df_y_hat = predict_nn(model_pair, df_X, get_model("nn"))
                 scores[score_column_name] = compute_scores(df_y, df_y_hat)
                 out_df[score_column_name] = df_y_hat
 
@@ -220,9 +220,9 @@ def main(config_file):
             if "lc" in P.algorithms:
                 score_column_name = label + name_tag + "lc"
                 print(f"Train '{score_column_name}'... ")
-                model_pair = train_lc(df_X, df_y, params=params_lc)
+                model_pair = train_lc(df_X, df_y, model_config=get_model("lc"))
                 models[score_column_name] = model_pair
-                df_y_hat = predict_lc(model_pair, df_X, params_lc)
+                df_y_hat = predict_lc(model_pair, df_X, get_model("lc"))
                 scores[score_column_name] = compute_scores(df_y, df_y_hat)
                 out_df[score_column_name] = df_y_hat
 

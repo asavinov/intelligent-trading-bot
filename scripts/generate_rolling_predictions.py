@@ -207,17 +207,17 @@ def main(config_file):
                         # --- GB
                         if "gb" in P.algorithms:
                             score_column_name = label + name_tag + "gb"
-                            execution_results[score_column_name] = executor.submit(train_predict_gb, df_X, df_y, df_X_test, params_gb)
+                            execution_results[score_column_name] = executor.submit(train_predict_gb, df_X, df_y, df_X_test, get_model("gb"))
 
                         # --- NN
                         if "nn" in P.algorithms:
                             score_column_name = label + name_tag + "nn"
-                            execution_results[score_column_name] = executor.submit(train_predict_nn, df_X, df_y, df_X_test, params_nn)
+                            execution_results[score_column_name] = executor.submit(train_predict_nn, df_X, df_y, df_X_test, get_model("nn"))
 
                         # --- LC
                         if "lc" in P.algorithms:
                             score_column_name = label + name_tag + "lc"
-                            execution_results[score_column_name] = executor.submit(train_predict_lc, df_X, df_y, df_X_test, params_lc)
+                            execution_results[score_column_name] = executor.submit(train_predict_lc, df_X, df_y, df_X_test, get_model("lc"))
 
                     # Process the results as the tasks are finished
                     for score_column_name, future in execution_results.items():
@@ -228,19 +228,19 @@ def main(config_file):
                 else:  # No multiprocessing - sequential execution
                     # --- GB
                     if "gb" in P.algorithms:
-                        y_hat = train_predict_gb(df_X, df_y, df_X_test, params=params_gb)
+                        y_hat = train_predict_gb(df_X, df_y, df_X_test, model_config=get_model("gb"))
                         score_column_name = label + name_tag + "gb"
                         predict_labels_df[score_column_name] = y_hat
 
                     # --- NN
                     if "nn" in P.algorithms:
-                        y_hat = train_predict_nn(df_X, df_y, df_X_test, params=params_nn)
+                        y_hat = train_predict_nn(df_X, df_y, df_X_test, model_config=get_model("nn"))
                         score_column_name = label + name_tag + "nn"
                         predict_labels_df[score_column_name] = y_hat
 
                     # --- LC
                     if "lc" in P.algorithms:
-                        y_hat = train_predict_lc(df_X, df_y, df_X_test, params=params_lc)
+                        y_hat = train_predict_lc(df_X, df_y, df_X_test, model_config=get_model("lc"))
                         score_column_name = label + name_tag + "lc"
                         predict_labels_df[score_column_name] = y_hat
 
@@ -286,17 +286,17 @@ def main(config_file):
                         # --- GB
                         if "gb" in P.algorithms:
                             score_column_name = label + name_tag + "gb"
-                            execution_results[score_column_name] = executor.submit(train_predict_gb, df_X, df_y, df_X_test, params_gb)
+                            execution_results[score_column_name] = executor.submit(train_predict_gb, df_X, df_y, df_X_test, get_model("gb"))
 
                         # --- NN
                         if "nn" in P.algorithms:
                             score_column_name = label + name_tag + "nn"
-                            execution_results[score_column_name] = executor.submit(train_predict_nn, df_X, df_y, df_X_test, params_nn)
+                            execution_results[score_column_name] = executor.submit(train_predict_nn, df_X, df_y, df_X_test, get_model("nn"))
 
                         # --- LC
                         if "lc" in P.algorithms:
                             score_column_name = label + name_tag + "lc"
-                            execution_results[score_column_name] = executor.submit(train_predict_lc, df_X, df_y, df_X_test, params_lc)
+                            execution_results[score_column_name] = executor.submit(train_predict_lc, df_X, df_y, df_X_test, get_model("lc"))
 
                     # Process the results as the tasks are finished
                     for score_column_name, future in execution_results.items():
@@ -307,19 +307,19 @@ def main(config_file):
                 else:  # No multiprocessing - sequential execution
                     # --- GB
                     if "gb" in P.algorithms:
-                        y_hat = train_predict_gb(df_X, df_y, df_X_test, params=params_gb)
+                        y_hat = train_predict_gb(df_X, df_y, df_X_test, model_config=get_model("gb"))
                         score_column_name = label + name_tag + "gb"
                         predict_labels_df[score_column_name] = y_hat
 
                     # --- NN
                     if "nn" in P.algorithms:
-                        y_hat = train_predict_nn(df_X, df_y, df_X_test, params=params_nn)
+                        y_hat = train_predict_nn(df_X, df_y, df_X_test, model_config=get_model("nn"))
                         score_column_name = label + name_tag + "nn"
                         predict_labels_df[score_column_name] = y_hat
 
                     # --- LC
                     if "lc" in P.algorithms:
-                        y_hat = train_predict_lc(df_X, df_y, df_X_test, params=params_lc)
+                        y_hat = train_predict_lc(df_X, df_y, df_X_test, model_config=get_model("lc"))
                         score_column_name = label + name_tag + "lc"
                         predict_labels_df[score_column_name] = y_hat
 

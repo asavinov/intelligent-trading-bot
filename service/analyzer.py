@@ -341,11 +341,11 @@ class Analyzer:
         try:
             for score_column_name, model_pair in self.models.items():
                 if score_column_name.endswith("_gb"):
-                    df_y_hat = predict_gb(model_pair, predict_df)
+                    df_y_hat = predict_gb(model_pair, predict_df, get_model("gb"))
                 elif score_column_name.endswith("_nn"):
-                    df_y_hat = predict_nn(model_pair, predict_df, params_nn)
+                    df_y_hat = predict_nn(model_pair, predict_df, get_model("nn"))
                 elif score_column_name.endswith("_lc"):
-                    df_y_hat = predict_lc(model_pair, predict_df, params_lc)
+                    df_y_hat = predict_lc(model_pair, predict_df, get_model("lc"))
                 else:
                     raise ValueError(f"Unknown column name algorithm suffix {score_column_name[-3:]}. Currently only '_gb', '_nn', '_lc' are supported.")
                 score_df[score_column_name] = df_y_hat
