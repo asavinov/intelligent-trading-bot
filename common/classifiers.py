@@ -20,10 +20,12 @@ from sklearn.svm import SVC
 
 import lightgbm as lgbm
 
-import tensorflow as tf
+#import tensorflow as tf
+#from tensorflow import keras
+#from keras.optimizers import Adam
+from tensorflow.keras.optimizers import *
 from keras.models import Sequential
 from keras.layers import Dense, Dropout
-from keras.optimizers.adam_v2 import Adam
 from keras.regularizers import *
 from keras.callbacks import *
 

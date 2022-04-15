@@ -26,9 +26,6 @@ class P:
 
     in_nrows = 100_000_000
 
-    in_file_suffix = "features"
-    out_file_suffix = "matrix"
-
 
 @click.command()
 @click.option('--config_file', '-c', type=click.Path(), default='', help='Configuration file name')
@@ -46,18 +43,21 @@ def main(config_file):
         print(f"Data folder does not exist: {data_path}")
         return
 
+    config_file_modifier = App.config.get("config_file_modifier")
+    config_file_modifier = ("-" + config_file_modifier) if config_file_modifier else ""
+
     start_dt = datetime.now()
 
     #
     # Load input data (normally feature matrix but not necessarily)
     #
-    in_file_name = f"{symbol}-{P.in_file_suffix}.csv"
+    in_file_suffix = App.config.get("feature_file_modifier")
+
+    in_file_name = f"{symbol}-{in_file_suffix}{config_file_modifier}.csv"
     in_path = (data_path / in_file_name).resolve()
 
     print(f"Loading data from feature file {str(in_path)}...")
-
     in_df = pd.read_csv(in_path, parse_dates=['timestamp'], nrows=P.in_nrows)
-
     print(f"Finished loading {len(in_df)} records with {len(in_df.columns)} columns.")
 
     # Filter (for debugging)
@@ -138,7 +138,9 @@ def main(config_file):
         print(f"Bottom labels computed: {bot_labels}")
 
     # Save in output file
-    out_file_name = f"{symbol}-{P.out_file_suffix}.csv"
+    out_file_suffix = App.config.get("matrix_file_modifier")
+
+    out_file_name = f"{symbol}-{out_file_suffix}{config_file_modifier}.csv"
     out_path = (data_path / out_file_name).resolve()
 
     print(f"Storing file with labels. {len(in_df)} records and {len(in_df.columns)} columns in output file...")
@@ -147,7 +149,7 @@ def main(config_file):
     #
     # Store labels
     #
-    out_file_name = f"{symbol}-{P.out_file_suffix}.txt"
+    out_file_name = f"{symbol}-{out_file_suffix}{config_file_modifier}.txt"
     out_path = (data_path / out_file_name).resolve()
 
     with open(out_path, "a+") as f:

@@ -120,7 +120,11 @@ def main(config_file):
         print(f"Data folder does not exist: {data_path}")
         return
 
+    config_file_modifier = App.config.get("config_file_modifier")
+    config_file_modifier = ("-" + config_file_modifier) if config_file_modifier else ""
+
     start_dt = datetime.now()
+
     print(f"Start processing...")
 
     kline_file_path = data_path / f"{symbol}-klines.csv"

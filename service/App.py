@@ -103,6 +103,12 @@ class App:
         "data_folder": "",  # It is needed for model training
         "model_folder": "",  # It is needed by signaler at run time
 
+        # File name conventions
+        "feature_file_modifier": "features",
+        "matrix_file_modifier": "matrix",
+        "predict_file_modifier": "predict",  # Or predict-rolling
+        "signal_file_modifier": "performance",
+
         # ==========================
         # === FEATURE GENERATION ===
 

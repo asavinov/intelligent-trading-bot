@@ -8,11 +8,11 @@ from keras.models import Sequential, save_model, load_model
 """
 Next:
 - rework the logic where we have list of labels and list of algorithm configs, and need to train all their combinations
-- rework the logic of saving into and reading from files with pattern <label-model>. Here probably again we need to have a list of labels and a list of algorithms.
+- rework the logic of saving into and reading from model files with pattern <label-model>. Here probably again we need to have a list of labels and a list of algorithms.
   Alternatively, we might have a list of predict score labels which will have to be split
-- Check the place where we might need to read and use train set length as well as predict set length
 - What about feature set names? we use feature sets as named lists of input features. they might be also prefixed by symbol and channel: "kline_featrues" etc.
 
+- We have train set length in config params. Use it instead of the length in P 
 
 - CONCEPT: model and hyper-param/config management, structure algorithms, hyper-parameters, signals etc.
 - !!! introduce mechanism of having same model type, say, NN but with different hyper-parameters, e.g., history length

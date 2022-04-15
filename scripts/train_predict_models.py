@@ -13,7 +13,7 @@ from service.App import *
 from common.utils import *
 from common.classifiers import *
 from common.feature_generation import *
-from scripts.hyper_parameters import *
+from scripts.model_store import *
 
 """
 Use input feature matrix to train *one* label predict model for each label using all specified historic data.
@@ -41,9 +41,6 @@ class P:
 
     in_nrows = 100_000_000  # For debugging
     in_nrows_tail = None  # How many last rows to select (for testing)
-
-    in_file_suffix = "matrix"
-    predict_file_suffix = "predictions"
 
     # How much data we want to use for training
     kline_train_length = int(1.5 * 525_600)  # 1.5 * 525_600
@@ -75,12 +72,17 @@ def main(config_file):
     out_path = Path(App.config["model_folder"])
     out_path.mkdir(parents=True, exist_ok=True)  # Ensure that folder exists
 
+    config_file_modifier = App.config.get("config_file_modifier")
+    config_file_modifier = ("-" + config_file_modifier) if config_file_modifier else ""
+
+    start_dt = datetime.now()
+
     #
     # Load feature matrix
     #
-    start_dt = datetime.now()
+    in_file_suffix = App.config.get("matrix_file_modifier")
 
-    in_file_name = f"{symbol}-{P.in_file_suffix}.csv"
+    in_file_name = f"{symbol}-{in_file_suffix}{config_file_modifier}.csv"
     in_path = data_path / in_file_name
     if not in_path.exists():
         print(f"ERROR: Input file does not exist: {in_path}")
@@ -253,7 +255,9 @@ def main(config_file):
     # Store predictions if necessary
     #
     if P.store_predictions:
-        out_file_name = f"{symbol}-{P.predict_file_suffix}.csv"
+        out_file_suffix = App.config.get("predict_file_modifier")
+
+        out_file_name = f"{symbol}-{out_file_suffix}{config_file_modifier}.csv"
         out_path = data_path / out_file_name
 
         # We do not store features. Only selected original data, labels, and their predictions

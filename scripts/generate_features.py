@@ -18,9 +18,7 @@ from common.feature_generation import *
 class P:
     feature_sets = ["kline", ]  # "futur"
 
-    in_nrows = 100_000_000
-
-    out_file_suffix = "features"
+    in_nrows = 10_000
 
 
 @click.command()
@@ -35,6 +33,9 @@ def main(config_file):
         print(f"Data folder does not exist: {data_path}")
         return
 
+    config_file_modifier = App.config.get("config_file_modifier")
+    config_file_modifier = ("-" + config_file_modifier) if config_file_modifier else ""
+
     start_dt = datetime.now()
 
     #
@@ -43,9 +44,7 @@ def main(config_file):
     in_path = (data_path / f"{symbol}.csv").resolve()
 
     print(f"Loading data from source file {str(in_path)}...")
-
     in_df = pd.read_csv(in_path, parse_dates=['timestamp'], nrows=P.in_nrows)
-
     print(f"Finished loading {len(in_df)} records with {len(in_df.columns)} columns.")
 
     #
@@ -82,22 +81,20 @@ def main(config_file):
     #
     # Store feature matrix in output file
     #
-    out_file_name = f"{symbol}-{P.out_file_suffix}.csv"
+    out_file_suffix = App.config.get("feature_file_modifier")
+
+    out_file_name = f"{symbol}-{out_file_suffix}{config_file_modifier}.csv"
     out_path = (data_path / out_file_name).resolve()
 
     print(f"Storing feature matrix with {len(in_df)} records and {len(in_df.columns)} columns in output file...")
-
     in_df.to_csv(out_path, index=False, float_format="%.4f")
     #in_df.to_parquet(out_path.with_suffix('.parquet'), engine='auto', compression=None, index=None, partition_cols=None)
 
     #
     # Store features
     #
-    out_file_name = f"{symbol}-{P.out_file_suffix}.txt"
-    out_path = (data_path / out_file_name).resolve()
-
-    with open(out_path, "a+") as f:
-        f.write(", ".join(f"'{all_features}'") + "\n")
+    with open(out_path.with_suffix('.txt'), "a+") as f:
+        f.write(", ".join([f"'{f}'" for f in all_features] ) + "\n")
 
     print(f"Stored {len(all_features)} features in output file {out_path}")
 

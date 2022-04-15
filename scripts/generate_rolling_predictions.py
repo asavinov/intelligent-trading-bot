@@ -15,7 +15,7 @@ from service.App import *
 from common.utils import *
 from common.classifiers import *
 from common.feature_generation import *
-from scripts.hyper_parameters import *
+from scripts.model_store import *
 
 """
 Generate label predictions for the whole input feature matrix by iteratively training models using historic data and predicting labels for some future horizon.
@@ -37,9 +37,6 @@ class P:
 
     start_index = 0
     end_index = None
-
-    in_file_suffix = "matrix"
-    predict_file_suffix = "predictions-rolling"
 
     # How much data we want to use for training
     kline_train_length = int(1.5 * 525_600)  # 1.5 * 525_600
@@ -78,12 +75,17 @@ def main(config_file):
         print(f"Data folder does not exist: {data_path}")
         return
 
+    config_file_modifier = App.config.get("config_file_modifier")
+    config_file_modifier = ("-" + config_file_modifier) if config_file_modifier else ""
+
+    start_dt = datetime.now()
+
     #
     # Load feature matrix
     #
-    start_dt = datetime.now()
+    in_file_suffix = App.config.get("matrix_file_modifier")
 
-    in_file_name = f"{symbol}-{P.in_file_suffix}.csv"
+    in_file_name = f"{symbol}-{in_file_suffix}{config_file_modifier}.csv"
     in_path = data_path / in_file_name
     if not in_path.exists():
         print(f"ERROR: Input file does not exist: {in_path}")
@@ -342,11 +344,13 @@ def main(config_file):
     #
     # Store data
     #
-    out_file_name = f"{symbol}-{P.predict_file_suffix}.csv"
-    out_path = data_path / out_file_name
-
     # We do not store features. Only selected original data, labels, and their predictions
     out_df = labels_hat_df.join(df[out_columns + labels])
+
+    out_file_suffix = App.config.get("predict_file_modifier")
+
+    out_file_name = f"{symbol}-{out_file_suffix}{config_file_modifier}.csv"
+    out_path = data_path / out_file_name
 
     print(f"Storing output file...")
     out_df.to_csv(out_path, index=False)

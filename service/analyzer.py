@@ -13,7 +13,7 @@ from common.utils import *
 from common.classifiers import *
 from common.feature_generation import *
 from common.signal_generation import *
-from scripts.hyper_parameters import *
+from scripts.model_store import *
 
 import logging
 log = logging.getLogger('analyzer')

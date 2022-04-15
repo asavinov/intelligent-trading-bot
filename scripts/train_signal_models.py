@@ -62,11 +62,6 @@ class P:
 
     in_nrows = 100_000_000
 
-    # Examples: features-rolling, features-rolling-scores, predictions
-    # It must contain buy and sell predicted labels as specified in the config as well as close price and maybe some other column needed for trade simulation
-    predict_file_suffix = "predictions-rolling"
-    out_file_suffix = "signals"  # TXT file with result parameters and their performances
-
     start_index = 0
     end_index = None
     # TODO
@@ -167,10 +162,15 @@ def main(config_file):
     out_path = Path(App.config["data_folder"])
     out_path.mkdir(parents=True, exist_ok=True)  # Ensure that folder exists
 
+    config_file_modifier = App.config.get("config_file_modifier")
+    config_file_modifier = ("-" + config_file_modifier) if config_file_modifier else ""
+
     #
     # Load data with (rolling) label point-wise predictions
     #
-    in_file_name = f"{symbol}-{P.predict_file_suffix}.csv"
+    in_file_suffix = App.config.get("predict_file_modifier")
+
+    in_file_name = f"{symbol}-{in_file_suffix}{config_file_modifier}.csv"
     in_path = data_path / in_file_name
     if not in_path.exists():
         print(f"ERROR: Input file does not exist: {in_path}")
@@ -288,7 +288,9 @@ def main(config_file):
     #
     # Store simulation parameters and performance
     #
-    out_file_name = f"{symbol}-{P.out_file_suffix}.txt"
+    out_file_suffix = App.config.get("signal_file_modifier")
+
+    out_file_name = f"{symbol}-{out_file_suffix}{config_file_modifier}.txt"
     out_path = (out_path / out_file_name).resolve()
 
     if out_path.is_file():
