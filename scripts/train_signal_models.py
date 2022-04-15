@@ -64,16 +64,18 @@ class P:
 
     # Examples: features-rolling, features-rolling-scores, predictions
     # It must contain buy and sell predicted labels as specified in the config as well as close price and maybe some other column needed for trade simulation
-    predict_file_suffix = "predictions"
+    predict_file_suffix = "predictions-rolling"
     out_file_suffix = "signals"  # TXT file with result parameters and their performances
 
-    # TODO: currently not used
+    start_index = 0
+    end_index = None
+    # TODO
     simulation_start = 263519   # Good start is 2019-06-01 - after it we have stable movement
     simulation_end = -0  # After 2020-11-01 there is sharp growth which we might want to exclude
 
     # True if buy and sell hyper-parameters are equal
     # Only buy parameters will be used and sell parameters will be ignored
-    buy_sell_equal = False
+    buy_sell_equal = True
 
     topn_to_store = 20
 
@@ -83,8 +85,8 @@ class P:
 grid_signals = [
     {
         "buy_point_threshold": [None], # + np.arange(0.02, 0.20, 0.01).tolist(),  # None means do not use
-        "buy_window": [3, 4, 5],  # [5, 6, 7, 8, 9, 10, 11, 12]
-        "buy_signal_threshold": [0.64, 0.65, 0.66, 0.68, 0.7, 0.72],  # [0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 1.0]
+        "buy_window": [1, 3],  # [5, 6, 7, 8, 9, 10, 11, 12]
+        "buy_signal_threshold": [0.4, 0.42, 0.44, 0.46, 0.48, 0.5, 0.52, 0.54, 0.56, 0.58, 0.6, 0.62, 0.66, 0.68, 0.7],  # [0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 1.0]
 
         # If two groups are equal, then these values are ignored
         "sell_point_threshold": [None], # + np.arange(0.02, 0.20, 0.01).tolist()
@@ -168,18 +170,20 @@ def main(config_file):
     #
     # Load data with (rolling) label point-wise predictions
     #
-    print(f"Loading data with label (rolling) predict scores from input file...")
-    start_dt = datetime.now()
-
     in_file_name = f"{symbol}-{freq}-{P.predict_file_suffix}.csv"
     in_path = data_path / in_file_name
     if not in_path.exists():
         print(f"ERROR: Input file does not exist: {in_path}")
         return
 
+    print(f"Loading predictions from input file: {in_path}")
+    start_dt = datetime.now()
     df = pd.read_csv(in_path, parse_dates=['timestamp'], nrows=P.in_nrows)
-
     print(f"Predictions loaded. Length: {len(df)}. Width: {len(df.columns)}")
+
+    # Limit size according to parameters start_index end_index
+    df = df.iloc[P.start_index:P.end_index]
+    df = df.reset_index()
 
     #
     # Find maximum performance possible based on true labels only

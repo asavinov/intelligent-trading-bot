@@ -13,6 +13,7 @@ from service.App import *
 from common.utils import *
 from common.classifiers import *
 from common.feature_generation import *
+from scripts.hyper_parameters import *
 
 """
 Use input feature matrix to train *one* label predict model for each label using all specified historic data.
@@ -36,7 +37,7 @@ obtained elsewhere (e.g., using grid search).
 #
 class P:
     feature_sets = ["kline"]  # futur
-    algorithms = ["nn", "lc"]  # gb, nn, lc
+    algorithms = ["nn"]  # gb, nn, lc
 
     in_nrows = 100_000_000  # For debugging
     in_nrows_tail = None  # How many last rows to select (for testing)
@@ -50,41 +51,6 @@ class P:
 
     # Whether to store file with predictions
     store_predictions = True
-
-#
-# (Best) train parameters (found by and copied from grid search scripts)
-#
-
-params_gb = {
-    "objective": "cross_entropy",
-    "max_depth": 1,
-    "learning_rate": 0.01,
-    "num_boost_round": 1_500,
-
-    "lambda_l1": 1.0,
-    "lambda_l2": 1.0,
-    "shifts": [],
-}
-
-params_nn = {
-    #"is_scale": True,  # by default True
-    "layers": [29],  # It is equal to the number of input features (different for spot and futur). Currently not used
-    "learning_rate": 0.001,
-    "n_epochs": 30,
-    "bs": 64,
-    "shifts": [],
-}
-
-params_lc = {
-    "is_scale": True,
-    "penalty": "l2",
-    "C": 1.0,
-    "class_weight": None,
-    "solver": "sag",  # liblinear, lbfgs, sag/saga (stochastic gradient descent for large datasets, should be scaled)
-    "max_iter": 200,
-    "shifts": [],
-    #"tol": 0.1,  # Tolerance for performance (check how it influences precision)
-}
 
 
 @click.command()

@@ -103,6 +103,7 @@ class App:
         "data_folder": "",  # It is needed for model training
         "model_folder": "",  # It is needed by signaler at run time
 
+        # ==========================
         # === FEATURE GENERATION ===
 
         # If these are changed, then feature names (below) will also have to be changed
@@ -128,6 +129,7 @@ class App:
             "close_trend_60", "close_trend_360", "close_trend_1440", "close_trend_4320", "close_trend_10080"
         ],
 
+        # ========================
         # === LABEL GENERATION ===
 
         # This will be excluded from model training
@@ -152,13 +154,10 @@ class App:
             "bot8_1", "bot8_15", "bot8_2", "bot8_25", "bot8_3",
             "top8_1", "top8_15", "top8_2", "top8_25", "top8_3",
 
-            "high_10", "high_15", "high_20", "high_25", "high_30",
-            "low_10", "low_15", "low_20", "low_25", "low_30"
-        ],
-        "class_labels_all": [  # All existing target labels implemented in label generation procedure
             'high_max_180',  # Maximum high (relative)
-            'high_10', 'high_15', 'high_20', 'high_25',  # At least one time above
-            'high_01', 'high_02', 'high_03', 'high_04',  # Always below
+
+            "high_10", "high_15", "high_20", "high_25", "high_30",
+            "low_10", "low_15", "low_20", "low_25", "low_30",
 
             'low_min_180',  # Minimum low (relative)
             'low_01', 'low_02', 'low_03', 'low_04',  # Always above
@@ -169,6 +168,7 @@ class App:
             'close_area_future_60', 'close_area_future_120', 'close_area_future_180', 'close_area_future_300',
         ],
 
+        # ========================
         # === SIGNALER SERVER ===
 
         # These are predicted columns <label, feature_set, algorithm> as well as model (pair) names
@@ -198,6 +198,7 @@ class App:
             "notify_frequency_minutes": 10,  # 1m, 5m, 10m, 15m etc. Minutes will be divided by this number
         },
 
+        # =====================
         # === TRADER SERVER ===
         "trader": {
             # For debugging: determine what parts of code will be executed
@@ -213,6 +214,7 @@ class App:
             "percentage_sell_price": 1.018,  # our planned profit per trade via limit sell order (part of the model)
         },
 
+        # ==================
         # === COLLECTORS ===
         "collector": {
             "folder": "DATA",

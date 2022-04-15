@@ -13,6 +13,7 @@ from common.utils import *
 from common.classifiers import *
 from common.feature_generation import *
 from common.signal_generation import *
+from scripts.hyper_parameters import *
 
 import logging
 log = logging.getLogger('analyzer')
@@ -337,11 +338,6 @@ class Analyzer:
 
         # Do prediction by applying all models (for the score columns declared in config) to the data
         score_df = pd.DataFrame(index=predict_df.index)
-        # TODO: Move all train/predict parameters to one place. Maybe also feature/label definitions.
-        #   Maybe they should be in App.config, but these fields could be initialized by loading from some central Python file
-        #   or special dedicated configuration section like features, labels, signaling, training, prediction etc.
-        #   The idea is that eventually we want to store these definitions centrally and then score different fully-defined workflows
-        from scripts.train_predict_models import params_nn, params_lc
         try:
             for score_column_name, model_pair in self.models.items():
                 if score_column_name.endswith("_gb"):

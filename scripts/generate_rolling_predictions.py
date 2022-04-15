@@ -15,6 +15,7 @@ from service.App import *
 from common.utils import *
 from common.classifiers import *
 from common.feature_generation import *
+from scripts.hyper_parameters import *
 
 """
 Generate label predictions for the whole input feature matrix by iteratively training models using historic data and predicting labels for some future horizon.
@@ -32,57 +33,26 @@ class P:
     # Each one is a separate procedure with its algorithm and (expected) input features
     # Leave only what we want to generate (say, only klines for debug purposes)
     feature_sets = ["kline", ]  # "futur"
-    algorithms = ["gb", "nn", "lc"]  # gb, nn, lc
+    algorithms = ["nn"]  # gb, nn, lc
 
-    in_nrows = 100_000_000
-    in_nrows_tail = None  # How many last rows to select (for testing)
-    skiprows = 500_000
+    start_index = 0
+    end_index = None
 
     in_file_suffix = "matrix"
     predict_file_suffix = "predictions-rolling"
 
     # How much data we want to use for training
-    kline_train_length = int(2.0 * 525_600)  # 1.5 * 525_600
+    kline_train_length = int(1.5 * 525_600)  # 1.5 * 525_600
     futur_train_length = int(4 * 43_800)
 
     # First row for starting predictions: "2020-02-01 00:00:00" - minimum start for futures
     prediction_start_str = "2020-02-01 00:00:00"
     # How frequently re-train models: 1 day: 1_440 = 60 * 24, one week: 10_080
-    prediction_length = 4*7*1440
-    prediction_count = 28  # How many prediction steps. If None or 0, then from prediction start till the data end. Use: https://www.timeanddate.com/date/duration.html
+    prediction_length = 2*7*1440
+    prediction_count = 56  # How many prediction steps. If None or 0, then from prediction start till the data end. Use: https://www.timeanddate.com/date/duration.html
 
     use_multiprocessing = True
     max_workers = 8  # None means number of processors
-
-#
-# (Best) algorithm parameters (found by and copied from grid search scripts)
-#
-
-params_gb = {
-    "objective": "cross_entropy",
-    "max_depth": 1,
-    "learning_rate": 0.01,
-    "num_boost_round": 1_500,
-
-    "lambda_l1": 1.0,
-    "lambda_l2": 1.0,
-}
-
-params_nn = {
-    "layers": [29],  # It is equal to the number of input features (different for spot and futur)
-    "learning_rate": 0.001,
-    "n_epochs": 60,
-    "bs": 64,
-}
-
-params_lc = {
-    "is_scale": False,
-    "penalty": "l2",
-    "C": 1.0,
-    "class_weight": None,
-    "solver": "liblinear",
-    "max_iter": 200,
-}
 
 
 #
@@ -120,23 +90,39 @@ def main(config_file):
         return
 
     print(f"Loading feature matrix from input file: {in_path}")
-    in_df = None
+    df = None
     if in_file_name.endswith(".csv"):
-        in_df = pd.read_csv(in_path, parse_dates=['timestamp'], nrows=P.in_nrows)
+        df = pd.read_csv(in_path, parse_dates=['timestamp'])
     elif in_file_name.endswith(".parquet"):
-        in_df = pd.read_parquet(in_path)
+        df = pd.read_parquet(in_path)
     elif in_file_name.endswith(".pickle"):
-        in_df = pd.read_pickle(in_path)
+        df = pd.read_pickle(in_path)
     else:
         print(f"ERROR: Unknown input file extension. Only csv and parquet are supported.")
 
-    print(f"Feature matrix loaded. Length: {len(in_df)}. Width: {len(in_df.columns)}")
+    print(f"Feature matrix loaded. Length: {len(df)}. Width: {len(df.columns)}")
 
-    if P.in_nrows_tail:
-        in_df = in_df.tail(P.in_nrows_tail)
+    #
+    # Limit length according to parameters start_index end_index
+    #
+    df = df.iloc[P.start_index:P.end_index]
+    df = df.reset_index()
 
+    # Spot and futures have different available histories. If we drop nans in all of them, then we get a very short data frame (corresponding to futureus which have little data)
+    # So we do not drop data here but rather when we select necessary input features
+    # Nans result in constant accuracy and nan loss. MissingValues procedure does not work and produces exceptions
+    pd.set_option('use_inf_as_na', True)
+    #in_df = in_df.dropna(subset=labels)
+    df = df.reset_index(drop=True)  # We must reset index after removing rows to remove gaps
+
+    prediction_start = find_index(df, P.prediction_start_str)
+    print(f"Start index: {prediction_start}")
+
+    #
+    # Limit columns
+    #
     for label in labels:
-        in_df[label] = in_df[label].astype(int)  # "category" NN does not work without this
+        df[label] = df[label].astype(int)  # "category" NN does not work without this
 
     # Select necessary features and label
     out_columns = ['timestamp', 'open', 'high', 'low', 'close', 'volume', 'close_time']
@@ -146,17 +132,7 @@ def main(config_file):
     if "futur" in P.feature_sets:
         all_features += features_futur
     all_features += labels
-    in_df = in_df[all_features + out_columns]
-
-    # Spot and futures have different available histories. If we drop nans in all of them, then we get a very short data frame (corresponding to futureus which have little data)
-    # So we do not drop data here but rather when we select necessary input features
-    # Nans result in constant accuracy and nan loss. MissingValues procedure does not work and produces exceptions
-    pd.set_option('use_inf_as_na', True)
-    #in_df = in_df.dropna(subset=labels)
-    in_df = in_df.reset_index(drop=True)  # We must reset index after removing rows to remove gaps
-
-    prediction_start = find_index(in_df, P.prediction_start_str)
-    print(f"Start index: {prediction_start}")
+    df = df[all_features + out_columns]
 
     #
     # Rolling train-predict loop
@@ -165,9 +141,9 @@ def main(config_file):
     steps = P.prediction_count
     if not steps:
         # Use all available rest data (from the prediction start to the dataset end)
-        steps = (len(in_df) - prediction_start) // stride
-    if len(in_df) - prediction_start < steps * stride:
-        raise ValueError(f"Number of steps {steps} is too high (not enough data after start). Data available for prediction: {len(in_df) - prediction_start}. Data to be predicted: {steps * stride} ")
+        steps = (len(df) - prediction_start) // stride
+    if len(df) - prediction_start < steps * stride:
+        raise ValueError(f"Number of steps {steps} is too high (not enough data after start). Data available for prediction: {len(df) - prediction_start}. Data to be predicted: {steps * stride} ")
 
     print(f"Starting rolling predict loop with {steps} steps. Each step with {stride} horizon...")
 
@@ -183,7 +159,7 @@ def main(config_file):
         predict_start = prediction_start + (step * stride)
         predict_end = predict_start + stride
 
-        predict_df = in_df.iloc[predict_start:predict_end]  # We assume that iloc is equal to index
+        predict_df = df.iloc[predict_start:predict_end]  # We assume that iloc is equal to index
         # predict_df = predict_df.dropna(subset=features)  # Nans will be droped by the algorithms themselves
 
         # Here we will collect predicted columns
@@ -212,7 +188,7 @@ def main(config_file):
             train_start = train_end - train_length
             train_start = 0 if train_start < 0 else train_start
 
-            train_df = in_df.iloc[int(train_start):int(train_end)]  # We assume that iloc is equal to index
+            train_df = df.iloc[int(train_start):int(train_end)]  # We assume that iloc is equal to index
             train_df = train_df.dropna(subset=features)
 
             df_X = train_df[features]
@@ -291,7 +267,7 @@ def main(config_file):
             train_start = train_end - train_length
             train_start = 0 if train_start < 0 else train_start
 
-            train_df = in_df.iloc[int(train_start):int(train_end)]  # We assume that iloc is equal to index
+            train_df = df.iloc[int(train_start):int(train_end)]  # We assume that iloc is equal to index
             train_df = train_df.dropna(subset=features)
 
             df_X = train_df[features]
@@ -370,7 +346,7 @@ def main(config_file):
     out_path = data_path / out_file_name
 
     # We do not store features. Only selected original data, labels, and their predictions
-    out_df = labels_hat_df.join(in_df[out_columns + labels])
+    out_df = labels_hat_df.join(df[out_columns + labels])
 
     print(f"Storing output file...")
     out_df.to_csv(out_path, index=False)
