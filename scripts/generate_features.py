@@ -40,7 +40,7 @@ def main(config_file):
     #
     # Load historic data
     #
-    in_path = (data_path / f"{symbol}-{freq}.csv").resolve()
+    in_path = (data_path / f"{symbol}.csv").resolve()
 
     print(f"Loading data from source file {str(in_path)}...")
 
@@ -82,7 +82,7 @@ def main(config_file):
     #
     # Store feature matrix in output file
     #
-    out_file_name = f"{symbol}-{freq}-{P.out_file_suffix}.csv"
+    out_file_name = f"{symbol}-{P.out_file_suffix}.csv"
     out_path = (data_path / out_file_name).resolve()
 
     print(f"Storing feature matrix with {len(in_df)} records and {len(in_df.columns)} columns in output file...")
@@ -93,7 +93,7 @@ def main(config_file):
     #
     # Store features
     #
-    out_file_name = f"{symbol}-{freq}-{P.out_file_suffix}.txt"
+    out_file_name = f"{symbol}-{P.out_file_suffix}.txt"
     out_path = (data_path / out_file_name).resolve()
 
     with open(out_path, "a+") as f:

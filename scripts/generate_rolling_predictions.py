@@ -83,7 +83,7 @@ def main(config_file):
     #
     start_dt = datetime.now()
 
-    in_file_name = f"{symbol}-{freq}-{P.in_file_suffix}.csv"
+    in_file_name = f"{symbol}-{P.in_file_suffix}.csv"
     in_path = data_path / in_file_name
     if not in_path.exists():
         print(f"ERROR: Input file does not exist: {in_path}")
@@ -342,7 +342,7 @@ def main(config_file):
     #
     # Store data
     #
-    out_file_name = f"{symbol}-{freq}-{P.predict_file_suffix}.csv"
+    out_file_name = f"{symbol}-{P.predict_file_suffix}.csv"
     out_path = data_path / out_file_name
 
     # We do not store features. Only selected original data, labels, and their predictions

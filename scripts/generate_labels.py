@@ -51,7 +51,7 @@ def main(config_file):
     #
     # Load input data (normally feature matrix but not necessarily)
     #
-    in_file_name = f"{symbol}-{freq}-{P.in_file_suffix}.csv"
+    in_file_name = f"{symbol}-{P.in_file_suffix}.csv"
     in_path = (data_path / in_file_name).resolve()
 
     print(f"Loading data from feature file {str(in_path)}...")
@@ -138,7 +138,7 @@ def main(config_file):
         print(f"Bottom labels computed: {bot_labels}")
 
     # Save in output file
-    out_file_name = f"{symbol}-{freq}-{P.out_file_suffix}.csv"
+    out_file_name = f"{symbol}-{P.out_file_suffix}.csv"
     out_path = (data_path / out_file_name).resolve()
 
     print(f"Storing file with labels. {len(in_df)} records and {len(in_df.columns)} columns in output file...")
@@ -147,7 +147,7 @@ def main(config_file):
     #
     # Store labels
     #
-    out_file_name = f"{symbol}-{freq}-{P.out_file_suffix}.txt"
+    out_file_name = f"{symbol}-{P.out_file_suffix}.txt"
     out_path = (data_path / out_file_name).resolve()
 
     with open(out_path, "a+") as f:

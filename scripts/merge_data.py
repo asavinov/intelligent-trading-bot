@@ -123,9 +123,9 @@ def main(config_file):
     start_dt = datetime.now()
     print(f"Start processing...")
 
-    kline_file_path = data_path / f"{symbol}-{freq}-klines.csv"
+    kline_file_path = data_path / f"{symbol}-klines.csv"
     k_df, k_start, k_end = load_kline_files(kline_file_path)
-    futur_file_path = data_path / f"{symbol}-{freq}-futurs.csv"
+    futur_file_path = data_path / f"{symbol}-futurs.csv"
     f_df, f_start, f_end = load_futur_files(futur_file_path)
     if depth_file_names:
         d_dfs, d_start, d_end = load_depth_files()
@@ -181,7 +181,7 @@ def main(config_file):
     #
     # Store file with features
     #
-    out_file_name = f"{symbol}-{freq}.csv"
+    out_file_name = f"{symbol}.csv"
     out_path = (data_path / out_file_name).resolve()
 
     df_out.to_csv(out_path, index=True)  # float_format="%.6f"

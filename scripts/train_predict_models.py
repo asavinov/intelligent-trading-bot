@@ -80,7 +80,7 @@ def main(config_file):
     #
     start_dt = datetime.now()
 
-    in_file_name = f"{symbol}-{freq}-{P.in_file_suffix}.csv"
+    in_file_name = f"{symbol}-{P.in_file_suffix}.csv"
     in_path = data_path / in_file_name
     if not in_path.exists():
         print(f"ERROR: Input file does not exist: {in_path}")
@@ -242,7 +242,7 @@ def main(config_file):
         line = score_column_name + ", " + str(score)
         lines.append(line)
 
-    metrics_file_name = f"{symbol}-{freq}-metrics.txt"
+    metrics_file_name = f"{symbol}-metrics.txt"
     metrics_path = (out_path / metrics_file_name).resolve()
     with open(metrics_path, 'a+') as f:
         f.write("\n".join(lines) + "\n")
@@ -253,7 +253,7 @@ def main(config_file):
     # Store predictions if necessary
     #
     if P.store_predictions:
-        out_file_name = f"{symbol}-{freq}-{P.predict_file_suffix}.csv"
+        out_file_name = f"{symbol}-{P.predict_file_suffix}.csv"
         out_path = data_path / out_file_name
 
         # We do not store features. Only selected original data, labels, and their predictions

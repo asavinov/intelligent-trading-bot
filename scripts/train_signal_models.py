@@ -170,7 +170,7 @@ def main(config_file):
     #
     # Load data with (rolling) label point-wise predictions
     #
-    in_file_name = f"{symbol}-{freq}-{P.predict_file_suffix}.csv"
+    in_file_name = f"{symbol}-{P.predict_file_suffix}.csv"
     in_path = data_path / in_file_name
     if not in_path.exists():
         print(f"ERROR: Input file does not exist: {in_path}")
@@ -288,7 +288,7 @@ def main(config_file):
     #
     # Store simulation parameters and performance
     #
-    out_file_name = f"{symbol}-{freq}-{P.out_file_suffix}.txt"
+    out_file_name = f"{symbol}-{P.out_file_suffix}.txt"
     out_path = (out_path / out_file_name).resolve()
 
     if out_path.is_file():

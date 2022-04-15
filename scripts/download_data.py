@@ -71,9 +71,9 @@ def main(config_file):
     print(f"Downloader parameters. Symbol {symbol}. Frequency: {freq}. Save: {save}. Futures: {futures}.")
 
     if futures:
-        filename = f"{symbol}-{freq}-futurs.csv"
+        filename = f"{symbol}-futurs.csv"
     else:
-        filename = f"{symbol}-{freq}-klines.csv"
+        filename = f"{symbol}-klines.csv"
     file_path = (data_path / filename).resolve()
 
     if file_path.is_file():
@@ -208,7 +208,7 @@ async def get_futures_klines_all(symbol, freq, save = False):
     GET /fapi/v1/klines: symbol*, interval*, startTime, endTime, limit
     """
 
-    filename = f"{symbol}-{freq}-futures.csv"
+    filename = f"{symbol}-futures.csv"
 
     if os.path.isfile(filename): 
         data_df = pd.read_csv(filename)
