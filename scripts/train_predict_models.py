@@ -40,7 +40,7 @@ class P:
     in_nrows_tail = None  # How many last rows to select (for testing)
 
     # How much data we want to use for training
-    kline_train_length = int(1.5 * 525_600)  # 1.5 * 525_600
+    kline_train_length = int(2.0 * 525_600)  # 1.5 * 525_600
     futur_train_length = int(4 * 43_800)
 
     # Whether to store file with predictions
@@ -138,31 +138,38 @@ def main(config_file):
         if feature_set == "kline":
             features = features_kline
             fs_tag = "_k_"
-            train_length = P.kline_train_length
+            feature_set_train_length = P.kline_train_length
         elif feature_set == "futur":
             features = features_futur
             fs_tag = "_f_"
-            train_length = P.futur_train_length
+            feature_set_train_length = P.futur_train_length
         else:
             print(f"ERROR: Unknown feature set {feature_set}. Check feature set list in config.")
             return
 
-        print(f"Start training {feature_set} feature set with {len(features)} features, name tag {fs_tag}', and train length {train_length}")
+        print(f"Start training {feature_set} feature set with {len(features)} features, name tag {fs_tag}', and train length {feature_set_train_length}")
 
-        train_df = in_df.tail(train_length)
+        # Limit maximum length
+        train_df = in_df.tail(feature_set_train_length)
         train_df = train_df.dropna(subset=features)
 
-        df_X = train_df[features]
-
         for label in labels:
-            df_y = train_df[label]
 
             for algo_name in algorithms:
                 model_config = get_model(algo_name)
                 algo_type = model_config.get("algo")
+                train_length = model_config.get("train", {}).get("length")
                 score_column_name = label + fs_tag + algo_name
 
-                print(f"Train '{score_column_name}'... ")
+                # Limit length according to algorith parameters
+                if train_length and train_length < feature_set_train_length:
+                    train_df_2 = train_df.iloc[-train_length:]
+                else:
+                    train_df_2 = train_df
+                df_X = train_df_2[features]
+                df_y = train_df_2[label]
+
+                print(f"Train '{score_column_name}'. Train length {len(df_X)}. Algorithm {algo_name}")
                 if algo_type == "gb":
                     model_pair = train_gb(df_X, df_y, model_config)
                     models[score_column_name] = model_pair

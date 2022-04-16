@@ -169,16 +169,16 @@ def main(config_file):
             if feature_set == "kline":
                 features = features_kline
                 fs_tag = "_k_"
-                train_length = P.kline_train_length
+                feature_set_train_length = P.kline_train_length
             elif feature_set == "futur":
                 features = features_futur
                 fs_tag = "_f_"
-                train_length = P.futur_train_length
+                feature_set_train_length = P.futur_train_length
             else:
                 print(f"ERROR: Unknown feature set {feature_set}. Check feature set list in config.")
                 return
 
-            print(f"Start training {feature_set} feature set with {len(features)} features, name tag {fs_tag}', and train length {train_length}")
+            print(f"Start training {feature_set} feature set with {len(features)} features, name tag {fs_tag}', and train length {feature_set_train_length}")
 
             # Predict data
 
@@ -190,20 +190,15 @@ def main(config_file):
             # We exclude recent objects from training, because they do not have labels yet - the labels are in future
             # In real (stream) data, we will have null labels for recent objects. During simulation, labels are available and hence we need to ignore/exclude them manually
             train_end = predict_start - label_horizon - 1
-            train_start = train_end - train_length
+            train_start = train_end - feature_set_train_length
             train_start = 0 if train_start < 0 else train_start
 
             train_df = df.iloc[int(train_start):int(train_end)]  # We assume that iloc is equal to index
             train_df = train_df.dropna(subset=features)
 
-            df_X = train_df[features]
-            #df_y = train_df[predict_label]  # It will be set in the loop over labels
-
             print(f"Train range: [{train_start}, {train_end}]={train_end-train_start}. Prediction range: [{predict_start}, {predict_end}]={predict_end-predict_start}. ")
 
             for label in labels:  # Train-predict different labels (and algorithms) using same X
-                df_y = train_df[label]
-                df_y_test = predict_df[label]
 
                 if P.use_multiprocessing:
                     # Submit train-predict algorithms to the pool
@@ -212,7 +207,17 @@ def main(config_file):
                         for algo_name in algorithms:
                             model_config = get_model(algo_name)
                             algo_type = model_config.get("algo")
+                            train_length = model_config.get("train", {}).get("length")
                             score_column_name = label + fs_tag + algo_name
+
+                            # Limit length according to algorith parameters
+                            if train_length and train_length < feature_set_train_length:
+                                train_df_2 = train_df.iloc[-train_length:]
+                            else:
+                                train_df_2 = train_df
+                            df_X = train_df_2[features]
+                            df_y = train_df_2[label]
+                            df_y_test = predict_df[label]
 
                             if algo_type == "gb":
                                 execution_results[score_column_name] = executor.submit(train_predict_gb, df_X, df_y, df_X_test, model_config)
@@ -234,7 +239,17 @@ def main(config_file):
                     for algo_name in algorithms:
                         model_config = get_model(algo_name)
                         algo_type = model_config.get("algo")
+                        train_length = model_config.get("train", {}).get("length")
                         score_column_name = label + fs_tag + algo_name
+
+                        # Limit length according to algorith parameters
+                        if train_length and train_length < feature_set_train_length:
+                            train_df_2 = train_df.iloc[-train_length:]
+                        else:
+                            train_df_2 = train_df
+                        df_X = train_df_2[features]
+                        df_y = train_df_2[label]
+                        df_y_test = predict_df[label]
 
                         if algo_type == "gb":
                             predict_labels_df[score_column_name] = train_predict_gb(df_X, df_y, df_X_test, model_config)

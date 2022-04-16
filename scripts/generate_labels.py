@@ -69,13 +69,14 @@ def main(config_file):
     # Generate labels (always the same, currently based on kline data which must be therefore present)
     #
     if "high-low" in P.label_sets:
-        print(f"Generating 'high-low' labels...")
-        horizon = App.config["label_horizon"]
+        horizon = App.config["high_low_horizon"]
 
         # Binary labels whether max has exceeded a threshold or not
+        print(f"Generating 'high-low' labels with horizon {horizon}...")
         labels += generate_labels_thresholds(in_df, horizon=horizon)
 
         # Numeric label which is a ratio between areas over and under the latest price
+        print(f"Generating ration labels with horizon...")
         labels += add_area_ratio(in_df, is_future=True, column_name="close", windows=[60, 120, 180, 300], suffix = "_area_future")
 
         print(f"Finished generating 'high-low' labels. {len(labels)} labels generated.")

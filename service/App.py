@@ -137,11 +137,7 @@ class App:
         # ========================
         # === LABEL GENERATION ===
 
-        # This will be excluded from model training
-        # For high-low labels it should be label horizon. For top-bot it can be small
-        # TODO: we need different values for high-low and top-bot and for model training
-        #   example: high_low_horizon
-        "label_horizon": 0,  # For high-low label generation and training it should be 1440
+        "high_low_horizon": 1440,  # Parameter of labels: computing max and min for this horizon ahead
 
         # ========================
         # === MODEL GENERATION ===
@@ -149,6 +145,9 @@ class App:
 
         "feature_sets": ["kline"],  # futur
         "algorithms": ["nn"],  # gb, nn, lc
+
+        # This will be excluded from model training
+        "label_horizon": 0,
 
         # Models will be trained for these models
         "labels": [

@@ -19,11 +19,6 @@ Next:
   actually, our goal is to have btc and eth in one file, and then generate features for both of them with btc_ and eth_ prefix
   - What about feature set names? we use feature sets as named lists of input features. they might be also prefixed by symbol and channel: "kline_featrues" etc.
 
-- !!! We have train set length in config params associated with feature set. Use train size in algo spec instead.
-  - what we need to achieve is having two identical algorithm specs but having different train lengths (short, middle, long)
-- label_horizon problem: 1) use dedicated parameter for high-low labels 2) use dedicated parameter to ignore some tail (but maybe the tail will be removed automatically because it has NULLs)  
-
-
 - CONCEPT: model and hyper-param/config management, structure algorithms, hyper-parameters, signals etc.
 - !!! introduce mechanism of having same model type, say, NN but with different hyper-parameters, e.g., history length
   So we specify not only algorithm name (nn, lc etc.) but also hyper-parameters name (maybe introduce a kind of model repo where we have: name, algo_type, algo_model etc.)
@@ -115,7 +110,7 @@ models = [
             "n_epochs": 5,  # 5 for quick analysis, 20 for production
             "bs": 128,
         },
-        "train": {"is_scale": True, "length": 10_000, "shifts": []},
+        "train": {"is_scale": True, "length": int(1.5 * 525_600), "shifts": []},
         "predict": {"length": "1w"}
     },
     {
@@ -129,7 +124,7 @@ models = [
             "max_iter": 200,
             # "tol": 0.1,  # Tolerance for performance (check how it influences precision)
         },
-        "train": {"is_scale": True, "length": 10_000, "shifts": []},
+        "train": {"is_scale": True, "length": int(1.5 * 525_600), "shifts": []},
         "predict": {"length": 1440}
     },
     {
@@ -144,8 +139,7 @@ models = [
             "lambda_l1": 1.0,
             "lambda_l2": 1.0,
         },
-        "train": {"length": 10_000, "shifts": []},
+        "train": {"is_scale": False, "length": int(1.5 * 525_600), "shifts": []},
         "predict": {"length": 1440}
     },
 ]
-
