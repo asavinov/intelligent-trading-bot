@@ -50,8 +50,8 @@ class Analyzer:
         #
         # Load models
         #
-        model_path = App.config["model_folder"]
-        model_path = Path(model_path)
+        data_path = Path(App.config["data_folder"])
+        model_path = data_path / "MODELS"
         if not model_path.is_absolute():
             model_path = PACKAGE_ROOT / model_path
         model_path = model_path.resolve()

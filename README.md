@@ -54,7 +54,7 @@ Every minute, the signaler performs the following steps to make a prediction abo
 
 Notes:
 * The final result of the signaler is the score (between -1 and +1). The score should be used for further decisions about buying or selling by taking into account other parameters and data sources.
-* For the signaler service to work, trained models have to be available and stored in the model folder `model_folder`. The models are trained in batch mode and the process is described in the corresponding section.
+* For the signaler service to work, trained models have to be available and stored in the "MODELS" folder. The models are trained in batch mode and the process is described in the corresponding section.
 
 Starting the service: `python3 -m service.server -c config.json`
 
@@ -210,7 +210,6 @@ The configuration parameters are specified in two files:
 Here are some most important fields (in both `App.py` and `config.json`):
 * `symbol` it is a trading pair like `BTCUSDT` - it is important for almost all cases
 * `data_folder` - location of data files which are needed only for batch scripts and not for services
-* `model_folder` - location of trained ML models which are stored by batch scripts and then are loaded by the services
 * Analyzer parameters. These mainly columns names.
   * `labels` List of column names which are treated as labels. If you define a new label used for training and then for prediction then you need to specify its name here. Note that we use multiple target variables (e.g., with different prediction horizons) and multiple prediction algorithms.
   * `class_labels_all` It is not used by the system and is created for convenience by listing *all* labels we compute so that it is easier to choose labels we want to experiment with during hyper-parameter tuning.
@@ -236,8 +235,7 @@ Here is a sample `config.json` file:
   "base_asset": "BTC",
   "quote_asset": "USDT",
 
-  "data_folder": "C:/DATA2/BITCOIN/GENERATED/BTCUSDT",
-  "model_folder": "C:/DATA2/BITCOIN/MODELS/BTCUSDT"
+  "data_folder": "C:/DATA2/BITCOIN/GENERATED/BTCUSDT"
 }
 ```
 

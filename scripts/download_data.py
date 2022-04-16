@@ -182,8 +182,7 @@ def klines_to_df(klines, df):
     if df is None or len(df) == 0:
         df = data
     else: 
-        df = df.append(data)
-
+        df = pd.concat([df, data])
 
     # Drop duplicates
     df = df.drop_duplicates(subset=["timestamp"])

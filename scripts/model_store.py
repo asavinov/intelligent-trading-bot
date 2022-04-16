@@ -7,12 +7,22 @@ from keras.models import Sequential, save_model, load_model
 
 """
 Next:
-- rework the logic where we have list of labels and list of algorithm configs, and need to train all their combinations
 - rework the logic of saving into and reading from model files with pattern <label-model>. Here probably again we need to have a list of labels and a list of algorithms.
   Alternatively, we might have a list of predict score labels which will have to be split
-- What about feature set names? we use feature sets as named lists of input features. they might be also prefixed by symbol and channel: "kline_featrues" etc.
 
-- We have train set length in config params. Use it instead of the length in P 
+- currently we use modifier to append to file names. Instead, we could create a subfolder with this modifier.
+- Same for model files which should be stored to MODELS and then modifier
+- note that modifier is used only for derived files and not for source files
+
+- currently: source files -> merge with prefix like "f_" -> generate features (yet, cannot use f_ columns)
+  what we need: source file -> merge with prefix k_ and d_ and f_ -> generate features for each of them so that the procedure recoginizes prefix for selecting columns
+  actually, our goal is to have btc and eth in one file, and then generate features for both of them with btc_ and eth_ prefix
+  - What about feature set names? we use feature sets as named lists of input features. they might be also prefixed by symbol and channel: "kline_featrues" etc.
+
+- !!! We have train set length in config params associated with feature set. Use train size in algo spec instead.
+  - what we need to achieve is having two identical algorithm specs but having different train lengths (short, middle, long)
+- label_horizon problem: 1) use dedicated parameter for high-low labels 2) use dedicated parameter to ignore some tail (but maybe the tail will be removed automatically because it has NULLs)  
+
 
 - CONCEPT: model and hyper-param/config management, structure algorithms, hyper-parameters, signals etc.
 - !!! introduce mechanism of having same model type, say, NN but with different hyper-parameters, e.g., history length
@@ -102,7 +112,7 @@ models = [
         "params": {
             "layers": [29], # It is equal to the number of input features (different for spot and futur). Currently not used
             "learning_rate": 0.001,
-            "n_epochs": 5,
+            "n_epochs": 5,  # 5 for quick analysis, 20 for production
             "bs": 128,
         },
         "train": {"is_scale": True, "length": 10_000, "shifts": []},

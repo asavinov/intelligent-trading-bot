@@ -36,9 +36,6 @@ obtained elsewhere (e.g., using grid search).
 # Parameters
 #
 class P:
-    feature_sets = ["kline"]  # futur
-    algorithms = ["nn"]  # gb, nn, lc
-
     in_nrows = 100_000_000  # For debugging
     in_nrows_tail = None  # How many last rows to select (for testing)
 
@@ -57,6 +54,8 @@ def main(config_file):
 
     label_horizon = App.config["label_horizon"]  # Labels are generated using this number of steps ahead
     labels = App.config["labels"]
+    feature_sets = App.config.get("feature_sets")
+    algorithms = App.config.get("algorithms")
 
     #features_horizon = 720  # Features are generated using this past window length
     features_kline = App.config.get("features_kline")
@@ -69,7 +68,8 @@ def main(config_file):
     if not data_path.is_dir():
         print(f"Data folder does not exist: {data_path}")
         return
-    out_path = Path(App.config["model_folder"])
+
+    out_path = data_path / "MODELS"
     out_path.mkdir(parents=True, exist_ok=True)  # Ensure that folder exists
 
     config_file_modifier = App.config.get("config_file_modifier")
@@ -110,9 +110,9 @@ def main(config_file):
     # Select necessary features and label
     out_columns = ['timestamp', 'open', 'high', 'low', 'close', 'volume', 'close_time']
     all_features = []
-    if "kline" in P.feature_sets:
+    if "kline" in feature_sets:
         all_features += features_kline
-    if "futur" in P.feature_sets:
+    if "futur" in feature_sets:
         all_features += features_futur
     all_features += labels
     in_df = in_df[all_features + out_columns]
@@ -134,97 +134,51 @@ def main(config_file):
 
     out_df = pd.DataFrame()  # Collect predictions
 
-    # ===
-    # kline feature set
-    # ===
-    if "kline" in P.feature_sets:
-        features = features_kline
-        name_tag = "_k_"
+    for feature_set in feature_sets:
+        if feature_set == "kline":
+            features = features_kline
+            fs_tag = "_k_"
+            train_length = P.kline_train_length
+        elif feature_set == "futur":
+            features = features_futur
+            fs_tag = "_f_"
+            train_length = P.futur_train_length
+        else:
+            print(f"ERROR: Unknown feature set {feature_set}. Check feature set list in config.")
+            return
 
-        print(f"Start training 'kline' package with {len(features)} features, name tag {name_tag}', and train length {P.kline_train_length}")
+        print(f"Start training {feature_set} feature set with {len(features)} features, name tag {fs_tag}', and train length {train_length}")
 
-        train_df = in_df.tail(P.kline_train_length)
+        train_df = in_df.tail(train_length)
         train_df = train_df.dropna(subset=features)
 
         df_X = train_df[features]
 
-        for label in labels:  # Train-predict different labels (and algorithms) using same X
+        for label in labels:
             df_y = train_df[label]
 
-            # --- GB
-            if "gb" in P.algorithms:
-                score_column_name = label + name_tag + "gb"
+            for algo_name in algorithms:
+                model_config = get_model(algo_name)
+                algo_type = model_config.get("algo")
+                score_column_name = label + fs_tag + algo_name
+
                 print(f"Train '{score_column_name}'... ")
-                model_pair = train_gb(df_X, df_y, model_config=get_model("gb"))
-                models[score_column_name] = model_pair
-                df_y_hat = predict_gb(model_pair, df_X, model_config=get_model("gb"))
-                scores[score_column_name] = compute_scores(df_y, df_y_hat)
-                out_df[score_column_name] = df_y_hat
+                if algo_type == "gb":
+                    model_pair = train_gb(df_X, df_y, model_config)
+                    models[score_column_name] = model_pair
+                    df_y_hat = predict_gb(model_pair, df_X, model_config)
+                elif algo_type == "nn":
+                    model_pair = train_nn(df_X, df_y, model_config)
+                    models[score_column_name] = model_pair
+                    df_y_hat = predict_nn(model_pair, df_X, model_config)
+                elif algo_type == "lc":
+                    model_pair = train_lc(df_X, df_y, model_config)
+                    models[score_column_name] = model_pair
+                    df_y_hat = predict_lc(model_pair, df_X, model_config)
+                else:
+                    print(f"ERROR: Unknown algorithm type {algo_type}. Check algorithm list.")
+                    return
 
-            # --- NN
-            if "nn" in P.algorithms:
-                score_column_name = label + name_tag + "nn"
-                print(f"Train '{score_column_name}'... ")
-                model_pair = train_nn(df_X, df_y, model_config=get_model("nn"))
-                models[score_column_name] = model_pair
-                df_y_hat = predict_nn(model_pair, df_X, get_model("nn"))
-                scores[score_column_name] = compute_scores(df_y, df_y_hat)
-                out_df[score_column_name] = df_y_hat
-
-            # --- LC
-            if "lc" in P.algorithms:
-                score_column_name = label + name_tag + "lc"
-                print(f"Train '{score_column_name}'... ")
-                model_pair = train_lc(df_X, df_y, model_config=get_model("lc"))
-                models[score_column_name] = model_pair
-                df_y_hat = predict_lc(model_pair, df_X, get_model("lc"))
-                scores[score_column_name] = compute_scores(df_y, df_y_hat)
-                out_df[score_column_name] = df_y_hat
-
-    # ===
-    # futur feature set
-    # ===
-    if "futur" in P.feature_sets:
-        features = features_futur
-        name_tag = "_f_"
-
-        print(f"Start training 'futur' package with {len(features)} features, name tag {name_tag}', and train length {P.futur_train_length}")
-
-        train_df = in_df.tail(P.futur_train_length)
-        train_df = train_df.dropna(subset=features)
-
-        df_X = train_df[features]
-
-        for label in labels:  # Train-predict different labels (and algorithms) using same X
-            df_y = train_df[label]
-
-            # --- GB
-            if "gb" in P.algorithms:
-                score_column_name = label + name_tag + "gb"
-                print(f"Train '{score_column_name}'... ")
-                model_pair = train_gb(df_X, df_y, model_config=get_model("gb"))
-                models[score_column_name] = model_pair
-                df_y_hat = predict_gb(model_pair, df_X, model_config=get_model("gb"))
-                scores[score_column_name] = compute_scores(df_y, df_y_hat)
-                out_df[score_column_name] = df_y_hat
-
-            # --- NN
-            if "nn" in P.algorithms:
-                score_column_name = label + name_tag + "nn"
-                print(f"Train '{score_column_name}'... ")
-                model_pair = train_nn(df_X, df_y, model_config=get_model("nn"))
-                models[score_column_name] = model_pair
-                df_y_hat = predict_nn(model_pair, df_X, get_model("nn"))
-                scores[score_column_name] = compute_scores(df_y, df_y_hat)
-                out_df[score_column_name] = df_y_hat
-
-            # --- LC
-            if "lc" in P.algorithms:
-                score_column_name = label + name_tag + "lc"
-                print(f"Train '{score_column_name}'... ")
-                model_pair = train_lc(df_X, df_y, model_config=get_model("lc"))
-                models[score_column_name] = model_pair
-                df_y_hat = predict_lc(model_pair, df_X, get_model("lc"))
                 scores[score_column_name] = compute_scores(df_y, df_y_hat)
                 out_df[score_column_name] = df_y_hat
 

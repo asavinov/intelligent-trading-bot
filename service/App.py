@@ -101,7 +101,6 @@ class App:
 
         # File locations
         "data_folder": "",  # It is needed for model training
-        "model_folder": "",  # It is needed by signaler at run time
 
         # File name conventions
         "feature_file_modifier": "features",
@@ -140,12 +139,21 @@ class App:
 
         # This will be excluded from model training
         # For high-low labels it should be label horizon. For top-bot it can be small
-        # TODO: we need different values for high-low and top-bot.
+        # TODO: we need different values for high-low and top-bot and for model training
+        #   example: high_low_horizon
         "label_horizon": 0,  # For high-low label generation and training it should be 1440
+
+        # ========================
+        # === MODEL GENERATION ===
+        # for each fs, label, algorithm <label, fs, algorithm>
+
+        "feature_sets": ["kline"],  # futur
+        "algorithms": ["nn"],  # gb, nn, lc
+
         # Models will be trained for these models
         "labels": [
             "bot4_1", "bot4_15", "bot4_2", "bot4_25", "bot4_3",
-            "top4_1", "top4_15", "top4_2", "top4_25", "top4_3"
+            "top4_1", "top4_15", "top4_2", "top4_25", "top4_3",
         ],
         "_labels": [
             "bot4_1", "bot4_15", "bot4_2", "bot4_25", "bot4_3",
@@ -174,8 +182,8 @@ class App:
             'close_area_future_60', 'close_area_future_120', 'close_area_future_180', 'close_area_future_300',
         ],
 
-        # ========================
-        # === SIGNALER SERVER ===
+        # =========================
+        # === SIGNAL GENERATION ===
 
         # These are predicted columns <label, feature_set, algorithm> as well as model (pair) names
         "buy_labels": ["bot4_1_k_nn", "bot4_15_k_nn", "bot4_2_k_nn", "bot4_25_k_nn", "bot4_3_k_nn"],

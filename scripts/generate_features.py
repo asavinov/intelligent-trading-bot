@@ -18,7 +18,7 @@ from common.feature_generation import *
 class P:
     feature_sets = ["kline", ]  # "futur"
 
-    in_nrows = 10_000
+    in_nrows = 10_000_000
 
 
 @click.command()
