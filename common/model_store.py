@@ -24,6 +24,32 @@ Next:
 - algo config has "predict" length - where should we use it? In rolling predictions?
 
 PLAN:
+criteria, use cases and alternatives
+- use case: conventional stocks and indexes like DJ-index, DAX etc. each in its folder and daily klines - how to process
+- use case: forex with EURUSD etc.
+- assumption: symbol folder (and column prefix) with kline/futures.csv data source files merged to data.csv files
+- alternatives: prefix is attached to columns: 1) during download 2) during merge 3) during feature generation 
+- criterion: the matrix has contain derived features from different symbols like "btc_close_60", "eth_close_60"
+  we then use these features in one feature list for training
+- criterion: the matrix has to contain labels with prefix like "btc_top4_1" and "eth_top4_1"
+  however, we use for training only one label origin like "btc_top4_1" (all with "btc_*")
+- principles: we need to apply feature generation several times with parameter source-symbol/column-prefix
+  - either to separate source files - bad because they are not synced
+  - to prefixed features in merged file by adding/overwriting features to any existing file (similar to labels)
+    - fg procedure itself is generic and assumes generic column names with certain *semantics* like "close"
+      therefore, its functions will search for these generic names and produce generic output names like "close_60"
+    - fg procedure needs to recognized which columns to process: columns prefix or label or whatever: "btc_k_".
+      it loads data in df, selects columns using given prefix and produces an input df, 
+      apples feature generation by producing output columns, adds prefix to these output columns, and attaches them to the original data (by possibly overwriting existing columns)
+    - same with labels.
+    - we need to reimplement features generation so that it processes any input file based on the specified column prefix
+    the prefix is used to select input columns to feed to generic feature generation, and then add this prefix
+    to output columns, and finally *update* the input data and store in output file.
+    - merger role: take several data source and data format files, add column suffixes, sync, and store in one output
+      - params: list of symbols along with data format (kline etc.) and corresponding column prefixes
+      - output: file with columns having prefix of their ds-dataformat (to be recognized later)
+    - geature/label generator role: take one data file with column prefixes representing data source, apply certain generic feature/label generator to generic features (without prefixes), store the new features with again prefixes in the same or different file 
+
 - "column_prefix" in config for download data. column names now have prefix "b_" for btc, "e_" for etc etc.
 - merge data works as usual but it takes file from different folders (or files from the same folder)
  either it adds column prefix, or column prfix already exists

@@ -216,13 +216,13 @@ def main(config_file):
     # Store predictions if necessary
     #
     if P.store_predictions:
+        # We do not store features. Only selected original data, labels, and their predictions
+        out_df = out_df.join(in_df[out_columns + labels])
+
         out_file_suffix = App.config.get("predict_file_modifier")
 
         out_file_name = f"{out_file_suffix}{config_file_modifier}.csv"
         out_path = data_path / out_file_name
-
-        # We do not store features. Only selected original data, labels, and their predictions
-        out_df = out_df.join(in_df[out_columns + labels])
 
         print(f"Storing output file...")
         out_df.to_csv(out_path, index=False)

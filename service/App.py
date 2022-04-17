@@ -94,19 +94,28 @@ class App:
         "telegram_bot_token": "",  # Source address of messages
         "telegram_chat_id": "",  # Destination address of messages
 
-        # Define one config for one symbol
+        # File locations
+        "data_folder": "",  # It is needed for model training
+        # Symbol determines sub-folder and used in other identifiers
         "symbol": "",  # BTCUSDT ETHUSDT
         "base_asset": "",  # BTC ETH
         "quote_asset": "",
 
-        # File locations
-        "data_folder": "",  # It is needed for model training
-
         # File name conventions
+        "merge_file_modifier": "data",
         "feature_file_modifier": "features",
         "matrix_file_modifier": "matrix",
         "predict_file_modifier": "predict",  # Or predict-rolling
         "signal_file_modifier": "performance",
+
+        # ==============
+        # === MERGER ===
+
+        # Specify which data sources to merge into one file with all source columns
+        # Format: (folder, file, prefix) - (symbol, data source, column prefix)
+        #"data_sources": [
+        #    {"folder": "BTCUSDT", "file": "klines", "column_prefix": ""},
+        #],
 
         # ==========================
         # === FEATURE GENERATION ===

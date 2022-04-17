@@ -14,8 +14,6 @@ async def notify_telegram():
     await simulate_trade()
 
     symbol = App.config["symbol"]
-    base_asset =  App.config["base_asset"]
-    quote_asset =  App.config["quote_asset"]
 
     status = App.status
     signal = App.signal
@@ -34,12 +32,12 @@ async def notify_telegram():
     notify_frequency_minutes = model.get("notify_frequency_minutes", 1)
 
     # Crypto Currency Symbols: https://github.com/yonilevy/crypto-currency-symbols
-    if base_asset == "BTC":
-        symbol_sign = "₿"
-    elif base_asset == "ETH":
-        symbol_sign = "Ξ"
+    if symbol == "BTCUSDT":
+        symbol_char = "₿"
+    elif symbol == "ETHUSDT":
+        symbol_char = "Ξ"
     else:
-        symbol_sign = base_asset
+        symbol_char = symbol
 
     # Notification logic:
     # 1. Trade signal in the case it is suggested to really buy or sell: BUY or SELL and one corresponding score
@@ -48,15 +46,15 @@ async def notify_telegram():
     message = ""
     if signal_side == "BUY":
         score_steps = (np.abs(buy_score - buy_signal_threshold) // trade_icon_step) if trade_icon_step else 0
-        message = "🟢"*int(score_steps+1) + f" *BUY: {symbol_sign} {int(close_price):,} Buy score: {buy_score:+.2f}*"
+        message = "🟢"*int(score_steps+1) + f" *BUY: {symbol_char} {int(close_price):,} Buy score: {buy_score:+.2f}*"
     elif signal_side == "SELL":
         score_steps = (np.abs(sell_score - sell_signal_threshold) // trade_icon_step) if trade_icon_step else 0
-        message = "🔴"*int(score_steps+1) + f" *SELL: {symbol_sign} {int(close_price):,} Sell score: {-sell_score:+.2f}*"
+        message = "🔴"*int(score_steps+1) + f" *SELL: {symbol_char} {int(close_price):,} Sell score: {-sell_score:+.2f}*"
     elif (close_time.minute % notify_frequency_minutes) == 0:  # Info message with custom frequency
         if buy_score > sell_score:
-            message = f"{symbol_sign} {int(close_price):,} 📈{buy_score:+.2f}"
+            message = f"{symbol_char} {int(close_price):,} 📈{buy_score:+.2f}"
         else:
-            message = f"{symbol_sign} {int(close_price):,} 📉{-sell_score:+.2f}"
+            message = f"{symbol_char} {int(close_price):,} 📉{-sell_score:+.2f}"
     message = message.replace("+", "%2B")  # For Telegram to display plus sign
 
     if not message:
@@ -79,8 +77,6 @@ async def notify_telegram():
 
 async def simulate_trade():
     symbol = App.config["symbol"]
-    base_asset = App.config["base_asset"]
-    quote_asset = App.config["quote_asset"]
 
     status = App.status
     signal = App.signal

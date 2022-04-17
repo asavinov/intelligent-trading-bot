@@ -16,12 +16,23 @@ from service.App import *
 from common.feature_generation import *
 
 """
-Create one output file from input files of different types: klines, futures, depth.
-Depth data can be provided in several files. 
-Also, depth timestamps correspond to end of 1m interval and hence they will be changed to kline convention.
-Futures and klines are in single files and their timestamp is start of 1m interval.
-Future column names are same as in klines, and hence they will be prefixed in the output.
-Output file has continuous index by removing possible gaps in input files.
+Create one output file from many input files:
+- symbols like BTC or ETH
+- different data types like klines, futures, depth (depth can be in several files)
+
+Align the timestamps and create a uniform time axis without gaps.
+
+Prefix column names with the corresponding origin modifiers so that each column name stores its origin.
+
+IMPLEMENTATION.
+What we need to know:
+- data folder with all files, symbol list to get subfolders, data types for each symbol to find its individual file, prefix to be used for this file
+- once files are loaded, create raster index, and merge all loaded data to this index by also providing column prefixes.
+- what to do with empty (initial or trailing)? Automatically detect maximum common timestamp.
+
+list of:
+<symbol>-<data source> - prefix
+
 """
 
 
@@ -40,16 +51,6 @@ range_type = "kline"  # Selector: kline, futur, depth, merged (common range)
 #
 # Historic data
 #
-
-def get_symbol_files(symbol):
-    """
-    Get a list of file names with data for this symbol and frequency.
-    We find all files with this symbol in name in the directly recursively.
-    """
-    file_pattern = f"*{symbol}*.txt"
-    paths = Path(in_path_name).rglob(file_pattern)
-    return list(paths)
-
 
 def load_futur_files(futur_file_path):
     """Return a data frame with future features."""
@@ -115,81 +116,65 @@ def main(config_file):
 
     freq = "1m"
     symbol = App.config["symbol"]
-    data_path = Path(App.config["data_folder"]) / symbol
-    if not data_path.is_dir():
-        print(f"Data folder does not exist: {data_path}")
-        return
+    data_path = Path(App.config["data_folder"])
+    data_sources = App.config.get("data_sources", [])
+    if not data_sources:
+        data_sources = [{"folder": symbol, "file": "klines", "column_prefix": ""}]
 
     config_file_modifier = App.config.get("config_file_modifier")
     config_file_modifier = ("-" + config_file_modifier) if config_file_modifier else ""
 
     start_dt = datetime.now()
 
-    print(f"Start processing...")
+    for ds in data_sources:
+        # What is want is for each source, load file into df, determine its properties (columns, start, end etc.), and then merge all these dfs
+        file_path = (data_path / ds.get("folder") / ds.get("file")).with_suffix(".csv")
+        if not file_path.is_file():
+            print(f"Data file does not exist: {file_path}")
+            return
 
-    kline_file_path = data_path / f"klines.csv"
-    k_df, k_start, k_end = load_kline_files(kline_file_path)
-    futur_file_path = data_path / f"futures.csv"
-    f_df, f_start, f_end = load_futur_files(futur_file_path)
-    if depth_file_names:
-        d_dfs, d_start, d_end = load_depth_files()
-    else:
-        d_dfs = []
-        d_start = 0
-        d_end = 0
+        print(f"Reading data file: {file_path}")
+        df = pd.read_csv(file_path, parse_dates=['timestamp'])
+        df = df.set_index("timestamp")  # We only assume that there is timestamp attribute
 
-    #
-    # Determine range
-    #
-    if range_type.startswith("kline"):
-        start = k_start
-        end = k_end
-    elif range_type.startswith("futur"):
-        start = f_start
-        end = f_end
-    elif range_type.startswith("depth"):
-        start = d_start
-        end = d_end
-    elif range_type.startswith("merge"):
-        start = np.max([d_start, f_start, k_start])
-        end = np.min([d_end, f_end, k_end])
-    else:
-        print(f"Unknown parameter value. Exit.")
-        exit()
+        if ds['column_prefix']:
+            df = df.add_prefix(ds['column_prefix']+"_")
+        #df.columns = [f"{ds['column_prefix']}_{col}" for col in df.columns]
+
+        ds["df"] = df
+        ds["start"] = df.index[0]
+        ds["end"] = df.index[-1]
+
+        print(f"Loaded file with {len(df)} records. Range: ({ds['start']}, {ds['end']})")
 
     #
     # Create 1m common (main) index and empty data frame
     #
-    index = pd.date_range(start, end, freq="T")
+    range_start = min([ds["start"] for ds in data_sources])
+    range_end = max([ds["end"] for ds in data_sources])
+
+    index = pd.date_range(range_start, range_end, freq="T")
     df_out = pd.DataFrame(index=index)
     df_out.index.name = "timestamp"
 
-    #
-    # Attach all necessary columns to the common data frame
-    #
+    print(f"Start merging...")
 
-    # Attach kline data frame
-    df_out = df_out.join(k_df)
-
-    # Attach futur data frame by also renaming columns
-    f_df = f_df.rename(lambda x: futur_column_prefix + x if x != "timestamp" else x, axis='columns')
-    df_out = df_out.join(f_df)
-
-    # Attach several depth data frames using the same columns
-    for i, df in enumerate(d_dfs):
-        if i == 0:
-            df_out = df_out.join(df)
-        else:
-            df_out.update(df)
+    for ds in data_sources:
+        # Note that timestamps must have the same semantics, for example, start of kline (and not end of kline)
+        # If different data sets have different semantics for timestamps, then data must be shifted accordingly
+        df_out = df_out.join(ds["df"])
 
     #
     # Store file with features
     #
-    out_file_name = f"data.csv"
-    out_path = (data_path / out_file_name).resolve()
+    out_file_suffix = App.config.get("merge_file_modifier")
 
+    out_file_name = f"{out_file_suffix}{config_file_modifier}.csv"
+    out_path = data_path / symbol / out_file_name
+
+    print(f"Storing output file...")
     df_out.to_csv(out_path, index=True)  # float_format="%.6f"
-    print(f"Stored output merged file with {len(df_out)} records. Range: ({start}, {end})")
+    print(f"Stored output merged file with {len(df_out)} records. Range: ({range_start}, {range_end})")
 
     elapsed = datetime.now() - start_dt
     print(f"Finished processing in {int(elapsed.total_seconds())} seconds.")
