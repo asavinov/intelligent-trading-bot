@@ -153,6 +153,8 @@ class App:
         "labels": [
             "bot4_1", "bot4_15", "bot4_2", "bot4_25", "bot4_3",
             "top4_1", "top4_15", "top4_2", "top4_25", "top4_3",
+            "bot5_1", "bot5_15", "bot5_2", "bot5_25", "bot5_3",
+            "top5_1", "top5_15", "top5_2", "top5_25", "top5_3",
         ],
         "_labels": [
             "bot4_1", "bot4_15", "bot4_2", "bot4_25", "bot4_3",

@@ -155,11 +155,11 @@ def main(config_file):
 
     freq = "1m"
     symbol = App.config["symbol"]
-    data_path = Path(App.config["data_folder"])
+    data_path = Path(App.config["data_folder"]) / symbol
     if not data_path.is_dir():
         print(f"Data folder does not exist: {data_path}")
         return
-    out_path = Path(App.config["data_folder"])
+    out_path = Path(App.config["data_folder"]) / symbol
     out_path.mkdir(parents=True, exist_ok=True)  # Ensure that folder exists
 
     config_file_modifier = App.config.get("config_file_modifier")
@@ -170,7 +170,7 @@ def main(config_file):
     #
     in_file_suffix = App.config.get("predict_file_modifier")
 
-    in_file_name = f"{symbol}-{in_file_suffix}{config_file_modifier}.csv"
+    in_file_name = f"{in_file_suffix}{config_file_modifier}.csv"
     in_path = data_path / in_file_name
     if not in_path.exists():
         print(f"ERROR: Input file does not exist: {in_path}")
@@ -290,7 +290,7 @@ def main(config_file):
     #
     out_file_suffix = App.config.get("signal_file_modifier")
 
-    out_file_name = f"{symbol}-{out_file_suffix}{config_file_modifier}.txt"
+    out_file_name = f"{out_file_suffix}{config_file_modifier}.txt"
     out_path = (out_path / out_file_name).resolve()
 
     if out_path.is_file():

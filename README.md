@@ -235,7 +235,7 @@ Here is a sample `config.json` file:
   "base_asset": "BTC",
   "quote_asset": "USDT",
 
-  "data_folder": "C:/DATA2/BITCOIN/GENERATED/BTCUSDT"
+  "data_folder": "C:/DATA2/BITCOIN/GENERATED"
 }
 ```
 

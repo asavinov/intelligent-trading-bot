@@ -13,7 +13,7 @@ from service.App import *
 from common.utils import *
 from common.classifiers import *
 from common.feature_generation import *
-from scripts.model_store import *
+from common.model_store import *
 
 """
 Use input feature matrix to train *one* label predict model for each label using all specified historic data.
@@ -64,7 +64,7 @@ def main(config_file):
 
     freq = "1m"
     symbol = App.config["symbol"]
-    data_path = Path(App.config["data_folder"])
+    data_path = Path(App.config["data_folder"]) / symbol
     if not data_path.is_dir():
         print(f"Data folder does not exist: {data_path}")
         return
@@ -82,7 +82,7 @@ def main(config_file):
     #
     in_file_suffix = App.config.get("matrix_file_modifier")
 
-    in_file_name = f"{symbol}-{in_file_suffix}{config_file_modifier}.csv"
+    in_file_name = f"{in_file_suffix}{config_file_modifier}.csv"
     in_path = data_path / in_file_name
     if not in_path.exists():
         print(f"ERROR: Input file does not exist: {in_path}")
@@ -205,7 +205,7 @@ def main(config_file):
         line = score_column_name + ", " + str(score)
         lines.append(line)
 
-    metrics_file_name = f"{symbol}-metrics.txt"
+    metrics_file_name = f"metrics.txt"
     metrics_path = (out_path / metrics_file_name).resolve()
     with open(metrics_path, 'a+') as f:
         f.write("\n".join(lines) + "\n")
@@ -218,7 +218,7 @@ def main(config_file):
     if P.store_predictions:
         out_file_suffix = App.config.get("predict_file_modifier")
 
-        out_file_name = f"{symbol}-{out_file_suffix}{config_file_modifier}.csv"
+        out_file_name = f"{out_file_suffix}{config_file_modifier}.csv"
         out_path = data_path / out_file_name
 
         # We do not store features. Only selected original data, labels, and their predictions

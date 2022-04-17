@@ -38,7 +38,7 @@ def main(config_file):
 
     freq = "1m"
     symbol = App.config["symbol"]
-    data_path = Path(App.config["data_folder"])
+    data_path = Path(App.config["data_folder"]) / symbol
     if not data_path.is_dir():
         print(f"Data folder does not exist: {data_path}")
         return
@@ -53,7 +53,7 @@ def main(config_file):
     #
     in_file_suffix = App.config.get("feature_file_modifier")
 
-    in_file_name = f"{symbol}-{in_file_suffix}{config_file_modifier}.csv"
+    in_file_name = f"{in_file_suffix}{config_file_modifier}.csv"
     in_path = (data_path / in_file_name).resolve()
 
     print(f"Loading data from feature file {str(in_path)}...")
@@ -141,7 +141,7 @@ def main(config_file):
     # Save in output file
     out_file_suffix = App.config.get("matrix_file_modifier")
 
-    out_file_name = f"{symbol}-{out_file_suffix}{config_file_modifier}.csv"
+    out_file_name = f"{out_file_suffix}{config_file_modifier}.csv"
     out_path = (data_path / out_file_name).resolve()
 
     print(f"Storing file with labels. {len(in_df)} records and {len(in_df.columns)} columns in output file...")
@@ -150,7 +150,7 @@ def main(config_file):
     #
     # Store labels
     #
-    out_file_name = f"{symbol}-{out_file_suffix}{config_file_modifier}.txt"
+    out_file_name = f"{out_file_suffix}{config_file_modifier}.txt"
     out_path = (data_path / out_file_name).resolve()
 
     with open(out_path, "a+") as f:

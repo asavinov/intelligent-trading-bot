@@ -15,7 +15,7 @@ from service.App import *
 from common.utils import *
 from common.classifiers import *
 from common.feature_generation import *
-from scripts.model_store import *
+from common.model_store import *
 
 """
 Generate label predictions for the whole input feature matrix by iteratively training models using historic data and predicting labels for some future horizon.
@@ -68,7 +68,7 @@ def main(config_file):
 
     freq = "1m"
     symbol = App.config["symbol"]
-    data_path = Path(App.config["data_folder"])
+    data_path = Path(App.config["data_folder"]) / symbol
     if not data_path.is_dir():
         print(f"Data folder does not exist: {data_path}")
         return
@@ -83,7 +83,7 @@ def main(config_file):
     #
     in_file_suffix = App.config.get("matrix_file_modifier")
 
-    in_file_name = f"{symbol}-{in_file_suffix}{config_file_modifier}.csv"
+    in_file_name = f"{in_file_suffix}{config_file_modifier}.csv"
     in_path = data_path / in_file_name
     if not in_path.exists():
         print(f"ERROR: Input file does not exist: {in_path}")
@@ -285,7 +285,7 @@ def main(config_file):
 
     out_file_suffix = App.config.get("predict_file_modifier")
 
-    out_file_name = f"{symbol}-{out_file_suffix}{config_file_modifier}.csv"
+    out_file_name = f"{out_file_suffix}{config_file_modifier}.csv"
     out_path = data_path / out_file_name
 
     print(f"Storing output file...")

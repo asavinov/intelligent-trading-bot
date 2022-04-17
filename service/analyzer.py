@@ -13,7 +13,7 @@ from common.utils import *
 from common.classifiers import *
 from common.feature_generation import *
 from common.signal_generation import *
-from scripts.model_store import *
+from common.model_store import *
 
 import logging
 log = logging.getLogger('analyzer')
@@ -50,7 +50,8 @@ class Analyzer:
         #
         # Load models
         #
-        data_path = Path(App.config["data_folder"])
+        symbol = App.config["symbol"]
+        data_path = Path(App.config["data_folder"]) / symbol
         model_path = data_path / "MODELS"
         if not model_path.is_absolute():
             model_path = PACKAGE_ROOT / model_path

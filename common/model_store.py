@@ -19,22 +19,16 @@ Next:
   actually, our goal is to have btc and eth in one file, and then generate features for both of them with btc_ and eth_ prefix
   - What about feature set names? we use feature sets as named lists of input features. they might be also prefixed by symbol and channel: "kline_featrues" etc.
 
-- CONCEPT: model and hyper-param/config management, structure algorithms, hyper-parameters, signals etc.
-- !!! introduce mechanism of having same model type, say, NN but with different hyper-parameters, e.g., history length
-  So we specify not only algorithm name (nn, lc etc.) but also hyper-parameters name (maybe introduce a kind of model repo where we have: name, algo_type, algo_model etc.)
-  repo can be a model folder where each json file define such a model (but maybe also with other parameters like features/labels/signal etc. maybe by-reference)
-- central location/config for model parameters. Or: features, labels, models, buy/sell score lables, signal models
-  - goal: ability to define an algorithm with name and all parameters
-  - reuse feature defs, label defs etc. by inclusion (also other sections) to avoid copying the same in different final configs
-- list of current parameters:
-  - windows etc. for feature generation - needed only during feature generation (output feature list is manually copied)
-  - feature list - it is used for training (train set preparation), the list is copied
-  - label parameters for label generation - needed for label generation and label names are then copied and used for training models
-  - label list - they are used for traning - we apply models to all these labels
-  - model types like nn, lc
-  - model hyper-parameters for each model type
-  - we train model files/scores for each combination of label and algorithm (type and hyper-parameters)
-  - score column list - it is list of scores (and algorithm type-hypers) we want to use for signaling
+- formalize (in config) feature lists, i.e., named lists (do we really need this?=
+
+- algo config has "predict" length - where should we use it? In rolling predictions?
+
+PLAN:
+- "column_prefix" in config for download data. column names now have prefix "b_" for btc, "e_" for etc etc.
+- merge data works as usual but it takes file from different folders (or files from the same folder)
+ either it adds column prefix, or column prfix already exists
+ - generate features assumes some column prefix in input and uses it for output columns
+ - generate features can apply its logic to its own output so we can add more features (similar to labels)
 
 """
 
@@ -141,5 +135,27 @@ models = [
         },
         "train": {"is_scale": False, "length": int(1.5 * 525_600), "shifts": []},
         "predict": {"length": 1440}
+    },
+
+    {
+        "name": "nn_long",
+        "algo": "nn",
+        "params": {"layers": [29], "learning_rate": 0.001, "n_epochs": 20, "bs": 128, },
+        "train": {"is_scale": True, "length": int(1.5 * 525_600), "shifts": []},
+        "predict": {"length": 0}
+    },
+    {
+        "name": "nn_middle",
+        "algo": "nn",
+        "params": {"layers": [29], "learning_rate": 0.001, "n_epochs": 20, "bs": 128, },
+        "train": {"is_scale": True, "length": int(1.0 * 525_600), "shifts": []},
+        "predict": {"length": 0}
+    },
+    {
+        "name": "nn_short",
+        "algo": "nn",
+        "params": {"layers": [29], "learning_rate": 0.001, "n_epochs": 20, "bs": 128, },
+        "train": {"is_scale": True, "length": int(0.5 * 525_600), "shifts": []},
+        "predict": {"length": 0}
     },
 ]

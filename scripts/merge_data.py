@@ -115,7 +115,7 @@ def main(config_file):
 
     freq = "1m"
     symbol = App.config["symbol"]
-    data_path = Path(App.config["data_folder"])
+    data_path = Path(App.config["data_folder"]) / symbol
     if not data_path.is_dir():
         print(f"Data folder does not exist: {data_path}")
         return
@@ -127,9 +127,9 @@ def main(config_file):
 
     print(f"Start processing...")
 
-    kline_file_path = data_path / f"{symbol}-klines.csv"
+    kline_file_path = data_path / f"klines.csv"
     k_df, k_start, k_end = load_kline_files(kline_file_path)
-    futur_file_path = data_path / f"{symbol}-futurs.csv"
+    futur_file_path = data_path / f"futures.csv"
     f_df, f_start, f_end = load_futur_files(futur_file_path)
     if depth_file_names:
         d_dfs, d_start, d_end = load_depth_files()
@@ -185,7 +185,7 @@ def main(config_file):
     #
     # Store file with features
     #
-    out_file_name = f"{symbol}.csv"
+    out_file_name = f"data.csv"
     out_path = (data_path / out_file_name).resolve()
 
     df_out.to_csv(out_path, index=True)  # float_format="%.6f"

@@ -55,7 +55,7 @@ def main(config_file):
     freq = "1m"
     save = True
     futures = False
-    data_path = Path(App.config["data_folder"])
+    data_path = Path(App.config["data_folder"]) / symbol
     if not data_path.is_dir():
         print(f"Data folder does not exist: {data_path}")
         return
@@ -71,9 +71,9 @@ def main(config_file):
     print(f"Downloader parameters. Symbol {symbol}. Frequency: {freq}. Save: {save}. Futures: {futures}.")
 
     if futures:
-        filename = f"{symbol}-futurs.csv"
+        filename = f"futures.csv"
     else:
-        filename = f"{symbol}-klines.csv"
+        filename = f"klines.csv"
     file_path = (data_path / filename).resolve()
 
     if file_path.is_file():
@@ -207,7 +207,7 @@ async def get_futures_klines_all(symbol, freq, save = False):
     GET /fapi/v1/klines: symbol*, interval*, startTime, endTime, limit
     """
 
-    filename = f"{symbol}-futures.csv"
+    filename = f"futures.csv"
 
     if os.path.isfile(filename): 
         data_df = pd.read_csv(filename)
