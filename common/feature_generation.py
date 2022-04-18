@@ -86,7 +86,7 @@ def generate_features(df,use_differences, base_window, windows, area_windows, la
     return features
 
 
-def generate_features_futur(df, use_differences=False):
+def generate_features_futures(df, use_differences=False):
     """
     Generate derived features for futures.
     """

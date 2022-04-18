@@ -52,33 +52,8 @@ class App:
     # Trader. Status data retrieved from the server. Below are examples only.
     #
     system_status = {"status": 0, "msg": "normal"}  # 0: normal，1：system maintenance
-    symbol_info = {
-        "symbol": "BTCUSDT",
-        "status": "TRADING",
-        "baseAsset": "BTC",
-        "baseAssetPrecision": 8,
-        "quoteAsset": "USDT",
-        "quotePrecision": 8,
-        "orderTypes": ["LIMIT", "LIMIT_MAKER", "MARKET", "STOP_LOSS_LIMIT", "TAKE_PROFIT_LIMIT"],
-        "icebergAllowed": True,
-        "ocoAllowed": True,
-        "isSpotTradingAllowed": True,
-        "isMarginTradingAllowed": True,
-        "filters": [],
-    }
-    account_info = {
-        "makerCommission": 15,
-        "takerCommission": 15,
-        "buyerCommission": 0,
-        "sellerCommission": 0,
-        "canTrade": True,
-        "canWithdraw": True,
-        "canDeposit": True,
-        "balances": [
-            {"asset": "BTC", "free": "4723846.89208129", "locked": "0.00000000"},
-            {"asset": "LTC", "free": "4763368.68006011", "locked": "0.00000000"},
-        ]
-    }
+    symbol_info = {}
+    account_info = {}
 
     #
     # Constant configuration parameters
@@ -120,17 +95,21 @@ class App:
         # ==========================
         # === FEATURE GENERATION ===
 
+        "feature_sets": [
+            {"column_prefix": "", "generator": "klines", "feature_prefix": ""},
+        ],
+        # Parameters of klines feature generator
         # If these are changed, then feature names (below) will also have to be changed
         "base_window_kline": 40320,
         "windows_kline": [1, 60, 360, 1440, 4320, 10080],
         "area_windows_kline": [60, 360, 1440, 4320, 10080],
 
-        # History needed to compute derived features.
+        # History required to compute derived features.
         # Take maximum aggregation windows from feature generation code (and add something to be sure that we have all what is needed)
         # Basically, should be equal to base_window_kline
         "features_horizon": 40420,
 
-        # Feature column names returned by the feature generation function which we want to use for train/predict
+        # Feature column names returned by the klines feature generator which we want to use for train/predict
         "features_kline": [
             "close_1","close_60","close_360","close_1440","close_4320","close_10080",
             "close_std_60","close_std_360","close_std_1440","close_std_4320","close_std_10080",  # Removed "std_1"
@@ -152,7 +131,7 @@ class App:
         # === MODEL GENERATION ===
         # for each fs, label, algorithm <label, fs, algorithm>
 
-        "feature_sets": ["kline"],  # futur
+        "train_features": ["kline"],  # Used to select columns for training by adding together different feature sets (the lists are defined elswhere in variables like "features_kline")
         "algorithms": ["nn"],  # gb, nn, lc
 
         # This will be excluded from model training
@@ -195,9 +174,9 @@ class App:
         # =========================
         # === SIGNAL GENERATION ===
 
-        # These are predicted columns <label, feature_set, algorithm> as well as model (pair) names
-        "buy_labels": ["bot4_1_k_nn", "bot4_15_k_nn", "bot4_2_k_nn", "bot4_25_k_nn", "bot4_3_k_nn"],
-        "sell_labels": ["top4_1_k_nn", "top4_15_k_nn", "top4_2_k_nn", "top4_25_k_nn", "top4_3_k_nn"],
+        # These are predicted columns <label, train_features, algorithm> as well as model (pair) names
+        "buy_labels": ["bot4_1_k_nn", "bot4_15_k_nn", "bot4_2_k_nn", "bot4_25_k_nn", "bot4_3_k_nn", "bot5_1_k_nn", "bot5_15_k_nn", "bot5_2_k_nn", "bot5_25_k_nn", "bot5_3_k_nn"],
+        "sell_labels": ["top4_1_k_nn", "top4_15_k_nn", "top4_2_k_nn", "top4_25_k_nn", "top4_3_k_nn", "top5_1_k_nn", "top5_15_k_nn", "top5_2_k_nn", "top5_25_k_nn", "top5_3_k_nn"],
         "_buy_labels": ["bot4_1_k_lc", "bot4_15_k_lc", "bot4_2_k_lc", "bot4_25_k_lc", "bot4_3_k_lc"],
         "_sell_labels": ["top4_1_k_lc", "top4_15_k_lc", "top4_2_k_lc", "top4_25_k_lc", "top4_3_k_lc"],
 

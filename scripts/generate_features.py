@@ -16,9 +16,7 @@ from common.feature_generation import *
 # Parameters
 #
 class P:
-    feature_sets = ["kline", ]  # "futur"
-
-    in_nrows = 10_000_000
+    in_nrows = 10_000
 
 
 @click.command()
@@ -41,7 +39,10 @@ def main(config_file):
     #
     # Load merged data with regular time series
     #
-    in_path = (data_path / f"data.csv").resolve()
+    in_file_suffix = App.config.get("merge_file_modifier")
+
+    in_file_name = f"{in_file_suffix}.csv"
+    in_path = data_path / in_file_name
 
     print(f"Loading data from source file {str(in_path)}...")
     in_df = pd.read_csv(in_path, parse_dates=['timestamp'], nrows=P.in_nrows)
@@ -51,32 +52,52 @@ def main(config_file):
     # Generate derived features
     #
 
-    if "kline" in P.feature_sets:
-        print(f"Generating klines features...")
-        k_features = generate_features(
-            in_df, use_differences=False,
-            base_window=App.config["base_window_kline"], windows=App.config["windows_kline"],
-            area_windows=App.config["area_windows_kline"], last_rows=0
-        )
-        print(f"Finished generating {len(k_features)} kline features")
-    else:
-        k_features = []
+    feature_sets = App.config.get("feature_sets", [])
+    if not feature_sets:
+        # By default, we generate standard kline features
+        feature_sets = [{"column_prefix": "", "generator": "klines", "feature_prefix": ""}]
 
-    if "futur" in P.feature_sets:
-        print(f"Generating futur features...")
-        f_features = generate_features_futur(in_df)
-        print(f"Finished generating {len(f_features)} futur features")
-    else:
-        f_features = []
+    #
+    all_features = []
+    for fs in feature_sets:
+        # Select columns from the data set to be processed by the feature generator
+        cp = fs.get("column_prefix")
+        if cp:
+            cp = cp + "_"
+            f_cols = [col for col in in_df if col.startswith(cp)]
+            f_df = in_df[f_cols]  # Alternatively: f_df = in_df.loc[:, in_df.columns.str.startswith(cf)]
+            # Remove prefix because feature generators are generic (a prefix will be then added to derived features before adding them back to the main frame)
+            f_df.columns = f_df.columns.str.lstrip(cp)
+        else:
+            f_df = in_df[in_df.columns.to_list()]  # We want to have a different data frame object to add derived featuers and then join them back to the main frame with prefix
 
-    if "depth" in P.feature_sets:
-        print(f"Generating depth features...")
-        d_features = generate_features_depth(in_df)
-        print(f"Finished generating {len(f_features)} depth features")
-    else:
-        d_features = []
+        generator = fs.get("generator")
+        print(f"Generating features: {generator}...")
+        if generator == "klines":
+            features = generate_features(
+                f_df, use_differences=False,
+                base_window=App.config["base_window_kline"], windows=App.config["windows_kline"],
+                area_windows=App.config["area_windows_kline"], last_rows=0
+            )
+        elif generator == "futures":
+            features = generate_features_futures(f_df)
+        elif generator == "depth":
+            features = generate_features_depth(f_df)
+        else:
+            print(f"Unknown feature generator {generator}")
+            return
 
-    all_features = k_features + f_features + d_features
+        f_df = f_df[features]
+        # Add feature columns from feature frame to main input frame and add prefix
+        fp = fs.get("feature_prefix")
+        if fp:
+            f_df = f_df.add_prefix(fp + "_")
+
+        all_features += f_df.columns.to_list()
+
+        in_df = in_df.join(f_df)  # Attach all derived features to the main frame
+
+        print(f"Finished generating {len(features)} features by generator {generator}")
 
     #
     # Store feature matrix in output file

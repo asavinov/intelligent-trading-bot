@@ -54,7 +54,7 @@ def main(config_file):
 
     label_horizon = App.config["label_horizon"]  # Labels are generated using this number of steps ahead
     labels = App.config["labels"]
-    feature_sets = App.config.get("feature_sets")
+    train_features = App.config.get("train_features")
     algorithms = App.config.get("algorithms")
 
     #features_horizon = 720  # Features are generated using this past window length
@@ -110,9 +110,9 @@ def main(config_file):
     # Select necessary features and label
     out_columns = ['timestamp', 'open', 'high', 'low', 'close', 'volume', 'close_time']
     all_features = []
-    if "kline" in feature_sets:
+    if "kline" in train_features:
         all_features += features_kline
-    if "futur" in feature_sets:
+    if "futur" in train_features:
         all_features += features_futur
     all_features += labels
     in_df = in_df[all_features + out_columns]
@@ -134,23 +134,23 @@ def main(config_file):
 
     out_df = pd.DataFrame()  # Collect predictions
 
-    for feature_set in feature_sets:
-        if feature_set == "kline":
+    for tf in train_features:
+        if tf == "kline":
             features = features_kline
             fs_tag = "_k_"
-            feature_set_train_length = P.kline_train_length
-        elif feature_set == "futur":
+            features_train_length = P.kline_train_length
+        elif tf == "futur":
             features = features_futur
             fs_tag = "_f_"
-            feature_set_train_length = P.futur_train_length
+            features_train_length = P.futur_train_length
         else:
-            print(f"ERROR: Unknown feature set {feature_set}. Check feature set list in config.")
+            print(f"ERROR: Unknown feature set {tf}. Check feature set list in config.")
             return
 
-        print(f"Start training {feature_set} feature set with {len(features)} features, name tag {fs_tag}', and train length {feature_set_train_length}")
+        print(f"Start training {tf} feature set with {len(features)} features, name tag {fs_tag}', and train length {features_train_length}")
 
         # Limit maximum length
-        train_df = in_df.tail(feature_set_train_length)
+        train_df = in_df.tail(features_train_length)
         train_df = train_df.dropna(subset=features)
 
         for label in labels:
@@ -162,7 +162,7 @@ def main(config_file):
                 score_column_name = label + fs_tag + algo_name
 
                 # Limit length according to algorith parameters
-                if train_length and train_length < feature_set_train_length:
+                if train_length and train_length < features_train_length:
                     train_df_2 = train_df.iloc[-train_length:]
                 else:
                     train_df_2 = train_df

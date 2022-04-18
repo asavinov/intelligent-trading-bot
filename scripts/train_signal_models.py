@@ -58,8 +58,6 @@ Find best level-tolerance which generate best performance for certain performanc
 """
 
 class P:
-    feature_sets = ["kline", ]  # "futur"
-
     in_nrows = 100_000_000
 
     start_index = 0

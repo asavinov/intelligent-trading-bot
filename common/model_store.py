@@ -45,16 +45,29 @@ criteria, use cases and alternatives
     - we need to reimplement features generation so that it processes any input file based on the specified column prefix
     the prefix is used to select input columns to feed to generic feature generation, and then add this prefix
     to output columns, and finally *update* the input data and store in output file.
-    - merger role: take several data source and data format files, add column suffixes, sync, and store in one output
-      - params: list of symbols along with data format (kline etc.) and corresponding column prefixes
-      - output: file with columns having prefix of their ds-dataformat (to be recognized later)
-    - geature/label generator role: take one data file with column prefixes representing data source, apply certain generic feature/label generator to generic features (without prefixes), store the new features with again prefixes in the same or different file 
 
-- "column_prefix" in config for download data. column names now have prefix "b_" for btc, "e_" for etc etc.
-- merge data works as usual but it takes file from different folders (or files from the same folder)
- either it adds column prefix, or column prfix already exists
- - generate features assumes some column prefix in input and uses it for output columns
- - generate features can apply its logic to its own output so we can add more features (similar to labels)
+- now we have input data file with attribute sets each having certain prefix (defined by data_sources)
+- we need to apply several feature/label generators: one generator to several attribute sets, several generators to one attribute set (like features, high-low labels, top-bot labels)
+- this could be described as a list:
+ (column-selector-prefix, feature/label-generator name, out_prefix)
+ currently (with one source):
+ "", "kline-features", ""
+ "", "high-low-labels", ""
+ "", "top-bot-labels", ""
+we can also split some features and columns
+ in case of several sources with main and secondary sources like btc and eth
+ "", "kline-features", ""
+ "etc", "kline-features", "etc" <- additional features
+ "", "top-bot-labels", ""
+now we have a longer list of features like "close_60" and "etc_close_60" (we can reduce secondary features)
+they need to be listed in config
+"feature_sets": [
+  {"column_prefix": "btc", "generator": "klines or labels etc.", "out_prefix": ""}, <- do we need out prefix?
+]
+
+- feature generation (preprocessing) operations "use_differences" if true then close/volume/trades are transformed to differences.
+ it is similar to is_scale in trainining.
+ - there could be also other options like apply log to certain columns or outputs 
 
 """
 
@@ -110,10 +123,10 @@ def load_model_pair(model_path, score_column_name: str):
     return (model, scaler)
 
 
-def load_models(model_path, labels: list, feature_sets: list, algorithms: list):
+def load_models(model_path, labels: list, train_features: list, algorithms: list):
     """Load all model pairs for all combinations of the model parameters and return as a dict."""
     models = {}
-    for predicted_label in itertools.product(labels, feature_sets, algorithms):
+    for predicted_label in itertools.product(labels, train_features, algorithms):
         score_column_name = predicted_label[0] + "_" + predicted_label[1][0] + "_" + predicted_label[2]
         model_pair = load_model_pair(model_path, score_column_name)
         models[score_column_name] = model_pair
