@@ -16,7 +16,7 @@ from common.feature_generation import *
 # Parameters
 #
 class P:
-    in_nrows = 10_000
+    in_nrows = 10_000_000
 
 
 @click.command()
@@ -72,7 +72,7 @@ def main(config_file):
             f_df = in_df[in_df.columns.to_list()]  # We want to have a different data frame object to add derived featuers and then join them back to the main frame with prefix
 
         generator = fs.get("generator")
-        print(f"Generating features: {generator}...")
+        print(f"Generating features using generator: {generator}...")
         if generator == "klines":
             features = generate_features(
                 f_df, use_differences=False,

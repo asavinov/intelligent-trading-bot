@@ -73,8 +73,9 @@ class App:
         "data_folder": "",  # It is needed for model training
         # Symbol determines sub-folder and used in other identifiers
         "symbol": "",  # BTCUSDT ETHUSDT
-        "base_asset": "",  # BTC ETH
-        "quote_asset": "",
+        # It will be appended to generated file names and denotes config (like config name).
+        # TOCO: In future, we could/should change it semantics, and store the generated files in the folder with this name, rather than append a modifier to file names
+        "config_file_modifier": "",
 
         # File name conventions
         "merge_file_modifier": "data",
@@ -95,6 +96,7 @@ class App:
         # ==========================
         # === FEATURE GENERATION ===
 
+        # What columns to pass to which feature generator and how to prefix its derived features
         "feature_sets": [
             {"column_prefix": "", "generator": "klines", "feature_prefix": ""},
         ],
@@ -104,32 +106,36 @@ class App:
         "windows_kline": [1, 60, 360, 1440, 4320, 10080],
         "area_windows_kline": [60, 360, 1440, 4320, 10080],
 
-        # History required to compute derived features.
-        # Take maximum aggregation windows from feature generation code (and add something to be sure that we have all what is needed)
-        # Basically, should be equal to base_window_kline
-        "features_horizon": 40420,
-
-        # Feature column names returned by the klines feature generator which we want to use for train/predict
-        "features_kline": [
-            "close_1","close_60","close_360","close_1440","close_4320","close_10080",
-            "close_std_60","close_std_360","close_std_1440","close_std_4320","close_std_10080",  # Removed "std_1"
-            "volume_1","volume_60","volume_360","volume_1440","volume_4320","volume_10080",
-            "span_1", "span_60", "span_360", "span_1440", "span_4320", "span_10080",
-            "trades_1","trades_60","trades_360","trades_1440","trades_4320","trades_10080",
-            "tb_base_1","tb_base_60","tb_base_360","tb_base_1440","tb_base_4320","tb_base_10080",
-            "tb_quote_1","tb_quote_60","tb_quote_360","tb_quote_1440","tb_quote_4320","tb_quote_10080",
-            "close_area_60", "close_area_360", "close_area_1440", "close_area_4320", "close_area_10080",
-            "close_trend_60", "close_trend_360", "close_trend_1440", "close_trend_4320", "close_trend_10080"
-        ],
-
         # ========================
         # === LABEL GENERATION ===
 
         "high_low_horizon": 1440,  # Parameter of labels: computing max and min for this horizon ahead
 
-        # ========================
-        # === MODEL GENERATION ===
-        # for each fs, label, algorithm <label, fs, algorithm>
+        # ===========================
+        # === MODEL TRAIN/PREDICT ===
+        #     off-line and on-line
+
+        # Minimum history required to compute derived features
+        # It is used in online mode where we need to maintain data window of this size or larger
+        # Take maximum aggregation windows from feature generation code (and add something to be sure that we have all what is needed)
+        # Basically, should be equal to base_window_kline
+        "features_horizon": 40420,
+
+        # One model is for each (label, train_features, algorithm)
+
+        # Feature column names returned by the klines feature generator
+        # They are used by train/predict
+        "features_kline": [
+            "close_1", "close_60", "close_360", "close_1440", "close_4320", "close_10080",
+            "close_std_60", "close_std_360", "close_std_1440", "close_std_4320", "close_std_10080",  # Removed "std_1"
+            "volume_1", "volume_60", "volume_360", "volume_1440", "volume_4320", "volume_10080",
+            "span_1", "span_60", "span_360", "span_1440", "span_4320", "span_10080",
+            "trades_1", "trades_60", "trades_360", "trades_1440", "trades_4320", "trades_10080",
+            "tb_base_1", "tb_base_60", "tb_base_360", "tb_base_1440", "tb_base_4320", "tb_base_10080",
+            "tb_quote_1", "tb_quote_60", "tb_quote_360", "tb_quote_1440", "tb_quote_4320", "tb_quote_10080",
+            "close_area_60", "close_area_360", "close_area_1440", "close_area_4320", "close_area_10080",
+            "close_trend_60", "close_trend_360", "close_trend_1440", "close_trend_4320", "close_trend_10080"
+        ],
 
         "train_features": ["kline"],  # Used to select columns for training by adding together different feature sets (the lists are defined elswhere in variables like "features_kline")
         "algorithms": ["nn"],  # gb, nn, lc
@@ -137,12 +143,17 @@ class App:
         # This will be excluded from model training
         "label_horizon": 0,
 
+        # These labels are specified manually and are produced by label generator
         # Models will be trained for these models
         "labels": [
-            "bot4_1", "bot4_15", "bot4_2", "bot4_25", "bot4_3",
-            "top4_1", "top4_15", "top4_2", "top4_25", "top4_3",
-            "bot5_1", "bot5_15", "bot5_2", "bot5_25", "bot5_3",
-            "top5_1", "top5_15", "top5_2", "top5_25", "top5_3",
+            "bot2_05", "bot2_1", "bot2_15", "bot2_2", "bot2_25", "bot2_3",
+            "top2_05", "top2_1", "top2_15", "top2_2", "top2_25", "top2_3",
+
+            "bot3_05", "bot3_1", "bot3_15", "bot3_2", "bot3_25", "bot3_3",
+            "top3_05", "top3_1", "top3_15", "top3_2", "top3_25", "top3_3",
+
+            "bot4_05", "bot4_1", "bot4_15", "bot4_2", "bot4_25", "bot4_3",
+            "top4_05", "top4_1", "top4_15", "top4_2", "top4_25", "top4_3",
         ],
         "_labels": [
             "bot4_1", "bot4_15", "bot4_2", "bot4_25", "bot4_3",
@@ -195,7 +206,7 @@ class App:
             "sell_point_threshold": None,
             "sell_window": 3,
             "sell_signal_threshold": 0.65,
-            "sell_notify_threshold": 0.1,
+            "sell_notify_threshold": 0.05,
 
             "trade_icon_step": 0.1,  # For each step, one icon added
             "notify_frequency_minutes": 10,  # 1m, 5m, 10m, 15m etc. Minutes will be divided by this number
@@ -203,6 +214,9 @@ class App:
 
         # =====================
         # === TRADER SERVER ===
+        "base_asset": "",  # BTC ETH
+        "quote_asset": "",
+
         "trader": {
             # For debugging: determine what parts of code will be executed
             "no_trades_only_data_processing": False,  # in market or out of market processing is excluded (all below parameters ignored)

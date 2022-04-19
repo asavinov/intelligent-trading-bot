@@ -78,13 +78,13 @@ class P:
 grid_signals = [
     {
         "buy_point_threshold": [None], # + np.arange(0.02, 0.20, 0.01).tolist(),  # None means do not use
-        "buy_window": [1, 3],  # [5, 6, 7, 8, 9, 10, 11, 12]
-        "buy_signal_threshold": [0.4, 0.42, 0.44, 0.46, 0.48, 0.5, 0.52, 0.54, 0.56, 0.58, 0.6, 0.62, 0.66, 0.68, 0.7],  # [0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 1.0]
+        "buy_window": [3, 4, 5],  # [5, 6, 7, 8, 9, 10, 11, 12]
+        "buy_signal_threshold": [0.3, 0.31, 0.32, 0.33, 0.34, 0.35, 0.36, 0.37, 0.38, 0.39, 0.4, 0.41, 0.42, 0.43, 0.44, 0.45, 0.46, 0.47, 0.48, 0.49, 0.5, 0.51, 0.52, 0.53, 0.54, 0.55],  # [0.58, 0.59, 0.60, 0.61, 0.62, 0.63, 0.64, 0.65]
 
         # If two groups are equal, then these values are ignored
         "sell_point_threshold": [None], # + np.arange(0.02, 0.20, 0.01).tolist()
         "sell_window": [3, 4, 5],
-        "sell_signal_threshold": [0.64, 0.65, 0.66, 0.68, 0.7, 0.72],
+        "sell_signal_threshold": [0.58, 0.59, 0.60, 0.61, 0.62, 0.63, 0.64, 0.65],
 
         "combine": ["no_combine"],  # "no_combine", "relative", "difference"
     },
