@@ -1,7 +1,7 @@
 import sys
 from pathlib import Path
 from datetime import datetime, timezone, timedelta
-from typing import Union
+from typing import Union, Tuple
 import json
 import pickle
 import click
@@ -16,7 +16,7 @@ from common.feature_generation import *
 # Parameters
 #
 class P:
-    in_nrows = 10_000_000
+    in_nrows = 50_000_000
 
 
 @click.command()
@@ -45,39 +45,69 @@ def main(config_file):
     in_path = data_path / in_file_name
 
     print(f"Loading data from source file {str(in_path)}...")
-    in_df = pd.read_csv(in_path, parse_dates=['timestamp'], nrows=P.in_nrows)
-    print(f"Finished loading {len(in_df)} records with {len(in_df.columns)} columns.")
+    df = pd.read_csv(in_path, parse_dates=['timestamp'], nrows=P.in_nrows)
+    print(f"Finished loading {len(df)} records with {len(df.columns)} columns.")
 
     #
     # Generate derived features
     #
-
     feature_sets = App.config.get("feature_sets", [])
     if not feature_sets:
         # By default, we generate standard kline features
         feature_sets = [{"column_prefix": "", "generator": "klines", "feature_prefix": ""}]
 
+    # Apply all feature generators to the data frame which get accordingly new derived columns
+    # The feature parameters will be taken from App.config (depending on generator)
+    df, all_features = generate_feature_sets(df, feature_sets, last_rows=0)
+    print(f"Finished generating features by generator.")
+
     #
+    # Store feature matrix in output file
+    #
+    out_file_suffix = App.config.get("feature_file_modifier")
+
+    out_file_name = f"{out_file_suffix}{config_file_modifier}.csv"
+    out_path = (data_path / out_file_name).resolve()
+
+    print(f"Storing feature matrix with {len(df)} records and {len(df.columns)} columns in output file...")
+    df.to_csv(out_path, index=False, float_format="%.4f")
+    #df.to_parquet(out_path.with_suffix('.parquet'), engine='auto', compression=None, index=None, partition_cols=None)
+
+    #
+    # Store features
+    #
+    with open(out_path.with_suffix('.txt'), "a+") as f:
+        f.write(", ".join([f"'{f}'" for f in all_features] ) + "\n")
+
+    print(f"Stored {len(all_features)} features in output file {out_path}")
+
+    elapsed = datetime.now() - start_dt
+    print(f"Finished feature generation in {int(elapsed.total_seconds())} seconds")
+    print(f"Output file location: {out_path}")
+
+
+def generate_feature_sets(df: pd.DataFrame, feature_sets: list, last_rows: int) -> Tuple[pd.DataFrame, list]:
+    """Apply different feature generators to the input data set according to descriptors."""
+
     all_features = []
     for fs in feature_sets:
         # Select columns from the data set to be processed by the feature generator
         cp = fs.get("column_prefix")
         if cp:
             cp = cp + "_"
-            f_cols = [col for col in in_df if col.startswith(cp)]
-            f_df = in_df[f_cols]  # Alternatively: f_df = in_df.loc[:, in_df.columns.str.startswith(cf)]
+            f_cols = [col for col in df if col.startswith(cp)]
+            f_df = df[f_cols]  # Alternatively: f_df = df.loc[:, df.columns.str.startswith(cf)]
             # Remove prefix because feature generators are generic (a prefix will be then added to derived features before adding them back to the main frame)
-            f_df.columns = f_df.columns.str.lstrip(cp)
+            f_df = f_df.rename(columns=lambda x: x[len(cp):] if x.startswith(cp) else x)  # Alternatively: f_df.columns = f_df.columns.str.replace(cp, "")
         else:
-            f_df = in_df[in_df.columns.to_list()]  # We want to have a different data frame object to add derived featuers and then join them back to the main frame with prefix
+            f_df = df[df.columns.to_list()]  # We want to have a different data frame object to add derived featuers and then join them back to the main frame with prefix
 
         generator = fs.get("generator")
-        print(f"Generating features using generator: {generator}...")
         if generator == "klines":
             features = generate_features(
                 f_df, use_differences=False,
                 base_window=App.config["base_window_kline"], windows=App.config["windows_kline"],
-                area_windows=App.config["area_windows_kline"], last_rows=0
+                area_windows=App.config["area_windows_kline"], last_rows=last_rows
             )
         elif generator == "futures":
             features = generate_features_futures(f_df)
@@ -95,33 +125,9 @@ def main(config_file):
 
         all_features += f_df.columns.to_list()
 
-        in_df = in_df.join(f_df)  # Attach all derived features to the main frame
+        df = df.join(f_df)  # Attach all derived features to the main frame
 
-        print(f"Finished generating {len(features)} features by generator {generator}")
-
-    #
-    # Store feature matrix in output file
-    #
-    out_file_suffix = App.config.get("feature_file_modifier")
-
-    out_file_name = f"{out_file_suffix}{config_file_modifier}.csv"
-    out_path = (data_path / out_file_name).resolve()
-
-    print(f"Storing feature matrix with {len(in_df)} records and {len(in_df.columns)} columns in output file...")
-    in_df.to_csv(out_path, index=False, float_format="%.4f")
-    #in_df.to_parquet(out_path.with_suffix('.parquet'), engine='auto', compression=None, index=None, partition_cols=None)
-
-    #
-    # Store features
-    #
-    with open(out_path.with_suffix('.txt'), "a+") as f:
-        f.write(", ".join([f"'{f}'" for f in all_features] ) + "\n")
-
-    print(f"Stored {len(all_features)} features in output file {out_path}")
-
-    elapsed = datetime.now() - start_dt
-    print(f"Finished feature generation in {int(elapsed.total_seconds())} seconds")
-    print(f"Output file location: {out_path}")
+    return df, all_features
 
 
 if __name__ == '__main__':

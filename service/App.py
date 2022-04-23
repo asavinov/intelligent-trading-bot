@@ -74,7 +74,7 @@ class App:
         # Symbol determines sub-folder and used in other identifiers
         "symbol": "",  # BTCUSDT ETHUSDT
         # It will be appended to generated file names and denotes config (like config name).
-        # TOCO: In future, we could/should change it semantics, and store the generated files in the folder with this name, rather than append a modifier to file names
+        # TODO: In future, we could/should change it semantics, and store the generated files in the folder with this name, rather than append a modifier to file names
         "config_file_modifier": "",
 
         # File name conventions
@@ -84,14 +84,19 @@ class App:
         "predict_file_modifier": "predict",  # Or predict-rolling
         "signal_file_modifier": "performance",
 
-        # ==============
-        # === MERGER ===
+        # =====================================
+        # === MERGER and (online) COLLECTOR ===
 
         # Specify which data sources to merge into one file with all source columns
         # Format: (folder, file, prefix) - (symbol, data source, column prefix)
+        # These descriptors are also used to retrieve data by collector in online mode - folder name is symbol name
         #"data_sources": [
         #    {"folder": "BTCUSDT", "file": "klines", "column_prefix": ""},
         #],
+        "data_sources": [
+            {"folder": "BTCUSDT", "file": "klines", "column_prefix": ""},
+            {"folder": "ETHUSDT", "file": "klines", "column_prefix": "eth"},
+        ],
 
         # ==========================
         # === FEATURE GENERATION ===
@@ -99,6 +104,7 @@ class App:
         # What columns to pass to which feature generator and how to prefix its derived features
         "feature_sets": [
             {"column_prefix": "", "generator": "klines", "feature_prefix": ""},
+            {"column_prefix": "eth", "generator": "klines", "feature_prefix": "eth"},
         ],
         # Parameters of klines feature generator
         # If these are changed, then feature names (below) will also have to be changed
@@ -134,11 +140,34 @@ class App:
             "tb_base_1", "tb_base_60", "tb_base_360", "tb_base_1440", "tb_base_4320", "tb_base_10080",
             "tb_quote_1", "tb_quote_60", "tb_quote_360", "tb_quote_1440", "tb_quote_4320", "tb_quote_10080",
             "close_area_60", "close_area_360", "close_area_1440", "close_area_4320", "close_area_10080",
-            "close_trend_60", "close_trend_360", "close_trend_1440", "close_trend_4320", "close_trend_10080"
+            "close_trend_60", "close_trend_360", "close_trend_1440", "close_trend_4320", "close_trend_10080",
+
+            'eth_close_1', 'eth_close_60', 'eth_close_360', 'eth_close_1440', 'eth_close_4320', 'eth_close_10080',
+            'eth_close_std_60', 'eth_close_std_360', 'eth_close_std_1440', 'eth_close_std_4320', 'eth_close_std_10080',
+            'eth_volume_1', 'eth_volume_60', 'eth_volume_360', 'eth_volume_1440', 'eth_volume_4320', 'eth_volume_10080',
+            'eth_span_1', 'eth_span_60', 'eth_span_360', 'eth_span_1440', 'eth_span_4320', 'eth_span_10080',
+            'eth_trades_1', 'eth_trades_60', 'eth_trades_360', 'eth_trades_1440', 'eth_trades_4320', 'eth_trades_10080',
+            'eth_tb_base_1', 'eth_tb_base_60', 'eth_tb_base_360', 'eth_tb_base_1440', 'eth_tb_base_4320', 'eth_tb_base_10080',
+            'eth_tb_quote_1', 'eth_tb_quote_60', 'eth_tb_quote_360', 'eth_tb_quote_1440', 'eth_tb_quote_4320', 'eth_tb_quote_10080',
+            'eth_close_area_60', 'eth_close_area_360', 'eth_close_area_1440', 'eth_close_area_4320', 'eth_close_area_10080',
+            'eth_close_trend_60', 'eth_close_trend_360', 'eth_close_trend_1440', 'eth_close_trend_4320', 'eth_close_trend_10080',
+        ],
+        "features_kline_eth": [
+            'eth_close_1', 'eth_close_60', 'eth_close_360', 'eth_close_1440', 'eth_close_4320', 'eth_close_10080',
+            'eth_close_std_60', 'eth_close_std_360', 'eth_close_std_1440', 'eth_close_std_4320', 'eth_close_std_10080',
+            'eth_volume_1', 'eth_volume_60', 'eth_volume_360', 'eth_volume_1440', 'eth_volume_4320', 'eth_volume_10080',
+            'eth_span_1', 'eth_span_60', 'eth_span_360', 'eth_span_1440', 'eth_span_4320', 'eth_span_10080',
+            'eth_trades_1', 'eth_trades_60', 'eth_trades_360', 'eth_trades_1440', 'eth_trades_4320', 'eth_trades_10080',
+            'eth_tb_base_1', 'eth_tb_base_60', 'eth_tb_base_360', 'eth_tb_base_1440', 'eth_tb_base_4320', 'eth_tb_base_10080',
+            'eth_tb_quote_1', 'eth_tb_quote_60', 'eth_tb_quote_360', 'eth_tb_quote_1440', 'eth_tb_quote_4320', 'eth_tb_quote_10080',
+            'eth_close_area_60', 'eth_close_area_360', 'eth_close_area_1440', 'eth_close_area_4320', 'eth_close_area_10080',
+            'eth_close_trend_60', 'eth_close_trend_360', 'eth_close_trend_1440', 'eth_close_trend_4320', 'eth_close_trend_10080',
         ],
 
-        "train_features": ["kline"],  # Used to select columns for training by adding together different feature sets (the lists are defined elswhere in variables like "features_kline")
-        "algorithms": ["nn"],  # gb, nn, lc
+        # Used to select columns for training by adding together different feature sets (the lists are defined elswhere in variables like "features_kline")
+        "train_features": ["kline"],
+        # algorithm descriptors from model store
+        "algorithms": ["nn"],  # gb, nn, lc - definitions of their parameters are in model store
 
         # This will be excluded from model training
         "label_horizon": 0,
@@ -146,14 +175,17 @@ class App:
         # These labels are specified manually and are produced by label generator
         # Models will be trained for these models
         "labels": [
-            "bot2_05", "bot2_1", "bot2_15", "bot2_2", "bot2_25", "bot2_3",
-            "top2_05", "top2_1", "top2_15", "top2_2", "top2_25", "top2_3",
+            "bot2_025", "bot2_05", "bot2_075", "bot2_1", "bot2_125", "bot2_15",
+            "top2_025", "top2_05", "top2_075", "top2_1", "top2_125", "top2_15",
 
-            "bot3_05", "bot3_1", "bot3_15", "bot3_2", "bot3_25", "bot3_3",
-            "top3_05", "top3_1", "top3_15", "top3_2", "top3_25", "top3_3",
+            "bot3_025", "bot3_05", "bot3_075", "bot3_1", "bot3_125", "bot3_15", "bot3_175",
+            "top3_025", "top3_05", "top3_075", "top3_1", "top3_125", "top3_15", "top3_175",
 
-            "bot4_05", "bot4_1", "bot4_15", "bot4_2", "bot4_25", "bot4_3",
-            "top4_05", "top4_1", "top4_15", "top4_2", "top4_25", "top4_3",
+            "bot4_025", "bot4_05", "bot4_075", "bot4_1", "bot4_125", "bot4_15", "bot4_175", "bot4_2",
+            "top4_025", "top4_05", "top4_075", "top4_1", "top4_125", "top4_15", "top4_175", "top4_2",
+
+            "bot5_025", "bot5_05", "bot5_075", "bot5_1", "bot5_125", "bot5_15", "bot5_175", "bot5_2", "bot5_25",
+            "top5_025", "top5_05", "top5_075", "top5_1", "top5_125", "top5_15", "top5_175", "top5_2", "top5_25",
         ],
         "_labels": [
             "bot4_1", "bot4_15", "bot4_2", "bot4_25", "bot4_3",

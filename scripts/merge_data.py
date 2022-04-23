@@ -126,6 +126,7 @@ def main(config_file):
 
     start_dt = datetime.now()
 
+    # Read data from files
     for ds in data_sources:
         # What is want is for each source, load file into df, determine its properties (columns, start, end etc.), and then merge all these dfs
         file_path = (data_path / ds.get("folder") / ds.get("file")).with_suffix(".csv")
@@ -135,34 +136,13 @@ def main(config_file):
 
         print(f"Reading data file: {file_path}")
         df = pd.read_csv(file_path, parse_dates=['timestamp'])
-        df = df.set_index("timestamp")  # We only assume that there is timestamp attribute
-
-        if ds['column_prefix']:
-            df = df.add_prefix(ds['column_prefix']+"_")
-        #df.columns = [f"{ds['column_prefix']}_{col}" for col in df.columns]
-
+        print(f"Loaded file with {len(df)} records.")
         ds["df"] = df
-        ds["start"] = df.index[0]
-        ds["end"] = df.index[-1]
 
-        print(f"Loaded file with {len(df)} records. Range: ({ds['start']}, {ds['end']})")
-
-    #
-    # Create 1m common (main) index and empty data frame
-    #
-    range_start = min([ds["start"] for ds in data_sources])
-    range_end = max([ds["end"] for ds in data_sources])
-
-    index = pd.date_range(range_start, range_end, freq="T")
-    df_out = pd.DataFrame(index=index)
-    df_out.index.name = "timestamp"
-
-    print(f"Start merging...")
-
-    for ds in data_sources:
-        # Note that timestamps must have the same semantics, for example, start of kline (and not end of kline)
-        # If different data sets have different semantics for timestamps, then data must be shifted accordingly
-        df_out = df_out.join(ds["df"])
+    # Merge in one df with prefixes and common regular time index
+    df_out = merge_data_frames(data_sources)
+    range_start = df_out.iloc[0]
+    range_end = df_out.iloc[-1]
 
     #
     # Store file with features
@@ -179,6 +159,40 @@ def main(config_file):
     elapsed = datetime.now() - start_dt
     print(f"Finished processing in {int(elapsed.total_seconds())} seconds.")
     print(f"Output file location: {out_path}")
+
+
+def merge_data_frames(data_sources: list):
+    for ds in data_sources:
+        df = ds.get("df")
+
+        if "timestamp" in df.columns:
+            df = df.set_index("timestamp")
+
+        if ds['column_prefix']:
+            df = df.add_prefix(ds['column_prefix']+"_")
+        #df.columns = [f"{ds['column_prefix']}_{col}" for col in df.columns]
+
+        ds["start"] = df.index[0]
+        ds["end"] = df.index[-1]
+
+        ds["df"] = df
+
+    #
+    # Create 1m common (main) index and empty data frame
+    #
+    range_start = min([ds["start"] for ds in data_sources])
+    range_end = min([ds["end"] for ds in data_sources])
+
+    index = pd.date_range(range_start, range_end, freq="T")
+    df_out = pd.DataFrame(index=index)
+    df_out.index.name = "timestamp"
+
+    for ds in data_sources:
+        # Note that timestamps must have the same semantics, for example, start of kline (and not end of kline)
+        # If different data sets have different semantics for timestamps, then data must be shifted accordingly
+        df_out = df_out.join(ds["df"])
+
+    return df_out
 
 
 if __name__ == '__main__':

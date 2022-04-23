@@ -268,104 +268,38 @@ def add_threshold_feature(df, column_name: str, thresholds: list, out_names: lis
     return out_names
 
 
-def depth_to_df(depth: list):
+def klines_to_df(klines: list):
     """
-    Input is a list of json objects each representing current market depth with a list bids and asks
-    The method computes features from the market depth and returns a data frame with the corresponding columns.
-
-    NOTE:
-    - Important: "timestamp" is real time of the depth data which corresponds to "close_time" in klines
-      "timestamp" in klines is 1m before current time
-      It has to be taken into account when matching/joining records, e.g., by shifting columns (if we match "timestamp" then the reslt will be wrong)
-    - data frame index is continuous and may contain gaps. its start is first line and end is last line
-
-    # TODO Questions:
-    # !!! - what is zone for our timestamps - ensure that it is the same as Binance server
-    # - is it possible to create a data frame with a column containing json object or string?
-    # - how to match json/string values with data frame index?
+    Convert a list of klines to a data frame.
     """
-    bin_size = 1.0  # In USDT
-    windows = [1, 2, 5, 10, 20]  # No of price bins for aggregate/smoothing
+    columns = [
+        'timestamp',
+        'open', 'high', 'low', 'close', 'volume',
+        'close_time',
+        'quote_av', 'trades', 'tb_base_av', 'tb_quote_av',
+        'ignore'
+    ]
 
-    #
-    # Generate a table with feature records
-    #
-    table = []
-    for entry in depth:
-        record = depth_to_features(entry, windows, bin_size)
-        table.append(record)
+    df = pd.DataFrame(klines, columns=columns)
 
-    #
-    # Convert json table to data frame
-    #
-    df = pd.DataFrame.from_dict(table)
-    # Alternatively, from_records() or json_normalize()
+    df['timestamp'] = pd.to_datetime(df['timestamp'], unit='ms')
+    df['close_time'] = pd.to_datetime(df['close_time'], unit='ms')
 
-    # Timestamp is an index
-    df["timestamp"] = pd.to_datetime(df["timestamp"], unit='ms')
-    df = df.set_index("timestamp")
-    df = df.sort_index()
+    df["open"] = pd.to_numeric(df["open"])
+    df["high"] = pd.to_numeric(df["high"])
+    df["low"] = pd.to_numeric(df["low"])
+    df["close"] = pd.to_numeric(df["close"])
+    df["volume"] = pd.to_numeric(df["volume"])
 
-    #
-    # Find start and end dates
-    #
-    # NOTE: timestamp is request time (in our implementation) and hence it is end of 1m interval while kline id is start of 1m inteval
-    #  It is important for matching, so maybe align this difference here by shifting data
-    start_line = depth[0]
-    end_line = depth[-1]
-    start_ts = start_line.get("timestamp")
-    #start_ts -= 60_000  # To ensure that we do not lose any data
-    end_ts = end_line.get("timestamp")
-    #end_ts += 60_000  # To ensure that we do not lose any data
+    df["quote_av"] = pd.to_numeric(df["quote_av"])
+    df["trades"] = pd.to_numeric(df["trades"])
+    df["tb_base_av"] = pd.to_numeric(df["tb_base_av"])
+    df["tb_quote_av"] = pd.to_numeric(df["tb_quote_av"])
 
-    #
-    # Create index for this interval of timestamps
-    #
-    # NOTE: Add utc=True to get tz-aware object (with tz="UTC" instead of tz-unaware object with tz=None), so it seems that no tz means UTC
-    start = pd.to_datetime(start_ts, unit='ms')
-    end = pd.to_datetime(end_ts, unit='ms')
+    if "timestamp" in df.columns:
+        df.set_index('timestamp', inplace=True)
 
-    # Alternatively:
-    # If tz is not specified then 1 hour difference will be added so it seems that no tz means locale tz
-    #datetime.fromtimestamp(float(start_ts) / 1e3, tz=pytz.UTC)
-
-    # Create DatetimeIndex
-    # NOTE: if tz is not specified then the index is tz-naive
-    #   closed can be specified (which side to include/exclude: left, right or both). it influences if we want ot include/exclude start or end of the interval
-    index = pd.date_range(start, end, freq="T")
-    df_out = pd.DataFrame(index=index)
-
-    #
-    # Join data with this empty index (to ensure continuous range of timestamps)
-    #
-    df_out = df_out.join(df)
-
-    return df_out
-
-
-def depth_to_features(entry: list, windows: list, bin_size: float):
-    """Convert one record of market depth to a dict of features"""
-
-    bids = entry.get("bids")
-    asks = entry.get("asks")
-
-    timestamp = entry.get("timestamp")
-
-    # Gap feature
-    gap = asks[0][0] - bids[0][0]
-
-    if gap < 0: gap = 0
-
-    # Price feature
-    price = bids[0][0] + (gap / 2)
-
-    # Densities for bids and asks (volume per price unit)
-    densities = mean_volumes(depth=entry, windows=windows, bin_size=bin_size)
-
-    record = {"timestamp": timestamp, "gap": gap, "price": price}
-    record.update(densities)
-
-    return record
+    return df
 
 
 if __name__ == "__main__":

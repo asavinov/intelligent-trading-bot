@@ -15,6 +15,9 @@ from common.feature_generation import *
 from common.signal_generation import *
 from common.model_store import *
 
+from scripts.merge_data import *
+from scripts.generate_features import *
+
 import logging
 log = logging.getLogger('analyzer')
 
@@ -112,7 +115,7 @@ class Analyzer:
         last_kline_ts = self.get_last_kline_ts(symbol)
         if not last_kline_ts:
             return App.config["features_horizon"]
-        end_of_last_kline = last_kline_ts + 60_000  # Plus 1m
+        end_of_last_kline = last_kline_ts + 60_000  # Plus 1m because kline timestamp is
 
         minutes = (now_ts - end_of_last_kline) / 60_000
         minutes += 2
@@ -278,55 +281,68 @@ class Analyzer:
         """
         symbol = App.config["symbol"]
 
-        klines = self.klines.get(symbol)
         last_kline_ts = self.get_last_kline_ts(symbol)
         last_kline_ts_str = str(pd.to_datetime(last_kline_ts, unit='ms'))
 
-        log.info(f"Analyze {symbol}. {len(klines)} klines in the database. Last kline timestamp: {last_kline_ts_str}")
+        log.info(f"Analyze {symbol}. Last kline timestamp: {last_kline_ts_str}")
 
         #
         # 1.
-        # Produce a data frame with înput data
+        # MERGE: Produce a single data frame with înput data from all sources
         #
-        try:
-            df = klines_to_df(klines)
-        except Exception as e:
-            log.error(f"Error in klines_to_df method: {e}. Length klines: {len(klines)}")
-            return
+        data_sources = App.config.get("data_sources", [])
+        if not data_sources:
+            data_sources = [{"folder": App.config["symbol"], "file": "klines", "column_prefix": ""}]
 
-        source_columns = ['open', 'high', 'low', 'close', 'volume', 'close_time', 'quote_av', 'trades', 'tb_base_av', 'tb_quote_av']
-        if df.isnull().any().any():
-            null_columns = {k: v for k, v in df.isnull().any().to_dict().items() if v}
-            log.warning(f"Null in source data found. Columns with Null: {null_columns}")
-        # TODO: We might receive empty strings or 0s in numeric data - how can we detect them?
+        # Read data from online sources into data frames
+        for ds in data_sources:
+            if ds.get("file") == "klines":
+                try:
+                    klines = self.klines.get(ds.get("folder"))
+                    df = klines_to_df(klines)
 
-        # TODO: Check that timestamps in 'close_time' are strictly consecutive
+                    # Validate
+                    source_columns = ['open', 'high', 'low', 'close', 'volume', 'close_time', 'quote_av', 'trades', 'tb_base_av', 'tb_quote_av']
+                    if df.isnull().any().any():
+                        null_columns = {k: v for k, v in df.isnull().any().to_dict().items() if v}
+                        log.warning(f"Null in source data found. Columns with Null: {null_columns}")
+                    # TODO: We might receive empty strings or 0s in numeric data - how can we detect them?
+                    # TODO: Check that timestamps in 'close_time' are strictly consecutive
+                except Exception as e:
+                    log.error(f"Error in klines_to_df method: {e}. Length klines: {len(klines)}")
+                    return
+            else:
+                log.error("Unknown data sources. Currently only 'klines' is supported. Check 'data_sources' in config, key 'file'")
+                return
+            ds["df"] = df
+
+        # Merge in one df with prefixes and common regular time index
+        df = merge_data_frames(data_sources)
 
         #
         # 2.
         # Generate all necessary derived features (NaNs are possible due to short history)
         #
-
         # We want to generate features only for last rows (for performance reasons)
         # Therefore, determine how many last rows we actually need
         buy_window = App.config["signal_model"]["buy_window"]
         sell_window = App.config["signal_model"]["sell_window"]
         last_rows = max(buy_window, sell_window) + 2
 
-        try:
-            features_out = generate_features(
-                df, use_differences=False,
-                base_window=App.config["base_window_kline"], windows=App.config["windows_kline"],
-                area_windows=App.config["area_windows_kline"], last_rows=last_rows
-            )
-        except Exception as e:
-            log.error(f"Error in generate_features: {e}. Length df: {len(df)}")
-            return
-        df = df.iloc[-last_rows:]  # We will need only several last rows
+        feature_sets = App.config.get("feature_sets", [])
+        if not feature_sets:
+            # By default, we generate standard kline features
+            feature_sets = [{"column_prefix": "", "generator": "klines", "feature_prefix": ""}]
+
+        # Apply all feature generators to the data frame which get accordingly new derived columns
+        # The feature parameters will be taken from App.config (depending on generator)
+        df, all_features = generate_feature_sets(df, feature_sets, last_rows=last_rows)
+
+        df = df.iloc[-last_rows:]  # For signal generation, ew will need only several last rows
 
         #
         # 3.
-        # Generate scores using existing models (trained in advance using latest history by a separate script)
+        # Apply ML models and generate score columns
         #
 
         # kline feature set

@@ -85,13 +85,33 @@ def main(config_file):
     # top-bot labels
     #
     if "top-bot" in P.label_sets:
-        top_level_fracs = [0.02, 0.03, 0.04, 0.05, 0.06, 0.07, 0.08, 0.09, 0.10]
+        top_level_fracs = [0.02, 0.03, 0.04, 0.05, 0.06]
         bot_level_fracs = [-x for x in top_level_fracs]
+
+        # Tolerance 0.0025
+        tolerance_frac = 0.0025
+        top_labels = ['top2_025', 'top3_025', 'top4_025', 'top5_025', 'top6_025']
+        bot_labels = ['bot2_025', 'bot3_025', 'bot4_025', 'bot5_025', 'bot6_025']
+
+        labels += add_extremum_features(in_df, column_name='close', level_fracs=top_level_fracs, tolerance_frac=tolerance_frac, out_names=top_labels)
+        print(f"Top labels computed: {top_labels}")
+        labels += add_extremum_features(in_df, column_name='close', level_fracs=bot_level_fracs, tolerance_frac=tolerance_frac, out_names=bot_labels)
+        print(f"Bottom labels computed: {bot_labels}")
 
         # Tolerance 0.005
         tolerance_frac = 0.005
-        top_labels = ['top2_05', 'top3_05', 'top4_05', 'top5_05', 'top6_05', 'top7_05', 'top8_05', 'top9_05', 'top10_05']
-        bot_labels = ['bot2_05', 'bot3_05', 'bot4_05', 'bot5_05', 'bot6_05', 'bot7_05', 'bot8_05', 'bot9_05', 'bot10_05']
+        top_labels = ['top2_05', 'top3_05', 'top4_05', 'top5_05', 'top6_05']
+        bot_labels = ['bot2_05', 'bot3_05', 'bot4_05', 'bot5_05', 'bot6_05']
+
+        labels += add_extremum_features(in_df, column_name='close', level_fracs=top_level_fracs, tolerance_frac=tolerance_frac, out_names=top_labels)
+        print(f"Top labels computed: {top_labels}")
+        labels += add_extremum_features(in_df, column_name='close', level_fracs=bot_level_fracs, tolerance_frac=tolerance_frac, out_names=bot_labels)
+        print(f"Bottom labels computed: {bot_labels}")
+
+        # Tolerance 0.0075
+        tolerance_frac = 0.0075
+        top_labels = ['top2_075', 'top3_075', 'top4_075', 'top5_075', 'top6_075']
+        bot_labels = ['bot2_075', 'bot3_075', 'bot4_075', 'bot5_075', 'bot6_075']
 
         labels += add_extremum_features(in_df, column_name='close', level_fracs=top_level_fracs, tolerance_frac=tolerance_frac, out_names=top_labels)
         print(f"Top labels computed: {top_labels}")
@@ -100,8 +120,18 @@ def main(config_file):
 
         # Tolerance 0.01
         tolerance_frac = 0.01
-        top_labels = ['top2_1', 'top3_1', 'top4_1', 'top5_1', 'top6_1', 'top7_1', 'top8_1', 'top9_1', 'top10_1']
-        bot_labels = ['bot2_1', 'bot3_1', 'bot4_1', 'bot5_1', 'bot6_1', 'bot7_1', 'bot8_1', 'bot9_1', 'bot10_1']
+        top_labels = ['top2_1', 'top3_1', 'top4_1', 'top5_1', 'top6_1']
+        bot_labels = ['bot2_1', 'bot3_1', 'bot4_1', 'bot5_1', 'bot6_1']
+
+        labels += add_extremum_features(in_df, column_name='close', level_fracs=top_level_fracs, tolerance_frac=tolerance_frac, out_names=top_labels)
+        print(f"Top labels computed: {top_labels}")
+        labels += add_extremum_features(in_df, column_name='close', level_fracs=bot_level_fracs, tolerance_frac=tolerance_frac, out_names=bot_labels)
+        print(f"Bottom labels computed: {bot_labels}")
+
+        # Tolerance 0.0125
+        tolerance_frac = 0.0125
+        top_labels = ['top2_125', 'top3_125', 'top4_125', 'top5_125', 'top6_125']
+        bot_labels = ['bot2_125', 'bot3_125', 'bot4_125', 'bot5_125', 'bot6_125']
 
         labels += add_extremum_features(in_df, column_name='close', level_fracs=top_level_fracs, tolerance_frac=tolerance_frac, out_names=top_labels)
         print(f"Top labels computed: {top_labels}")
@@ -110,8 +140,18 @@ def main(config_file):
 
         # Tolerance 0.015
         tolerance_frac = 0.015
-        top_labels = ['top2_15', 'top3_15', 'top4_15', 'top5_15', 'top6_15', 'top7_15', 'top8_15', 'top9_15', 'top10_15']
-        bot_labels = ['bot2_15', 'bot3_15', 'bot4_15', 'bot5_15', 'bot6_15', 'bot7_15', 'bot8_15', 'bot9_15', 'bot10_15']
+        top_labels = ['top2_15', 'top3_15', 'top4_15', 'top5_15', 'top6_15']
+        bot_labels = ['bot2_15', 'bot3_15', 'bot4_15', 'bot5_15', 'bot6_15']
+
+        labels += add_extremum_features(in_df, column_name='close', level_fracs=top_level_fracs, tolerance_frac=tolerance_frac, out_names=top_labels)
+        print(f"Top labels computed: {top_labels}")
+        labels += add_extremum_features(in_df, column_name='close', level_fracs=bot_level_fracs, tolerance_frac=tolerance_frac, out_names=bot_labels)
+        print(f"Bottom labels computed: {bot_labels}")
+
+        # Tolerance 0.0175
+        tolerance_frac = 0.0175
+        top_labels = ['top2_175', 'top3_175', 'top4_175', 'top5_175', 'top6_175']
+        bot_labels = ['bot2_175', 'bot3_175', 'bot4_175', 'bot5_175', 'bot6_175']
 
         labels += add_extremum_features(in_df, column_name='close', level_fracs=top_level_fracs, tolerance_frac=tolerance_frac, out_names=top_labels)
         print(f"Top labels computed: {top_labels}")
@@ -120,8 +160,8 @@ def main(config_file):
 
         # Tolerance 0.02
         tolerance_frac = 0.02
-        top_labels = ['top2_2', 'top3_2', 'top4_2', 'top5_2', 'top6_2', 'top7_2', 'top8_2', 'top9_2', 'top10_2']
-        bot_labels = ['bot2_2', 'bot3_2', 'bot4_2', 'bot5_2', 'bot6_2', 'bot7_2', 'bot8_2', 'bot9_2', 'bot10_2']
+        top_labels = ['top2_2', 'top3_2', 'top4_2', 'top5_2', 'top6_2']
+        bot_labels = ['bot2_2', 'bot3_2', 'bot4_2', 'bot5_2', 'bot6_2']
 
         labels += add_extremum_features(in_df, column_name='close', level_fracs=top_level_fracs, tolerance_frac=tolerance_frac, out_names=top_labels)
         print(f"Top labels computed: {top_labels}")
@@ -130,8 +170,8 @@ def main(config_file):
 
         # Tolerance 0.025
         tolerance_frac = 0.025
-        top_labels = ['top2_25', 'top3_25', 'top4_25', 'top5_25', 'top6_25', 'top7_25', 'top8_25', 'top9_25', 'top10_25']
-        bot_labels = ['bot2_25', 'bot3_25', 'bot4_25', 'bot5_25', 'bot6_25', 'bot7_25', 'bot8_25', 'bot9_25', 'bot10_25']
+        top_labels = ['top2_25', 'top3_25', 'top4_25', 'top5_25', 'top6_25']
+        bot_labels = ['bot2_25', 'bot3_25', 'bot4_25', 'bot5_25', 'bot6_25']
 
         labels += add_extremum_features(in_df, column_name='close', level_fracs=top_level_fracs, tolerance_frac=tolerance_frac, out_names=top_labels)
         print(f"Top labels computed: {top_labels}")
@@ -140,8 +180,8 @@ def main(config_file):
 
         # Tolerance 0.03
         tolerance_frac = 0.03
-        top_labels = ['top2_3', 'top3_3', 'top4_3', 'top5_3', 'top6_3', 'top7_3', 'top8_3', 'top9_3', 'top10_3']
-        bot_labels = ['bot2_3', 'bot3_3', 'bot4_3', 'bot5_3', 'bot6_3', 'bot7_3', 'bot8_3', 'bot9_3', 'bot10_3']
+        top_labels = ['top2_3', 'top3_3', 'top4_3', 'top5_3', 'top6_3']
+        bot_labels = ['bot2_3', 'bot3_3', 'bot4_3', 'bot5_3', 'bot6_3']
 
         labels += add_extremum_features(in_df, column_name='close', level_fracs=top_level_fracs, tolerance_frac=tolerance_frac, out_names=top_labels)
         print(f"Top labels computed: {top_labels}")
