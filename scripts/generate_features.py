@@ -16,7 +16,8 @@ from common.feature_generation import *
 # Parameters
 #
 class P:
-    in_nrows = 50_000_000
+    in_nrows = 50_000_000  # Load only this number of records
+    tail_rows = int(1.7 * 525_600)  # Process only this number of last rows
 
 
 @click.command()
@@ -48,6 +49,9 @@ def main(config_file):
     df = pd.read_csv(in_path, parse_dates=['timestamp'], nrows=P.in_nrows)
     print(f"Finished loading {len(df)} records with {len(df.columns)} columns.")
 
+    df = df.iloc[-P.tail_rows:]
+    df = df.reset_index(drop=True)
+
     #
     # Generate derived features
     #
@@ -58,6 +62,7 @@ def main(config_file):
 
     # Apply all feature generators to the data frame which get accordingly new derived columns
     # The feature parameters will be taken from App.config (depending on generator)
+    print(f"Start generating features by generator for {len(df)} input records.")
     df, all_features = generate_feature_sets(df, feature_sets, last_rows=0)
     print(f"Finished generating features by generator.")
 

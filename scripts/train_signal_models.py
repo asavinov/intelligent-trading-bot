@@ -79,7 +79,7 @@ grid_signals = [
     {
         "buy_point_threshold": [None], # + np.arange(0.02, 0.20, 0.01).tolist(),  # None means do not use
         "buy_window": [3],  # [5, 6, 7, 8, 9, 10, 11, 12]
-        "buy_signal_threshold": [0.4, 0.41, 0.42, 0.43, 0.44, 0.45, 0.46, 0.47, 0.48, 0.49, 0.5, 0.51, 0.52, 0.53, 0.54, 0.55, 0.56, 0.57, 0.58, 0.59, 0.6, 0.61, 0.62, 0.63, 0.64, 0.65],  # 0.25, 0.26, 0.27, 0.28, 0.29, 0.3, 0.31, 0.32, 0.33, 0.34, 0.35, 0.36, 0.37, 0.38, 0.39, 0.4, 0.41, 0.42, 0.43, 0.44, 0.45, 0.46, 0.47, 0.48, 0.49, 0.5, 0.51, 0.52, 0.53, 0.54, 0.55],  # [0.58, 0.59, 0.60, 0.61, 0.62, 0.63, 0.64, 0.65
+        "buy_signal_threshold": [0.25, 0.26, 0.27, 0.28, 0.29, 0.3, 0.31, 0.32, 0.33, 0.34, 0.35, 0.36, 0.37, 0.38, 0.39, 0.4, 0.41, 0.42, 0.43, 0.44, 0.45, 0.46, 0.47, 0.48, 0.49, 0.5, 0.51, 0.52, 0.53, 0.54, 0.55, 0.56, 0.57, 0.58, 0.59, 0.5],  # [0.58, 0.59, 0.60, 0.61, 0.62, 0.63, 0.64, 0.65],  # 0.25, 0.26, 0.27, 0.28, 0.29, 0.3, 0.31, 0.32, 0.33, 0.34, 0.35, 0.36, 0.37, 0.38, 0.39, 0.4, 0.41, 0.42, 0.43, 0.44, 0.45, 0.46, 0.47, 0.48, 0.49, 0.5, 0.51, 0.52, 0.53, 0.54, 0.55],  # [0.58, 0.59, 0.60, 0.61, 0.62, 0.63, 0.64, 0.65
 
         # If two groups are equal, then these values are ignored
         "sell_point_threshold": [None], # + np.arange(0.02, 0.20, 0.01).tolist()
@@ -111,43 +111,6 @@ def main(config_file):
     signal generation hyper-parameters, and then apply trade simulation by computing its overall
     performance. This is done for all simulation parameters from the grid. The results for all
     simulation parameters and their performance are stored in the output file.
-
-    What we do:
-        - Load prediction file (batch or rolling) with close/high/low prices for simulation,
-        and point-wise predictions for generating signals
-        - Read or pre-define input columns we need (like close price) and select them
-        - Read point-wise prediction labels we want to use from App.config.
-        Maybe split them into buy and sell prediction labels
-        - Define explicitly a grid of signal hyper-parameters:
-            - equal parameters for buy and sell - will be used for draft search
-            - different parameters for buy and sell - will be used for fine-tuning
-        - Implementation
-            - Main loop over hyper-parameters
-            - Produce two columns (and/or one combined column) with signal: first two continuous signals, and second apply final threshold to get binary signals
-            - Call performance function which relies on available data: close/high/low and signal column(s)
-        - Challenges and use cases:
-            - Ideally, it should work for both high-low and top-bot labels and predictions
-            - Ideally, it should work for only close price (top-bot) and high/low prices (for high-low use case where we check if max price was higher then we need)
-            - Two cases: equal hyper-parameters for buy-sell and different hyper-parameters
-            - Two inputs: prediction file and rolling predictions file
-            - This implementation should be maximum compatible with the first one (and ideally replace it in future) so follow its structure
-
-
-    # Follow up:
-    # 1) long is more profitable, maybe because of general trend, so exclude the general trend
-    # 2) Performance should include number of transactions and maybe price per transaction (deduce)
-    # 3) Performance should return # negative transactions
-    # 4) Our best results detect the same number of signals as we have in top-bottoms in labels (ideal performance).
-    #    However, our performance is significantly lower.
-    #    1. Generate table of signals (one row is one signal with timestamp, close price, maybe score etc.)
-    #    2. Compare it with labels (top-bottom intervals) which are also represented as a table.
-    #    How our signals are positioned relative to intervals?
-    #    Take sell signals and position them along with top intervals. How many of them are within intervals?
-    #    Function for generating a list of buy-sell signals (part of performance function). Then take these timestamps, and compare with top intervals in label column.
-    #    Function for generating interval list: one row is one interval with start/end ts, level etc.
-    # 5) Other options:
-    # - average several point-wise prediction scores like (10_1+10_2+10_3) / 3
-    # - single combined score from top and bot: top_10_1 and bot_10_1 and then use the combined score with max and min thresholds
     """
     load_config(config_file)
 
@@ -264,7 +227,7 @@ def main(config_file):
     #
 
     # Sort
-    performances = sorted(performances, key=lambda x: x['performance']['profit'], reverse=True)
+    performances = sorted(performances, key=lambda x: x['performance']['profit_per_month'], reverse=True)
     performances = performances[:P.topn_to_store]
 
     # Column names (from one record)
@@ -375,11 +338,12 @@ def simulated_trade_performance(df, sell_signal_column, buy_signal_column, price
     profitable = long_profitable + short_profitable
     minutes_in_month = 1440 * 30.5
     performance = dict(
-        profit=profit,
-        transactions=transactions,
-        profitable=profitable / transactions if transactions else 0.0,
-        profit_per_transaction=profit / transactions if transactions else 0.0,
         profit_per_month=profit / (len(df) / minutes_in_month),
+        profit_per_transaction=profit / transactions if transactions else 0.0,
+        profitable=profitable / transactions if transactions else 0.0,
+        transactions_per_month=transactions / (len(df) / minutes_in_month),
+        #transactions=transactions,
+        #profit=profit,
     )
 
     return performance, long_performance, short_performance

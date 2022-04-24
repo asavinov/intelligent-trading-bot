@@ -81,7 +81,7 @@ class App:
         "merge_file_modifier": "data",
         "feature_file_modifier": "features",
         "matrix_file_modifier": "matrix",
-        "predict_file_modifier": "predict",  # Or predict-rolling
+        "predict_file_modifier": "predict",  # predict, predict-rolling
         "signal_file_modifier": "performance",
 
         # =====================================
@@ -93,17 +93,17 @@ class App:
         #"data_sources": [
         #    {"folder": "BTCUSDT", "file": "klines", "column_prefix": ""},
         #],
-        "data_sources": [
-            {"folder": "BTCUSDT", "file": "klines", "column_prefix": ""},
-            {"folder": "ETHUSDT", "file": "klines", "column_prefix": "eth"},
-        ],
+        #"data_sources": [
+        #    {"folder": "BTCUSDT", "file": "klines", "column_prefix": "btc"},
+        #    {"folder": "ETHUSDT", "file": "klines", "column_prefix": "eth"},
+        #],
 
         # ==========================
         # === FEATURE GENERATION ===
 
         # What columns to pass to which feature generator and how to prefix its derived features
         "feature_sets": [
-            {"column_prefix": "", "generator": "klines", "feature_prefix": ""},
+            {"column_prefix": "btc", "generator": "klines", "feature_prefix": "btc"},
             {"column_prefix": "eth", "generator": "klines", "feature_prefix": "eth"},
         ],
         # Parameters of klines feature generator
@@ -116,6 +116,7 @@ class App:
         # === LABEL GENERATION ===
 
         "high_low_horizon": 1440,  # Parameter of labels: computing max and min for this horizon ahead
+        "top_bot_column_name": "close",
 
         # ===========================
         # === MODEL TRAIN/PREDICT ===
@@ -132,15 +133,16 @@ class App:
         # Feature column names returned by the klines feature generator
         # They are used by train/predict
         "features_kline": [
-            "close_1", "close_60", "close_360", "close_1440", "close_4320", "close_10080",
-            "close_std_60", "close_std_360", "close_std_1440", "close_std_4320", "close_std_10080",  # Removed "std_1"
-            "volume_1", "volume_60", "volume_360", "volume_1440", "volume_4320", "volume_10080",
-            "span_1", "span_60", "span_360", "span_1440", "span_4320", "span_10080",
-            "trades_1", "trades_60", "trades_360", "trades_1440", "trades_4320", "trades_10080",
-            "tb_base_1", "tb_base_60", "tb_base_360", "tb_base_1440", "tb_base_4320", "tb_base_10080",
-            "tb_quote_1", "tb_quote_60", "tb_quote_360", "tb_quote_1440", "tb_quote_4320", "tb_quote_10080",
-            "close_area_60", "close_area_360", "close_area_1440", "close_area_4320", "close_area_10080",
-            "close_trend_60", "close_trend_360", "close_trend_1440", "close_trend_4320", "close_trend_10080",
+            'btc_close_1', 'btc_close_60', 'btc_close_360', 'btc_close_1440', 'btc_close_4320', 'btc_close_10080',
+            'btc_close_std_60', 'btc_close_std_360', 'btc_close_std_1440', 'btc_close_std_4320', 'btc_close_std_10080',
+            'btc_volume_1', 'btc_volume_60', 'btc_volume_360', 'btc_volume_1440', 'btc_volume_4320', 'btc_volume_10080',
+            'btc_span_1', 'btc_span_60', 'btc_span_360', 'btc_span_1440', 'btc_span_4320', 'btc_span_10080',
+            'btc_trades_1', 'btc_trades_60', 'btc_trades_360', 'btc_trades_1440', 'btc_trades_4320', 'btc_trades_10080',
+            'btc_tb_base_1', 'btc_tb_base_60', 'btc_tb_base_360', 'btc_tb_base_1440', 'btc_tb_base_4320', 'btc_tb_base_10080',
+            #'btc_tb_quote_1', 'btc_tb_quote_60', 'btc_tb_quote_360', 'btc_tb_quote_1440', 'btc_tb_quote_4320', 'btc_tb_quote_10080', - it correlates with tb_base
+            #'btc_close_area_60', 'btc_close_area_360', 'btc_close_area_1440', 'btc_close_area_4320', 'btc_close_area_10080', - it has multimodal distribution and performance is better without it
+            'btc_close_trend_60', 'btc_close_trend_360', 'btc_close_trend_1440', 'btc_close_trend_4320', 'btc_close_trend_10080',
+            'btc_volume_trend_60', 'btc_volume_trend_360', 'btc_volume_trend_1440', 'btc_volume_trend_4320', 'btc_volume_trend_10080',
 
             'eth_close_1', 'eth_close_60', 'eth_close_360', 'eth_close_1440', 'eth_close_4320', 'eth_close_10080',
             'eth_close_std_60', 'eth_close_std_360', 'eth_close_std_1440', 'eth_close_std_4320', 'eth_close_std_10080',
@@ -148,9 +150,10 @@ class App:
             'eth_span_1', 'eth_span_60', 'eth_span_360', 'eth_span_1440', 'eth_span_4320', 'eth_span_10080',
             'eth_trades_1', 'eth_trades_60', 'eth_trades_360', 'eth_trades_1440', 'eth_trades_4320', 'eth_trades_10080',
             'eth_tb_base_1', 'eth_tb_base_60', 'eth_tb_base_360', 'eth_tb_base_1440', 'eth_tb_base_4320', 'eth_tb_base_10080',
-            'eth_tb_quote_1', 'eth_tb_quote_60', 'eth_tb_quote_360', 'eth_tb_quote_1440', 'eth_tb_quote_4320', 'eth_tb_quote_10080',
-            'eth_close_area_60', 'eth_close_area_360', 'eth_close_area_1440', 'eth_close_area_4320', 'eth_close_area_10080',
+            #'eth_tb_quote_1', 'eth_tb_quote_60', 'eth_tb_quote_360', 'eth_tb_quote_1440', 'eth_tb_quote_4320', 'eth_tb_quote_10080',
+            #'eth_close_area_60', 'eth_close_area_360', 'eth_close_area_1440', 'eth_close_area_4320', 'eth_close_area_10080',
             'eth_close_trend_60', 'eth_close_trend_360', 'eth_close_trend_1440', 'eth_close_trend_4320', 'eth_close_trend_10080',
+            'eth_volume_trend_60', 'eth_volume_trend_360', 'eth_volume_trend_1440', 'eth_volume_trend_4320', 'eth_volume_trend_10080',
         ],
         "features_kline_eth": [
             'eth_close_1', 'eth_close_60', 'eth_close_360', 'eth_close_1440', 'eth_close_4320', 'eth_close_10080',
@@ -177,7 +180,8 @@ class App:
         "labels": [
             "bot2_025", "bot2_05", "bot2_075", "bot2_1", "bot2_125", "bot2_15",
             "top2_025", "top2_05", "top2_075", "top2_1", "top2_125", "top2_15",
-
+        ],
+        "_labels": [
             "bot3_025", "bot3_05", "bot3_075", "bot3_1", "bot3_125", "bot3_15", "bot3_175",
             "top3_025", "top3_05", "top3_075", "top3_1", "top3_125", "top3_15", "top3_175",
 
@@ -186,19 +190,6 @@ class App:
 
             "bot5_025", "bot5_05", "bot5_075", "bot5_1", "bot5_125", "bot5_15", "bot5_175", "bot5_2", "bot5_25",
             "top5_025", "top5_05", "top5_075", "top5_1", "top5_125", "top5_15", "top5_175", "top5_2", "top5_25",
-        ],
-        "_labels": [
-            "bot4_1", "bot4_15", "bot4_2", "bot4_25", "bot4_3",
-            "top4_1", "top4_15", "top4_2", "top4_25", "top4_3",
-
-            "bot5_1", "bot5_15", "bot5_2", "bot5_25", "bot5_3",
-            "top5_1", "top5_15", "top5_2", "top5_25", "top5_3",
-            "bot6_1", "bot6_15", "bot6_2", "bot6_25", "bot6_3",
-            "top6_1", "top6_15", "top6_2", "top6_25", "top6_3",
-            "bot7_1", "bot7_15", "bot7_2", "bot7_25", "bot7_3",
-            "top7_1", "top7_15", "top7_2", "top7_25", "top7_3",
-            "bot8_1", "bot8_15", "bot8_2", "bot8_25", "bot8_3",
-            "top8_1", "top8_15", "top8_2", "top8_25", "top8_3",
 
             'high_max_180',  # Maximum high (relative)
 
@@ -218,8 +209,8 @@ class App:
         # === SIGNAL GENERATION ===
 
         # These are predicted columns <label, train_features, algorithm> as well as model (pair) names
-        "buy_labels": ["bot4_1_k_nn", "bot4_15_k_nn", "bot4_2_k_nn", "bot4_25_k_nn", "bot4_3_k_nn", "bot5_1_k_nn", "bot5_15_k_nn", "bot5_2_k_nn", "bot5_25_k_nn", "bot5_3_k_nn"],
-        "sell_labels": ["top4_1_k_nn", "top4_15_k_nn", "top4_2_k_nn", "top4_25_k_nn", "top4_3_k_nn", "top5_1_k_nn", "top5_15_k_nn", "top5_2_k_nn", "top5_25_k_nn", "top5_3_k_nn"],
+        "buy_labels": [],
+        "sell_labels": [],
         "_buy_labels": ["bot4_1_k_lc", "bot4_15_k_lc", "bot4_2_k_lc", "bot4_25_k_lc", "bot4_3_k_lc"],
         "_sell_labels": ["top4_1_k_lc", "top4_15_k_lc", "top4_2_k_lc", "top4_25_k_lc", "top4_3_k_lc"],
 

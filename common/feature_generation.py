@@ -69,17 +69,19 @@ def generate_features(df,use_differences, base_window, windows, area_windows, la
     to_drop += add_past_aggregations(df, 'tb_base', np.nanmean, base_window, suffix='', last_rows=last_rows)  # Base column
     features += add_past_aggregations(df, 'tb_base', np.nanmean, windows, '', to_drop[-1], 100.0, last_rows=last_rows)
 
+    # UPDATE: do not generate, because very high correction (0.99999) with tb_base
     # tb_quote_av / quote_av varies around 0.5 in quote currency. format: 'tb_quote_<window>>'
-    df['tb_quote'] = df['tb_quote_av'] / df['quote_av']
-    to_drop.append('tb_quote')
-    to_drop += add_past_aggregations(df, 'tb_quote', np.nanmean, base_window, suffix='', last_rows=last_rows)  # Base column
-    features += add_past_aggregations(df, 'tb_quote', np.nanmean, windows, '', to_drop[-1], 100.0, last_rows=last_rows)
+    #df['tb_quote'] = df['tb_quote_av'] / df['quote_av']
+    #to_drop.append('tb_quote')
+    #to_drop += add_past_aggregations(df, 'tb_quote', np.nanmean, base_window, suffix='', last_rows=last_rows)  # Base column
+    #features += add_past_aggregations(df, 'tb_quote', np.nanmean, windows, '', to_drop[-1], 100.0, last_rows=last_rows)
 
     # Area over and under latest close price
     features += add_area_ratio(df, is_future=False, column_name="close", windows=area_windows, suffix = "_area", last_rows=last_rows)
 
     # Linear trend
     features += add_linear_trends(df, is_future=False, column_name="close", windows=windows, suffix="_trend", last_rows=last_rows)
+    features += add_linear_trends(df, is_future=False, column_name="volume", windows=windows, suffix="_trend", last_rows=last_rows)
 
     df.drop(columns=to_drop, inplace=True)
 

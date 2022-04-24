@@ -169,7 +169,7 @@ def main(config_file):
                 df_X = train_df_2[features]
                 df_y = train_df_2[label]
 
-                print(f"Train '{score_column_name}'. Train length {len(df_X)}. Algorithm {algo_name}")
+                print(f"Train '{score_column_name}'. Train length {len(df_X)}. Train columns {len(df_X.columns)}. Algorithm {algo_name}")
                 if algo_type == "gb":
                     model_pair = train_gb(df_X, df_y, model_config)
                     models[score_column_name] = model_pair

@@ -58,7 +58,7 @@ def _add_aggregations(df, is_future: bool, column_name: str, fn, windows: Union[
     for w in windows:
         # Aggregate
         if not last_rows:
-            feature = column.rolling(window=w, min_periods=max(1, w // 10)).apply(fn, raw=True)
+            feature = column.rolling(window=w, min_periods=max(1, w // 2)).apply(fn, raw=True)
         else:  # Only for last row
             feature = _aggregate_last_rows(column, w, last_rows, fn)
 
@@ -105,9 +105,9 @@ def _add_weighted_aggregations(df, is_future: bool, column_name: str, weight_col
     for w in windows:
         if not last_rows:
             # Sum of products
-            feature = products_column.rolling(window=w, min_periods=max(1, w // 10)).apply(fn, raw=True)
+            feature = products_column.rolling(window=w, min_periods=max(1, w // 2)).apply(fn, raw=True)
             # Sum of weights
-            weights = weight_column.rolling(window=w, min_periods=max(1, w // 10)).apply(fn, raw=True)
+            weights = weight_column.rolling(window=w, min_periods=max(1, w // 2)).apply(fn, raw=True)
         else:  # Only for last row
             # Sum of products
             feature = _aggregate_last_rows(products_column, w, last_rows, fn)
@@ -162,7 +162,7 @@ def add_area_ratio(df, is_future: bool, column_name: str, windows: Union[int, Li
     features = []
     for w in windows:
         if not last_rows:
-            ro = column.rolling(window=w, min_periods=max(1, w // 10))
+            ro = column.rolling(window=w, min_periods=max(1, w // 2))
             feature = ro.apply(area_ratio_fn, kwargs=dict(is_future=is_future), raw=True)
         else:  # Only for last row
             feature = _aggregate_last_rows(column, w, last_rows, area_ratio_fn, is_future)
@@ -215,7 +215,7 @@ def add_linear_trends(df, is_future: bool, column_name: str, windows: Union[int,
     features = []
     for w in windows:
         if not last_rows:
-            ro = column.rolling(window=w, min_periods=max(1, w // 5))
+            ro = column.rolling(window=w, min_periods=max(1, w // 2))
             feature = ro.apply(linear_trend_fn, raw=True)
         else:  # Only for last row
             feature = _aggregate_last_rows(column, w, last_rows, linear_trend_fn)
@@ -232,10 +232,12 @@ def add_linear_trends(df, is_future: bool, column_name: str, windows: Union[int,
     return features
 
 
+def to_log_diff(sr):
+    return np.log(sr).diff()
+
+
 def to_diff_NEW(sr):
-    # TODO: Use an existing library function to compute difference
-    #   We used it in fast hub for computing datetime difference - maybe we can use it for numeric diffs
-    pass
+    return 100 * sr.diff() / sr
 
 
 def to_diff(sr):

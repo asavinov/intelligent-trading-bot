@@ -6,31 +6,7 @@ from joblib import dump, load
 from keras.models import Sequential, save_model, load_model
 
 """
-Use cases:
-- conventional stocks and indexes like DJ-index, DAX etc. each in its folder and daily klines - how to process
-- forex with EURUSD etc.
-
-- currently we have "_k_" in score columns which stay for feature set (probably). 
-  in addition, we have "kline" used for score column in "train_features": ["kline"]
-  we need to somehow conceptualize this.
-  for example, train_set name which references its list
-  currently feature list is in "features_kline"
-
-- implement fine-grained label generation with two dimensions: levels/jumps (values and suffixes), tolerances (values and suffixes)
-  we need fine-grained tolerance like 0.025 for small levels from 2 till 5
-  - ideally we should be able to call it several times with different level-tolerance lists
-
-TODO:
-- performance metrics should be per month/transaction (not absolute): trans/m, profit/t, profit/m, %profitable, abs (profit, tans)
-
-- implement configuration for label generation: generators, generator configs (horizons, tolerances etc.)
-- feature generators. "klines" has its own config so we need to separate them. currently they are in one common config
-- feature generation (preprocessing) operations "use_differences" if true then close/volume/trades are transformed to differences.
- it is similar to is_scale in training. "difference of logarithms rather than percentage"
- - there could be also other options like apply log to certain columns or outputs 
-- algo config has "predict" length - where should we use it? In rolling predictions?
-- feature_generation only for last N rows from the input data which are then appended to the existing matrix by overwriting the time overlap
-  - we need to guarantee the validity of feature values which require some minimum data length and do not use these values 
+It is a model stored implemented as a Python module.
 """
 
 def get_model(name: str):

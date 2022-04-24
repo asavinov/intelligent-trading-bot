@@ -141,8 +141,8 @@ def main(config_file):
 
     # Merge in one df with prefixes and common regular time index
     df_out = merge_data_frames(data_sources)
-    range_start = df_out.iloc[0]
-    range_end = df_out.iloc[-1]
+    range_start = df_out.index[0]
+    range_end = df_out.index[-1]
 
     #
     # Store file with features
