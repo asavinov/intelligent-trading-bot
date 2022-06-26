@@ -383,8 +383,8 @@ class Analyzer:
         sell_labels = App.config["sell_labels"]
 
         # Produce boolean signal (buy and sell) columns from the current patience parameters
-        aggregate_score(df, buy_labels, 'buy_score_column', model.get("buy_point_threshold"), model.get("buy_window"))
-        aggregate_score(df, sell_labels, 'sell_score_column', model.get("sell_point_threshold"), model.get("sell_window"))
+        aggregate_score(df, 'buy_score_column', buy_labels, model.get("buy_point_threshold"), model.get("buy_window"))
+        aggregate_score(df, 'sell_score_column', sell_labels, model.get("sell_point_threshold"), model.get("sell_window"))
 
         if model.get("combine") == "relative":
             combine_scores_relative(df, 'buy_score_column', 'sell_score_column', 'buy_score_column', 'sell_score_column')

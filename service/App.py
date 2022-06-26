@@ -2,6 +2,7 @@ from pathlib import Path
 from typing import Union
 import json
 
+import pandas as pd
 
 PACKAGE_ROOT = Path(__file__).parent.parent
 #PACKAGE_PARENT = '..'
@@ -81,7 +82,7 @@ class App:
         "merge_file_modifier": "data",
         "feature_file_modifier": "features",
         "matrix_file_modifier": "matrix",
-        "predict_file_modifier": "predict",  # predict, predict-rolling
+        "predict_file_modifier": "predictions",  # predict, predict-rolling
         "signal_file_modifier": "performance",
 
         # =====================================
@@ -108,9 +109,22 @@ class App:
         ],
         # Parameters of klines feature generator
         # If these are changed, then feature names (below) will also have to be changed
-        "base_window_kline": 40320,
-        "windows_kline": [1, 60, 360, 1440, 4320, 10080],
-        "area_windows_kline": [60, 360, 1440, 4320, 10080],
+
+        #"base_window_kline": 40320,  # 4 weeks
+        #"windows_kline": [1, 20, 60, 360, 1440, 10080],
+        #"area_windows_kline": [20, 60, 360, 1440, 10080],
+
+        #"base_window_kline": 20160,  # 2 weeks
+        #"windows_kline": [1, 20, 60, 180, 720, 2880],
+        #"area_windows_kline": [60, 120, 180, 720, 2880],
+        #"windows_kline": [1, 30, 120, 360, 1440, 4320],
+        #"area_windows_kline": [30, 120, 360, 1440, 4320],
+        #"windows_kline": [1, 60, 180, 720, 2880, 5760],
+        #"area_windows_kline": [60, 180, 720, 2880, 5760],
+
+        "base_window_kline": 10080,  # 1 week
+        "windows_kline": [1, 10, 30, 180, 720, 1440],
+        "area_windows_kline": [10, 30, 180, 720, 1440],
 
         # ========================
         # === LABEL GENERATION ===
@@ -126,45 +140,32 @@ class App:
         # It is used in online mode where we need to maintain data window of this size or larger
         # Take maximum aggregation windows from feature generation code (and add something to be sure that we have all what is needed)
         # Basically, should be equal to base_window_kline
-        "features_horizon": 40420,
+        "features_horizon": 10180,
 
         # One model is for each (label, train_features, algorithm)
 
         # Feature column names returned by the klines feature generator
         # They are used by train/predict
         "features_kline": [
-            'btc_close_1', 'btc_close_60', 'btc_close_360', 'btc_close_1440', 'btc_close_4320', 'btc_close_10080',
-            'btc_close_std_60', 'btc_close_std_360', 'btc_close_std_1440', 'btc_close_std_4320', 'btc_close_std_10080',
-            'btc_volume_1', 'btc_volume_60', 'btc_volume_360', 'btc_volume_1440', 'btc_volume_4320', 'btc_volume_10080',
-            'btc_span_1', 'btc_span_60', 'btc_span_360', 'btc_span_1440', 'btc_span_4320', 'btc_span_10080',
-            'btc_trades_1', 'btc_trades_60', 'btc_trades_360', 'btc_trades_1440', 'btc_trades_4320', 'btc_trades_10080',
-            'btc_tb_base_1', 'btc_tb_base_60', 'btc_tb_base_360', 'btc_tb_base_1440', 'btc_tb_base_4320', 'btc_tb_base_10080',
-            #'btc_tb_quote_1', 'btc_tb_quote_60', 'btc_tb_quote_360', 'btc_tb_quote_1440', 'btc_tb_quote_4320', 'btc_tb_quote_10080', - it correlates with tb_base
-            #'btc_close_area_60', 'btc_close_area_360', 'btc_close_area_1440', 'btc_close_area_4320', 'btc_close_area_10080', - it has multimodal distribution and performance is better without it
-            'btc_close_trend_60', 'btc_close_trend_360', 'btc_close_trend_1440', 'btc_close_trend_4320', 'btc_close_trend_10080',
-            'btc_volume_trend_60', 'btc_volume_trend_360', 'btc_volume_trend_1440', 'btc_volume_trend_4320', 'btc_volume_trend_10080',
+            'btc_close_1', 'btc_close_10', 'btc_close_30', 'btc_close_180', 'btc_close_720', 'btc_close_1440',
+            'btc_close_std_10', 'btc_close_std_30', 'btc_close_std_180', 'btc_close_std_720', 'btc_close_std_1440',
+            'btc_volume_1', 'btc_volume_10', 'btc_volume_30', 'btc_volume_180', 'btc_volume_720', 'btc_volume_1440',
+            'btc_span_1', 'btc_span_10', 'btc_span_30', 'btc_span_180', 'btc_span_720', 'btc_span_1440',
+            'btc_trades_1', 'btc_trades_10', 'btc_trades_30', 'btc_trades_180', 'btc_trades_720', 'btc_trades_1440',
+            'btc_tb_base_1', 'btc_tb_base_10', 'btc_tb_base_30', 'btc_tb_base_180', 'btc_tb_base_720', 'btc_tb_base_1440',
+            #'btc_close_area_10', 'btc_close_area_30', 'btc_close_area_180', 'btc_close_area_720', 'btc_close_area_1440',
+            'btc_close_trend_10', 'btc_close_trend_30', 'btc_close_trend_180', 'btc_close_trend_720', 'btc_close_trend_1440',
+            'btc_volume_trend_10', 'btc_volume_trend_30', 'btc_volume_trend_180', 'btc_volume_trend_720', 'btc_volume_trend_1440',
 
-            'eth_close_1', 'eth_close_60', 'eth_close_360', 'eth_close_1440', 'eth_close_4320', 'eth_close_10080',
-            'eth_close_std_60', 'eth_close_std_360', 'eth_close_std_1440', 'eth_close_std_4320', 'eth_close_std_10080',
-            'eth_volume_1', 'eth_volume_60', 'eth_volume_360', 'eth_volume_1440', 'eth_volume_4320', 'eth_volume_10080',
-            'eth_span_1', 'eth_span_60', 'eth_span_360', 'eth_span_1440', 'eth_span_4320', 'eth_span_10080',
-            'eth_trades_1', 'eth_trades_60', 'eth_trades_360', 'eth_trades_1440', 'eth_trades_4320', 'eth_trades_10080',
-            'eth_tb_base_1', 'eth_tb_base_60', 'eth_tb_base_360', 'eth_tb_base_1440', 'eth_tb_base_4320', 'eth_tb_base_10080',
-            #'eth_tb_quote_1', 'eth_tb_quote_60', 'eth_tb_quote_360', 'eth_tb_quote_1440', 'eth_tb_quote_4320', 'eth_tb_quote_10080',
-            #'eth_close_area_60', 'eth_close_area_360', 'eth_close_area_1440', 'eth_close_area_4320', 'eth_close_area_10080',
-            'eth_close_trend_60', 'eth_close_trend_360', 'eth_close_trend_1440', 'eth_close_trend_4320', 'eth_close_trend_10080',
-            'eth_volume_trend_60', 'eth_volume_trend_360', 'eth_volume_trend_1440', 'eth_volume_trend_4320', 'eth_volume_trend_10080',
-        ],
-        "features_kline_eth": [
-            'eth_close_1', 'eth_close_60', 'eth_close_360', 'eth_close_1440', 'eth_close_4320', 'eth_close_10080',
-            'eth_close_std_60', 'eth_close_std_360', 'eth_close_std_1440', 'eth_close_std_4320', 'eth_close_std_10080',
-            'eth_volume_1', 'eth_volume_60', 'eth_volume_360', 'eth_volume_1440', 'eth_volume_4320', 'eth_volume_10080',
-            'eth_span_1', 'eth_span_60', 'eth_span_360', 'eth_span_1440', 'eth_span_4320', 'eth_span_10080',
-            'eth_trades_1', 'eth_trades_60', 'eth_trades_360', 'eth_trades_1440', 'eth_trades_4320', 'eth_trades_10080',
-            'eth_tb_base_1', 'eth_tb_base_60', 'eth_tb_base_360', 'eth_tb_base_1440', 'eth_tb_base_4320', 'eth_tb_base_10080',
-            'eth_tb_quote_1', 'eth_tb_quote_60', 'eth_tb_quote_360', 'eth_tb_quote_1440', 'eth_tb_quote_4320', 'eth_tb_quote_10080',
-            'eth_close_area_60', 'eth_close_area_360', 'eth_close_area_1440', 'eth_close_area_4320', 'eth_close_area_10080',
-            'eth_close_trend_60', 'eth_close_trend_360', 'eth_close_trend_1440', 'eth_close_trend_4320', 'eth_close_trend_10080',
+            'eth_close_1', 'eth_close_10', 'eth_close_30', 'eth_close_180', 'eth_close_720', 'eth_close_1440',
+            'eth_close_std_10', 'eth_close_std_30', 'eth_close_std_180', 'eth_close_std_720', 'eth_close_std_1440',
+            'eth_volume_1', 'eth_volume_10', 'eth_volume_30', 'eth_volume_180', 'eth_volume_720', 'eth_volume_1440',
+            'eth_span_1', 'eth_span_10', 'eth_span_30', 'eth_span_180', 'eth_span_720', 'eth_span_1440',
+            'eth_trades_1', 'eth_trades_10', 'eth_trades_30', 'eth_trades_180', 'eth_trades_720', 'eth_trades_1440',
+            'eth_tb_base_1', 'eth_tb_base_10', 'eth_tb_base_30', 'eth_tb_base_180', 'eth_tb_base_720', 'eth_tb_base_1440',
+            #'eth_close_area_10', 'eth_close_area_30', 'eth_close_area_180', 'eth_close_area_720', 'eth_close_area_1440',
+            'eth_close_trend_10', 'eth_close_trend_30', 'eth_close_trend_180', 'eth_close_trend_720', 'eth_close_trend_1440',
+            'eth_volume_trend_10', 'eth_volume_trend_30', 'eth_volume_trend_180', 'eth_volume_trend_720', 'eth_volume_trend_1440'
         ],
 
         # Used to select columns for training by adding together different feature sets (the lists are defined elswhere in variables like "features_kline")
@@ -308,4 +309,32 @@ def load_config(config_file):
 
 
 if __name__ == "__main__":
+
+    # Create base data frame
+    df = pd.DataFrame(range(0,21), columns=["a"])
+
+    # Create indexes and views by selecting rows
+    i1 = df["a"] <= 15
+    i2 = df[i1]["a"] >= 5  # Here index is shorter because we first apply filter
+    i2 = (i1) & (df["a"] >= 5)  # We can retain the complete base index (and then apply it directly to the base frame
+
+    i2 = df["a"] >= 5  # Only intermediate index but finally we will have to apply all indexes with AND
+      # Note that we probably cannot use this approach, because only base attributes are available
+
+    # Add (computed) columns to intermediate views which use base columns
+    df["b"] = range(100,121)
+
+    df1 = df[i1]  # Problem: we do not know whether it is a slice or a copy. We could make a copy explicitly but we do not need a copy - we need a view
+    # These assignments will produce a warning since we modify a view and the changes will not be visible in the main base frame
+    # Yet, it is precisely what we want
+    #df1["c"] = df1["a"].apply(lambda x: x+1)
+    #df1.loc[:, "c"] = df1["a"].apply(lambda x: x+1)  # loc guarantees changing the specified df
+
+    # An approach is to apply to index and store a column series for the selected indexes. But do it separately
+    #  Yet, we must add columns to some frame to use them as input to other functions.
+
+    # Attach all derived columns to the base frame but only to the selected rows in the index (all other rows will store NaN)
+    df.loc[i1, "d"] = df["a"].apply(lambda x: x + 2)
+
+
     pass

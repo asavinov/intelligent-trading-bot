@@ -9,6 +9,7 @@ import numpy as np
 import pandas as pd
 
 from sklearn import linear_model
+from scipy import stats
 
 
 def add_past_weighted_aggregations(df, column_name: str, weight_column_name: str, fn, windows: Union[int, List[int]], suffix=None, rel_column_name: str = None, rel_factor: float = 1.0, last_rows: int = 0):
@@ -206,11 +207,14 @@ def add_linear_trends(df, is_future: bool, column_name: str, windows: Union[int,
             X_array = X_array[nans]
             y_array = y_array[nans]
 
-        X_array = X_array.reshape(-1, 1)  # Make matrix
+        #X_array = X_array.reshape(-1, 1)  # Make matrix
+        #model = linear_model.LinearRegression()
+        #model.fit(X_array, y_array)
+        # slope = model.coef_[0]
 
-        model = linear_model.LinearRegression()
-        model.fit(X_array, y_array)
-        return model.coef_[0]
+        slope, intercept, r, p, se = stats.linregress(X_array, y_array)
+
+        return slope
 
     features = []
     for w in windows:

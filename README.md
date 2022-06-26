@@ -69,7 +69,7 @@ The following batch scripts are used to train the models needed by the signaler:
 * Merge several historic datasets into one dataset: `python -m scripts.merge_data -c config.json`
   * This script solves two problems: 1) there could be other sources like depth data or futures 2) a data source may have gaps so we need to produce a regular time raster in the output file
   * The result is one output file with the name pattern: `{symbol}-{freq}.csv`
-* Generate feature matrix: `python -m scripts.generate_features -c config.json`
+* Generate features: `python -m scripts.generate_features -c config.json`
   * This script computes all derived features and labels defined programmatically
   * The result is one output file with the name pattern: `{symbol}-{freq}-features.csv`
   * It may take hours to compute because it runs in non-incremental mode, that is, computes the features for all the available data even if only the latest small portion was really updated

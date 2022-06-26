@@ -71,7 +71,7 @@ It is like finding overall profit if we ware trading. Note that here it is impor
 """
 
 
-def aggregate_score(df, score_columns: List[str], signal_column: str, point_threshold, window):
+def aggregate_score(df, signal_column: str, score_columns: List[str], point_threshold, window):
     """
     Add two signal numeric (buy and sell) columns by processing a list of buy and sell point-wise predictions.
 

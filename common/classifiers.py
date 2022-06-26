@@ -223,11 +223,9 @@ def train_nn(df_X, df_y, model_config: dict):
 
     reg_l2 = 0.001
 
-    model.add(
-        Dense(n_features, activation='sigmoid', input_dim=n_features)  # , kernel_regularizer=l2(reg_l2)
-    )
-
-    model.add(Dense(n_features // 2, activation='sigmoid'))  # One hidden layer
+    model.add(Dense(n_features // 2, activation='sigmoid', input_dim=n_features))  # , kernel_regularizer=l2(reg_l2)
+    #model.add(Dropout(rate=0.5))
+    model.add(Dense(n_features // 4, activation='sigmoid'))
 
     #model.add(Dense(layers[0], activation='sigmoid', input_dim=n_features, kernel_regularizer=l2(reg_l2)))
     #if len(layers) > 1:
@@ -235,9 +233,7 @@ def train_nn(df_X, df_y, model_config: dict):
     #if len(layers) > 2:
     #    model.add(Dense(layers[2], activation='sigmoid', kernel_regularizer=l2(reg_l2)))
 
-    model.add(
-        Dense(1, activation='sigmoid')
-    )
+    model.add(Dense(1, activation='sigmoid'))
 
     # Compile model
     optimizer = Adam(learning_rate=learning_rate)
@@ -250,6 +246,7 @@ def train_nn(df_X, df_y, model_config: dict):
             tf.keras.metrics.Recall(name="recall"),
         ],
     )
+    #model.summary()
 
     es = EarlyStopping(
         monitor="loss",  # val_loss loss

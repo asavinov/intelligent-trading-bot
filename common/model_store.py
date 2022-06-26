@@ -78,8 +78,8 @@ models = [
         "params": {
             "layers": [29], # It is equal to the number of input features (different for spot and futur). Currently not used
             "learning_rate": 0.001,
-            "n_epochs": 15,  # 5 for quick analysis, 20 or 30 for production
-            "bs": 128,
+            "n_epochs": 50,  # 5 for quick analysis, 20 or 30 for production
+            "bs": 1024,
         },
         "train": {"is_scale": True, "length": int(1.5 * 525_600), "shifts": []},
         "predict": {"length": "1w"}

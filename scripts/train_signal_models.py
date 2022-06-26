@@ -2,6 +2,7 @@ from pathlib import Path
 from typing import Union
 
 import click
+import numpy as np
 from tqdm import tqdm
 import pandas as pd
 
@@ -60,15 +61,15 @@ Find best level-tolerance which generate best performance for certain performanc
 class P:
     in_nrows = 100_000_000
 
-    start_index = 0
+    start_index = 200_000
     end_index = None
-    # TODO
+    # TODO: currently not used
     simulation_start = 263519   # Good start is 2019-06-01 - after it we have stable movement
     simulation_end = -0  # After 2020-11-01 there is sharp growth which we might want to exclude
 
     # True if buy and sell hyper-parameters are equal
     # Only buy parameters will be used and sell parameters will be ignored
-    buy_sell_equal = True
+    buy_sell_equal = False
 
     topn_to_store = 20
 
@@ -78,13 +79,20 @@ class P:
 grid_signals = [
     {
         "buy_point_threshold": [None], # + np.arange(0.02, 0.20, 0.01).tolist(),  # None means do not use
-        "buy_window": [3],  # [5, 6, 7, 8, 9, 10, 11, 12]
-        "buy_signal_threshold": [0.25, 0.26, 0.27, 0.28, 0.29, 0.3, 0.31, 0.32, 0.33, 0.34, 0.35, 0.36, 0.37, 0.38, 0.39, 0.4, 0.41, 0.42, 0.43, 0.44, 0.45, 0.46, 0.47, 0.48, 0.49, 0.5, 0.51, 0.52, 0.53, 0.54, 0.55, 0.56, 0.57, 0.58, 0.59, 0.5],  # [0.58, 0.59, 0.60, 0.61, 0.62, 0.63, 0.64, 0.65],  # 0.25, 0.26, 0.27, 0.28, 0.29, 0.3, 0.31, 0.32, 0.33, 0.34, 0.35, 0.36, 0.37, 0.38, 0.39, 0.4, 0.41, 0.42, 0.43, 0.44, 0.45, 0.46, 0.47, 0.48, 0.49, 0.5, 0.51, 0.52, 0.53, 0.54, 0.55],  # [0.58, 0.59, 0.60, 0.61, 0.62, 0.63, 0.64, 0.65
+        "buy_window": [5],  # [5, 6, 7, 8, 9, 10, 11, 12]
+        # [0.58, 0.59, 0.60, 0.61, 0.62, 0.63, 0.64, 0.65],
+        # 0.25, 0.26, 0.27, 0.28, 0.29, 0.3, 0.31, 0.32, 0.33, 0.34, 0.35, 0.36, 0.37, 0.38, 0.39, 0.4, 0.41, 0.42, 0.43, 0.44, 0.45, 0.46, 0.47, 0.48, 0.49, 0.5, 0.51, 0.52, 0.53, 0.54, 0.55],
+        # [0.58, 0.59, 0.60, 0.61, 0.62, 0.63, 0.64, 0.65
+        # [0.3, 0.31, 0.32, 0.33, 0.34, 0.35, 0.36, 0.37, 0.38, 0.39, 0.4, 0.41, 0.42, 0.43, 0.44, 0.45, 0.46, 0.47, 0.48, 0.49, 0.5, 0.51, 0.52, 0.53, 0.54, 0.55, 0.56, 0.57, 0.58, 0.59, 0.6]
+        "buy_signal_threshold": [0.3, 0.31, 0.32, 0.33, 0.34, 0.35, 0.36, 0.37, 0.38, 0.39, 0.4, 0.41, 0.42, 0.43, 0.44, 0.45, 0.46, 0.47, 0.48, 0.49, 0.5, 0.51, 0.52, 0.53, 0.54, 0.55, 0.56, 0.57, 0.58, 0.59, 0.6],
+        # 0.0005, 0.001, 0.002, 0.003, 0.004, 0.005, 0.006, 0.007, 0.008, 0.009, 0.010
+        "buy_slope_threshold": [None],
 
         # If two groups are equal, then these values are ignored
         "sell_point_threshold": [None], # + np.arange(0.02, 0.20, 0.01).tolist()
-        "sell_window": [3],
-        "sell_signal_threshold": [0.38, 0.39, 0.4, 0.41, 0.42, 0.43, 0.44, 0.45, 0.46, 0.47, 0.48, 0.49, 0.5, 0.51, 0.52, 0.53, 0.54, 0.55, 0.56, 0.57, 0.58],
+        "sell_window": [5],
+        "sell_signal_threshold": [0.3, 0.31, 0.32, 0.33, 0.34, 0.35, 0.36, 0.37, 0.38, 0.39, 0.4, 0.41, 0.42, 0.43, 0.44, 0.45, 0.46, 0.47, 0.48, 0.49, 0.5, 0.51, 0.52, 0.53, 0.54, 0.55, 0.56, 0.57, 0.58, 0.59, 0.6],
+        "sell_slope_threshold": [None],
 
         "combine": ["no_combine"],  # "no_combine", "difference" (same as no combine or better), "relative" (rather bad)
     },
@@ -176,6 +184,7 @@ def main(config_file):
         grid_signals[0]["sell_point_threshold"] = [None]
         grid_signals[0]["sell_window"] = [None]
         grid_signals[0]["sell_signal_threshold"] = [None]
+        grid_signals[0]["sell_slope_threshold"] = [None]
 
     performances = list()
     for model in tqdm(ParameterGrid(grid_signals)):
@@ -186,6 +195,7 @@ def main(config_file):
             model["sell_point_threshold"] = model["buy_point_threshold"]
             model["sell_window"] = model["buy_window"]
             model["sell_signal_threshold"] = model["buy_signal_threshold"]
+            model["sell_slope_threshold"] = model["buy_slope_threshold"]
 
         #
         # Generate two boolean signal columns from two groups of point-wise score columns using signal model
@@ -196,17 +206,51 @@ def main(config_file):
         #   We need to introduce a signal model. In the service, we transform two groups to two signal scores, and then apply final trade threshold and notification threshold.
 
         # Produce boolean signal (buy and sell) columns from the current patience parameters
-        aggregate_score(df, [buy_score_column_avg], 'buy_score_column', model.get("buy_point_threshold"), model.get("buy_window"))
-        aggregate_score(df, [sell_score_column_avg], 'sell_score_column', model.get("sell_point_threshold"), model.get("sell_window"))
+        aggregate_score(df, 'buy_score_column', [buy_score_column_avg], model.get("buy_point_threshold"), model.get("buy_window"))
+        aggregate_score(df, 'sell_score_column', [sell_score_column_avg], model.get("sell_point_threshold"), model.get("sell_window"))
 
         if model.get("combine") == "relative":
             combine_scores_relative(df, 'buy_score_column', 'sell_score_column', 'buy_score_column', 'sell_score_column')
         elif model.get("combine") == "difference":
             combine_scores_difference(df, 'buy_score_column', 'sell_score_column', 'buy_score_column', 'sell_score_column')
 
+        # Compute slope of the numeric score over model.get("buy_window") and model.get("sell_window")
+        from scipy import stats
+        from sklearn import linear_model
+        def linear_regr_fn(X):
+            """
+            Given a Series, fit a linear regression model and return its slope interpreted as a trend.
+            The sequence of values in X must correspond to increasing time in order for the trend to make sense.
+            """
+            X_array = np.asarray(range(len(X)))
+            y_array = X
+            if np.isnan(y_array).any():
+                nans = ~np.isnan(y_array)
+                X_array = X_array[nans]
+                y_array = y_array[nans]
+
+            #X_array = X_array.reshape(-1, 1)  # Make matrix
+            #model = linear_model.LinearRegression()
+            #model.fit(X_array, y_array)
+            #slope = model.coef_[0]
+
+            slope, intercept, r, p, se = stats.linregress(X_array, y_array)
+
+            return slope
+
+        #if 'buy_score_slope' not in df.columns:
+        #    w = 10  #model.get("buy_window")
+        #    df['buy_score_slope'] = df['buy_score_column'].rolling(window=w, min_periods=max(1, w // 2)).apply(linear_regr_fn, raw=True)
+        #    w = 10  #model.get("sell_window")
+        #    df['sell_score_slope'] = df['sell_score_column'].rolling(window=w, min_periods=max(1, w // 2)).apply(linear_regr_fn, raw=True)
+
         # Final boolean signal using final thresholds
         df['buy_signal_column'] = df['buy_score_column'] >= model.get("buy_signal_threshold")
         df['sell_signal_column'] = df['sell_score_column'] >= model.get("sell_signal_threshold")
+
+        # High score and low slope
+        #df['buy_signal_column'] = (df['buy_score_column'] >= model.get("buy_signal_threshold")) & (df['buy_score_slope'].abs() <= model.get("buy_slope_threshold"))
+        #df['sell_signal_column'] = (df['sell_score_column'] >= model.get("sell_signal_threshold")) & (df['sell_score_slope'].abs() <= model.get("sell_slope_threshold"))
 
         #
         # Simulate trade using close price and two boolean signals
