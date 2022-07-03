@@ -12,6 +12,7 @@ import numpy as np
 
 from common.utils import *
 from common.feature_generation import *
+from common.depth_processing import *
 
 """
 Produce features from market depth (json) data for a set of files by writing the result in several output (csv) files.

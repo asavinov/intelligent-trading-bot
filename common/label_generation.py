@@ -8,6 +8,8 @@ import numpy as np
 import pandas as pd
 
 from common.utils import *
+from common.feature_generation import *
+from common.feature_generation_rolling_agg import *
 
 """
 Label generation.
@@ -76,6 +78,7 @@ def generate_labels_thresholds(df, horizon):
 
 
 def generate_labels_sim(df, horizon):
+    """Currently not used."""
     labels = []
 
     # Max high
@@ -98,6 +101,7 @@ def generate_labels_sim(df, horizon):
 
 
 def generate_labels_regressor(df, horizon):
+    """Labels for regression. Currently not used."""
     labels = []
 
     # Max high relative to close in percent

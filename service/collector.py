@@ -75,18 +75,21 @@ async def sync_data_collector_task():
     - We update only local state by loading latest data. If it is necessary to initialize the db then another function should be used.
     """
 
-    symbol = App.config["symbol"]
-    symbols = [symbol]  # In future, we might want to collect other data, say, from other cryptocurrencies
+    data_sources = App.config.get("data_sources", [])
+    symbols = [x.get("folder") for x in data_sources]
 
-    # Request newest data
-    # We do this in any case in order to update our state (data, orders etc.)
-    missing_klines_count = App.analyzer.get_missing_klines_count(symbol)
+    if not symbols:
+        symbols = [App.config["symbol"]]
 
+    # How many records are missing (and to be requested) for each symbol
+    missing_klines_counts = [App.analyzer.get_missing_klines_count(sym) for sym in symbols]
+
+    # Create a list of tasks for retrieving data
     #coros = [request_klines(sym, "1m", 5) for sym in symbols]
-    tasks = [asyncio.create_task(request_klines(sym, "1m", missing_klines_count+1)) for sym in symbols]
+    tasks = [asyncio.create_task(request_klines(s, "1m", c)) for c, s in zip(missing_klines_counts, symbols)]
 
     results = {}
-    timeout = 5  # Seconds to wait for the result
+    timeout = 10  # Seconds to wait for the result
 
     # Process responses in the order of arrival
     for fut in asyncio.as_completed(tasks, timeout=timeout):

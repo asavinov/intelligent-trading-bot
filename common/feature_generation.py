@@ -7,6 +7,7 @@ import numpy as np
 import pandas as pd
 
 from common.utils import *
+from common.feature_generation_rolling_agg import *
 
 """
 Feature/label generation.
@@ -17,7 +18,7 @@ Also, no parameter training is performed.
 """
 
 
-def generate_features(df,use_differences, base_window, windows, area_windows):
+def generate_features(df,use_differences, base_window, windows, area_windows, last_rows: int = 0):
     """
     Generate derived features by adding them as new columns to the data frame.
     It is important that the same parameters are used for both training and prediction.
@@ -39,60 +40,55 @@ def generate_features(df,use_differences, base_window, windows, area_windows):
         df['volume'] = to_diff(df['volume'])
         df['trades'] = to_diff(df['trades'])
 
-    # close mean
+    # close rolling mean. format: 'close_<window>'
     weight_column_name = 'volume'  # None: no weighting; 'volume': volume average
-    to_drop += add_past_weighted_aggregations(df, 'close', weight_column_name, np.nanmean, base_window, suffix='')  # Base column
-    features += add_past_weighted_aggregations(df, 'close', weight_column_name, np.nanmean, windows, '', to_drop[-1], 100.0)
-    # ['close_1', 'close_2', 'close_5', 'close_20', 'close_60', 'close_180']
+    to_drop += add_past_weighted_aggregations(df, 'close', weight_column_name, np.nanmean, base_window, suffix='', last_rows=last_rows)  # Base column
+    features += add_past_weighted_aggregations(df, 'close', weight_column_name, np.nanmean, windows, '', to_drop[-1], 100.0, last_rows=last_rows)
 
-    # close std
-    to_drop += add_past_aggregations(df, 'close', np.nanstd, base_window)  # Base column
-    features += add_past_aggregations(df, 'close', np.nanstd, windows[1:], '_std', to_drop[-1], 100.0)  # window 1 excluded
-    # ['close_std_1', 'close_std_2', 'close_std_5', 'close_std_20', 'close_std_60', 'close_std_180']
+    # close rolling std. format: 'close_std_<window>'
+    to_drop += add_past_aggregations(df, 'close', np.nanstd, base_window, last_rows=last_rows)  # Base column
+    features += add_past_aggregations(df, 'close', np.nanstd, windows, '_std', to_drop[-1], 100.0, last_rows=last_rows)
 
-    # volume mean
-    to_drop += add_past_aggregations(df, 'volume', np.nanmean, base_window, suffix='')  # Base column
-    features += add_past_aggregations(df, 'volume', np.nanmean, windows, '', to_drop[-1], 100.0)
-    # ['volume_1', 'volume_2', 'volume_5', 'volume_20', 'volume_60', 'volume_180']
+    # volume rolling mean. format: 'volume_<window>'
+    to_drop += add_past_aggregations(df, 'volume', np.nanmean, base_window, suffix='', last_rows=last_rows)  # Base column
+    features += add_past_aggregations(df, 'volume', np.nanmean, windows, '', to_drop[-1], 100.0, last_rows=last_rows)
 
-    # Span: high-low difference
+    # Span: high-low difference. format: 'span_<window>'
     df['span'] = df['high'] - df['low']
     to_drop.append('span')
-    to_drop += add_past_aggregations(df, 'span', np.nanmean, base_window, suffix='')  # Base column
-    features += add_past_aggregations(df, 'span', np.nanmean, windows, '', to_drop[-1], 100.0)
-    # ['span_1', 'span_2', 'span_5', 'span_20', 'span_60', 'span_180']
+    to_drop += add_past_aggregations(df, 'span', np.nanmean, base_window, suffix='', last_rows=last_rows)  # Base column
+    features += add_past_aggregations(df, 'span', np.nanmean, windows, '', to_drop[-1], 100.0, last_rows=last_rows)
 
-    # Number of trades
-    to_drop += add_past_aggregations(df, 'trades', np.nanmean, base_window, suffix='')  # Base column
-    features += add_past_aggregations(df, 'trades', np.nanmean, windows, '', to_drop[-1], 100.0)
-    # ['trades_1', 'trades_2', 'trades_5', 'trades_20', 'trades_60', 'trades_180']
+    # Number of trades format: 'trades_<window>'
+    to_drop += add_past_aggregations(df, 'trades', np.nanmean, base_window, suffix='', last_rows=last_rows)  # Base column
+    features += add_past_aggregations(df, 'trades', np.nanmean, windows, '', to_drop[-1], 100.0, last_rows=last_rows)
 
-    # tb_base_av / volume varies around 0.5 in base currency
+    # tb_base_av / volume varies around 0.5 in base currency. format: 'tb_base_<window>>'
     df['tb_base'] = df['tb_base_av'] / df['volume']
     to_drop.append('tb_base')
-    to_drop += add_past_aggregations(df, 'tb_base', np.nanmean, base_window, suffix='')  # Base column
-    features += add_past_aggregations(df, 'tb_base', np.nanmean, windows, '', to_drop[-1], 100.0)
-    # ['tb_base_1', 'tb_base_2', 'tb_base_5', 'tb_base_20', 'tb_base_60', 'tb_base_180']
+    to_drop += add_past_aggregations(df, 'tb_base', np.nanmean, base_window, suffix='', last_rows=last_rows)  # Base column
+    features += add_past_aggregations(df, 'tb_base', np.nanmean, windows, '', to_drop[-1], 100.0, last_rows=last_rows)
 
-    # tb_quote_av / quote_av varies around 0.5 in quote currency
-    df['tb_quote'] = df['tb_quote_av'] / df['quote_av']
-    to_drop.append('tb_quote')
-    to_drop += add_past_aggregations(df, 'tb_quote', np.nanmean, base_window, suffix='')  # Base column
-    features += add_past_aggregations(df, 'tb_quote', np.nanmean, windows, '', to_drop[-1], 100.0)
-    # ['tb_quote_1', 'tb_quote_2', 'tb_quote_5', 'tb_quote_20', 'tb_quote_60', 'tb_quote_180']
+    # UPDATE: do not generate, because very high correction (0.99999) with tb_base
+    # tb_quote_av / quote_av varies around 0.5 in quote currency. format: 'tb_quote_<window>>'
+    #df['tb_quote'] = df['tb_quote_av'] / df['quote_av']
+    #to_drop.append('tb_quote')
+    #to_drop += add_past_aggregations(df, 'tb_quote', np.nanmean, base_window, suffix='', last_rows=last_rows)  # Base column
+    #features += add_past_aggregations(df, 'tb_quote', np.nanmean, windows, '', to_drop[-1], 100.0, last_rows=last_rows)
 
     # Area over and under latest close price
-    features += add_area_ratio(df, is_future=False, column_name="close", windows=area_windows, suffix = "_area")
+    features += add_area_ratio(df, is_future=False, column_name="close", windows=area_windows, suffix = "_area", last_rows=last_rows)
 
     # Linear trend
-    features += add_linear_trends(df, is_future=False, column_name="close", windows=windows[1:], suffix="_trend")  # window 1 excluded
+    features += add_linear_trends(df, is_future=False, column_name="close", windows=windows, suffix="_trend", last_rows=last_rows)
+    features += add_linear_trends(df, is_future=False, column_name="volume", windows=windows, suffix="_trend", last_rows=last_rows)
 
     df.drop(columns=to_drop, inplace=True)
 
     return features
 
 
-def generate_features_futur(df, use_differences=False):
+def generate_features_futures(df, use_differences=False):
     """
     Generate derived features for futures.
     """
@@ -248,104 +244,64 @@ def generate_features_depth(df, use_differences=False):
     return features
 
 
-def depth_to_df(depth: list):
+def add_threshold_feature(df, column_name: str, thresholds: list, out_names: list):
     """
-    Input is a list of json objects each representing current market depth with a list bids and asks
-    The method computes features from the market depth and returns a data frame with the corresponding columns.
 
-    NOTE:
-    - Important: "timestamp" is real time of the depth data which corresponds to "close_time" in klines
-      "timestamp" in klines is 1m before current time
-      It has to be taken into account when matching/joining records, e.g., by shifting columns (if we match "timestamp" then the reslt will be wrong)
-    - data frame index is continuous and may contain gaps. its start is first line and end is last line
-
-    # TODO Questions:
-    # !!! - what is zone for our timestamps - ensure that it is the same as Binance server
-    # - is it possible to create a data frame with a column containing json object or string?
-    # - how to match json/string values with data frame index?
+    :param df:
+    :param column_name: Column with values to compare with the thresholds
+    :param thresholds: List of thresholds. For each of them an output column will be generated
+    :param out_names: List of output column names (same length as thresholds)
+    :return: List of output column names
     """
-    bin_size = 1.0  # In USDT
-    windows = [1, 2, 5, 10, 20]  # No of price bins for aggregate/smoothing
 
-    #
-    # Generate a table with feature records
-    #
-    table = []
-    for entry in depth:
-        record = depth_to_features(entry, windows, bin_size)
-        table.append(record)
+    for i, threshold in enumerate(thresholds):
+        out_name = out_names[i]
+        if threshold > 0.0:  # Max high
+            if abs(threshold) >= 0.75:  # Large threshold
+                df[out_name] = df[column_name] >= threshold  # At least one high is greater than the threshold
+            else:  # Small threshold
+                df[out_name] = df[column_name] <= threshold  # All highs are less than the threshold
+        else:  # Min low
+            if abs(threshold) >= 0.75:  # Large negative threshold
+                df[out_name] = df[column_name] <= threshold  # At least one low is less than the (negative) threshold
+            else:  # Small threshold
+                df[out_name] = df[column_name] >= threshold  # All lows are greater than the (negative) threshold
 
-    #
-    # Convert json table to data frame
-    #
-    df = pd.DataFrame.from_dict(table)
-    # Alternatively, from_records() or json_normalize()
-
-    # Timestamp is an index
-    df["timestamp"] = pd.to_datetime(df["timestamp"], unit='ms')
-    df = df.set_index("timestamp")
-    df = df.sort_index()
-
-    #
-    # Find start and end dates
-    #
-    # NOTE: timestamp is request time (in our implementation) and hence it is end of 1m interval while kline id is start of 1m inteval
-    #  It is important for matching, so maybe align this difference here by shifting data
-    start_line = depth[0]
-    end_line = depth[-1]
-    start_ts = start_line.get("timestamp")
-    #start_ts -= 60_000  # To ensure that we do not lose any data
-    end_ts = end_line.get("timestamp")
-    #end_ts += 60_000  # To ensure that we do not lose any data
-
-    #
-    # Create index for this interval of timestamps
-    #
-    # NOTE: Add utc=True to get tz-aware object (with tz="UTC" instead of tz-unaware object with tz=None), so it seems that no tz means UTC
-    start = pd.to_datetime(start_ts, unit='ms')
-    end = pd.to_datetime(end_ts, unit='ms')
-
-    # Alternatively:
-    # If tz is not specified then 1 hour difference will be added so it seems that no tz means locale tz
-    #datetime.fromtimestamp(float(start_ts) / 1e3, tz=pytz.UTC)
-
-    # Create DatetimeIndex
-    # NOTE: if tz is not specified then the index is tz-naive
-    #   closed can be specified (which side to include/exclude: left, right or both). it influences if we want ot include/exclude start or end of the interval
-    index = pd.date_range(start, end, freq="T")
-    df_out = pd.DataFrame(index=index)
-
-    #
-    # Join data with this empty index (to ensure continuous range of timestamps)
-    #
-    df_out = df_out.join(df)
-
-    return df_out
+    return out_names
 
 
-def depth_to_features(entry: list, windows: list, bin_size: float):
-    """Convert one record of market depth to a dict of features"""
+def klines_to_df(klines: list):
+    """
+    Convert a list of klines to a data frame.
+    """
+    columns = [
+        'timestamp',
+        'open', 'high', 'low', 'close', 'volume',
+        'close_time',
+        'quote_av', 'trades', 'tb_base_av', 'tb_quote_av',
+        'ignore'
+    ]
 
-    bids = entry.get("bids")
-    asks = entry.get("asks")
+    df = pd.DataFrame(klines, columns=columns)
 
-    timestamp = entry.get("timestamp")
+    df['timestamp'] = pd.to_datetime(df['timestamp'], unit='ms')
+    df['close_time'] = pd.to_datetime(df['close_time'], unit='ms')
 
-    # Gap feature
-    gap = asks[0][0] - bids[0][0]
+    df["open"] = pd.to_numeric(df["open"])
+    df["high"] = pd.to_numeric(df["high"])
+    df["low"] = pd.to_numeric(df["low"])
+    df["close"] = pd.to_numeric(df["close"])
+    df["volume"] = pd.to_numeric(df["volume"])
 
-    if gap < 0: gap = 0
+    df["quote_av"] = pd.to_numeric(df["quote_av"])
+    df["trades"] = pd.to_numeric(df["trades"])
+    df["tb_base_av"] = pd.to_numeric(df["tb_base_av"])
+    df["tb_quote_av"] = pd.to_numeric(df["tb_quote_av"])
 
-    # Price feature
-    price = bids[0][0] + (gap / 2)
+    if "timestamp" in df.columns:
+        df.set_index('timestamp', inplace=True)
 
-    # Densities for bids and asks (volume per price unit)
-    densities = mean_volumes(depth=entry, windows=windows, bin_size=bin_size)
-
-    record = {"timestamp": timestamp, "gap": gap, "price": price}
-    record.update(densities)
-
-    return record
+    return df
 
 
 if __name__ == "__main__":

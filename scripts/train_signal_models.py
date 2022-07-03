@@ -1,456 +1,397 @@
-import os
-import sys
 from pathlib import Path
-from datetime import datetime, timezone, timedelta
 from typing import Union
-import json
-import pickle
-import click
 
+import click
 import numpy as np
+from tqdm import tqdm
 import pandas as pd
 
-from sklearn.model_selection import train_test_split
-from sklearn import metrics
+from sklearn.metrics import (precision_recall_curve, PrecisionRecallDisplay, RocCurveDisplay)
 from sklearn.model_selection import ParameterGrid
 
+import seaborn as sns
+import matplotlib.pyplot as plt
+
 from service.App import *
-from common.utils import *
+from common.classifiers import *
+
+from common.label_generation_top_bot import *
 from common.signal_generation import *
 
 """
-By signal generation model we mean simple rules with some thresholds as parameters.
-Training such a model is performed by brute force by training out all parameters and finding their peformance using back testing.
-Back testing is performed using an available feature matrix with all rolling predictions.
-The output is an ordered list of top performing threshold-based signal generation models.
+Input data:
+- source columns: close, max, min (for trade simulation)
+- point-wise predictions (label-feature_set-algorithm) to produce trade signals using hyper-parameters
+Algorithms:
+- Standard algorithm for computing trade signal from point-wise predictions (normally aggregation) which uses hyper-parameters
+- In loop over all aggregation hyper-parameters, simulate trade over the data range by finding the final performance (profit etc.)
+Output:
+- Top best hyper-parameters
 
-One approach is to use two parameters which determine entry and exit thresholds for a position. They need not be symmetric.
-These parameters are compared with the final prediction in [-1, +1] which expresses our consolidated future trend. 
-We might introduce one or two additional parameters to eliminate jitter if it happens. 
-Another way to reduce jitter is to smooth the final score so that it simply does not change quickly.
-Yet, if we entry and exist thresholds are significantly different then jitter should not happen.
-This approach does not try to optimize each transaction by searching individual best (but rare) entry-exit point.
-Instead, it tries to find maximums and minimums by switching the side at these points.
-We switch side independent of any other factors - simply because of the future trend and more opportunities on this new side.
+Notes:
+- the script should work with both batch predictions and rolling predictions (better) by
+assuming only the necessary input columns.
+- the script should support different kinds of aggregation function (it should be easy to replace) 
+and their corresponding hyper-parameters (e.g., top-bot and high-low).
 
-NEXT:
-!!!- Implement signal generation server with real-time updates and notifying some other
-  component which might simulate trade or simply store the logs in a file
+TODO:
+- DONE. Define generic aggregation functions for transforming point-wise scores to buy-sell score/signals with hyper-parameters
+Put these functions in some common module signal_generation::generate_score etc.
+- Implement/re-work the main loop and the logic of performance computations. 
+- Store output including better performance computation with transaction costs adjustments etc.
+- Integrate/use the basic aggregation functions in on-line processing (analyzer) to ensure equivalent results
+  Add parameterization where relevant so that it is easy to vary them in future (where they are expected to change, e.g., after re-training and re-optimization)
 
-- Since we are going to use only kline (no futures), generate rolling predictions for longer period
-  - play with other options of NN since we
+General pipeline:
+- Define programmatically all possible features and all possible labels and produce a feature matrix
+- Select various features and labels and find best point-wise performance by varying algorithm hyper-parameters and feature/label parameters
+- With fixed feature/label definitions (optimized for best point-wise performance), vary trade signal parameters to maximaze trade performance
+- Use the feature/label defintions and trade signal parameters for on-line analysis (guarantee the same features/labels and all hyper-parameters)
 
-- Explore how profit depends on month: downward trend (Feb-March) vs. other months.
-  - Run back testing on only summer months
-- DONE: smooth score and check if the performance is better. simply run same grid with different smooth factors (different definitions of score column).
-- alternative to smoothing, generate signal if 2 or more previous values are all higher/lower than threshold
-- OR, take generate signal when 2nd time crosses the threshold
+Train using extremum labels or prediction  labels and make point-wise predictions.
+Define point-wise score aggregation/post-processing parameter space: patience etc.
+For all these score aggregation parameters, compute their interval performance score and find best parameters.
+Note that it should work for any kind of training and prediction procedure including our old predictions.
+That is, it should be possible to take our old rolling_predictions point scores, and feed them into this procedure and find best aggregation parameters.
 
-- simple extrapolation of score (forecast)
-
-- hybrid strategy: instead of simply waiting for signal and change point, we can introduce stop loss or take profit signals.
-These signals will allow us to take profit where we see it and it is large rather than wait for something in future.
-In other words, such signals are generated from reality (we can earn already now) rather then future.
-One way to implement it, is to use this special kind of order (take profit) which will be executed automatically.
-Yet, we need to model this logic manually.
+Repeat this grid search procedure for different definitions of top-bottom labels (level and tolerance). 
+Find best level-tolerance which generate best performance for certain performance score parameters.
 """
 
-grid_signals = [
-    {
-        "buy_threshold": [
-            0.10, 0.11, 0.12, 0.13, 0.14, 0.15, 0.16, 0.17, 0.18, 0.19,
-            0.20, 0.21, 0.22, 0.23, 0.24, 0.25, 0.26, 0.27, 0.28, 0.29,
-            0.30, 0.31, 0.32, 0.33, 0.34, 0.35, 0.36, 0.37, 0.38, 0.39,
-            0.40, 0.41, 0.42, 0.43, 0.44, 0.45, 0.46, 0.47, 0.48, 0.49,
-        ],  # Buy when higher than this value
-        "sell_threshold": [
-            -0.10, -0.11, -0.12, -0.13, -0.14, -0.15, -0.16, -0.17, -0.18, -0.19,
-            -0.20, -0.21, -0.22, -0.23, -0.24, -0.25, -0.26, -0.27, -0.28, -0.29,
-            -0.30, -0.31, -0.32, -0.33, -0.34, -0.35, -0.36, -0.37, -0.38, -0.39,
-            -0.40, -0.41, -0.42, -0.43, -0.44, -0.45, -0.46, -0.47, -0.48, -0.49,
-        ],  # Sell when lower than this value
-
-        "transaction_fee": [0.005],  # Portion of total transaction amount
-        "transaction_price_adjustment": [0.005],  # The real execution price is worse than we assume
-
-        # Per year. 1.0 means all are equal, 3.0 means last has 3 times more weight than first
-        "performance_weight": [1.0],
-    },
-]
-
-
-#
-# Parameters
-#
 class P:
-    feature_sets = ["kline", ]  # "futur"
-
     in_nrows = 100_000_000
 
+    start_index = 200_000
+    end_index = None
+    # TODO: currently not used
     simulation_start = 263519   # Good start is 2019-06-01 - after it we have stable movement
     simulation_end = -0  # After 2020-11-01 there is sharp growth which we might want to exclude
 
+    # True if buy and sell hyper-parameters are equal
+    # Only buy parameters will be used and sell parameters will be ignored
+    buy_sell_equal = False
 
-def generate_score_and_forecast():
-    """
-    Read rolling predictions, generate score column according to its definition and then its forecast according to the forecast model.
-    Store the result (rolling forecast with additional columns) in a separate file.
+    topn_to_store = 20
 
-    TODO: We can include also 2 steps ahead forecasts
-    Idea: we can exclude intervals with low forecast error. Either correlation for last window or goodness of fit of latest train
-    """
-    #
-    # Load data with rolling label score predictions
-    #
-    print(f"Loading data with label rolling predict scores from input file...")
+#
+# Specify the ranges of signal hyper-parameters
+#
+grid_signals = [
+    {
+        "buy_point_threshold": [None], # + np.arange(0.02, 0.20, 0.01).tolist(),  # None means do not use
+        "buy_window": [5],  # [5, 6, 7, 8, 9, 10, 11, 12]
+        # [0.58, 0.59, 0.60, 0.61, 0.62, 0.63, 0.64, 0.65],
+        # 0.25, 0.26, 0.27, 0.28, 0.29, 0.3, 0.31, 0.32, 0.33, 0.34, 0.35, 0.36, 0.37, 0.38, 0.39, 0.4, 0.41, 0.42, 0.43, 0.44, 0.45, 0.46, 0.47, 0.48, 0.49, 0.5, 0.51, 0.52, 0.53, 0.54, 0.55],
+        # [0.58, 0.59, 0.60, 0.61, 0.62, 0.63, 0.64, 0.65
+        # [0.3, 0.31, 0.32, 0.33, 0.34, 0.35, 0.36, 0.37, 0.38, 0.39, 0.4, 0.41, 0.42, 0.43, 0.44, 0.45, 0.46, 0.47, 0.48, 0.49, 0.5, 0.51, 0.52, 0.53, 0.54, 0.55, 0.56, 0.57, 0.58, 0.59, 0.6]
+        "buy_signal_threshold": [0.3, 0.31, 0.32, 0.33, 0.34, 0.35, 0.36, 0.37, 0.38, 0.39, 0.4, 0.41, 0.42, 0.43, 0.44, 0.45, 0.46, 0.47, 0.48, 0.49, 0.5, 0.51, 0.52, 0.53, 0.54, 0.55, 0.56, 0.57, 0.58, 0.59, 0.6],
+        # 0.0005, 0.001, 0.002, 0.003, 0.004, 0.005, 0.006, 0.007, 0.008, 0.009, 0.010
+        "buy_slope_threshold": [None],
 
-    in_path = Path(P.in_path_name).joinpath(P.in_file_name)
-    if not in_path.exists():
-        print(f"ERROR: Input file does not exist: {in_path}")
-        return
+        # If two groups are equal, then these values are ignored
+        "sell_point_threshold": [None], # + np.arange(0.02, 0.20, 0.01).tolist()
+        "sell_window": [5],
+        "sell_signal_threshold": [0.3, 0.31, 0.32, 0.33, 0.34, 0.35, 0.36, 0.37, 0.38, 0.39, 0.4, 0.41, 0.42, 0.43, 0.44, 0.45, 0.46, 0.47, 0.48, 0.49, 0.5, 0.51, 0.52, 0.53, 0.54, 0.55, 0.56, 0.57, 0.58, 0.59, 0.6],
+        "sell_slope_threshold": [None],
 
-    if P.in_file_name.endswith(".csv"):
-        in_df = pd.read_csv(in_path, parse_dates=['timestamp'], nrows=P.in_nrows)
-    elif P.in_file_name.endswith(".parquet"):
-        in_df = pd.read_parquet(in_path)
-    else:
-        print(f"ERROR: Unknown input file extension. Only csv and parquet are supported.")
-
-    #
-    # Compute final score (as average over different predictions)
-    # "score" column is added
-    #
-    in_df = generate_score(in_df, P.feature_sets)  # "score" columns is added
-
-    #
-    # Load forecast model and generate forecast column
-    #
-    model_params = pd.read_json("_sarimax_model_all.json", typ='series')
-
-    is_all_fitted_values = True
-    if is_all_fitted_values:
-        history = in_df["score"]
-        forecast = fitted_forecast(history, model_order=(1, 0, 4), result_params=model_params)
-        # Forecast has all indexes
-    else:
-        history_length = 100
-        history = in_df["score"].iloc[: history_length]
-        predict = in_df["score"].iloc[history_length:]
-        forecast = rolling_forecast(history, predict, model_order=(1, 0, 4), result_params=model_params)
-        # First 100 values are not predicted and have NaNs
-
-    # Add column.
-    # We need to shift forecast backwards values because they are stored in the next indexes (for which it is done)
-    forecast = forecast.shift(-1)
-    in_df['score_forecast_1'] = forecast
-
-    #
-    # Store csv
-    #
-    out_name = Path(P.in_file_name).stem + "-scores"
-    out_path = Path(P.in_path_name).joinpath(out_name)
-
-    in_df.to_csv(out_path.with_suffix('.csv'), index=False, float_format="%.4f")
-
-    print(f"FINISHED computing forecasts. ")
+        "combine": ["no_combine"],  # "no_combine", "difference" (same as no combine or better), "relative" (rather bad)
+    },
+]
 
 
 @click.command()
 @click.option('--config_file', '-c', type=click.Path(), default='', help='Configuration file name')
 def main(config_file):
+    """
+    The goal is to find how good interval scores can be by performing grid search through
+    all aggregation/patience hyper-parameters which generate buy-sell signals on interval level.
+
+    Here we measure performance of trade using top-bottom scores generated using specified aggregation
+    parameters (which are searched through a grid). Here lables with true records are not needed.
+    In contrast, in another (above) function we do the same search but measure interval-score,
+    that is, how many intervals are true and false (either bot or bottom) by comparing with true label.
+
+    General purpose and assumptions. Load any file with two groups of point-wise prediction scores:
+    buy score and sell columns. The file must also have columns for trade simulation like close price.
+    It can be batch prediction file (one train model and one prediction result) or rolling predictions
+    (multiple sequential trains and predictions).
+    The script will convert these two buy-sell column groups to boolean buy-sell signals by using
+    signal generation hyper-parameters, and then apply trade simulation by computing its overall
+    performance. This is done for all simulation parameters from the grid. The results for all
+    simulation parameters and their performance are stored in the output file.
+    """
     load_config(config_file)
 
     freq = "1m"
     symbol = App.config["symbol"]
-    data_path = Path(App.config["data_folder"])
+    data_path = Path(App.config["data_folder"]) / symbol
     if not data_path.is_dir():
         print(f"Data folder does not exist: {data_path}")
         return
-    out_path = Path(App.config["data_folder"])
+    out_path = Path(App.config["data_folder"]) / symbol
     out_path.mkdir(parents=True, exist_ok=True)  # Ensure that folder exists
 
-    #
-    # Load data with rolling label score predictions
-    #
-    print(f"Loading data with label rolling predict scores from input file...")
-    start_dt = datetime.now()
+    config_file_modifier = App.config.get("config_file_modifier")
+    config_file_modifier = ("-" + config_file_modifier) if config_file_modifier else ""
 
-    use_forecast_score = False
-    if use_forecast_score:
-        in_file_name = f"{symbol}-{freq}-features-rolling-scores.csv"
-    else:
-        in_file_name = f"{symbol}-{freq}-features-rolling.csv"
+    #
+    # Load data with (rolling) label point-wise predictions
+    #
+    in_file_suffix = App.config.get("predict_file_modifier")
 
+    in_file_name = f"{in_file_suffix}{config_file_modifier}.csv"
     in_path = data_path / in_file_name
     if not in_path.exists():
         print(f"ERROR: Input file does not exist: {in_path}")
         return
 
-    in_df = pd.read_csv(in_path, parse_dates=['timestamp'], nrows=P.in_nrows)
+    print(f"Loading predictions from input file: {in_path}")
+    start_dt = datetime.now()
+    df = pd.read_csv(in_path, parse_dates=['timestamp'], nrows=P.in_nrows)
+    print(f"Predictions loaded. Length: {len(df)}. Width: {len(df.columns)}")
 
-    print(f"Rolling predictions loaded. Length: {len(in_df)}. Width: {len(in_df.columns)}")
-
-    #
-    # Compute final score (as average over different predictions)
-    # This function adds "score" column
-    # Important: we need to use the same final score as later in the service
-    #
-    in_df = generate_score(in_df, P.feature_sets)
-
-    print(f"Score column generated.")
+    # Limit size according to parameters start_index end_index
+    df = df.iloc[P.start_index:P.end_index]
+    df = df.reset_index()
 
     #
-    # Select data
+    # Find maximum performance possible based on true labels only
     #
+    # Best parameters (just to compute for known parameters)
+    #df['buy_signal_column'] = score_to_signal(df[bot_score_column], None, 5, 0.09)
+    #df['sell_signal_column'] = score_to_signal(df[top_score_column], None, 10, 0.064)
+    #performance_long, performance_short, long_count, short_count, long_profitable, short_profitable, longs, shorts = performance_score(df, 'sell_signal_column', 'buy_signal_column', 'close')
+    # TODO: Save maximum performance in output file or print it (use as a reference)
 
-    # Selecting only needed rows increases performance in several times (~4 times faster)
-    if use_forecast_score:
-        in_df = in_df[["timestamp", "high", "low", "close", "score", "score_forecast_1"]]
-    else:
-        in_df = in_df[["timestamp", "high", "low", "close", "score"]]
-
-    # Select the necessary interval of data
-    if not P.simulation_start:
-        P.simulation_start = 0
-    if not P.simulation_end:
-        P.simulation_end = len(in_df)
-    elif P.simulation_end < 0:
-        P.simulation_end = len(in_df) + P.simulation_end
-
-    in_df = in_df.iloc[P.simulation_start:P.simulation_end]
+    # Maximum possible on labels themselves
+    #performance_long, performance_short, long_count, short_count, long_profitable, short_profitable, longs, shorts = performance_score(df, 'top10_2', 'bot10_2', 'close')
 
     #
-    # Loop over all trade hyper-models (possible threshold combinations)
+    # Optimization: Compute averages which will be the same for all hyper-parameters
     #
-    grid = ParameterGrid(grid_signals)
-    models = list(grid)  # List of model dicts
-    performances = []
-    for i, model in enumerate(models):
-        # Set parameters of the model
+    buy_labels = App.config["buy_labels"]
+    sell_labels = App.config["sell_labels"]
+    # TODO: Check the existence of these labels in the input file
+    #   Check also the existence of some necessary columns like close
 
-        start_dt = datetime.now()
-        # ---
-        performance = simulate_trade(in_df, model)
-        # ---
-        elapsed = datetime.now() - start_dt
-        print(f"Finished simulation {i} / {len(models)} in {elapsed.total_seconds():.1f} seconds.")
+    buy_score_column_avg = 'buy_score_column_avg'
+    sell_score_column_avg = 'sell_score_column_avg'
 
-        performances.append(performance)
+    df[buy_score_column_avg] = df[buy_labels].mean(skipna=True, axis=1)
+    df[sell_score_column_avg] = df[sell_labels].mean(skipna=True, axis=1)
+
+    if P.buy_sell_equal:
+        grid_signals[0]["sell_point_threshold"] = [None]
+        grid_signals[0]["sell_window"] = [None]
+        grid_signals[0]["sell_signal_threshold"] = [None]
+        grid_signals[0]["sell_slope_threshold"] = [None]
+
+    performances = list()
+    for model in tqdm(ParameterGrid(grid_signals)):
+        #
+        # If equal parameters, then use the first group
+        #
+        if P.buy_sell_equal:
+            model["sell_point_threshold"] = model["buy_point_threshold"]
+            model["sell_window"] = model["buy_window"]
+            model["sell_signal_threshold"] = model["buy_signal_threshold"]
+            model["sell_slope_threshold"] = model["buy_slope_threshold"]
+
+        #
+        # Generate two boolean signal columns from two groups of point-wise score columns using signal model
+        # Exactly same procedure has to be used in on-line signal generation by the service
+        # It should work for all kinds of point-wise predictions: high-low, top-bottom etc.
+        # TODO: We need to encapsulate this step so that it can be re-used in the same form in the service
+        #   For example, introduce a higher level function which takes all possible hyper-parameters and then makes these calls and returns two binary signal columns
+        #   We need to introduce a signal model. In the service, we transform two groups to two signal scores, and then apply final trade threshold and notification threshold.
+
+        # Produce boolean signal (buy and sell) columns from the current patience parameters
+        aggregate_score(df, 'buy_score_column', [buy_score_column_avg], model.get("buy_point_threshold"), model.get("buy_window"))
+        aggregate_score(df, 'sell_score_column', [sell_score_column_avg], model.get("sell_point_threshold"), model.get("sell_window"))
+
+        if model.get("combine") == "relative":
+            combine_scores_relative(df, 'buy_score_column', 'sell_score_column', 'buy_score_column', 'sell_score_column')
+        elif model.get("combine") == "difference":
+            combine_scores_difference(df, 'buy_score_column', 'sell_score_column', 'buy_score_column', 'sell_score_column')
+
+        # Compute slope of the numeric score over model.get("buy_window") and model.get("sell_window")
+        from scipy import stats
+        from sklearn import linear_model
+        def linear_regr_fn(X):
+            """
+            Given a Series, fit a linear regression model and return its slope interpreted as a trend.
+            The sequence of values in X must correspond to increasing time in order for the trend to make sense.
+            """
+            X_array = np.asarray(range(len(X)))
+            y_array = X
+            if np.isnan(y_array).any():
+                nans = ~np.isnan(y_array)
+                X_array = X_array[nans]
+                y_array = y_array[nans]
+
+            #X_array = X_array.reshape(-1, 1)  # Make matrix
+            #model = linear_model.LinearRegression()
+            #model.fit(X_array, y_array)
+            #slope = model.coef_[0]
+
+            slope, intercept, r, p, se = stats.linregress(X_array, y_array)
+
+            return slope
+
+        #if 'buy_score_slope' not in df.columns:
+        #    w = 10  #model.get("buy_window")
+        #    df['buy_score_slope'] = df['buy_score_column'].rolling(window=w, min_periods=max(1, w // 2)).apply(linear_regr_fn, raw=True)
+        #    w = 10  #model.get("sell_window")
+        #    df['sell_score_slope'] = df['sell_score_column'].rolling(window=w, min_periods=max(1, w // 2)).apply(linear_regr_fn, raw=True)
+
+        # Final boolean signal using final thresholds
+        df['buy_signal_column'] = df['buy_score_column'] >= model.get("buy_signal_threshold")
+        df['sell_signal_column'] = df['sell_score_column'] >= model.get("sell_signal_threshold")
+
+        # High score and low slope
+        #df['buy_signal_column'] = (df['buy_score_column'] >= model.get("buy_signal_threshold")) & (df['buy_score_slope'].abs() <= model.get("buy_slope_threshold"))
+        #df['sell_signal_column'] = (df['sell_score_column'] >= model.get("sell_signal_threshold")) & (df['sell_score_slope'].abs() <= model.get("sell_slope_threshold"))
+
+        #
+        # Simulate trade using close price and two boolean signals
+        # Add a pair of two dicts: performance dict and model parameters dict
+        #
+        performance, long_performance, short_performance = \
+            simulated_trade_performance(df, 'sell_signal_column', 'buy_signal_column', 'close')
+
+        performances.append(dict(
+            model=model,
+            performance=performance,
+            long_performance=long_performance,
+            short_performance=short_performance
+        ))
 
     #
-    # Post-process: sort and filter
+    # Flatten
     #
 
-    # Column names
-    model_keys = models[0].keys()
-    performance_keys = performances[0].keys()
-    header_str = ",".join(list(model_keys) + list(performance_keys))
+    # Sort
+    performances = sorted(performances, key=lambda x: x['performance']['profit_per_month'], reverse=True)
+    performances = performances[:P.topn_to_store]
+
+    # Column names (from one record)
+    keys = list(performances[0]['model'].keys()) + \
+           list(performances[0]['performance'].keys()) + \
+           list(performances[0]['long_performance'].keys()) + \
+           list(performances[0]['short_performance'].keys())
 
     lines = []
-    for i, model in enumerate(models):
-        model_values = [f"{v:.3f}" for v in model.values()]
-        performance_values = [f"{v:.2f}" for v in performances[i].values()]
-        line_str = ",".join(model_values + performance_values)
-        lines.append(line_str)
+    for p in performances:
+        record = list(p['model'].values()) + \
+                 list(p['performance'].values()) + \
+                 list(p['long_performance'].values()) + \
+                 list(p['short_performance'].values())
+        record = [f"{v:.3f}" if isinstance(v, float) else str(v) for v in record]
+        record_str = ",".join(record)
+        lines.append(record_str)
 
     #
     # Store simulation parameters and performance
     #
-    out_file_name = f"{symbol}-{freq}-signals.txt"
-    out_file = (out_path / out_file_name).resolve()
+    out_file_suffix = App.config.get("signal_file_modifier")
 
-    if out_file.is_file():
+    out_file_name = f"{out_file_suffix}{config_file_modifier}.txt"
+    out_path = (out_path / out_file_name).resolve()
+
+    if out_path.is_file():
         add_header = False
     else:
         add_header = True
-    with open(out_file, "a+") as f:
+    with open(out_path, "a+") as f:
         if add_header:
-            f.write(header_str + "\n")
+            f.write(",".join(keys) + "\n")
         #f.writelines(lines)
         f.write("\n".join(lines))
         f.write("\n")
 
+    print(f"Simulation results stored in: {out_path}. Lines: {len(lines)}.")
+
     elapsed = datetime.now() - start_dt
-    print(f"Finished in {int(elapsed.total_seconds())} seconds.")
+    print(f"Finished simulation in {int(elapsed.total_seconds())} seconds.")
 
 
-def simulate_trade(df, model: dict):
+def simulated_trade_performance(df, sell_signal_column, buy_signal_column, price_column):
     """
-    It will use 1.0 as initial trade amount in USD.
-    Overall performance will be the end amount with respect to the initial one.
-    It will use the whole data set from start to end.
+    top_score_column: boolean, true if top is reached - sell signal
+    bot_score_column: boolean, true if bottom is reached - buy signal
+    price_column: numeric price for computing profit
 
-    Stragegy 1 (non-cumulative): Always use 1.0 to enter market (for buying) independent of the available (earned or lost) funds.
-    Strategy 2 (cumulative): Use all currently available funds for trade
+    return performance: tuple, long and short performance as a sum of differences between two transactions
 
-    :param df:
-    :param model:
-    :return: Performance record
+    The functions switches the mode and searches for the very first signal of the opposite score.
+    When found, it again switches the mode and searches for the very first signal of the opposite score.
+
+    Essentially, it is one pass of trade simulation with concrete parameters.
     """
-    #
-    # Model parameters
-    #
-    buy_threshold = float(model.get("buy_threshold"))
-    sell_threshold = float(model.get("sell_threshold"))
-    transaction_fee = float(model.get("transaction_fee"))
-    transaction_price_adjustment = float(model.get("transaction_price_adjustment"))
-
-    performance_weight = model.get("performance_weight")
-
-    #
-    # Statistics of the performance run
-    #
-
-    # All transactions will be collected in this list for later analysis
-    transactions = []  # List of dicts like dict(i=23, is_forced_sell=False, profit=-0.123)
-
-    # How many signals independent of mode and execution
-    buy_signal_count = 0
-    sell_signal_count = 0
-
-    #
-    # Main loop over trade sessions
-    #
-    i = 0
     is_buy_mode = True
-    for row in df.itertuples(index=True, name="Row"):
-        i += 1
-        transaction_weight = 1.0 + i * (performance_weight - 1.0) / 525_600  # Increases in time
 
-        # Current market parameters
-        close_price = row.close
-        if not close_price:  # Missing data
-            continue
-        high_price = row.high
-        low_price = row.high
-        timestamp = row.timestamp
+    long_profit = 0
+    long_transactions = 0
+    long_profitable = 0
+    longs = list()
 
-        score = row.score
-        if not score:  # Missing data
-            continue
+    short_profit = 0
+    short_transactions = 0
+    short_profitable = 0
+    shorts = list()
 
-        use_forecast_score = False
-        if use_forecast_score:
-            score_forecast_1 = row.score_forecast_1
-
-        #
-        # Apply model parameters and generate buy/sell (enter/exit) signal
-        #
-        previous_transaction = transactions[-1] if len(transactions) > 0 else None
-        previous_price = previous_transaction["price"] if previous_transaction else None
-        profit = (close_price - previous_price) if previous_price else None
-
-        if score > buy_threshold:  # score > buy_threshold
-            buy_signal_count += 1
-
-            if is_buy_mode:  # Buy mode. Enter market by buying BTC
-                transaction = dict(
-                    side="BUY",
-                    price=close_price, quantity=1.0,
-                    profit=profit,  # Lower (negative) is better
-                    timestamp=timestamp, row=i, weight=transaction_weight,
-                )
-                transactions.append(transaction)
+    # The order of columns is important for itertuples
+    df = df[[sell_signal_column, buy_signal_column, price_column]]
+    for (index, top_score, bot_score, price) in df.itertuples(name=None):
+        if is_buy_mode:
+            # Check if minimum price
+            if bot_score:
+                profit = longs[-1][2] - price if len(longs) > 0 else 0
+                short_profit += profit
+                short_transactions += 1
+                if profit > 0:
+                    short_profitable += 1
+                shorts.append((index, is_buy_mode, price, profit))  # Bought
                 is_buy_mode = False
-
-        elif score < sell_threshold:  # score < sell_threshold
-            sell_signal_count += 1
-
-            if not is_buy_mode:  # Sell mode. Exit market by selling BTC
-                transaction = dict(
-                    side="SELL",
-                    price=close_price, quantity=1.0,
-                    profit=profit,  # Higher (positive) is better
-                    timestamp=timestamp, row=i, weight=transaction_weight,
-                )
-                transactions.append(transaction)
+        else:
+            # Check if maximum price
+            if top_score:
+                profit = price - shorts[-1][2] if len(shorts) > 0 else 0
+                long_profit += profit
+                long_transactions += 1
+                if profit > 0:
+                    long_profitable += 1
+                longs.append((index, is_buy_mode, price, profit))  # Sold
                 is_buy_mode = True
 
-        else:
-            continue  # No signal. Just wait
-
-    #
-    # Remove last transaction if not filled
-    #
-    if len(transactions) <= 1:
-        return {}
-
-    if transactions[-1]["side"] == "BUY":
-        del transactions[-1]
-
-    assert len(transactions) % 2 == 0
-
-    #
-    # Compute performance parameters from the list of transactions
-    #
-
-    sell_transactions = [t for t in transactions if t["side"] == "SELL"]
-    sell_profits = [t["profit"] for t in sell_transactions]
-    sell_t_count = len(sell_transactions)
-    no_months = len(df) / 43_920
-
-    # KPIs
-    sell_t_per_month = sell_t_count / no_months
-
-    profit_sum = np.nansum(sell_profits)
-    profit_month = profit_sum / no_months
-    profit_avg = np.nanmean(sell_profits)
-    profit_std = np.nanstd(sell_profits)
-
-    # Percentage of profitable
-    profitable_percent = len([t for t in sell_transactions if t["profit"] > 0]) / sell_t_count
-    # TODO: Average length (time from buy to sell, that is, difference between sell and previous buy)
-
-    performance = dict(
-        profit_sum=profit_sum,
-        profit_avg=profit_avg,
-        profit_std=profit_std,
-        profitable_percent=profitable_percent,
-
-        sell_t_per_month=sell_t_per_month,
-        profit_month=profit_month,
+    long_performance = dict(
+        long_profit=long_profit,
+        long_transactions=long_transactions,
+        long_profitable=long_profitable / long_transactions if long_transactions else 0.0,
+        #longs=longs,
+    )
+    short_performance = dict(
+        short_profit=short_profit,
+        short_transactions=short_transactions,
+        short_profitable=short_profitable / short_transactions if short_transactions else 0.0,
+        #shorts=shorts,
     )
 
-    return performance
+    profit = long_performance['long_profit'] + short_performance['short_profit']
+    transactions = long_performance['long_transactions'] + short_performance['short_transactions']
+    profitable = long_profitable + short_profitable
+    minutes_in_month = 1440 * 30.5
+    performance = dict(
+        profit_per_month=profit / (len(df) / minutes_in_month),
+        profit_per_transaction=profit / transactions if transactions else 0.0,
+        profitable=profitable / transactions if transactions else 0.0,
+        transactions_per_month=transactions / (len(df) / minutes_in_month),
+        #transactions=transactions,
+        #profit=profit,
+    )
 
-def rolling_forecast_with_retrain(sr: pd.Series, history_length, p, q):
-    """p is AR. q is MA. Both can be integers or lists."""
-    from statsmodels.tsa.arima.model import ARIMA
-    import statsmodels.api as sm
-
-    result = pd.Series(index=sr.index)
-    for i in range(history_length, len(sr)):
-        start = i-history_length
-        start = 0 if start < 0 else start
-        sub_sr = sr.iloc[start: i]
-
-        #model = ARIMA(sub_sr, order=(p, 0, q))
-        #model_fit = model.fit()
-
-        model = sm.tsa.statespace.SARIMAX(sub_sr, order=(p, 0, q), enforce_stationarity=False, enforce_invertibility=False)
-        model_fit = model.fit(disp=False)
-
-        # It returns time series starting with next index so we simply take first element
-        val = model_fit.forecast().iloc[0]
-
-        result.iloc[i] = val
-
-    return result
-
-
-def optimize_rolling_forecast():
-    # In loop for all parameters, generate rolling forecast and its metrics. Choose the best parameters.
-
-    in_path = Path(P.in_path_name).joinpath(P.in_file_name)
-
-    in_df = pd.read_csv(in_path, parse_dates=['timestamp'], nrows=P.in_nrows)
-
-    sr = pd.Series([1,2,3,4,5,4,3,4,5,6,8,9,3,2,3,6,5,4,3])
-    sr_forecast = rolling_forecast(sr, history_length=6, order=(1, 0, 0))
-
-    pass
+    return performance, long_performance, short_performance
 
 
 if __name__ == '__main__':
-    #generate_score_and_forecast()
     main()

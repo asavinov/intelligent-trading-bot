@@ -54,7 +54,7 @@ Every minute, the signaler performs the following steps to make a prediction abo
 
 Notes:
 * The final result of the signaler is the score (between -1 and +1). The score should be used for further decisions about buying or selling by taking into account other parameters and data sources.
-* For the signaler service to work, trained models have to be available and stored in the model folder `model_folder`. The models are trained in batch mode and the process is described in the corresponding section.
+* For the signaler service to work, trained models have to be available and stored in the "MODELS" folder. The models are trained in batch mode and the process is described in the corresponding section.
 
 Starting the service: `python3 -m service.server -c config.json`
 
@@ -69,7 +69,7 @@ The following batch scripts are used to train the models needed by the signaler:
 * Merge several historic datasets into one dataset: `python -m scripts.merge_data -c config.json`
   * This script solves two problems: 1) there could be other sources like depth data or futures 2) a data source may have gaps so we need to produce a regular time raster in the output file
   * The result is one output file with the name pattern: `{symbol}-{freq}.csv`
-* Generate feature matrix: `python -m scripts.generate_features -c config.json`
+* Generate features: `python -m scripts.generate_features -c config.json`
   * This script computes all derived features and labels defined programmatically
   * The result is one output file with the name pattern: `{symbol}-{freq}-features.csv`
   * It may take hours to compute because it runs in non-incremental mode, that is, computes the features for all the available data even if only the latest small portion was really updated
@@ -78,6 +78,118 @@ The following batch scripts are used to train the models needed by the signaler:
   * Hyper-parameter tuning is not part of this procedure, that is, it is assumed that we already have good hyper-parameters
   * The results are stored as multiple model files in the model folder and the file names encode the following model dimensions: label being used as a target variable like `high_10`, input data like `k` (klines) or `f` (futures), algorithm like `gb` (gradient boosting), `nn` (neural network) or `lc` (linear classifier).
   * The model folder also contains `metrics.txt` with the scores of the trained models
+
+# Training machine learning models - NEW
+
+## Downloading and merging source data
+
+Download data from different source feature sets and merge them into the common 1 minute raster.
+
+## Generate features
+
+`python -m scripts.generate_features -c config.json`
+
+Parameters in config: 
+```
+Example old parameters
+"base_window_kline": 1440,
+"windows_kline": [1, 5, 15, 60, 180, 720],
+"area_windows_kline": [60, 120, 180, 300, 720],
+```
+```
+Example new parameters
+"base_window_kline": 40320,
+"windows_kline": [1, 60, 360, 1440, 4320, 10080],
+"area_windows_kline": [60, 360, 1440, 4320, 10080],
+```
+
+Load merged source data, apply feature generation script and store a feature matrix with all possible derived features. Not all features will be then used. The script relies on a common feature definition function. Feature functions get some parameters like windows from the configuration. The same features must be used for on-line feature generation (in the service when they are generated for a micro-batch) and off-line feature generation.
+
+## Generate labels
+
+`python -m scripts.generate_labels -c config.json`
+
+Parameters in code:
+- label_sets: "high-low", "top-bot" - which kind of labels we want to generate
+- in_file_suffix = "features" - input file
+
+Parameters for different label types:
+- high-low:
+  - Config: "label_horizon": 1440 - horizon for finding maximums and minimums
+  - In code: label_thresholds = [1.0, 1.5, 2.0, 2.5, 3.0] and [0.1, 0.2, 0.3, 0.4, 0.5]
+  - In code: windows=[60, 120, 180, 300] (currently this label is not used)
+- top-bot
+  - In code: levels (in percent): [0.06, 0.07, 0.08, 0.09, 0.10, 0.11, 0.12]
+  - In code: tolerances: 0.01, 0.02, 0.03
+
+Load feature matrix, compute labels and store the result with additional columns in the output file. Features are not needed for label computations and they are stored unchanged in the output file. Currently, most label parameters are hard-coded.
+
+## Train prediction models
+
+`python -m scripts.train_predict_models -c config.json`
+
+Configuration in code:
+- Algorithms applied are hard-coded. Uncomment or introduce a list of algorithms
+- kline_train_length - how much (latest) data to use for training
+- hyper-parameters can be used for fine-tuning
+
+Configuration in config:
+- label_horizon - this number of rows will be removed from the head before training so train set will be smaller and latest records will not be used. It makes sense for high-low because labels are computed from future data
+- labels - all algorithms will be trained for all labels. Choose labels for high-low or top-bot cases
+- features_kline - these columns will be selected for training
+
+Assumptions:
+- Algorithm hyper-parameters are defined
+- Feature matrix with labels is available
+
+## Prediction online based on trained models (service)
+
+`python -m service.server -c config.json`
+
+Assumptions:
+- Features to select and feed prediction models
+- Buy and sell label scores used to select models and produce the corresponding score columns
+- Model files for prediction algorithms are available (stored in file system)
+- Signal model is available in config
+- Access to the exchange: API keys, credentials etc. (IP has to be whitelisted for trading)
+
+
+# Hyper-parameter tuning - NEW
+
+General procedure for chosen features and labels (for some symbol):
+- Update data and generate features and labels
+- Generate prediction files for all label-k-algorithm: train_predict_models and generate_rolling_predictions
+- Choose desired top-bot threshold in % (it directly influences frequency of transactions), for example, 6%:
+  - Choose manually a subset of tolerances like 1-2-3 or 15-25 and set the corresponding buy/sell score labels
+  - Find coarse-grained best signal parameters for these two prediction files (coarse-grained grid)
+  - Find fine-grained best signal parameters (fine-grained grid around best coarse-grained parameters)
+  - Store the best signal model in configuration and use online
+
+## Optimize point-wise classification score
+
+The goal is to find input feature parameters, output label defintions and algorithm hyper-parameters with the best scores as defined in ML (auc, average precision etc.)
+
+- Optimize algorithm hyper-parameters
+- Select best algorithms, e.g., only NN
+- Optimize feature and label parameters
+
+One way is to use `python -m scripts.train_predict_models -c config.json` which computes standard metrics for either score (label-feature_set-algorithm). We need to try out various feature definitions and label definitions.
+
+## Optimize interval-wise classification score
+
+Once we have found features-labels-algorithms with the best standard scores, we can produce their predictions (batch or rolling) in the form of multiple score labels label-feature_set-algorithm. After that the question which signal parameters produce the best overall performance.
+
+The basis for this optimization is a function which transforms point-wise label prediction to an interval prediction which is typically some aggregation of one point-wise label prediction.
+
+Optimize point-wise score aggregation parameters and the corresponding selection threshold parameters with the purpose to increase precision of interval classification. An interval is defined as bottom interval, top interval, high interval, low interval. For top-bot we compute them naturally as intervals. For high-low intervals are currently not defined.
+
+Currently we do not use this for one important reason. The thing is that finding how frequently we detect or miss intervals is not very important by itself. It is important whether we have false positive before an interval (which was detected) or after it. Therefore, an informative measure should take into whether an error happened before an interval or after it. However, if we have it, then it is essentially equivalent or very close to finding trade performance by means of trade simulation where such situations are taken into account automatically. 
+
+One way is to use `python -m scripts.train_signal_models -c config.json` which computes performance for a space of signal parameters so that we can find best signal parameters. The input must contain predictions and can be generated by batch predictions and rolling predictions.
+
+## Optimize trade signal performance
+
+Here we want to try different trade signal (aggregation and selection) parameters by computing their overall performance and finally choose the best parameters. The input is a file with close prices and point-wise predictions (for each label-feature_set-algorithm). They are used to generate trade signals and using them for simulating trades. 
 
 # Hyper-parameter tuning
 
@@ -98,7 +210,6 @@ The configuration parameters are specified in two files:
 Here are some most important fields (in both `App.py` and `config.json`):
 * `symbol` it is a trading pair like `BTCUSDT` - it is important for almost all cases
 * `data_folder` - location of data files which are needed only for batch scripts and not for services
-* `model_folder` - location of trained ML models which are stored by batch scripts and then are loaded by the services
 * Analyzer parameters. These mainly columns names.
   * `labels` List of column names which are treated as labels. If you define a new label used for training and then for prediction then you need to specify its name here. Note that we use multiple target variables (e.g., with different prediction horizons) and multiple prediction algorithms.
   * `class_labels_all` It is not used by the system and is created for convenience by listing *all* labels we compute so that it is easier to choose labels we want to experiment with during hyper-parameter tuning.
@@ -124,8 +235,7 @@ Here is a sample `config.json` file:
   "base_asset": "BTC",
   "quote_asset": "USDT",
 
-  "data_folder": "C:/DATA2/BITCOIN/GENERATED/BTCUSDT",
-  "model_folder": "C:/DATA2/BITCOIN/MODELS/BTCUSDT"
+  "data_folder": "C:/DATA2/BITCOIN/GENERATED"
 }
 ```
 

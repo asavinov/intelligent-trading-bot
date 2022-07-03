@@ -13,6 +13,7 @@ from service.App import *
 from common.utils import *
 from common.classifiers import *
 from common.feature_generation import *
+from common.model_store import *
 
 """
 Use input feature matrix to train *one* label predict model for each label using all specified historic data.
@@ -35,47 +36,15 @@ obtained elsewhere (e.g., using grid search).
 # Parameters
 #
 class P:
-    feature_sets = ["kline"]  # futur
-
-    in_nrows = 10_000_000  # For debugging
+    in_nrows = 100_000_000  # For debugging
     in_nrows_tail = None  # How many last rows to select (for testing)
 
     # How much data we want to use for training
-    kline_train_length = int(1.5 * 525_600)  # 1.5 * 525_600
+    kline_train_length = int(2.0 * 525_600)  # 1.5 * 525_600
     futur_train_length = int(4 * 43_800)
 
     # Whether to store file with predictions
-    store_predictions = False
-
-#
-# (Best) train parameters (found by and copied from grid search scripts)
-#
-
-params_gb = {
-    "objective": "cross_entropy",
-    "max_depth": 1,
-    "learning_rate": 0.01,
-    "num_boost_round": 1_500,
-
-    "lambda_l1": 1.0,
-    "lambda_l2": 1.0,
-}
-
-params_nn = {
-    "layers": [29],  # It is equal to the number of input features (different for spot and futur)
-    "learning_rate": 0.001,
-    "n_epochs": 60,
-    "bs": 64,
-}
-
-params_lc = {
-    "is_scale": False,
-    "penalty": "l2",
-    "C": 1.0,
-    "class_weight": None,
-    "solver": "liblinear",
-    "max_iter": 200,
-}
+    store_predictions = True
 
 
 @click.command()
@@ -85,33 +54,41 @@ def main(config_file):
 
     label_horizon = App.config["label_horizon"]  # Labels are generated using this number of steps ahead
     labels = App.config["labels"]
+    train_features = App.config.get("train_features")
+    algorithms = App.config.get("algorithms")
 
     #features_horizon = 720  # Features are generated using this past window length
-    features_kline = App.config["features_kline"]
-    features_futur = App.config["features_futur"]
-    features_depth = App.config["features_depth"]
+    features_kline = App.config.get("features_kline")
+    features_futur = App.config.get("features_futur")
+    features_depth = App.config.get("features_depth")
 
     freq = "1m"
     symbol = App.config["symbol"]
-    data_path = Path(App.config["data_folder"])
+    data_path = Path(App.config["data_folder"]) / symbol
     if not data_path.is_dir():
         print(f"Data folder does not exist: {data_path}")
         return
-    out_path = Path(App.config["model_folder"])
+
+    out_path = data_path / "MODELS"
     out_path.mkdir(parents=True, exist_ok=True)  # Ensure that folder exists
+
+    config_file_modifier = App.config.get("config_file_modifier")
+    config_file_modifier = ("-" + config_file_modifier) if config_file_modifier else ""
+
+    start_dt = datetime.now()
 
     #
     # Load feature matrix
     #
-    print(f"Loading feature matrix from input file...")
-    start_dt = datetime.now()
+    in_file_suffix = App.config.get("matrix_file_modifier")
 
-    in_file_name = f"{symbol}-{freq}-features.csv"
+    in_file_name = f"{in_file_suffix}{config_file_modifier}.csv"
     in_path = data_path / in_file_name
     if not in_path.exists():
         print(f"ERROR: Input file does not exist: {in_path}")
         return
 
+    print(f"Loading feature matrix from input file: {in_path}")
     in_df = None
     if in_file_name.endswith(".csv"):
         in_df = pd.read_csv(in_path, parse_dates=['timestamp'], nrows=P.in_nrows)
@@ -133,9 +110,9 @@ def main(config_file):
     # Select necessary features and label
     out_columns = ['timestamp', 'open', 'high', 'low', 'close', 'volume', 'close_time']
     all_features = []
-    if "kline" in P.feature_sets:
+    if "kline" in train_features:
         all_features += features_kline
-    if "futur" in P.feature_sets:
+    if "futur" in train_features:
         all_features += features_futur
     all_features += labels
     in_df = in_df[all_features + out_columns]
@@ -147,101 +124,70 @@ def main(config_file):
     #in_df = in_df.dropna(subset=labels)
     in_df = in_df.reset_index(drop=True)  # We must reset index after removing rows to remove gaps
 
-    # Remove the tail data for which no labels are available (since their labels are computed from future which is not available)
-    in_df = in_df.head(-label_horizon)
+    # Remove the tail data for which no labels are available
+    # The reason is that these labels are computed from future which is not available
+    if label_horizon:
+        in_df = in_df.head(-label_horizon)
 
     models = dict()
     scores = dict()
 
-    df_out = pd.DataFrame()  # Collect predictions
+    out_df = pd.DataFrame()  # Collect predictions
 
-    # ===
-    # kline feature set
-    # ===
-    if "kline" in P.feature_sets:
-        features = features_kline
-        name_tag = "_k_"
+    for tf in train_features:
+        if tf == "kline":
+            features = features_kline
+            fs_tag = "_k_"
+            features_train_length = P.kline_train_length
+        elif tf == "futur":
+            features = features_futur
+            fs_tag = "_f_"
+            features_train_length = P.futur_train_length
+        else:
+            print(f"ERROR: Unknown feature set {tf}. Check feature set list in config.")
+            return
 
-        print(f"Start training 'kline' package with {len(features)} features, name tag {name_tag}', and train length {P.kline_train_length}")
+        print(f"Start training {tf} feature set with {len(features)} features, name tag {fs_tag}', and train length {features_train_length}")
 
-        train_df = in_df.tail(P.kline_train_length)
+        # Limit maximum length
+        train_df = in_df.tail(features_train_length)
         train_df = train_df.dropna(subset=features)
 
-        df_X = train_df[features]
+        for label in labels:
 
-        for label in labels:  # Train-predict different labels (and algorithms) using same X
-            df_y = train_df[label]
+            for algo_name in algorithms:
+                model_config = get_model(algo_name)
+                algo_type = model_config.get("algo")
+                train_length = model_config.get("train", {}).get("length")
+                score_column_name = label + fs_tag + algo_name
 
-            # --- GB
-            score_column_name = label + name_tag + "gb"
-            print(f"Train '{score_column_name}'... ")
-            model_pair = train_gb(df_X, df_y, params=params_gb)
-            models[score_column_name] = model_pair
-            df_y_hat = predict_gb(model_pair, df_X)
-            scores[score_column_name] = compute_scores(df_y, df_y_hat)
-            df_out[score_column_name] = df_y_hat
+                # Limit length according to algorith parameters
+                if train_length and train_length < features_train_length:
+                    train_df_2 = train_df.iloc[-train_length:]
+                else:
+                    train_df_2 = train_df
+                df_X = train_df_2[features]
+                df_y = train_df_2[label]
 
-            # --- NN
-            score_column_name = label + name_tag + "nn"
-            print(f"Train '{score_column_name}'... ")
-            model_pair = train_nn(df_X, df_y, params=params_nn)
-            models[score_column_name] = model_pair
-            df_y_hat = predict_nn(model_pair, df_X)
-            scores[score_column_name] = compute_scores(df_y, df_y_hat)
-            df_out[score_column_name] = df_y_hat
+                print(f"Train '{score_column_name}'. Train length {len(df_X)}. Train columns {len(df_X.columns)}. Algorithm {algo_name}")
+                if algo_type == "gb":
+                    model_pair = train_gb(df_X, df_y, model_config)
+                    models[score_column_name] = model_pair
+                    df_y_hat = predict_gb(model_pair, df_X, model_config)
+                elif algo_type == "nn":
+                    model_pair = train_nn(df_X, df_y, model_config)
+                    models[score_column_name] = model_pair
+                    df_y_hat = predict_nn(model_pair, df_X, model_config)
+                elif algo_type == "lc":
+                    model_pair = train_lc(df_X, df_y, model_config)
+                    models[score_column_name] = model_pair
+                    df_y_hat = predict_lc(model_pair, df_X, model_config)
+                else:
+                    print(f"ERROR: Unknown algorithm type {algo_type}. Check algorithm list.")
+                    return
 
-            # --- LC
-            score_column_name = label + name_tag + "lc"
-            print(f"Train '{score_column_name}'... ")
-            model_pair = train_lc(df_X, df_y, params=params_lc)
-            models[score_column_name] = model_pair
-            df_y_hat = predict_lc(model_pair, df_X)
-            scores[score_column_name] = compute_scores(df_y, df_y_hat)
-            df_out[score_column_name] = df_y_hat
-
-    # ===
-    # futur feature set
-    # ===
-    if "futur" in P.feature_sets:
-        features = features_futur
-        name_tag = "_f_"
-
-        print(f"Start training 'futur' package with {len(features)} features, name tag {name_tag}', and train length {P.futur_train_length}")
-
-        train_df = in_df.tail(P.futur_train_length)
-        train_df = train_df.dropna(subset=features)
-
-        df_X = train_df[features]
-
-        for label in labels:  # Train-predict different labels (and algorithms) using same X
-            df_y = train_df[label]
-
-            # --- GB
-            score_column_name = label + name_tag + "gb"
-            print(f"Train '{score_column_name}'... ")
-            model_pair = train_gb(df_X, df_y, params=params_gb)
-            models[score_column_name] = model_pair
-            df_y_hat = predict_gb(model_pair, df_X)
-            scores[score_column_name] = compute_scores(df_y, df_y_hat)
-            df_out[score_column_name] = df_y_hat
-
-            # --- NN
-            score_column_name = label + name_tag + "nn"
-            print(f"Train '{score_column_name}'... ")
-            model_pair = train_nn(df_X, df_y, params=params_nn)
-            models[score_column_name] = model_pair
-            df_y_hat = predict_nn(model_pair, df_X)
-            scores[score_column_name] = compute_scores(df_y, df_y_hat)
-            df_out[score_column_name] = df_y_hat
-
-            # --- LC
-            score_column_name = label + name_tag + "lc"
-            print(f"Train '{score_column_name}'... ")
-            model_pair = train_lc(df_X, df_y, params=params_lc)
-            models[score_column_name] = model_pair
-            df_y_hat = predict_lc(model_pair, df_X)
-            scores[score_column_name] = compute_scores(df_y, df_y_hat)
-            df_out[score_column_name] = df_y_hat
+                scores[score_column_name] = compute_scores(df_y, df_y_hat)
+                out_df[score_column_name] = df_y_hat
 
     #
     # Store all collected models in files
@@ -259,24 +205,28 @@ def main(config_file):
         line = score_column_name + ", " + str(score)
         lines.append(line)
 
-    metrics_file_name = out_path.joinpath("metrics").with_suffix(".txt")
-    with open(metrics_file_name, 'a+') as f:
+    metrics_file_name = f"metrics.txt"
+    metrics_path = (out_path / metrics_file_name).resolve()
+    with open(metrics_path, 'a+') as f:
         f.write("\n".join(lines) + "\n")
 
-    print(f"Metrics stored in path: {metrics_file_name.absolute()}")
+    print(f"Metrics stored in path: {metrics_path.absolute()}")
 
     #
     # Store predictions if necessary
     #
     if P.store_predictions:
-        out_file_name = f"{symbol}-{freq}-predictions.csv"
+        # We do not store features. Only selected original data, labels, and their predictions
+        out_df = out_df.join(in_df[out_columns + labels])
+
+        out_file_suffix = App.config.get("predict_file_modifier")
+
+        out_file_name = f"{out_file_suffix}{config_file_modifier}.csv"
         out_path = data_path / out_file_name
 
-        # We do not store features. Only selected original data, labels, and their predictions
-        df_out = df_out.join(in_df[out_columns + labels])
-
-        df_out.to_csv(out_path, index=False)
-        print(f"Predictions stored in file: {out_path}. Length: {len(df_out)}. Columns: {len(df_out.columns)}")
+        print(f"Storing output file...")
+        out_df.to_csv(out_path, index=False)
+        print(f"Predictions stored in file: {out_path}. Length: {len(out_df)}. Columns: {len(out_df.columns)}")
 
     #
     # End

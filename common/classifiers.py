@@ -2,11 +2,10 @@ import sys
 import os
 from pathlib import Path
 import itertools
+from typing import List
 
 import numpy as np
 import pandas as pd
-
-from joblib import dump, load
 
 from sklearn.model_selection import train_test_split
 from sklearn import metrics
@@ -21,37 +20,46 @@ from sklearn.svm import SVC
 
 import lightgbm as lgbm
 
-import tensorflow as tf
-
+#import tensorflow as tf
+#from tensorflow import keras
+#from keras.optimizers import Adam
 from tensorflow.keras.optimizers import *
-from keras.regularizers import *
-from keras.models import Sequential, save_model, load_model
+from keras.models import Sequential
 from keras.layers import Dense, Dropout
+from keras.regularizers import *
 from keras.callbacks import *
-
 
 #
 # GB
 #
 
-def train_predict_gb(df_X, df_y, df_X_test, params: dict):
+def train_predict_gb(df_X, df_y, df_X_test, model_config: dict):
     """
     Train model with the specified hyper-parameters and return its predictions for the test data.
     """
-    models = train_gb(df_X, df_y, params)
-    y_test_hat = predict_gb(models, df_X_test)
+    model_pair = train_gb(df_X, df_y, model_config)
+    y_test_hat = predict_gb(model_pair, df_X_test)
     return y_test_hat
 
 
-def train_gb(df_X, df_y, params: dict):
+def train_gb(df_X, df_y, model_config: dict):
     """
     Train model with the specified hyper-parameters and return this model (and scaler if any).
     """
-    is_scale = params.get("is_scale", False)
+    #
+    # Double column set if required
+    #
+    shifts = model_config.get("train", {}).get("shifts", None)
+    if shifts:
+        max_shift = max(shifts)
+        df_X = double_columns(df_X, shifts)
+        df_X = df_X.iloc[max_shift:]
+        df_y = df_y.iloc[max_shift:]
 
     #
-    # Prepare data
+    # Scale
     #
+    is_scale = model_config.get("train", {}).get("is_scale", False)
     if is_scale:
         scaler = StandardScaler()
         scaler.fit(df_X)
@@ -65,6 +73,7 @@ def train_gb(df_X, df_y, params: dict):
     #
     # Create model
     #
+    params = model_config.get("params")
 
     objective = params.get("objective")
 
@@ -117,11 +126,21 @@ def train_gb(df_X, df_y, params: dict):
     return (model, scaler)
 
 
-def predict_gb(models: tuple, df_X_test):
+def predict_gb(models: tuple, df_X_test, model_config: dict):
     """
     Use the model(s) to make predictions for the test data.
     The first model is a prediction model and the second model (optional) is a scaler.
     """
+    #
+    # Double column set if required
+    #
+    shifts = model_config.get("train", {}).get("shifts", None)
+    if shifts:
+        df_X_test = double_columns(df_X_test, shifts)
+
+    #
+    # Scale
+    #
     scaler = models[1]
     is_scale = scaler is not None
 
@@ -132,7 +151,7 @@ def predict_gb(models: tuple, df_X_test):
     else:
         df_X_test = df_X_test
 
-    df_X_test_nonans = df_X_test.dropna()  # Drop nans, create gaps in index
+    df_X_test_nonans = df_X_test.dropna()  # Drop nans, possibly create gaps in index
     nonans_index = df_X_test_nonans.index
 
     y_test_hat_nonans = models[0].predict(df_X_test_nonans.values)
@@ -149,24 +168,33 @@ def predict_gb(models: tuple, df_X_test):
 # NN
 #
 
-def train_predict_nn(df_X, df_y, df_X_test, params: dict):
+def train_predict_nn(df_X, df_y, df_X_test, model_config: dict):
     """
     Train model with the specified hyper-parameters and return its predictions for the test data.
     """
-    models = train_nn(df_X, df_y, params)
-    y_test_hat = predict_nn(models, df_X_test)
+    model_pair = train_nn(df_X, df_y, model_config)
+    y_test_hat = predict_nn(model_pair, df_X_test, model_config)
     return y_test_hat
 
 
-def train_nn(df_X, df_y, params: dict):
+def train_nn(df_X, df_y, model_config: dict):
     """
     Train model with the specified hyper-parameters and return this model (and scaler if any).
     """
-    is_scale = params.get("is_scale", True)
+    #
+    # Double column set if required
+    #
+    shifts = model_config.get("train", {}).get("shifts", None)
+    if shifts:
+        max_shift = max(shifts)
+        df_X = double_columns(df_X, shifts)
+        df_X = df_X.iloc[max_shift:]
+        df_y = df_y.iloc[max_shift:]
 
     #
-    # Prepare data
+    # Scale
     #
+    is_scale = model_config.get("train", {}).get("is_scale", True)
     if is_scale:
         scaler = StandardScaler()
         scaler.fit(df_X)
@@ -180,6 +208,8 @@ def train_nn(df_X, df_y, params: dict):
     #
     # Create model
     #
+    params = model_config.get("params")
+
     n_features = X_train.shape[1]
     layers = params.get("layers")  # List of ints
     learning_rate = params.get("learning_rate")
@@ -193,11 +223,9 @@ def train_nn(df_X, df_y, params: dict):
 
     reg_l2 = 0.001
 
-    model.add(
-        Dense(n_features, activation='sigmoid', input_dim=n_features)  # , kernel_regularizer=l2(reg_l2)
-    )
-
-    model.add(Dense(n_features // 2, activation='sigmoid'))  # One hidden layer
+    model.add(Dense(n_features // 2, activation='sigmoid', input_dim=n_features))  # , kernel_regularizer=l2(reg_l2)
+    #model.add(Dropout(rate=0.5))
+    model.add(Dense(n_features // 4, activation='sigmoid'))
 
     #model.add(Dense(layers[0], activation='sigmoid', input_dim=n_features, kernel_regularizer=l2(reg_l2)))
     #if len(layers) > 1:
@@ -205,12 +233,10 @@ def train_nn(df_X, df_y, params: dict):
     #if len(layers) > 2:
     #    model.add(Dense(layers[2], activation='sigmoid', kernel_regularizer=l2(reg_l2)))
 
-    model.add(
-        Dense(1, activation='sigmoid')
-    )
+    model.add(Dense(1, activation='sigmoid'))
 
     # Compile model
-    optimizer = Adam(lr=learning_rate)
+    optimizer = Adam(learning_rate=learning_rate)
     model.compile(
         loss='binary_crossentropy',
         optimizer=optimizer,
@@ -220,11 +246,12 @@ def train_nn(df_X, df_y, params: dict):
             tf.keras.metrics.Recall(name="recall"),
         ],
     )
+    #model.summary()
 
     es = EarlyStopping(
         monitor="loss",  # val_loss loss
-        min_delta=0.0001,  # Minimum change qualified as improvement
-        patience=0,  # Number of epochs with no improvements
+        min_delta=0.001,  # Minimum change qualified as improvement
+        patience=1,  # Number of epochs with no improvements
         verbose=0,
         mode='auto',
     )
@@ -237,20 +264,31 @@ def train_nn(df_X, df_y, params: dict):
         y_train,
         batch_size=batch_size,
         epochs=n_epochs,
+        #validation_split=0.05,
         #validation_data=(X_validate, y_validate),
         #class_weight={0: 1, 1: 20},
         callbacks=[es],
-        verbose=0,
+        verbose=1,
     )
 
     return (model, scaler)
 
 
-def predict_nn(models: tuple, df_X_test):
+def predict_nn(models: tuple, df_X_test, model_config: dict):
     """
     Use the model(s) to make predictions for the test data.
     The first model is a prediction model and the second model (optional) is a scaler.
     """
+    #
+    # Double column set if required
+    #
+    shifts = model_config.get("train", {}).get("shifts", None)
+    if shifts:
+        df_X_test = double_columns(df_X_test, shifts)
+
+    #
+    # Scale
+    #
     scaler = models[1]
     is_scale = scaler is not None
 
@@ -261,7 +299,7 @@ def predict_nn(models: tuple, df_X_test):
     else:
         df_X_test = df_X_test
 
-    df_X_test_nonans = df_X_test.dropna()  # Drop nans, create gaps in index
+    df_X_test_nonans = df_X_test.dropna()  # Drop nans, possibly create gaps in index
     nonans_index = df_X_test_nonans.index
 
     y_test_hat_nonans = models[0].predict(df_X_test_nonans.values)  # NN returns matrix with one column as prediction
@@ -279,24 +317,33 @@ def predict_nn(models: tuple, df_X_test):
 # LC - Linear Classifier
 #
 
-def train_predict_lc(df_X, df_y, df_X_test, params: dict):
+def train_predict_lc(df_X, df_y, df_X_test, model_config: dict):
     """
     Train model with the specified hyper-parameters and return its predictions for the test data.
     """
-    models = train_lc(df_X, df_y, params)
-    y_test_hat = predict_lc(models, df_X_test)
+    model_pair = train_lc(df_X, df_y, model_config)
+    y_test_hat = predict_lc(model_pair, df_X_test, model_config)
     return y_test_hat
 
 
-def train_lc(df_X, df_y, params: dict):
+def train_lc(df_X, df_y, model_config: dict):
     """
     Train model with the specified hyper-parameters and return this model (and scaler if any).
     """
-    is_scale = params.get("is_scale", True)
+    #
+    # Double column set if required
+    #
+    shifts = model_config.get("train", {}).get("shifts", None)
+    if shifts:
+        max_shift = max(shifts)
+        df_X = double_columns(df_X, shifts)
+        df_X = df_X.iloc[max_shift:]
+        df_y = df_y.iloc[max_shift:]
 
     #
-    # Prepare data
+    # Scale
     #
+    is_scale = model_config.get("train", {}).get("is_scale", True)
     if is_scale:
         scaler = StandardScaler()
         scaler.fit(df_X)
@@ -310,9 +357,11 @@ def train_lc(df_X, df_y, params: dict):
     #
     # Create model
     #
+    params = model_config.get("params")
+
     args = params.copy()
-    del args["is_scale"]
-    args["n_jobs"] = 1
+    args["n_jobs"] = -1
+    args["verbose"] = 1
     model = LogisticRegression(**args)
 
     #
@@ -323,11 +372,21 @@ def train_lc(df_X, df_y, params: dict):
     return (model, scaler)
 
 
-def predict_lc(models: tuple, df_X_test):
+def predict_lc(models: tuple, df_X_test, model_config: dict):
     """
     Use the model(s) to make predictions for the test data.
     The first model is a prediction model and the second model (optional) is a scaler.
     """
+    #
+    # Double column set if required
+    #
+    shifts = model_config.get("train", {}).get("shifts", None)
+    if shifts:
+        df_X_test = double_columns(df_X_test, shifts)
+
+    #
+    # Scale
+    #
     scaler = models[1]
     is_scale = scaler is not None
 
@@ -338,7 +397,7 @@ def predict_lc(models: tuple, df_X_test):
     else:
         df_X_test = df_X_test
 
-    df_X_test_nonans = df_X_test.dropna()  # Drop nans, create gaps in index
+    df_X_test_nonans = df_X_test.dropna()  # Drop nans, possibly create gaps in index
     nonans_index = df_X_test_nonans.index
 
     y_test_hat_nonans = models[0].predict_proba(df_X_test_nonans.values)  # It returns pairs or probas for 0 and 1
@@ -360,8 +419,8 @@ def train_predict_svc(df_X, df_y, df_X_test, params: dict):
     """
     Train model with the specified hyper-parameters and return its predictions for the test data.
     """
-    models = train_lc(df_X, df_y, params)
-    y_test_hat = predict_lc(models, df_X_test)
+    model_pair = train_svc(df_X, df_y, params)
+    y_test_hat = predict_svc(model_pair, df_X_test)
     return y_test_hat
 
 
@@ -369,7 +428,7 @@ def train_svc(df_X, df_y, params: dict):
     """
     Train model with the specified hyper-parameters and return this model (and scaler if any).
     """
-    is_scale = params.get("is_scale", True)
+    is_scale = params.get("train", {}).get("is_scale", True)
 
     #
     # Prepare data
@@ -388,7 +447,6 @@ def train_svc(df_X, df_y, params: dict):
     # Create model
     #
     args = params.copy()
-    del args["is_scale"]
     args['probability'] = True  # Required to use predict_proba()
     model = SVC(**args)
 
@@ -415,7 +473,7 @@ def predict_svc(models: tuple, df_X_test):
     else:
         df_X_test = df_X_test
 
-    df_X_test_nonans = df_X_test.dropna()  # Drop nans, create gaps in index
+    df_X_test_nonans = df_X_test.dropna()  # Drop nans, possibly create gaps in index
     nonans_index = df_X_test_nonans.index
 
     y_test_hat_nonans = models[0].predict_proba(df_X_test_nonans.values)  # It returns pairs or probas for 0 and 1
@@ -432,56 +490,6 @@ def predict_svc(models: tuple, df_X_test):
 #
 # Utils
 #
-
-def save_model_pair(model_path, score_column_name: str, model_pair: tuple):
-    """Save two models in two files with the corresponding extensions."""
-    if not isinstance(model_path, Path):
-        model_path = Path(model_path)
-    model = model_pair[0]
-    scaler = model_pair[1]
-    # Save scaler
-    scaler_file_name = model_path.joinpath(score_column_name).with_suffix(".scaler")
-    dump(scaler, scaler_file_name)
-    # Save prediction model
-    if score_column_name.endswith("_nn"):
-        model_extension = ".h5"
-        model_file_name = model_path.joinpath(score_column_name).with_suffix(model_extension)
-        save_model(model, model_file_name)
-    else:
-        model_extension = ".pickle"
-        model_file_name = model_path.joinpath(score_column_name).with_suffix(model_extension)
-        dump(model, model_file_name)
-
-
-def load_model_pair(model_path, score_column_name: str):
-    """Load a pair consisting of scaler model (possibly null) and prediction model from two files."""
-    if not isinstance(model_path, Path):
-        model_path = Path(model_path)
-    # Load scaler
-    scaler_file_name = model_path.joinpath(score_column_name).with_suffix(".scaler")
-    scaler = load(scaler_file_name)
-    # Load prediction model
-    if score_column_name.endswith("_nn"):
-        model_extension = ".h5"
-        model_file_name = model_path.joinpath(score_column_name).with_suffix(model_extension)
-        model = load_model(model_file_name)
-    else:
-        model_extension = ".pickle"
-        model_file_name = model_path.joinpath(score_column_name).with_suffix(model_extension)
-        model = load(model_file_name)
-
-    return (model, scaler)
-
-
-def load_models(model_path, labels: list, feature_sets: list, algorithms: list):
-    """Load all model pairs for all combinations of the model parameters and return as a dict."""
-    models = {}
-    for predicted_label in itertools.product(labels, feature_sets, algorithms):
-        score_column_name = predicted_label[0] + "_" + predicted_label[1][0] + "_" + predicted_label[2]
-        model_pair = load_model_pair(model_path, score_column_name)
-        models[score_column_name] = model_pair
-    return models
-
 
 def compute_scores(y_true, y_hat):
     """Compute several scores and return them as dict."""
@@ -511,6 +519,19 @@ def compute_scores(y_true, y_hat):
     )
 
     return scores
+
+
+def double_columns(df, shifts: List[int]):
+    if not shifts:
+        return df
+    df_list = [df.shift(shift) for shift in shifts]
+    df_list.insert(0, df)
+    max_shift = max(shifts)
+
+    # Shift and add same columns
+    df_out = pd.concat(df_list, axis=1)  # keys=('A', 'B')
+
+    return df_out
 
 
 if __name__ == '__main__':
