@@ -309,32 +309,4 @@ def load_config(config_file):
 
 
 if __name__ == "__main__":
-
-    # Create base data frame
-    df = pd.DataFrame(range(0,21), columns=["a"])
-
-    # Create indexes and views by selecting rows
-    i1 = df["a"] <= 15
-    i2 = df[i1]["a"] >= 5  # Here index is shorter because we first apply filter
-    i2 = (i1) & (df["a"] >= 5)  # We can retain the complete base index (and then apply it directly to the base frame
-
-    i2 = df["a"] >= 5  # Only intermediate index but finally we will have to apply all indexes with AND
-      # Note that we probably cannot use this approach, because only base attributes are available
-
-    # Add (computed) columns to intermediate views which use base columns
-    df["b"] = range(100,121)
-
-    df1 = df[i1]  # Problem: we do not know whether it is a slice or a copy. We could make a copy explicitly but we do not need a copy - we need a view
-    # These assignments will produce a warning since we modify a view and the changes will not be visible in the main base frame
-    # Yet, it is precisely what we want
-    #df1["c"] = df1["a"].apply(lambda x: x+1)
-    #df1.loc[:, "c"] = df1["a"].apply(lambda x: x+1)  # loc guarantees changing the specified df
-
-    # An approach is to apply to index and store a column series for the selected indexes. But do it separately
-    #  Yet, we must add columns to some frame to use them as input to other functions.
-
-    # Attach all derived columns to the base frame but only to the selected rows in the index (all other rows will store NaN)
-    df.loc[i1, "d"] = df["a"].apply(lambda x: x + 2)
-
-
     pass
