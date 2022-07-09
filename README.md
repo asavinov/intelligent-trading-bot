@@ -58,36 +58,34 @@ Notes:
 
 Starting the service: `python3 -m service.server -c config.json`
 
+
 # Training machine learning models
 
 For the signaler service to work, a number of ML models must be trained and the model files available for the service. All scripts run in batch mode by loading some input data and storing some output files. The scripts are implemented in the `scripts` module.
 
-The following batch scripts are used to train the models needed by the signaler:
-* Download the latest historic data: `python -m scripts.download_data -c config.json`
-  * The result is one output file with the name pattern: `{symbol}-{freq}-klines.csv`
-  * It uses Binance API but you can use any other data source or download data manually using other scripts
-* Merge several historic datasets into one dataset: `python -m scripts.merge_data -c config.json`
-  * This script solves two problems: 1) there could be other sources like depth data or futures 2) a data source may have gaps so we need to produce a regular time raster in the output file
-  * The result is one output file with the name pattern: `{symbol}-{freq}.csv`
-* Generate features: `python -m scripts.generate_features -c config.json`
-  * This script computes all derived features and labels defined programmatically
-  * The result is one output file with the name pattern: `{symbol}-{freq}-features.csv`
-  * It may take hours to compute because it runs in non-incremental mode, that is, computes the features for all the available data even if only the latest small portion was really updated
-* Train prediction models: `python -m scripts.train_predict_models -c config.json`
-  * This script uses all input features and all generated labels to train several ML models with pre-defined hyper-parameters
-  * Hyper-parameter tuning is not part of this procedure, that is, it is assumed that we already have good hyper-parameters
-  * The results are stored as multiple model files in the model folder and the file names encode the following model dimensions: label being used as a target variable like `high_10`, input data like `k` (klines) or `f` (futures), algorithm like `gb` (gradient boosting), `nn` (neural network) or `lc` (linear classifier).
-  * The model folder also contains `metrics.txt` with the scores of the trained models
-
-# Training machine learning models - NEW
+If everything is configured then the following scripts have to be executed:
+* `python -m scripts.download_data -c config.json`
+* `python -m scripts.merge_data -c config.json`
+* `python -m scripts.generate_features -c config.json`
+* `python -m scripts.generate_labels -c config.json`
+* `python -m scripts.train_predict_models -c config.json`
 
 ## Downloading and merging source data
 
-Download data from different source feature sets and merge them into the common 1 minute raster.
+* Download the latest historic data: `python -m scripts.download_data -c config.json`
+  * The result is one output file with the name pattern: `{symbol}-{freq}-klines.csv`
+  * It uses Binance API but you can use any other data source or download data manually using other scripts
+
+* Merge several historic datasets into one dataset: `python -m scripts.merge_data -c config.json`
+  * This script solves two problems: 1) there could be other sources like depth data or futures 2) a data source may have gaps so we need to produce a regular time raster in the output file
+  * The result is one output file with the name pattern: `{symbol}-{freq}.csv`
 
 ## Generate features
 
-`python -m scripts.generate_features -c config.json`
+* Generate features: `python -m scripts.generate_features -c config.json`
+  * This script computes all derived features and labels defined programmatically
+  * The result is one output file with the name pattern: `{symbol}-{freq}-features.csv`
+  * It may take hours to compute because it runs in non-incremental mode, that is, computes features for all the available data even if only the latest small portion was appended
 
 Parameters in config: 
 ```
@@ -107,7 +105,7 @@ Load merged source data, apply feature generation script and store a feature mat
 
 ## Generate labels
 
-`python -m scripts.generate_labels -c config.json`
+Script: `python -m scripts.generate_labels -c config.json`
 
 Parameters in code:
 - label_sets: "high-low", "top-bot" - which kind of labels we want to generate
@@ -126,7 +124,11 @@ Load feature matrix, compute labels and store the result with additional columns
 
 ## Train prediction models
 
-`python -m scripts.train_predict_models -c config.json`
+* Train prediction models: `python -m scripts.train_predict_models -c config.json`
+  * This script uses all input features and all generated labels to train several ML models with pre-defined hyper-parameters
+  * Hyper-parameter tuning is not part of this procedure, that is, it is assumed that we already have good hyper-parameters
+  * The results are stored as multiple model files in the model folder and the file names encode the following model dimensions: label being used as a target variable like `high_10`, input data like `k` (klines) or `f` (futures), algorithm like `gb` (gradient boosting), `nn` (neural network) or `lc` (linear classifier).
+  * The model folder also contains `metrics.txt` with the scores of the trained models
 
 Configuration in code:
 - Algorithms applied are hard-coded. Uncomment or introduce a list of algorithms
@@ -154,7 +156,7 @@ Assumptions:
 - Access to the exchange: API keys, credentials etc. (IP has to be whitelisted for trading)
 
 
-# Hyper-parameter tuning - NEW
+# Hyper-parameter tuning
 
 General procedure for chosen features and labels (for some symbol):
 - Update data and generate features and labels
@@ -200,6 +202,7 @@ There are two problems:
   * Train signal models for choosing best thresholds for sell-buy signals which produce best performance on historic data: `python -m scripts.train_signal_models -c config.json` 
 
 Yet, this advanced level of data analysis is work in progress, and it is also the most challenging part because here we cannot rely on the conventional ML approach. The goal is to find parameters to optimize the trading strategy which is a sequence of buy and sell transaction. Such a scenario is difficult to formally describe in conventional ML terms. The provided scripts are aimed at helping in such optimizations because they can generate data and then test different trading (currently, rule-based) strategies.
+
 
 # Configuration parameters
 
