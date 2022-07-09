@@ -1,0 +1,14 @@
+{
+  "api_key": "<binance-key>",
+  "api_secret": "<binance-secret>",
+
+  "telegram_bot_token": "<token>",
+  "telegram_chat_id": "<chat-id-to-publish-messages>",
+
+  "symbol": "BTCUSDT",
+  "base_asset": "BTC",
+  "quote_asset": "USDT",
+
+  "data_folder": "C:/DATA2/BITCOIN/GENERATED/BTCUSDT",
+  "model_folder": "C:/DATA2/BITCOIN/MODELS/BTCUSDT"
+}

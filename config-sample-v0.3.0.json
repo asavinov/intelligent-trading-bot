@@ -1,0 +1,42 @@
+{
+  "config_file_modifier": "",
+
+  "api_key": "<binance-key>",
+  "api_secret": "<binance-secret>",
+
+  "telegram_bot_token": "<token>",
+  "telegram_chat_id": "<chat-id-to-publish-messages>",
+
+  "data_folder": "C:/DATA_ITB",
+  "symbol": "BTCUSDT",
+
+  "data_sources": [
+      {"folder": "BTCUSDT", "file": "klines", "column_prefix": ""},
+      {"folder": "ETHUSDT", "file": "klines", "column_prefix": "eth"}
+  ],
+
+  "feature_sets": [
+    {"column_prefix": "", "generator": "klines", "feature_prefix": "btc"},
+    {"column_prefix": "eth", "generator": "klines", "feature_prefix": "eth"}
+  ],
+
+  "buy_labels": ["bot2_025_k_nn", "bot2_05_k_nn", "bot2_075_k_nn", "bot2_1_k_nn", "bot2_125_k_nn", "bot2_15_k_nn"],
+  "sell_labels": ["top2_025_k_nn", "top2_05_k_nn", "top2_075_k_nn", "top2_1_k_nn", "top2_125_k_nn", "top2_15_k_nn"],
+
+  "signal_model": {
+      "buy_point_threshold": null,
+      "buy_window": 5,
+      "buy_signal_threshold": 0.36,
+      "buy_notify_threshold": 0.2,
+
+      "combine": "",
+
+      "sell_point_threshold": null,
+      "sell_window": 5,
+      "sell_signal_threshold": 0.4,
+      "sell_notify_threshold": 0.2,
+
+      "trade_icon_step": 0.1,
+      "notify_frequency_minutes": 10
+  }
+}
