@@ -2,7 +2,7 @@ from datetime import datetime, date, timedelta
 
 import click
 
-import yfinance as yfin
+import yfinance as yf
 
 from service.App import *
 
@@ -43,28 +43,38 @@ def main(config_file):
         in_file_path = data_path / quote / file
 
         if in_file_path.with_suffix(".csv").is_file():
-            df = pd.read_csv(in_file_path.with_suffix(".csv"), parse_dates=["Date"])
+            df = pd.read_csv(in_file_path.with_suffix(".csv"), parse_dates=["date"])
             #df['Date'] = pd.to_datetime(df['Date'])  # "2022-06-07" iso format
-            df['Date'] = df['Date'].dt.date
-            last_date = df.iloc[-1]['Date']
+            df['date'] = df['date'].dt.date
+            last_date = df.iloc[-1]['date']
 
             # === Download from the remote server
-            new_df = yfin.download(quote, last_date - timedelta(days=5))  # Download somewhat more than we need
-            # ===
+            new_df = yf.download(quote, last_date - timedelta(days=5))  # Download somewhat more than we need
 
             new_df = new_df.reset_index()
             new_df['Date'] = pd.to_datetime(new_df['Date']).dt.date
+            del new_df['Close']
+            new_df.rename({'Adj Close': 'Close'}, axis=1, inplace=True)
+            new_df.columns = new_df.columns.str.lower()
+
             df = pd.concat([df, new_df])
-            df = df.drop_duplicates(subset=["Date"], keep="last")
+            df = df.drop_duplicates(subset=["date"], keep="last")
 
         else:
             print(f"File not found. Full fetch...")
-            df = yfin.download(quote, date(1990, 1, 1))
+
+            # === Download from the remote server
+            df = yf.download(quote, date(1990, 1, 1))
+
             df = df.reset_index()
             df['Date'] = pd.to_datetime(df['Date']).dt.date
+            del df['Close']
+            df.rename({'Adj Close': 'Close'}, axis=1, inplace=True)
+            df.columns = df.columns.str.lower()
+
             print(f"Full fetch finished.")
 
-        df = df.sort_values(by="Date")
+        df = df.sort_values(by="date")
 
         in_file_path.parent.mkdir(parents=True, exist_ok=True)
         df.to_csv(in_file_path.with_suffix(".csv"), index=False)
