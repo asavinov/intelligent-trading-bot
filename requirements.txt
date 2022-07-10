@@ -1,24 +1,19 @@
-numpy>=1.22.*
+numpy>=1.23.*
 pandas>=1.4.*
 scikit-learn>=1.*
-scipy>=1.8.*  # Will be automatically installed as a dep of scikit-learn
+#scipy>=1.9.*  # Should be automatically installed as a dep of scikit-learn
 statsmodels>=0.13.*
 patsy>=0.5.*
-
-#python-snappy  # Compression for fastparquet (gzip is always available)
-#fastparquet  # "conda install -c conda-forge fastparquet"
+apscheduler>=3.9.*  # "conda install -c conda-forge apscheduler"
+click
 
 lightgbm>=3.3.*  # For Linux, glibc >= 2.14 is required. "conda install -c conda-forge lightgbm"
-tensorflow>=2.8.*  # pip install --upgrade tensorflow
+tensorflow>=2.9.*  # pip install --upgrade tensorflow
 #keras  # pip install --upgrade keras
 #pytorch # conda install pytorch torchvision cpuonly -c pytorch
 #fastai # pip install fastai
 
-apscheduler>=3.9.*  # "conda install -c conda-forge apscheduler"
-python-binance>=1.0.*  # "pip install python-binance". It has to executed from Anaconda prompt.
-
-#
-# Utilities
-#
-#tenacity
-click
+python-binance>=1.0.*  # pip install python-binance
+# yfinance  # if yahoo quotes are going to be used
+#python-snappy  # Compression for fastparquet (gzip is always available)
+#fastparquet  # "conda install -c conda-forge fastparquet"

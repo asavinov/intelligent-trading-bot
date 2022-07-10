@@ -64,7 +64,7 @@ Starting the service: `python3 -m service.server -c config.json`
 For the signaler service to work, a number of ML models must be trained and the model files available for the service. All scripts run in batch mode by loading some input data and storing some output files. The scripts are implemented in the `scripts` module.
 
 If everything is configured then the following scripts have to be executed:
-* `python -m scripts.download_data -c config.json`
+* `python -m scripts.download_data_binance -c config.json` or `python -m scripts.download_data_yahoo -c config.json`
 * `python -m scripts.merge_data -c config.json`
 * `python -m scripts.generate_features -c config.json`
 * `python -m scripts.generate_labels -c config.json`
