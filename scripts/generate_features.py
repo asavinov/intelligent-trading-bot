@@ -7,8 +7,8 @@ import pandas as pd
 
 from service.App import *
 from common.feature_generation import *
-from common.label_generation import generate_labels_highlow
-from common.label_generation_top_bot import generate_labels_topbot
+from common.label_generation_highlow import generate_labels_highlow
+from common.label_generation_topbot import generate_labels_topbot
 
 #
 # Parameters
@@ -155,7 +155,7 @@ def generate_feature_set(df: pd.DataFrame, fs: dict, last_rows: int) -> Tuple[pd
 
         print(f"Finished generating 'high-low' labels. {len(features)} labels generated.")
     elif generator == "topbot":
-        column_name = App.config.get("top_bot_column_name", "close")
+        column_name = App.config.get("topbot_column_name", "close")
 
         top_level_fracs = [0.02, 0.03, 0.04, 0.05, 0.06]
         bot_level_fracs = [-x for x in top_level_fracs]

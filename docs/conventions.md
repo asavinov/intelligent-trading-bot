@@ -14,7 +14,7 @@ The columns added to df are hard-coded by functions in module `common.feature_ge
 
 ## Labels
 
-The columns added to df are hard-coded by functions in module `common.label_generation.py`. These columns are similar to derived features but describe future values. Note that labels are derived from kline data only (at least if we trade on spot market).
+The columns added to df are hard-coded by functions in module `common.label_generation_highlow.py`. These columns are similar to derived features but describe future values. Note that labels are derived from kline data only (at least if we trade on spot market).
 
 Currently, we generate labels using `generate_labels_thresholds()` which is a long list in `App.config.class_labels_all`. Only a subset of these labels is really used listed in `App.config.labels`. 
 

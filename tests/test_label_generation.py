@@ -2,9 +2,8 @@ import pytest
 import numpy.testing as npt
 
 from common.utils import *
-from common.utils import add_area_ratio
 from common.signal_generation import *
-from common.label_generation_top_bot import *
+from common.label_generation_topbot import *
 
 
 def test_extremum_labels():
