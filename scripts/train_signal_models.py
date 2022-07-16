@@ -15,7 +15,7 @@ import matplotlib.pyplot as plt
 from service.App import *
 from common.classifiers import *
 
-from common.label_generation_top_bot import *
+from common.label_generation_topbot import *
 from common.signal_generation import *
 
 """

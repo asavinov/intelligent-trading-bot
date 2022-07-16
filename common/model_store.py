@@ -115,6 +115,22 @@ models = [
     },
 
     {
+        "name": "gb_yahoo",
+        "algo": "gb",
+        "params": {
+            "objective": "cross_entropy",
+            "max_depth": 1,
+            "learning_rate": 0.05,
+            "num_boost_round": 1_500,
+
+            "lambda_l1": 1.0,
+            "lambda_l2": 1.0,
+        },
+        "train": {"is_scale": False, "length": None, "shifts": []},
+        "predict": {"length": 1440}
+    },
+
+    {
         "name": "nn_long",
         "algo": "nn",
         "params": {"layers": [29], "learning_rate": 0.001, "n_epochs": 20, "bs": 128, },
