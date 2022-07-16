@@ -10,15 +10,63 @@ from common.utils import *
 from common.feature_generation_rolling_agg import *
 
 """
-Feature/label generation.
-These features are computed using explict transformations.
-(True) labels are features computed from future data but stored as properties of the current row (in contrast to normal features which are computed from past data).
-(Currently) feature/label generation is not based on (explicit) models - all parameters are hard-coded.
-Also, no parameter training is performed.
+Feature generation functions.
 """
 
+"""
+Features for yahoo main symbol (GSPC):
+- Missing values: pandas.core.series:Series.interpolate["Close"] or "Price", "method": "linear" - instead of removing nans
+- Price=model:price_fn["Open","High","Low","Close"] - we use it in all other functions and ignore ohlc
+- Volume weighted average price: lambdo.std:mean_weighted window=2 ["Price","Volume"]
+- Moving averages of price: numpy.core.fromnumeric:mean, windows=2,12,20 ["Price"]
+- Moving trends: model:linear_trend_fn, windows=2,12,20 ["Price"]
+- Longest strike below mean (lsbm): tsfresh.feature_extraction.feature_calculators:longest_strike_below_mean, windows=5,15,30 ["Price"] 
+- Skewness: tsfresh.feature_extraction.feature_calculators:skewness, windows=15,30 ["Price"]
+- mean_second_derivative_central (msdc): tsfresh.feature_extraction.feature_calculators:mean_second_derivative_central, windows=10,25,30 ["Price"]
+Seconday VIX:
+- Price=model:price_fn["Open","High","Low","Close"]
+- numpy.core.fromnumeric:mean["Price"], window=2,12,20
+- model:linear_trend_fn["Price"], window=2,12,20
+TNX:
+- numpy.core.fromnumeric:mean["Close"], window=2,12,20
+- model:linear_trend_fn["Close"], window=2,12,20
 
-def generate_features(df,use_differences, base_window, windows, area_windows, last_rows: int = 0):
+TODO:
+- Define "yahoo" feature functions and "yahoo" labels, define one algorithm (like gb) in algo store, then train models, and maybe do rolling predict.
+  Then iteratively improve by adding more features, labels, algorithms by running rolling predict
+- Implement/use price function for reducing ohlc to one value used then for all other functions.
+  If we use 2 records, then this can be used for filling missing values
+- Implement/use weighted moving average
+- lsbm, msdc, skewness from tsfresh for different windows
+- all other functions are moving averages and moving linear trends
+
+Label:
+- window 10 (2 weeks)
+"""
+def generate_features_yahoo_main(df, use_differences, base_window, windows, area_windows, last_rows: int = 0):
+    features = []
+    to_drop = []
+
+    # close rolling mean. format: 'close_<window>'
+    weight_column_name = 'volume'  # None: no weighting; 'volume': volume average
+    to_drop += add_past_weighted_aggregations(df, 'close', weight_column_name, np.nanmean, base_window, suffix='', last_rows=last_rows)  # Base column
+    features += add_past_weighted_aggregations(df, 'close', weight_column_name, np.nanmean, windows, '', to_drop[-1], 100.0, last_rows=last_rows)
+
+    return features
+
+
+def generate_features_yahoo_secondary(df, use_differences, base_window, windows, area_windows, last_rows: int = 0):
+    features = []
+    to_drop = []
+
+    # close rolling mean. format: 'close_<window>'
+    to_drop += add_past_aggregations(df, 'close', np.nanmean, base_window, suffix='', last_rows=last_rows)  # Base column
+    features += add_past_aggregations(df, 'close', np.nanmean, windows, '', to_drop[-1], 100.0, last_rows=last_rows)
+
+    return features
+
+
+def generate_features(df, use_differences, base_window, windows, area_windows, last_rows: int = 0):
     """
     Generate derived features by adding them as new columns to the data frame.
     It is important that the same parameters are used for both training and prediction.
