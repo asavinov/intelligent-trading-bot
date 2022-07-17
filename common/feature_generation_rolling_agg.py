@@ -152,8 +152,8 @@ def add_area_ratio(df, is_future: bool, column_name: str, windows: Union[int, Li
         else:
             level = x[-1]  # Relative to the newest element
         x_diff = x - level  # Difference from the level
-        a = x_diff.sum()
-        b = np.absolute(x_diff).sum()
+        a = np.nansum(x_diff)
+        b = np.nansum(np.absolute(x_diff))
         pos = (b+a)/2
         neg = (b-a)/2
         ratio = pos / b  # in [0,1]
