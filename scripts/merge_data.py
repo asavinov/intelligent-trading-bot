@@ -104,9 +104,6 @@ def main(config_file):
         print(f"ERROR: Data sources are not defined. Nothing to merge.")
         #data_sources = [{"folder": symbol, "file": "klines", "column_prefix": ""}]
 
-    #config_file_modifier = App.config.get("config_file_modifier")
-    #config_file_modifier = ("-" + config_file_modifier) if config_file_modifier else ""
-
     now = datetime.now()
 
     # Read data from input files
@@ -141,7 +138,7 @@ def main(config_file):
     #
     # Store file with features
     #
-    out_path = data_path / App.config["symbol"] / App.config.get("merge_file_modifier")
+    out_path = data_path / App.config["symbol"] / App.config.get("merge_file_name")
 
     print(f"Storing output file...")
     df_out.to_csv(out_path.with_suffix(".csv"), index=True)  # float_format="%.6f"
@@ -192,6 +189,7 @@ def merge_data_frames(data_sources: list):
         index = pd.date_range(range_start, range_end, freq="T")
     elif freq == "1d":
         index = pd.date_range(range_start, range_end, freq="B")  # D - daily, B - business days (no weekends)
+        #index = pd.bdate_range(start=range_start, end=range_end)  # tz='UTC'
     else:
         print(f"ERROR: Frequency parameter 'freq' is unknown or not specified: {freq}")
         return

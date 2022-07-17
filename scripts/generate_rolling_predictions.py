@@ -81,7 +81,7 @@ def main(config_file):
     #
     # Load feature matrix
     #
-    in_file_suffix = App.config.get("matrix_file_modifier")
+    in_file_suffix = App.config.get("matrix_file_name")
 
     in_file_name = f"{in_file_suffix}{config_file_modifier}.csv"
     in_path = data_path / in_file_name
@@ -283,7 +283,7 @@ def main(config_file):
     # We do not store features. Only selected original data, labels, and their predictions
     out_df = labels_hat_df.join(df[out_columns + labels])
 
-    out_file_suffix = App.config.get("predict_file_modifier")
+    out_file_suffix = App.config.get("predict_file_name")
 
     out_file_name = f"{out_file_suffix}{config_file_modifier}.csv"
     out_path = data_path / out_file_name

@@ -13,8 +13,6 @@ from common.label_generation_topbot import *
 This script will load a feature file (or any file with close price), and add
 top-bot columns according to the label parameter, by finally storing both input
 data and the labels in the output file (can be the same file as input).
-
-Note that high-low labels are generated along with features.
 """
 
 
@@ -45,7 +43,7 @@ def main(config_file):
     symbol = App.config["symbol"]
     data_path = Path(App.config["data_folder"]) / symbol
 
-    file_path = (data_path / App.config.get("feature_file_modifier")).with_suffix(".csv")
+    file_path = (data_path / App.config.get("feature_file_name")).with_suffix(".csv")
     if not file_path.is_file():
         print(f"Data file does not exist: {file_path}")
         return
@@ -81,7 +79,7 @@ def main(config_file):
     #
     # Store feature matrix in output file
     #
-    out_file_name = App.config.get("matrix_file_modifier")
+    out_file_name = App.config.get("matrix_file_name")
     out_path = (data_path / out_file_name).with_suffix(".csv").resolve()
 
     print(f"Storing file with labels. {len(df)} records and {len(df.columns)} columns in output file...")

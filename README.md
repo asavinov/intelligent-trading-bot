@@ -90,15 +90,15 @@ If everything is configured then the following scripts have to be executed:
 Parameters in config: 
 ```
 Example old parameters
-"base_window_kline": 1440,
-"windows_kline": [1, 5, 15, 60, 180, 720],
-"area_windows_kline": [60, 120, 180, 300, 720],
+"base_window": 1440,
+"averaging_windows": [1, 5, 15, 60, 180, 720],
+"area_windows": [60, 120, 180, 300, 720],
 ```
 ```
 Example new parameters
-"base_window_kline": 40320,
-"windows_kline": [1, 60, 360, 1440, 4320, 10080],
-"area_windows_kline": [60, 360, 1440, 4320, 10080],
+"base_window": 40320,
+"averaging_windows": [1, 60, 360, 1440, 4320, 10080],
+"area_windows": [60, 360, 1440, 4320, 10080],
 ```
 
 Load merged source data, apply feature generation script and store a feature matrix with all possible derived features. Not all features will be then used. The script relies on a common feature definition function. Feature functions get some parameters like windows from the configuration. The same features must be used for on-line feature generation (in the service when they are generated for a micro-batch) and off-line feature generation.

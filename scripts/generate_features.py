@@ -33,7 +33,7 @@ def main(config_file):
     symbol = App.config["symbol"]
     data_path = Path(App.config["data_folder"]) / symbol
 
-    file_path = (data_path / App.config.get("merge_file_modifier")).with_suffix(".csv")
+    file_path = (data_path / App.config.get("merge_file_name")).with_suffix(".csv")
     if not file_path.is_file():
         print(f"Data file does not exist: {file_path}")
         return
@@ -69,7 +69,7 @@ def main(config_file):
     #
     # Store feature matrix in output file
     #
-    out_file_name = App.config.get("feature_file_modifier")
+    out_file_name = App.config.get("feature_file_name")
     out_path = (data_path / out_file_name).with_suffix(".csv").resolve()
 
     print(f"Storing feature matrix with {len(df)} records and {len(df.columns)} columns in output file...")
@@ -113,15 +113,10 @@ def generate_feature_set(df: pd.DataFrame, fs: dict, last_rows: int) -> Tuple[pd
     #
     generator = fs.get("generator")
     if generator == "klines":
-        # TODO: we need to collect all configuration parameters of one generator in one structure
-        #   and pass this structure either by-name (becaues we re-use same structrue for many calls) or directly by-value (for simple structrues)
-        #   Note that we want to use generator functions also on-line (for limited number of last rows)
-        #   We need a standard signature for feature generators
-        # TODO: Split this big function into smaller re-usable functions with smaller configs
         features = generate_features(
             f_df, use_differences=False,
-            base_window=App.config["base_window_kline"], windows=App.config["windows_kline"],
-            area_windows=App.config["area_windows_kline"], last_rows=last_rows
+            base_window=App.config["base_window"], windows=App.config["averaging_windows"],
+            area_windows=App.config["area_windows"], last_rows=last_rows
         )
     elif generator == "futures":
         features = generate_features_futures(f_df)
@@ -130,28 +125,29 @@ def generate_feature_set(df: pd.DataFrame, fs: dict, last_rows: int) -> Tuple[pd
     elif generator == "yahoo_main":
         features = generate_features_yahoo_main(
             f_df, use_differences=False,
-            base_window=App.config["base_window_kline"], windows=App.config["windows_kline"],
-            area_windows=App.config["area_windows_kline"], last_rows=last_rows
+            base_window=App.config["base_window"], windows=App.config["averaging_windows"],
+            area_windows=App.config["area_windows"], last_rows=last_rows
         )
     elif generator == "yahoo_secondary":
         features = generate_features_yahoo_secondary(
             f_df, use_differences=False,
-            base_window=App.config["base_window_kline"], windows=App.config["windows_kline"],
-            area_windows=App.config["area_windows_kline"], last_rows=last_rows
+            base_window=App.config["base_window"], windows=App.config["averaging_windows"],
+            area_windows=App.config["area_windows"], last_rows=last_rows
         )
+    elif generator == "area_features":
+        area_windows = App.config["area_windows"]
+        if not area_windows:
+            area_windows = [60, 120, 180, 300]
+        # Numeric features which is a ratio between areas over and under the latest price
+        features = add_area_ratio(f_df, is_future=False, column_name="close", windows=area_windows, suffix="_area_past")
 
     # Labels
     elif generator == "highlow":
-        features = []
-        horizon = App.config["high_low_horizon"]
+        horizon = App.config["highlow_horizon"]
 
         # Binary labels whether max has exceeded a threshold or not
-        print(f"Generating 'high-low' labels with horizon {horizon}...")
-        features += generate_labels_highlow(f_df, horizon=horizon)
-
-        # Numeric label which is a ratio between areas over and under the latest price
-        print(f"Generating ration labels with horizon...")
-        features += add_area_ratio(f_df, is_future=True, column_name="close", windows=[60, 120, 180, 300], suffix = "_area_future")
+        print(f"Generating 'highlow' labels with horizon {horizon}...")
+        features = generate_labels_highlow(f_df, horizon=horizon)
 
         print(f"Finished generating 'high-low' labels. {len(features)} labels generated.")
     elif generator == "topbot":
@@ -161,6 +157,12 @@ def generate_feature_set(df: pd.DataFrame, fs: dict, last_rows: int) -> Tuple[pd
         bot_level_fracs = [-x for x in top_level_fracs]
 
         features =+ generate_labels_topbot(f_df, column_name, top_level_fracs, bot_level_fracs)
+    elif generator == "area_labels":
+        area_windows = App.config["area_windows_labels"]
+        if not area_windows:
+            area_windows = [60, 120, 180, 300]
+        # Numeric label which is a ratio between areas over and under the latest price
+        features = add_area_ratio(f_df, is_future=True, column_name="close", windows=area_windows, suffix = "_area_future")
     else:
         print(f"Unknown feature generator {generator}")
         return

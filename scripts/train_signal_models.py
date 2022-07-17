@@ -137,7 +137,7 @@ def main(config_file):
     #
     # Load data with (rolling) label point-wise predictions
     #
-    in_file_suffix = App.config.get("predict_file_modifier")
+    in_file_suffix = App.config.get("predict_file_name")
 
     in_file_name = f"{in_file_suffix}{config_file_modifier}.csv"
     in_path = data_path / in_file_name
@@ -293,7 +293,7 @@ def main(config_file):
     #
     # Store simulation parameters and performance
     #
-    out_file_suffix = App.config.get("signal_file_modifier")
+    out_file_suffix = App.config.get("signal_file_name")
 
     out_file_name = f"{out_file_suffix}{config_file_modifier}.txt"
     out_path = (out_path / out_file_name).resolve()

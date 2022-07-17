@@ -20,7 +20,7 @@ Train models for all target labels and all algorithms declared in the configurat
 #
 class P:
     in_nrows = 100_000_000  # For debugging
-    tail_rows = None  # How many last rows to select (for testing)
+    tail_rows = 0  # How many last rows to select (for debugging)
 
     # Whether to store file with predictions
     store_predictions = True
@@ -41,7 +41,7 @@ def main(config_file):
     symbol = App.config["symbol"]
     data_path = Path(App.config["data_folder"]) / symbol
 
-    file_path = (data_path / App.config.get("matrix_file_modifier")).with_suffix(".csv")
+    file_path = (data_path / App.config.get("matrix_file_name")).with_suffix(".csv")
     if not file_path.is_file():
         print(f"ERROR: Input file does not exist: {file_path}")
         return
@@ -64,6 +64,7 @@ def main(config_file):
 
     # Select necessary features and label
     out_columns = ['timestamp', 'open', 'high', 'low', 'close', 'volume', 'close_time']
+    out_columns = [x for x in out_columns if x in df.columns]
     all_features = train_features + labels
     df = df[all_features + out_columns]
 
@@ -161,7 +162,7 @@ def main(config_file):
         # We do not store features. Only selected original data, labels, and their predictions
         out_df = out_df.join(df[out_columns + labels])
 
-        out_path = data_path / App.config.get("predict_file_modifier")
+        out_path = data_path / App.config.get("predict_file_name")
 
         print(f"Storing output file...")
         out_df.to_csv(out_path.with_suffix(".csv"), index=False)
