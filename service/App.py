@@ -70,29 +70,44 @@ class App:
         "telegram_bot_token": "",  # Source address of messages
         "telegram_chat_id": "",  # Destination address of messages
 
+        #
+        # Naming conventions
+        #
+        "merge_file_name": "data",
+        "feature_file_name": "features",
+        "matrix_file_name": "matrix",
+        "predict_file_name": "predictions",  # predict, predict-rolling
+        "signal_file_name": "performance",
+
+        "time_column": "timestamp",
+
         # File locations
         "data_folder": "",  # It is needed for model training
+
+        # ==============================================
+        # === DOWNLOADER, MERGER and (online) READER ===
+
         # Symbol determines sub-folder and used in other identifiers
-        "symbol": "",  # BTCUSDT ETHUSDT
+        # It is used as a name of the output matrix (so it is not really any traded symbol but is arbitrary name but typically we use name of the symbol we want to predict/trade)
+        "symbol": "BTCUSDT",  # BTCUSDT ETHUSDT ^gspc
         # It will be appended to generated file names and denotes config (like config name).
-        # TODO: In future, we could/should change it semantics, and store the generated files in the folder with this name, rather than append a modifier to file names
-        "config_file_modifier": "",
 
-        # File name conventions
-        "merge_file_modifier": "data",
-        "feature_file_modifier": "features",
-        "matrix_file_modifier": "matrix",
-        "predict_file_modifier": "predictions",  # predict, predict-rolling
-        "signal_file_modifier": "performance",
-
-        # =====================================
-        # === MERGER and (online) COLLECTOR ===
+        # This parameter determines the time raster (granularity) for the data.
+        # Currently 1m for binance, and 1d for yahoo are supported (only workdays)
+        "freq": "1m",
 
         # Specify which data sources to merge into one file with all source columns
         # Format: (folder, file, prefix) - (symbol, data source, column prefix)
         # These descriptors are also used to retrieve data by collector in online mode - folder name is symbol name
+
+        "data_sources": [
+            {"folder": "BTCUSDT", "file": "klines", "column_prefix": ""},
+        ],
+        # Example for Yahoo 1d inputs
         #"data_sources": [
-        #    {"folder": "BTCUSDT", "file": "klines", "column_prefix": ""},
+        #    {"folder": "^gspc", "file": "", "column_prefix": ""},
+        #    {"folder": "^vix", "file": "", "column_prefix": "^vix"},
+        #    {"folder": "^tnx", "file": "", "column_prefix": "^tnx"},
         #],
         #"data_sources": [
         #    {"folder": "BTCUSDT", "file": "klines", "column_prefix": "btc"},
@@ -103,50 +118,63 @@ class App:
         # === FEATURE GENERATION ===
 
         # What columns to pass to which feature generator and how to prefix its derived features
+        # Each executes one feature generation function applied to columns with the specified prefix
         "feature_sets": [
             {"column_prefix": "btc", "generator": "klines", "feature_prefix": "btc"},
             {"column_prefix": "eth", "generator": "klines", "feature_prefix": "eth"},
         ],
+        #"feature_sets": [
+        #    {"column_prefix": "", "generator": "yahoo_main", "feature_prefix": ""},
+        #    {"column_prefix": "^vix", "generator": "yahoo_secondary", "feature_prefix": "^vix"},
+        #    {"column_prefix": "^tnx", "generator": "yahoo_secondary", "feature_prefix": "^tnx"},
+        #],
         # Parameters of klines feature generator
         # If these are changed, then feature names (below) will also have to be changed
 
-        #"base_window_kline": 40320,  # 4 weeks
-        #"windows_kline": [1, 20, 60, 360, 1440, 10080],
-        #"area_windows_kline": [20, 60, 360, 1440, 10080],
+        # v0.3.0
+        "base_window": 10080,  # 1 week
+        "averaging_windows": [1, 10, 30, 180, 720, 1440],
+        "area_windows": [10, 30, 180, 720, 1440],
 
-        #"base_window_kline": 20160,  # 2 weeks
-        #"windows_kline": [1, 20, 60, 180, 720, 2880],
-        #"area_windows_kline": [60, 120, 180, 720, 2880],
-        #"windows_kline": [1, 30, 120, 360, 1440, 4320],
-        #"area_windows_kline": [30, 120, 360, 1440, 4320],
-        #"windows_kline": [1, 60, 180, 720, 2880, 5760],
-        #"area_windows_kline": [60, 180, 720, 2880, 5760],
+        # "base_window": 40320,  # 4 weeks
+        # "averaging_windows": [1, 20, 60, 360, 1440, 10080],
+        # "area_windows": [20, 60, 360, 1440, 10080],
 
-        "base_window_kline": 10080,  # 1 week
-        "windows_kline": [1, 10, 30, 180, 720, 1440],
-        "area_windows_kline": [10, 30, 180, 720, 1440],
+        # "base_window": 20160,  # 2 weeks
+        # "averaging_windows": [1, 20, 60, 180, 720, 2880],
+        # "area_windows": [60, 120, 180, 720, 2880],
+        # "averaging_windows": [1, 30, 120, 360, 1440, 4320],
+        # "area_windows": [30, 120, 360, 1440, 4320],
+        # "averaging_windows": [1, 60, 180, 720, 2880, 5760],
+        # "area_windows": [60, 180, 720, 2880, 5760],
+
+        #"base_window": 40,
+        #"averaging_windows": [2, 12, 20],
+        #"area_windows": [12, 20],
 
         # ========================
         # === LABEL GENERATION ===
 
-        "high_low_horizon": 1440,  # Parameter of labels: computing max and min for this horizon ahead
-        "top_bot_column_name": "close",
+        "label_sets": [
+            {"column_prefix": "btc", "generator": "topbot", "feature_prefix": ""},
+            #{"column_prefix": "", "generator": "highlow", "feature_prefix": ""},
+        ],
+        # highlow label parameter: max (of high) and min (of low) for this horizon ahead
+        "highlow_horizon": 10,  # 10 (2 weeks) for yahoo, 1440 for BTC
+        "topbot_column_name": "close",
 
         # ===========================
         # === MODEL TRAIN/PREDICT ===
-        #     off-line and on-line
+        #     predict off-line and on-line
 
-        # Minimum history required to compute derived features
-        # It is used in online mode where we need to maintain data window of this size or larger
-        # Take maximum aggregation windows from feature generation code (and add something to be sure that we have all what is needed)
-        # Basically, should be equal to base_window_kline
-        "features_horizon": 10180,
+        # This number of tail rows will be excluded from model training
+        "label_horizon": 0,
+        "train_length": int(2.0 * 525_600),  # train set maximum size. algorithms may decrease this length
 
         # One model is for each (label, train_features, algorithm)
-
-        # Feature column names returned by the klines feature generator
+        # Feature column names returned by the feature generators
         # They are used by train/predict
-        "features_kline": [
+        "train_features": [
             'btc_close_1', 'btc_close_10', 'btc_close_30', 'btc_close_180', 'btc_close_720', 'btc_close_1440',
             'btc_close_std_10', 'btc_close_std_30', 'btc_close_std_180', 'btc_close_std_720', 'btc_close_std_1440',
             'btc_volume_1', 'btc_volume_10', 'btc_volume_30', 'btc_volume_180', 'btc_volume_720', 'btc_volume_1440',
@@ -168,16 +196,10 @@ class App:
             'eth_volume_trend_10', 'eth_volume_trend_30', 'eth_volume_trend_180', 'eth_volume_trend_720', 'eth_volume_trend_1440'
         ],
 
-        # Used to select columns for training by adding together different feature sets (the lists are defined elswhere in variables like "features_kline")
-        "train_features": ["kline"],
         # algorithm descriptors from model store
-        "algorithms": ["nn"],  # gb, nn, lc - definitions of their parameters are in model store
+        "algorithms": ["nn"],  # gb, nn, lc - these are names from the model store which stores all the necessary parameters for each algorithm
 
-        # This will be excluded from model training
-        "label_horizon": 0,
-
-        # These labels are specified manually and are produced by label generator
-        # Models will be trained for these models
+        # Models (for each algorithm) will be trained for these target labels
         "labels": [
             "bot2_025", "bot2_05", "bot2_075", "bot2_1", "bot2_125", "bot2_15",
             "top2_025", "top2_05", "top2_075", "top2_1", "top2_125", "top2_15",
@@ -205,6 +227,13 @@ class App:
 
             'close_area_future_60', 'close_area_future_120', 'close_area_future_180', 'close_area_future_300',
         ],
+
+        # ONLINE (PREDICTION) PARAMETERS
+        # Minimum history length required to compute derived features
+        # It is used in online mode where we need to maintain data window of this size or larger
+        # Take maximum aggregation windows from feature generation code (and add something to be sure that we have all what is needed)
+        # Basically, should be equal to base_window
+        "features_horizon": 10180,
 
         # =========================
         # === SIGNAL GENERATION ===
