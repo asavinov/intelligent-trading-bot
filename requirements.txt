@@ -12,6 +12,7 @@ tensorflow>=2.9.*  # pip install --upgrade tensorflow
 #keras  # pip install --upgrade keras
 #pytorch # conda install pytorch torchvision cpuonly -c pytorch
 #fastai # pip install fastai
+tsfresh  # For calculated features
 
 python-binance>=1.0.*  # pip install python-binance
 # yfinance  # if yahoo quotes are going to be used

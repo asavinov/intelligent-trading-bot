@@ -6,6 +6,8 @@ import json
 import numpy as np
 import pandas as pd
 
+import tsfresh.feature_extraction.feature_calculators as tsf
+
 from common.utils import *
 from common.feature_generation_rolling_agg import *
 
@@ -34,6 +36,48 @@ def generate_features_yahoo_secondary(df, use_differences, base_window, windows,
     # close rolling mean. format: 'close_<window>'
     to_drop += add_past_aggregations(df, 'close', np.nanmean, base_window, suffix='', last_rows=last_rows)  # Base column
     features += add_past_aggregations(df, 'close', np.nanmean, windows, '', to_drop[-1], 100.0, last_rows=last_rows)
+
+    return features
+
+
+def generate_features_tsfresh(df, column_name: str, windows: Union[int, List[int]], last_rows: int = 0):
+    """These features will be applied to the main symbol which we want to predict."""
+    column = df[column_name].interpolate()
+
+    if isinstance(windows, int):
+        windows = [windows]
+
+    features = []
+    for w in windows:
+        ro = column.rolling(window=w, min_periods=max(1, w // 2))
+
+        #
+        # Statistics
+        #
+        feature_name = column_name + "_skewness_" + str(w)
+        df[feature_name] = ro.apply(tsf.skewness, raw=True)
+        features.append(feature_name)
+
+        feature_name = column_name + "_kurtosis_" + str(w)
+        df[feature_name] = ro.apply(tsf.kurtosis, raw=True)
+        features.append(feature_name)
+
+        # count_above_mean, benford_correlation, mean_changes
+        feature_name = column_name + "_msdc_" + str(w)
+        df[feature_name] = ro.apply(tsf.mean_second_derivative_central, raw=True)
+        features.append(feature_name)
+
+        #
+        # Counts
+        # first/last_location_of_maximum/minimum
+        #
+        feature_name = column_name + "_lsbm_" + str(w)
+        df[feature_name] = ro.apply(tsf.longest_strike_below_mean, raw=True)
+        features.append(feature_name)
+
+        feature_name = column_name + "_fmax_" + str(w)
+        df[feature_name] = ro.apply(tsf.first_location_of_maximum, raw=True)
+        features.append(feature_name)
 
     return features
 
