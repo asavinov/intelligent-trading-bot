@@ -89,7 +89,7 @@ def main(config_file):
     # Store labels
     #
     with open(out_path.with_suffix('.txt'), "a+") as f:
-        f.write(", ".join([f'"{f}"' for f in all_features] ) + "\n")
+        f.write(", ".join([f'"{f}"' for f in all_features] ) + "\n\n")
 
     print(f"Stored {len(all_features)} labels in output file {out_path}")
 

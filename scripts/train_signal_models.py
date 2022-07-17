@@ -1,16 +1,12 @@
 from pathlib import Path
-from typing import Union
-
 import click
-import numpy as np
 from tqdm import tqdm
+
+import numpy as np
 import pandas as pd
 
 from sklearn.metrics import (precision_recall_curve, PrecisionRecallDisplay, RocCurveDisplay)
 from sklearn.model_selection import ParameterGrid
-
-import seaborn as sns
-import matplotlib.pyplot as plt
 
 from service.App import *
 from common.classifiers import *
@@ -20,42 +16,28 @@ from common.signal_generation import *
 
 """
 Input data:
-- source columns: close, max, min (for trade simulation)
-- point-wise predictions (label-feature_set-algorithm) to produce trade signals using hyper-parameters
-Algorithms:
-- Standard algorithm for computing trade signal from point-wise predictions (normally aggregation) which uses hyper-parameters
-- In loop over all aggregation hyper-parameters, simulate trade over the data range by finding the final performance (profit etc.)
-Output:
-- Top best hyper-parameters
+This script assumes the existence of label prediction scores for a list of labels 
+which is computed by some other script (train predict models or (better) rolling predictions).
+It also uses the real prices in order to determine if the orders are executed or not 
+(currently close prices but it is better to use high and low prices).
+
+Purpose:
+The script uses some signal parameters which determine whether to sell or buy based on the current 
+label prediction scores. It simulates trade for such signal parameters by running through 
+the whole data set. For each such signal parameters, it determines the trade performance 
+(overall profit or loss). It then does such simulations for all defined signal parameters
+and finally chooses the best performing parameters. These parameters can be then used for real trades.
 
 Notes:
-- the script should work with both batch predictions and rolling predictions (better) by
-assuming only the necessary input columns.
-- the script should support different kinds of aggregation function (it should be easy to replace) 
-and their corresponding hyper-parameters (e.g., top-bot and high-low).
-
-TODO:
-- DONE. Define generic aggregation functions for transforming point-wise scores to buy-sell score/signals with hyper-parameters
-Put these functions in some common module signal_generation::generate_score etc.
-- Implement/re-work the main loop and the logic of performance computations. 
-- Store output including better performance computation with transaction costs adjustments etc.
-- Integrate/use the basic aggregation functions in on-line processing (analyzer) to ensure equivalent results
-  Add parameterization where relevant so that it is easy to vary them in future (where they are expected to change, e.g., after re-training and re-optimization)
-
-General pipeline:
-- Define programmatically all possible features and all possible labels and produce a feature matrix
-- Select various features and labels and find best point-wise performance by varying algorithm hyper-parameters and feature/label parameters
-- With fixed feature/label definitions (optimized for best point-wise performance), vary trade signal parameters to maximaze trade performance
-- Use the feature/label defintions and trade signal parameters for on-line analysis (guarantee the same features/labels and all hyper-parameters)
-
-Train using extremum labels or prediction  labels and make point-wise predictions.
-Define point-wise score aggregation/post-processing parameter space: patience etc.
-For all these score aggregation parameters, compute their interval performance score and find best parameters.
-Note that it should work for any kind of training and prediction procedure including our old predictions.
-That is, it should be possible to take our old rolling_predictions point scores, and feed them into this procedure and find best aggregation parameters.
-
-Repeat this grid search procedure for different definitions of top-bottom labels (level and tolerance). 
-Find best level-tolerance which generate best performance for certain performance score parameters.
+- The simulation is based on some aggregation function which computes the final signal from
+multiple label prediction scores. There could be different aggregation logics for example 
+finding average value or using pre-defined thresholds or even training some kind of model 
+like decision trees
+- The signal (aggregation) function assumes that there two kinds of labels: positive (indicating that
+the price will go up) and negative (indicating that the price will go down). The are accordingly
+stored in two lists in the configuration 
+- Tthe script should work with both batch predictions and (better) rolling predictions by
+assuming only the necessary columns for predicted label scores and trade columns (close price)
 """
 
 class P:
@@ -71,6 +53,7 @@ class P:
     # Only buy parameters will be used and sell parameters will be ignored
     buy_sell_equal = False
 
+    # Haw many best performing parameters from the grid to store
     topn_to_store = 20
 
 #
@@ -122,7 +105,10 @@ def main(config_file):
     """
     load_config(config_file)
 
-    freq = "1m"
+    time_column = App.config["time_column"]
+
+    now = datetime.now()
+
     symbol = App.config["symbol"]
     data_path = Path(App.config["data_folder"]) / symbol
     if not data_path.is_dir():
@@ -131,23 +117,16 @@ def main(config_file):
     out_path = Path(App.config["data_folder"]) / symbol
     out_path.mkdir(parents=True, exist_ok=True)  # Ensure that folder exists
 
-    config_file_modifier = App.config.get("config_file_modifier")
-    config_file_modifier = ("-" + config_file_modifier) if config_file_modifier else ""
-
     #
     # Load data with (rolling) label point-wise predictions
     #
-    in_file_suffix = App.config.get("predict_file_name")
-
-    in_file_name = f"{in_file_suffix}{config_file_modifier}.csv"
-    in_path = data_path / in_file_name
-    if not in_path.exists():
-        print(f"ERROR: Input file does not exist: {in_path}")
+    file_path = (data_path / App.config.get("predict_file_name")).with_suffix(".csv")
+    if not file_path.exists():
+        print(f"ERROR: Input file does not exist: {file_path}")
         return
 
-    print(f"Loading predictions from input file: {in_path}")
-    start_dt = datetime.now()
-    df = pd.read_csv(in_path, parse_dates=['timestamp'], nrows=P.in_nrows)
+    print(f"Loading predictions from input file: {file_path}")
+    df = pd.read_csv(file_path, parse_dates=[time_column], nrows=P.in_nrows)
     print(f"Predictions loaded. Length: {len(df)}. Width: {len(df.columns)}")
 
     # Limit size according to parameters start_index end_index
@@ -214,7 +193,9 @@ def main(config_file):
         elif model.get("combine") == "difference":
             combine_scores_difference(df, 'buy_score_column', 'sell_score_column', 'buy_score_column', 'sell_score_column')
 
-        # Compute slope of the numeric score over model.get("buy_window") and model.get("sell_window")
+        #
+        # Experimental. Compute slope of the numeric score over model.get("buy_window") and model.get("sell_window")
+        #
         from scipy import stats
         from sklearn import linear_model
         def linear_regr_fn(X):
@@ -293,10 +274,7 @@ def main(config_file):
     #
     # Store simulation parameters and performance
     #
-    out_file_suffix = App.config.get("signal_file_name")
-
-    out_file_name = f"{out_file_suffix}{config_file_modifier}.txt"
-    out_path = (out_path / out_file_name).resolve()
+    out_path = (out_path / App.config.get("signal_file_name")).with_suffix(".txt").resolve()
 
     if out_path.is_file():
         add_header = False
@@ -306,13 +284,12 @@ def main(config_file):
         if add_header:
             f.write(",".join(keys) + "\n")
         #f.writelines(lines)
-        f.write("\n".join(lines))
-        f.write("\n")
+        f.write("\n".join(lines) + "\n\n")
 
     print(f"Simulation results stored in: {out_path}. Lines: {len(lines)}.")
 
-    elapsed = datetime.now() - start_dt
-    print(f"Finished simulation in {int(elapsed.total_seconds())} seconds.")
+    elapsed = datetime.now() - now
+    print(f"Finished simulation in {str(elapsed).split('.')[0]}")
 
 
 def simulated_trade_performance(df, sell_signal_column, buy_signal_column, price_column):
