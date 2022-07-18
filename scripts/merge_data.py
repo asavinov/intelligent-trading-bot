@@ -161,6 +161,8 @@ def merge_data_frames(data_sources: list):
 
         if time_column in df.columns:
             df = df.set_index(time_column)
+        elif df.index.name == time_column:
+            pass
         else:
             print(f"ERROR: Timestamp column is absent.")
             return

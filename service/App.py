@@ -156,11 +156,11 @@ class App:
         # === LABEL GENERATION ===
 
         "label_sets": [
-            {"column_prefix": "btc", "generator": "topbot", "feature_prefix": ""},
+            {"column_prefix": "", "generator": "topbot", "feature_prefix": ""},
             #{"column_prefix": "", "generator": "highlow", "feature_prefix": ""},
         ],
         # highlow label parameter: max (of high) and min (of low) for this horizon ahead
-        "highlow_horizon": 10,  # 10 (2 weeks) for yahoo, 1440 for BTC
+        "highlow_horizon": 1440,  # 10 (2 weeks) for yahoo, 1440 for BTC
         "topbot_column_name": "close",
 
         # ===========================
@@ -197,7 +197,7 @@ class App:
         ],
 
         # algorithm descriptors from model store
-        "algorithms": ["nn"],  # gb, nn, lc - these are names from the model store which stores all the necessary parameters for each algorithm
+        "algorithms": ["nn", "lc"],  # gb, nn, lc - these are names from the model store which stores all the necessary parameters for each algorithm
 
         # Models (for each algorithm) will be trained for these target labels
         "labels": [

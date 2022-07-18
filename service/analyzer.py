@@ -336,7 +336,8 @@ class Analyzer:
 
         # Apply all feature generators to the data frame which get accordingly new derived columns
         # The feature parameters will be taken from App.config (depending on generator)
-        df, all_features = generate_feature_sets(df, feature_sets, last_rows=last_rows)
+        for fs in feature_sets:
+            df, _ = generate_feature_set(df, fs, last_rows=last_rows)
 
         df = df.iloc[-last_rows:]  # For signal generation, ew will need only several last rows
 
@@ -346,7 +347,7 @@ class Analyzer:
         #
 
         # kline feature set
-        features = App.config["features_kline"]
+        features = App.config["train_features"]
         predict_df = df[features]
         if predict_df.isnull().any().any():
             null_columns = {k: v for k, v in predict_df.isnull().any().to_dict().items() if v}
