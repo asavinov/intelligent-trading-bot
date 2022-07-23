@@ -82,7 +82,7 @@ def generate_features_tsfresh(df, column_name: str, windows: Union[int, List[int
     return features
 
 
-def generate_features(df, use_differences, base_window, windows, area_windows, last_rows: int = 0):
+def generate_features_binance_main(df, use_differences, base_window, windows, area_windows, last_rows: int = 0):
     """
     Generate derived features by adding them as new columns to the data frame.
     It is important that the same parameters are used for both training and prediction.
@@ -139,6 +139,38 @@ def generate_features(df, use_differences, base_window, windows, area_windows, l
     #to_drop.append('tb_quote')
     #to_drop += add_past_aggregations(df, 'tb_quote', np.nanmean, base_window, suffix='', last_rows=last_rows)  # Base column
     #features += add_past_aggregations(df, 'tb_quote', np.nanmean, windows, '', to_drop[-1], 100.0, last_rows=last_rows)
+
+    # Area over and under latest close price
+    features += add_area_ratio(df, is_future=False, column_name="close", windows=area_windows, suffix = "_area", last_rows=last_rows)
+
+    # Linear trend
+    features += add_linear_trends(df, is_future=False, column_name="close", windows=windows, suffix="_trend", last_rows=last_rows)
+    features += add_linear_trends(df, is_future=False, column_name="volume", windows=windows, suffix="_trend", last_rows=last_rows)
+
+    df.drop(columns=to_drop, inplace=True)
+
+    return features
+
+
+def generate_features_binance_secondary(df, use_differences, base_window, windows, area_windows, last_rows: int = 0):
+    """
+    """
+    features = []
+    to_drop = []
+
+    if use_differences:
+        df['close'] = to_diff(df['close'])
+        df['volume'] = to_diff(df['volume'])
+        df['trades'] = to_diff(df['trades'])
+
+    # close rolling mean. format: 'close_<window>'
+    weight_column_name = 'volume'  # None: no weighting; 'volume': volume average
+    to_drop += add_past_weighted_aggregations(df, 'close', weight_column_name, np.nanmean, base_window, suffix='', last_rows=last_rows)  # Base column
+    features += add_past_weighted_aggregations(df, 'close', weight_column_name, np.nanmean, windows, '', to_drop[-1], 100.0, last_rows=last_rows)
+
+    # volume rolling mean. format: 'volume_<window>'
+    to_drop += add_past_aggregations(df, 'volume', np.nanmean, base_window, suffix='', last_rows=last_rows)  # Base column
+    features += add_past_aggregations(df, 'volume', np.nanmean, windows, '', to_drop[-1], 100.0, last_rows=last_rows)
 
     # Area over and under latest close price
     features += add_area_ratio(df, is_future=False, column_name="close", windows=area_windows, suffix = "_area", last_rows=last_rows)

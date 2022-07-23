@@ -15,7 +15,7 @@ from common.label_generation_topbot import generate_labels_topbot
 #
 class P:
     in_nrows = 50_000_000  # Load only this number of records
-    tail_rows = int(2.0 * 525_600)  # Process only this number of last rows
+    tail_rows = int(2.5 * 525_600)  # Process only this number of last rows
 
 
 @click.command()
@@ -61,10 +61,17 @@ def main(config_file):
 
     all_features = []
     for fs in feature_sets:
+        fs_now = datetime.now()
+        print(f"Start generator {fs.get('generator')}...")
         df, new_features = generate_feature_set(df, fs, last_rows=0)
         all_features.extend(new_features)
+        fs_elapsed = datetime.now() - fs_now
+        print(f"Finished generator {fs.get('generator')}. Features: {len(new_features)}. Time: {str(fs_elapsed).split('.')[0]}")
 
     print(f"Finished generating features.")
+
+    print(f"Number of NULL values:")
+    print(df[all_features].isnull().sum().sort_values(ascending=False))
 
     #
     # Store feature matrix in output file
@@ -112,8 +119,14 @@ def generate_feature_set(df: pd.DataFrame, fs: dict, last_rows: int) -> Tuple[pd
     # Resolve and apply feature generator functions from the configuration
     #
     generator = fs.get("generator")
-    if generator == "klines":
-        features = generate_features(
+    if generator == "binance_main":
+        features = generate_features_binance_main(
+            f_df, use_differences=False,
+            base_window=App.config["base_window"], windows=App.config["averaging_windows"],
+            area_windows=App.config["area_windows"], last_rows=last_rows
+        )
+    elif generator == "binance_secondary":
+        features = generate_features_binance_main(
             f_df, use_differences=False,
             base_window=App.config["base_window"], windows=App.config["averaging_windows"],
             area_windows=App.config["area_windows"], last_rows=last_rows
@@ -152,7 +165,7 @@ def generate_feature_set(df: pd.DataFrame, fs: dict, last_rows: int) -> Tuple[pd
         print(f"Generating 'highlow' labels with horizon {horizon}...")
         features = generate_labels_highlow(f_df, horizon=horizon)
 
-        print(f"Finished generating 'high-low' labels. {len(features)} labels generated.")
+        print(f"Finished generating 'highlow' labels. {len(features)} labels generated.")
     elif generator == "topbot":
         column_name = App.config.get("topbot_column_name", "close")
 
