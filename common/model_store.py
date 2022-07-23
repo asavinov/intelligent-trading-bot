@@ -118,11 +118,14 @@ models = [
         "name": "gb_yahoo",
         "algo": "gb",
         "params": {
-            "objective": "cross_entropy",
+            #"boosting_type": 'gbdt',
+            "objective": "cross_entropy",  # binary cross_entropy cross_entropy_lambda
             "max_depth": 1,
             "learning_rate": 0.05,
-            "num_boost_round": 1_500,
+            "num_boost_round": 1_500,  # 10_000
 
+            #"is_unbalance": True,
+            #"metric": 'auc',  # auc binary_logloss cross_entropy cross_entropy_lambda binary_error
             "lambda_l1": 1.0,
             "lambda_l2": 1.0,
         },

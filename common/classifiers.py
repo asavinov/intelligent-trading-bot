@@ -225,7 +225,7 @@ def train_nn(df_X, df_y, model_config: dict):
 
     model.add(Dense(n_features // 2, activation='sigmoid', input_dim=n_features))  # , kernel_regularizer=l2(reg_l2)
     #model.add(Dropout(rate=0.5))
-    model.add(Dense(n_features // 4, activation='sigmoid'))
+    #model.add(Dense(n_features // 4, activation='sigmoid'))
 
     #model.add(Dense(layers[0], activation='sigmoid', input_dim=n_features, kernel_regularizer=l2(reg_l2)))
     #if len(layers) > 1:

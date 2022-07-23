@@ -89,6 +89,11 @@ def main(config_file):
 
     train_df = train_df.dropna(subset=train_features)
 
+    if len(train_df) == 0:
+        print(f"ERROR: Empty data set after removing NULLs in feature columns. Some features might have all NULL values.")
+        #print(train_df.isnull().sum().sort_values(ascending=False))
+        return
+
     models = dict()
     scores = dict()
     out_df = pd.DataFrame()  # Collect predictions

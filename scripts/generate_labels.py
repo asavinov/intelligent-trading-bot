@@ -21,7 +21,7 @@ data and the labels in the output file (can be the same file as input).
 #
 class P:
     in_nrows = 100_000_000
-    tail_rows = int(2.0 * 525_600)  # Process only this number of last rows
+    tail_rows = int(2.5 * 525_600)  # Process only this number of last rows
 
 
 @click.command()
@@ -75,6 +75,9 @@ def main(config_file):
         all_features.extend(new_features)
 
     print(f"Finished generating labels.")
+
+    print(f"Number of NULL values:")
+    print(df[all_features].isnull().sum().sort_values(ascending=False))
 
     #
     # Store feature matrix in output file
