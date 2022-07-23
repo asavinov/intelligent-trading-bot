@@ -1,6 +1,7 @@
 from pathlib import Path
 from typing import Union
 import json
+import re
 
 import pandas as pd
 
@@ -82,37 +83,23 @@ class App:
         "time_column": "timestamp",
 
         # File locations
-        "data_folder": "",  # It is needed for model training
+        "data_folder": "C:/DATA_ITB",  # Location for all source and generated data/models
 
         # ==============================================
         # === DOWNLOADER, MERGER and (online) READER ===
 
         # Symbol determines sub-folder and used in other identifiers
-        # It is used as a name of the output matrix (so it is not really any traded symbol but is arbitrary name but typically we use name of the symbol we want to predict/trade)
         "symbol": "BTCUSDT",  # BTCUSDT ETHUSDT ^gspc
-        # It will be appended to generated file names and denotes config (like config name).
 
-        # This parameter determines the time raster (granularity) for the data.
+        # This parameter determines the time raster (granularity) for the data
         # Currently 1m for binance, and 1d for yahoo are supported (only workdays)
         "freq": "1m",
 
-        # Specify which data sources to merge into one file with all source columns
-        # Format: (folder, file, prefix) - (symbol, data source, column prefix)
-        # These descriptors are also used to retrieve data by collector in online mode - folder name is symbol name
-
+        # This list is used for downloading and then merging data
+        # "folder" is symbol name for downloading. prefix will be added column names during merge
         "data_sources": [
-            {"folder": "BTCUSDT", "file": "klines", "column_prefix": ""},
+            {"folder": "BTCUSDT", "file": "klines", "column_prefix": ""}
         ],
-        # Example for Yahoo 1d inputs
-        #"data_sources": [
-        #    {"folder": "^gspc", "file": "", "column_prefix": ""},
-        #    {"folder": "^vix", "file": "", "column_prefix": "^vix"},
-        #    {"folder": "^tnx", "file": "", "column_prefix": "^tnx"},
-        #],
-        #"data_sources": [
-        #    {"folder": "BTCUSDT", "file": "klines", "column_prefix": "btc"},
-        #    {"folder": "ETHUSDT", "file": "klines", "column_prefix": "eth"},
-        #],
 
         # ==========================
         # === FEATURE GENERATION ===
@@ -120,112 +107,53 @@ class App:
         # What columns to pass to which feature generator and how to prefix its derived features
         # Each executes one feature generation function applied to columns with the specified prefix
         "feature_sets": [
-            {"column_prefix": "btc", "generator": "klines", "feature_prefix": "btc"},
-            {"column_prefix": "eth", "generator": "klines", "feature_prefix": "eth"},
+            {"column_prefix": "", "generator": "binance_main", "feature_prefix": ""}
         ],
-        #"feature_sets": [
-        #    {"column_prefix": "", "generator": "yahoo_main", "feature_prefix": ""},
-        #    {"column_prefix": "^vix", "generator": "yahoo_secondary", "feature_prefix": "^vix"},
-        #    {"column_prefix": "^tnx", "generator": "yahoo_secondary", "feature_prefix": "^tnx"},
-        #],
-        # Parameters of klines feature generator
-        # If these are changed, then feature names (below) will also have to be changed
-
-        # v0.3.0
-        "base_window": 10080,  # 1 week
-        "averaging_windows": [1, 10, 30, 180, 720, 1440],
-        "area_windows": [10, 30, 180, 720, 1440],
-
-        # "base_window": 40320,  # 4 weeks
-        # "averaging_windows": [1, 20, 60, 360, 1440, 10080],
-        # "area_windows": [20, 60, 360, 1440, 10080],
-
-        # "base_window": 20160,  # 2 weeks
-        # "averaging_windows": [1, 20, 60, 180, 720, 2880],
-        # "area_windows": [60, 120, 180, 720, 2880],
-        # "averaging_windows": [1, 30, 120, 360, 1440, 4320],
-        # "area_windows": [30, 120, 360, 1440, 4320],
-        # "averaging_windows": [1, 60, 180, 720, 2880, 5760],
-        # "area_windows": [60, 180, 720, 2880, 5760],
-
-        #"base_window": 40,
-        #"averaging_windows": [2, 12, 20],
-        #"area_windows": [12, 20],
+        # Parameters of some feature generators
+        # They influence generated feature names (below)
+        "base_window": 360,
+        "averaging_windows": [1, 10, 60],
+        "area_windows": [10, 60],
 
         # ========================
         # === LABEL GENERATION ===
 
         "label_sets": [
-            {"column_prefix": "", "generator": "topbot", "feature_prefix": ""},
-            #{"column_prefix": "", "generator": "highlow", "feature_prefix": ""},
+            {"column_prefix": "", "generator": "highlow", "feature_prefix": ""},
         ],
         # highlow label parameter: max (of high) and min (of low) for this horizon ahead
-        "highlow_horizon": 1440,  # 10 (2 weeks) for yahoo, 1440 for BTC
-        "topbot_column_name": "close",
+        "highlow_horizon": 60,  # 1 hour prediction
 
         # ===========================
         # === MODEL TRAIN/PREDICT ===
         #     predict off-line and on-line
 
         # This number of tail rows will be excluded from model training
-        "label_horizon": 0,
-        "train_length": int(2.0 * 525_600),  # train set maximum size. algorithms may decrease this length
+        "label_horizon": 60,
+        "train_length": int(0.5 * 525_600),  # train set maximum size. algorithms may decrease this length
 
-        # One model is for each (label, train_features, algorithm)
-        # Feature column names returned by the feature generators
-        # They are used by train/predict
+        # List all features to be used for training/prediction by selecting them from the result of reature generation
+        # Remove: "_std_1", "_trend_1"
         "train_features": [
-            'btc_close_1', 'btc_close_10', 'btc_close_30', 'btc_close_180', 'btc_close_720', 'btc_close_1440',
-            'btc_close_std_10', 'btc_close_std_30', 'btc_close_std_180', 'btc_close_std_720', 'btc_close_std_1440',
-            'btc_volume_1', 'btc_volume_10', 'btc_volume_30', 'btc_volume_180', 'btc_volume_720', 'btc_volume_1440',
-            'btc_span_1', 'btc_span_10', 'btc_span_30', 'btc_span_180', 'btc_span_720', 'btc_span_1440',
-            'btc_trades_1', 'btc_trades_10', 'btc_trades_30', 'btc_trades_180', 'btc_trades_720', 'btc_trades_1440',
-            'btc_tb_base_1', 'btc_tb_base_10', 'btc_tb_base_30', 'btc_tb_base_180', 'btc_tb_base_720', 'btc_tb_base_1440',
-            #'btc_close_area_10', 'btc_close_area_30', 'btc_close_area_180', 'btc_close_area_720', 'btc_close_area_1440',
-            'btc_close_trend_10', 'btc_close_trend_30', 'btc_close_trend_180', 'btc_close_trend_720', 'btc_close_trend_1440',
-            'btc_volume_trend_10', 'btc_volume_trend_30', 'btc_volume_trend_180', 'btc_volume_trend_720', 'btc_volume_trend_1440',
-
-            'eth_close_1', 'eth_close_10', 'eth_close_30', 'eth_close_180', 'eth_close_720', 'eth_close_1440',
-            'eth_close_std_10', 'eth_close_std_30', 'eth_close_std_180', 'eth_close_std_720', 'eth_close_std_1440',
-            'eth_volume_1', 'eth_volume_10', 'eth_volume_30', 'eth_volume_180', 'eth_volume_720', 'eth_volume_1440',
-            'eth_span_1', 'eth_span_10', 'eth_span_30', 'eth_span_180', 'eth_span_720', 'eth_span_1440',
-            'eth_trades_1', 'eth_trades_10', 'eth_trades_30', 'eth_trades_180', 'eth_trades_720', 'eth_trades_1440',
-            'eth_tb_base_1', 'eth_tb_base_10', 'eth_tb_base_30', 'eth_tb_base_180', 'eth_tb_base_720', 'eth_tb_base_1440',
-            #'eth_close_area_10', 'eth_close_area_30', 'eth_close_area_180', 'eth_close_area_720', 'eth_close_area_1440',
-            'eth_close_trend_10', 'eth_close_trend_30', 'eth_close_trend_180', 'eth_close_trend_720', 'eth_close_trend_1440',
-            'eth_volume_trend_10', 'eth_volume_trend_30', 'eth_volume_trend_180', 'eth_volume_trend_720', 'eth_volume_trend_1440'
+            "close_1", "close_10", "close_60",
+            "close_std_10", "close_std_60",
+            "volume_1", "volume_10", "volume_60",
+            "span_1", "span_10", "span_60",
+            "trades_1", "trades_10", "trades_60",
+            "tb_base_1", "tb_base_10", "tb_base_60",
+            "close_area_10", "close_area_60",
+            "close_trend_10", "close_trend_60",
+            "volume_trend_10", "volume_trend_60"
         ],
-
         # algorithm descriptors from model store
-        "algorithms": ["nn", "lc"],  # gb, nn, lc - these are names from the model store which stores all the necessary parameters for each algorithm
+        "algorithms": ["lc"],  # gb, nn, lc - these are names from the model store which stores all the necessary parameters for each algorithm
 
         # Models (for each algorithm) will be trained for these target labels
         "labels": [
-            "bot2_025", "bot2_05", "bot2_075", "bot2_1", "bot2_125", "bot2_15",
-            "top2_025", "top2_05", "top2_075", "top2_1", "top2_125", "top2_15",
-        ],
-        "_labels": [
-            "bot3_025", "bot3_05", "bot3_075", "bot3_1", "bot3_125", "bot3_15", "bot3_175",
-            "top3_025", "top3_05", "top3_075", "top3_1", "top3_125", "top3_15", "top3_175",
-
-            "bot4_025", "bot4_05", "bot4_075", "bot4_1", "bot4_125", "bot4_15", "bot4_175", "bot4_2",
-            "top4_025", "top4_05", "top4_075", "top4_1", "top4_125", "top4_15", "top4_175", "top4_2",
-
-            "bot5_025", "bot5_05", "bot5_075", "bot5_1", "bot5_125", "bot5_15", "bot5_175", "bot5_2", "bot5_25",
-            "top5_025", "top5_05", "top5_075", "top5_1", "top5_125", "top5_15", "top5_175", "top5_2", "top5_25",
-
-            'high_max_180',  # Maximum high (relative)
-
             "high_10", "high_15", "high_20", "high_25", "high_30",
-            "low_10", "low_15", "low_20", "low_25", "low_30",
-
-            'low_min_180',  # Minimum low (relative)
-            'low_01', 'low_02', 'low_03', 'low_04',  # Always above
-            'low_10', 'low_15', 'low_20', 'low_25',  # At least one time below
-
-            'high_to_low_180',
-
-            'close_area_future_60', 'close_area_future_120', 'close_area_future_180', 'close_area_future_300',
+            #"high_01", "high_02", "high_03", "high_04", "high_05",
+            #"low_01", "low_02", "low_03", "low_04", "low_05",
+            "low_10", "low_15", "low_20", "low_25", "low_30"
         ],
 
         # ONLINE (PREDICTION) PARAMETERS
@@ -238,11 +166,9 @@ class App:
         # =========================
         # === SIGNAL GENERATION ===
 
-        # These are predicted columns <label, train_features, algorithm> as well as model (pair) names
-        "buy_labels": [],
-        "sell_labels": [],
-        "_buy_labels": ["bot4_1_k_lc", "bot4_15_k_lc", "bot4_2_k_lc", "bot4_25_k_lc", "bot4_3_k_lc"],
-        "_sell_labels": ["top4_1_k_lc", "top4_15_k_lc", "top4_2_k_lc", "top4_25_k_lc", "top4_3_k_lc"],
+        # These predicted columns (scores) will be used for generating buy/sell signals
+        "buy_labels": ["high_10_lc", "high_15_lc", "high_20_lc"],
+        "sell_labels": ["low_10_lc", "low_15_lc", "low_20_lc"],
 
         # It defines how signal scores, trade signals, and notification signals will be generated
         # from point-wise prediction scores for two groups of labels
@@ -332,9 +258,15 @@ def problems_exist():
 def load_config(config_file):
     if config_file:
         config_file_path = PACKAGE_ROOT / config_file
-        with open(config_file_path) as json_file:
-            config_json = json.load(json_file)
-            App.config.update(config_json)
+        with open(config_file_path, encoding='utf-8') as json_file:
+            #conf_str = json.load(json_file)
+            conf_str = json_file.read()
+
+            # Remove everything starting with // and till the line end
+            conf_str = re.sub(r"//.*$", "", conf_str, flags=re.M)
+
+            conf_json = json.loads(conf_str)
+            App.config.update(conf_json)
 
 
 if __name__ == "__main__":
