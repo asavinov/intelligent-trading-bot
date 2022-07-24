@@ -155,7 +155,7 @@ def generate_feature_set(df: pd.DataFrame, fs: dict, last_rows: int) -> Tuple[pd
         features = add_area_ratio(f_df, is_future=False, column_name="close", windows=area_windows, suffix="_area_past")
     elif generator == "tsfresh":
         tsfresh_windows = App.config["tsfresh_windows"]
-        features = generate_features_tsfresh(f_df, column_name="close", windows=tsfresh_windows, last_rows=0)
+        features = generate_features_tsfresh(f_df, column_name="close", windows=tsfresh_windows, last_rows=last_rows)
 
     # Labels
     elif generator == "highlow":

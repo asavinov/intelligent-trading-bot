@@ -6,10 +6,14 @@ import json
 import numpy as np
 import pandas as pd
 
+from scipy.stats import kurtosis
+from scipy.stats import skew
+
 import tsfresh.feature_extraction.feature_calculators as tsf
 
 from common.utils import *
 from common.feature_generation_rolling_agg import *
+from common.feature_generation_rolling_agg import _aggregate_last_rows
 
 """
 Feature generation functions.
@@ -55,16 +59,25 @@ def generate_features_tsfresh(df, column_name: str, windows: Union[int, List[int
         # Statistics
         #
         feature_name = column_name + "_skewness_" + str(w)
-        df[feature_name] = ro.apply(tsf.skewness, raw=True)
+        if not last_rows:
+            df[feature_name] = ro.apply(tsf.skewness, raw=True)
+        else:
+            df[feature_name] = _aggregate_last_rows(column, w, last_rows, tsf.skewness)  # OR skew (but it computes different values)
         features.append(feature_name)
 
         feature_name = column_name + "_kurtosis_" + str(w)
-        df[feature_name] = ro.apply(tsf.kurtosis, raw=True)
+        if not last_rows:
+            df[feature_name] = ro.apply(tsf.kurtosis, raw=True)
+        else:
+            df[feature_name] = _aggregate_last_rows(column, w, last_rows, tsf.kurtosis)  # OR kurtosis
         features.append(feature_name)
 
         # count_above_mean, benford_correlation, mean_changes
         feature_name = column_name + "_msdc_" + str(w)
-        df[feature_name] = ro.apply(tsf.mean_second_derivative_central, raw=True)
+        if not last_rows:
+            df[feature_name] = ro.apply(tsf.mean_second_derivative_central, raw=True)
+        else:
+            df[feature_name] = _aggregate_last_rows(column, w, last_rows, tsf.mean_second_derivative_central)
         features.append(feature_name)
 
         #
@@ -72,11 +85,17 @@ def generate_features_tsfresh(df, column_name: str, windows: Union[int, List[int
         # first/last_location_of_maximum/minimum
         #
         feature_name = column_name + "_lsbm_" + str(w)
-        df[feature_name] = ro.apply(tsf.longest_strike_below_mean, raw=True)
+        if not last_rows:
+            df[feature_name] = ro.apply(tsf.longest_strike_below_mean, raw=True)
+        else:
+            df[feature_name] = _aggregate_last_rows(column, w, last_rows, tsf.longest_strike_below_mean)
         features.append(feature_name)
 
         feature_name = column_name + "_fmax_" + str(w)
-        df[feature_name] = ro.apply(tsf.first_location_of_maximum, raw=True)
+        if not last_rows:
+            df[feature_name] = ro.apply(tsf.first_location_of_maximum, raw=True)
+        else:
+            df[feature_name] = _aggregate_last_rows(column, w, last_rows, tsf.first_location_of_maximum)
         features.append(feature_name)
 
     return features

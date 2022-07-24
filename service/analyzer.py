@@ -327,7 +327,7 @@ class Analyzer:
         # Therefore, determine how many last rows we actually need
         buy_window = App.config["signal_model"]["buy_window"]
         sell_window = App.config["signal_model"]["sell_window"]
-        last_rows = max(buy_window, sell_window) + 2
+        last_rows = max(buy_window, sell_window) + 1
 
         feature_sets = App.config.get("feature_sets", [])
         if not feature_sets:
