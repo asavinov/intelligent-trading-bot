@@ -126,7 +126,7 @@ def generate_feature_set(df: pd.DataFrame, fs: dict, last_rows: int) -> Tuple[pd
             area_windows=App.config["area_windows"], last_rows=last_rows
         )
     elif generator == "binance_secondary":
-        features = generate_features_binance_main(
+        features = generate_features_binance_secondary(
             f_df, use_differences=False,
             base_window=App.config["base_window"], windows=App.config["averaging_windows"],
             area_windows=App.config["area_windows"], last_rows=last_rows

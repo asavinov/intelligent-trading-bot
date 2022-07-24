@@ -1,6 +1,7 @@
 from pathlib import Path
 from datetime import datetime, timezone, timedelta
 import click
+from tqdm import tqdm
 
 import numpy as np
 import pandas as pd
@@ -98,9 +99,9 @@ def main(config_file):
     scores = dict()
     out_df = pd.DataFrame()  # Collect predictions
 
-    for label in labels:
+    for label in tqdm(labels, desc="LABELS", colour='red', position=0):
 
-        for algo_name in algorithms:
+        for algo_name in tqdm(algorithms, desc="ALGORITHMS", colour='red', leave=False, position=1):
             model_config = get_model(algo_name)  # Get algorithm description from the algo store
             algo_type = model_config.get("algo")
             algo_train_length = model_config.get("train", {}).get("length")
