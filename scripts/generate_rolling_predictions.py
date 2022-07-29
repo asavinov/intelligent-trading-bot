@@ -40,6 +40,8 @@ class P:
 
     use_multiprocessing = True
     max_workers = 8  # None means number of processors
+    
+    in_nrows = 50_000_000  # Load only this number of records
 
 
 #
