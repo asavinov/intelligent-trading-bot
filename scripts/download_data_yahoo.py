@@ -45,10 +45,10 @@ def main(config_file):
         in_file_path = (data_path / quote / file).with_suffix(".csv")
 
         if in_file_path.is_file():
-            df = pd.read_csv(in_file_path, parse_dates=["date"])
+            df = pd.read_csv(in_file_path, parse_dates=[time_column])
             #df['Date'] = pd.to_datetime(df['Date'])  # "2022-06-07" iso format
-            df['date'] = df['date'].dt.date
-            last_date = df.iloc[-1]['date']
+            df[time_column] = df[time_column].dt.date
+            last_date = df.iloc[-1][time_column]
 
             # === Download from the remote server
             new_df = yf.download(quote, last_date - timedelta(days=5))  # Download somewhat more than we need
