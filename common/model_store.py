@@ -115,7 +115,7 @@ models = [
     },
 
     {
-        "name": "gb_yahoo",
+        "name": "gb-y",
         "algo": "gb",
         "params": {
             #"boosting_type": 'gbdt',
@@ -129,7 +129,16 @@ models = [
             "lambda_l1": 1.0,
             "lambda_l2": 1.0,
         },
-        "train": {"is_scale": False, "length": None, "shifts": []},
+        "train": {"is_scale": True, "length": None, "shifts": []},
+        "predict": {"length": 1440}
+    },
+    {
+        "name": "svc-y",
+        "algo": "svc",
+        "params": {
+            "C": 0.5
+        },
+        "train": {"is_scale": True, "length": None, "shifts": []},
         "predict": {"length": 1440}
     },
 

@@ -1,7 +1,3 @@
-import sys
-import os
-from pathlib import Path
-import itertools
 from typing import List
 
 import numpy as np
@@ -38,7 +34,7 @@ def train_predict_gb(df_X, df_y, df_X_test, model_config: dict):
     Train model with the specified hyper-parameters and return its predictions for the test data.
     """
     model_pair = train_gb(df_X, df_y, model_config)
-    y_test_hat = predict_gb(model_pair, df_X_test)
+    y_test_hat = predict_gb(model_pair, df_X_test, model_config)
     return y_test_hat
 
 
@@ -357,9 +353,7 @@ def train_lc(df_X, df_y, model_config: dict):
     #
     # Create model
     #
-    params = model_config.get("params")
-
-    args = params.copy()
+    args = model_config.get("params").copy()
     args["n_jobs"] = -1
     args["verbose"] = 1
     model = LogisticRegression(**args)
@@ -415,20 +409,20 @@ def predict_lc(models: tuple, df_X_test, model_config: dict):
 # SVC - SVN Classifier
 #
 
-def train_predict_svc(df_X, df_y, df_X_test, params: dict):
+def train_predict_svc(df_X, df_y, df_X_test, model_config: dict):
     """
     Train model with the specified hyper-parameters and return its predictions for the test data.
     """
-    model_pair = train_svc(df_X, df_y, params)
-    y_test_hat = predict_svc(model_pair, df_X_test)
+    model_pair = train_svc(df_X, df_y, model_config)
+    y_test_hat = predict_svc(model_pair, df_X_test, model_config)
     return y_test_hat
 
 
-def train_svc(df_X, df_y, params: dict):
+def train_svc(df_X, df_y, model_config: dict):
     """
     Train model with the specified hyper-parameters and return this model (and scaler if any).
     """
-    is_scale = params.get("train", {}).get("is_scale", True)
+    is_scale = model_config.get("train", {}).get("is_scale", True)
 
     #
     # Prepare data
@@ -446,8 +440,8 @@ def train_svc(df_X, df_y, params: dict):
     #
     # Create model
     #
-    args = params.copy()
-    args['probability'] = True  # Required to use predict_proba()
+    args = model_config.get("params").copy()
+    args['probability'] = True  # Required if we are going to use predict_proba()
     model = SVC(**args)
 
     #
@@ -458,11 +452,21 @@ def train_svc(df_X, df_y, params: dict):
     return (model, scaler)
 
 
-def predict_svc(models: tuple, df_X_test):
+def predict_svc(models: tuple, df_X_test, model_config: dict):
     """
     Use the model(s) to make predictions for the test data.
     The first model is a prediction model and the second model (optional) is a scaler.
     """
+    #
+    # Double column set if required
+    #
+    shifts = model_config.get("train", {}).get("shifts", None)
+    if shifts:
+        df_X_test = double_columns(df_X_test, shifts)
+
+    #
+    # Scale
+    #
     scaler = models[1]
     is_scale = scaler is not None
 
