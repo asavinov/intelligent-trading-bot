@@ -128,6 +128,10 @@ def main(config_file):
                 model_pair = train_lc(df_X, df_y, model_config)
                 models[score_column_name] = model_pair
                 df_y_hat = predict_lc(model_pair, df_X, model_config)
+            elif algo_type == "svc":
+                model_pair = train_svc(df_X, df_y, model_config)
+                models[score_column_name] = model_pair
+                df_y_hat = predict_svc(model_pair, df_X, model_config)
             else:
                 print(f"ERROR: Unknown algorithm type {algo_type}. Check algorithm list.")
                 return
@@ -157,7 +161,7 @@ def main(config_file):
     metrics_file_name = f"metrics.txt"
     metrics_path = (out_path / metrics_file_name).resolve()
     with open(metrics_path, 'a+') as f:
-        f.write("\n".join(lines) + "\n")
+        f.write("\n".join(lines) + "\n\n")
 
     print(f"Metrics stored in path: {metrics_path.absolute()}")
 

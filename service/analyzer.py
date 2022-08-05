@@ -366,6 +366,8 @@ class Analyzer:
                     df_y_hat = predict_nn(model_pair, predict_df, get_model("nn"))
                 elif score_column_name.endswith("_lc"):
                     df_y_hat = predict_lc(model_pair, predict_df, get_model("lc"))
+                elif score_column_name.endswith("_svc"):
+                    df_y_hat = predict_svc(model_pair, predict_df, get_model("svc"))
                 else:
                     raise ValueError(f"Unknown column name algorithm suffix {score_column_name[-3:]}. Currently only '_gb', '_nn', '_lc' are supported.")
                 score_df[score_column_name] = df_y_hat
@@ -376,6 +378,8 @@ class Analyzer:
         # This df contains only one (last) record
         df = df.join(score_df)
         #df = pd.concat([predict_df, score_df], axis=1)
+
+        row = df.iloc[-1]  # Last row used for decisions
 
         #
         # 4.
@@ -394,18 +398,16 @@ class Analyzer:
         elif model.get("combine") == "difference":
             combine_scores_difference(df, 'buy_score_column', 'sell_score_column', 'buy_score_column', 'sell_score_column')
 
+        buy_score = row["buy_score_column"]
+        sell_score = row["sell_score_column"]
+
+        buy_signal = (buy_score - sell_score > 0) and (buy_score >= model.get("buy_signal_threshold"))
+        sell_signal = (sell_score - buy_score > 0) and (sell_score >= model.get("sell_signal_threshold"))
+
         #
         # 5.
         # Collect results and create signal object
         #
-        row = df.iloc[-1]
-
-        buy_score = row["buy_score_column"]
-        buy_signal = buy_score >= model.get("buy_signal_threshold")
-
-        sell_score = row["sell_score_column"]
-        sell_signal = sell_score >= model.get("sell_signal_threshold")
-
         close_price = row["close"]
         close_time = row.name+timedelta(minutes=1)  # Add 1 minute because timestamp is start of the interval
 

@@ -25,20 +25,18 @@ The output predicted labels will cover shorter period of time because we need so
 # Parameters
 #
 class P:
+    in_nrows = 100_000_000
+
     start_index = 0
     end_index = None
 
-    # How much data we want to use for training
-    kline_train_length = int(1.5 * 525_600)  # 1.5 * 525_600
-    futur_train_length = int(4 * 43_800)
-
     # First row for starting predictions: "2020-02-01 00:00:00" - minimum start for futures
-    prediction_start_str = "2020-02-01 00:00:00"
+    prediction_start_str = "2017-08-01"  # For BTC: "2020-02-01 00:00:00"
     # How frequently re-train models: 1 day: 1_440 = 60 * 24, one week: 10_080
-    prediction_length = 2*7*1440
-    prediction_count = 56  # How many prediction steps. If None or 0, then from prediction start till the data end. Use: https://www.timeanddate.com/date/duration.html
+    prediction_length = 10  # For 1m (BTC): 2*7*1440 (2 weeks)
+    prediction_count = 0  # How many prediction steps. If None or 0, then from prediction start till the data end. Use: https://www.timeanddate.com/date/duration.html
 
-    use_multiprocessing = True
+    use_multiprocessing = False
     max_workers = 8  # None means number of processors
 
 
@@ -83,7 +81,7 @@ def main(config_file):
     algorithms = App.config.get("algorithms")
 
     # Select necessary features and label
-    out_columns = ['timestamp', 'open', 'high', 'low', 'close', 'volume', 'close_time']
+    out_columns = [time_column, 'open', 'high', 'low', 'close', 'volume', 'close_time']
     out_columns = [x for x in out_columns if x in df.columns]
     all_features = train_features + labels
     df = df[all_features + out_columns]
@@ -160,12 +158,12 @@ def main(config_file):
                     for algo_name in algorithms:
                         model_config = get_model(algo_name)
                         algo_type = model_config.get("algo")
-                        train_length = model_config.get("train", {}).get("length")
+                        algo_train_length = model_config.get("train", {}).get("length")
                         score_column_name = label + "_" + algo_name
 
                         # Limit length according to algorith parameters
-                        if train_length and train_length < train_length:
-                            train_df_2 = train_df.iloc[-train_length:]
+                        if algo_train_length and algo_train_length < train_length:
+                            train_df_2 = train_df.iloc[-algo_train_length:]
                         else:
                             train_df_2 = train_df
                         df_X = train_df_2[train_features]
@@ -178,6 +176,8 @@ def main(config_file):
                             execution_results[score_column_name] = executor.submit(train_predict_nn, df_X, df_y, df_X_test, model_config)
                         elif algo_type == "lc":
                             execution_results[score_column_name] = executor.submit(train_predict_lc, df_X, df_y, df_X_test, model_config)
+                        elif algo_type == "svc":
+                            execution_results[score_column_name] = executor.submit(train_predict_svc, df_X, df_y, df_X_test, model_config)
                         else:
                             print(f"ERROR: Unknown algorithm type {algo_type}. Check algorithm list.")
                             return
@@ -192,12 +192,12 @@ def main(config_file):
                 for algo_name in algorithms:
                     model_config = get_model(algo_name)
                     algo_type = model_config.get("algo")
-                    train_length = model_config.get("train", {}).get("length")
+                    algo_train_length = model_config.get("train", {}).get("length")
                     score_column_name = label + "_" + algo_name
 
                     # Limit length according to algorith parameters
-                    if train_length and train_length < train_length:
-                        train_df_2 = train_df.iloc[-train_length:]
+                    if algo_train_length and algo_train_length < train_length:
+                        train_df_2 = train_df.iloc[-algo_train_length:]
                     else:
                         train_df_2 = train_df
                     df_X = train_df_2[train_features]
@@ -210,6 +210,8 @@ def main(config_file):
                         predict_labels_df[score_column_name] = train_predict_nn(df_X, df_y, df_X_test, model_config)
                     elif algo_type == "lc":
                         predict_labels_df[score_column_name] = train_predict_lc(df_X, df_y, df_X_test, model_config)
+                    elif algo_type == "svc":
+                        predict_labels_df[score_column_name] = train_predict_svc(df_X, df_y, df_X_test, model_config)
                     else:
                         print(f"ERROR: Unknown algorithm type {algo_type}. Check algorithm list.")
                         return
@@ -217,6 +219,7 @@ def main(config_file):
         #
         # Append predicted *rows* to the end of previous predicted rows
         #
+
         # Predictions for all labels and histories (and algorithms) have been generated for the iteration
         labels_hat_df = pd.concat([labels_hat_df, predict_labels_df])
 
@@ -239,7 +242,7 @@ def main(config_file):
     out_path = data_path / App.config.get("predict_file_name")
 
     print(f"Storing output file...")
-    out_df.to_csv(out_path, index=False)
+    out_df.to_csv(out_path.with_suffix(".csv"), index=False)
     print(f"Predictions stored in file: {out_path}. Length: {len(out_df)}. Columns: {len(out_df.columns)}")
 
     #
@@ -249,7 +252,7 @@ def main(config_file):
     # Alternatively, generate all score column names: score_column_name = label + "_k_" + history_name
     score_lines = []
     for score_column_name in labels_hat_df.columns:
-        label_column = score_column_name[0:-5]
+        label_column = score_column_name.rsplit('_', 1)[0]  # Remove algorithm suffix
 
         # Drop nans from scores
         df_scores = pd.DataFrame({"y_true": out_df[label_column], "y_predicted": out_df[score_column_name]})
