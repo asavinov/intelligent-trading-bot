@@ -83,6 +83,9 @@ def aggregate_score(df, signal_column: str, score_columns: List[str], point_thre
     Notes:
         - Input point-wise scores in buy and sell columns are always positive
     """
+    if isinstance(score_columns, str):
+        score_columns = [score_columns]
+
     #
     # Average all buy and sell columns
     #
@@ -349,6 +352,152 @@ def generate_signals(df, models: dict):
         df[signal] = df.apply(fn, axis=1, args=[model])
 
     return models.keys()
+
+
+#
+# Signal generation and performance computation
+#
+
+def generate_signal_columns(df, model, buy_score_column_avg, sell_score_column_avg):
+    """Use model parameters to convert predicted scores to buy/sell scores and buy/sell signal columns"""
+
+    # Produce boolean signal (buy and sell) columns from the current patience parameters
+    aggregate_score(df, 'buy_score_column', buy_score_column_avg, model.get("buy_point_threshold"),
+                    model.get("buy_window"))
+    aggregate_score(df, 'sell_score_column', sell_score_column_avg, model.get("sell_point_threshold"),
+                    model.get("sell_window"))
+
+    if model.get("combine") == "relative":
+        combine_scores_relative(df, 'buy_score_column', 'sell_score_column', 'buy_score_column', 'sell_score_column')
+    elif model.get("combine") == "difference":
+        combine_scores_difference(df, 'buy_score_column', 'sell_score_column', 'buy_score_column', 'sell_score_column')
+
+    #
+    # Experimental. Compute slope of the numeric score over model.get("buy_window") and model.get("sell_window")
+    #
+    from scipy import stats
+    from sklearn import linear_model
+    def linear_regr_fn(X):
+        """
+        Given a Series, fit a linear regression model and return its slope interpreted as a trend.
+        The sequence of values in X must correspond to increasing time in order for the trend to make sense.
+        """
+        X_array = np.asarray(range(len(X)))
+        y_array = X
+        if np.isnan(y_array).any():
+            nans = ~np.isnan(y_array)
+            X_array = X_array[nans]
+            y_array = y_array[nans]
+
+        # X_array = X_array.reshape(-1, 1)  # Make matrix
+        # model = linear_model.LinearRegression()
+        # model.fit(X_array, y_array)
+        # slope = model.coef_[0]
+
+        slope, intercept, r, p, se = stats.linregress(X_array, y_array)
+
+        return slope
+
+    # if 'buy_score_slope' not in df.columns:
+    #    w = 10  #model.get("buy_window")
+    #    df['buy_score_slope'] = df['buy_score_column'].rolling(window=w, min_periods=max(1, w // 2)).apply(linear_regr_fn, raw=True)
+    #    w = 10  #model.get("sell_window")
+    #    df['sell_score_slope'] = df['sell_score_column'].rolling(window=w, min_periods=max(1, w // 2)).apply(linear_regr_fn, raw=True)
+    # High score and low slope
+    # df['buy_signal_column'] = (df['buy_score_column'] >= model.get("buy_signal_threshold")) & (df['buy_score_slope'].abs() <= model.get("buy_slope_threshold"))
+    # df['sell_signal_column'] = (df['sell_score_column'] >= model.get("sell_signal_threshold")) & (df['sell_score_slope'].abs() <= model.get("sell_slope_threshold"))
+
+    # Final boolean signal using final thresholds
+    df['buy_signal_column'] = \
+        ((df['buy_score_column'] - df['sell_score_column']) > 0.0) & \
+        (df['buy_score_column'] >= model.get("buy_signal_threshold"))
+    df['sell_signal_column'] = \
+        ((df['sell_score_column'] - df['buy_score_column']) > 0.0) & \
+        (df['sell_score_column'] >= model.get("sell_signal_threshold"))
+
+    #
+    # TODO: End of two signal generation procedure (which has to be encapsulated)
+    #
+
+
+def simulated_trade_performance(df, sell_signal_column, buy_signal_column, price_column):
+    """
+    top_score_column: boolean, true if top is reached - sell signal
+    bot_score_column: boolean, true if bottom is reached - buy signal
+    price_column: numeric price for computing profit
+
+    return performance: tuple, long and short performance as a sum of differences between two transactions
+
+    The functions switches the mode and searches for the very first signal of the opposite score.
+    When found, it again switches the mode and searches for the very first signal of the opposite score.
+
+    Essentially, it is one pass of trade simulation with concrete parameters.
+    """
+    is_buy_mode = True
+
+    long_profit = 0
+    long_transactions = 0
+    long_profitable = 0
+    longs = list()  # Where we buy
+
+    short_profit = 0
+    short_transactions = 0
+    short_profitable = 0
+    shorts = list()  # Where we sell
+
+    # The order of columns is important for itertuples
+    df = df[[sell_signal_column, buy_signal_column, price_column]]
+    for (index, sell_signal, buy_signal, price) in df.itertuples(name=None):
+        if not price or pd.isnull(price):
+            continue
+        if is_buy_mode:
+            # Check if minimum price
+            if buy_signal:
+                profit = shorts[-1][2] - price if len(shorts) > 0 else 0
+                short_profit += profit
+                short_transactions += 1
+                if profit > 0:
+                    short_profitable += 1
+                longs.append((index, is_buy_mode, price, profit))  # Bought
+                is_buy_mode = False
+        else:
+            # Check if maximum price
+            if sell_signal:
+                profit = price - longs[-1][2] if len(longs) > 0 else 0
+                long_profit += profit
+                long_transactions += 1
+                if profit > 0:
+                    long_profitable += 1
+                shorts.append((index, is_buy_mode, price, profit))  # Sold
+                is_buy_mode = True
+
+    long_performance = dict(  # Performance of buy at low price and sell at high price
+        long_profit=long_profit,
+        long_transactions=long_transactions,
+        long_profitable=long_profitable / long_transactions if long_transactions else 0.0,
+        longs=longs,  # Buy signals
+    )
+    short_performance = dict(  # Performance of sell at high price and buy at low price
+        short_profit=short_profit,
+        short_transactions=short_transactions,
+        short_profitable=short_profitable / short_transactions if short_transactions else 0.0,
+        shorts=shorts,  # Sell signals
+    )
+
+    profit = long_performance['long_profit'] + short_performance['short_profit']
+    transactions = long_performance['long_transactions'] + short_performance['short_transactions']
+    profitable = long_profitable + short_profitable
+    minutes_in_month = 1440 * 30.5
+    performance = dict(
+        profit_per_month=profit / (len(df) / minutes_in_month),
+        profit_per_transaction=profit / transactions if transactions else 0.0,
+        profitable=profitable / transactions if transactions else 0.0,
+        transactions_per_month=transactions / (len(df) / minutes_in_month),
+        #transactions=transactions,
+        #profit=profit,
+    )
+
+    return performance, long_performance, short_performance
 
 
 if __name__ == '__main__':

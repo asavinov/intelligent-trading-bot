@@ -10,7 +10,6 @@ from sklearn.model_selection import ParameterGrid
 
 from service.App import *
 from common.classifiers import *
-
 from common.label_generation_topbot import *
 from common.signal_generation import *
 
@@ -43,18 +42,15 @@ assuming only the necessary columns for predicted label scores and trade columns
 class P:
     in_nrows = 100_000_000
 
-    start_index = 200_000
+    start_index = 0  # 200_000 for 1m btc
     end_index = None
-    # TODO: currently not used
-    simulation_start = 263519   # Good start is 2019-06-01 - after it we have stable movement
-    simulation_end = -0  # After 2020-11-01 there is sharp growth which we might want to exclude
 
     # True if buy and sell hyper-parameters are equal
     # Only buy parameters will be used and sell parameters will be ignored
-    buy_sell_equal = False
+    buy_sell_equal = True
 
     # Haw many best performing parameters from the grid to store
-    topn_to_store = 20
+    topn_to_store = 3
 
 #
 # Specify the ranges of signal hyper-parameters
@@ -77,7 +73,7 @@ grid_signals = [
         "sell_signal_threshold": [0.3, 0.31, 0.32, 0.33, 0.34, 0.35, 0.36, 0.37, 0.38, 0.39, 0.4, 0.41, 0.42, 0.43, 0.44, 0.45, 0.46, 0.47, 0.48, 0.49, 0.5, 0.51, 0.52, 0.53, 0.54, 0.55, 0.56, 0.57, 0.58, 0.59, 0.6],
         "sell_slope_threshold": [None],
 
-        "combine": ["no_combine"],  # "no_combine", "difference" (same as no combine or better), "relative" (rather bad)
+        "combine": ["no_combine", "difference", "relative"],  # "no_combine", "difference" (same as no combine or better), "relative" (rather bad)
     },
 ]
 
@@ -131,7 +127,7 @@ def main(config_file):
 
     # Limit size according to parameters start_index end_index
     df = df.iloc[P.start_index:P.end_index]
-    df = df.reset_index()
+    df = df.reset_index(drop=True)
 
     #
     # Find maximum performance possible based on true labels only
@@ -150,8 +146,10 @@ def main(config_file):
     #
     buy_labels = App.config["buy_labels"]
     sell_labels = App.config["sell_labels"]
-    # TODO: Check the existence of these labels in the input file
-    #   Check also the existence of some necessary columns like close
+    if set(buy_labels + sell_labels) - set(df.columns):
+        missing_labels = list(set(buy_labels + sell_labels) - set(df.columns))
+        print(f"ERROR: Some buy/sell labels from config are not present in the input data. Missing labels: {missing_labels}")
+        return
 
     buy_score_column_avg = 'buy_score_column_avg'
     sell_score_column_avg = 'sell_score_column_avg'
@@ -166,7 +164,7 @@ def main(config_file):
         grid_signals[0]["sell_slope_threshold"] = [None]
 
     performances = list()
-    for model in tqdm(ParameterGrid(grid_signals)):
+    for model in tqdm(ParameterGrid(grid_signals), desc="MODELS"):
         #
         # If equal parameters, then use the first group
         #
@@ -177,61 +175,9 @@ def main(config_file):
             model["sell_slope_threshold"] = model["buy_slope_threshold"]
 
         #
-        # Generate two boolean signal columns from two groups of point-wise score columns using signal model
-        # Exactly same procedure has to be used in on-line signal generation by the service
-        # It should work for all kinds of point-wise predictions: high-low, top-bottom etc.
-        # TODO: We need to encapsulate this step so that it can be re-used in the same form in the service
-        #   For example, introduce a higher level function which takes all possible hyper-parameters and then makes these calls and returns two binary signal columns
-        #   We need to introduce a signal model. In the service, we transform two groups to two signal scores, and then apply final trade threshold and notification threshold.
-
-        # Produce boolean signal (buy and sell) columns from the current patience parameters
-        aggregate_score(df, 'buy_score_column', [buy_score_column_avg], model.get("buy_point_threshold"), model.get("buy_window"))
-        aggregate_score(df, 'sell_score_column', [sell_score_column_avg], model.get("sell_point_threshold"), model.get("sell_window"))
-
-        if model.get("combine") == "relative":
-            combine_scores_relative(df, 'buy_score_column', 'sell_score_column', 'buy_score_column', 'sell_score_column')
-        elif model.get("combine") == "difference":
-            combine_scores_difference(df, 'buy_score_column', 'sell_score_column', 'buy_score_column', 'sell_score_column')
-
+        # Add two pairs of columns: buy_score_column/sell_score_column and buy_signal_column/sell_signal_column
         #
-        # Experimental. Compute slope of the numeric score over model.get("buy_window") and model.get("sell_window")
-        #
-        from scipy import stats
-        from sklearn import linear_model
-        def linear_regr_fn(X):
-            """
-            Given a Series, fit a linear regression model and return its slope interpreted as a trend.
-            The sequence of values in X must correspond to increasing time in order for the trend to make sense.
-            """
-            X_array = np.asarray(range(len(X)))
-            y_array = X
-            if np.isnan(y_array).any():
-                nans = ~np.isnan(y_array)
-                X_array = X_array[nans]
-                y_array = y_array[nans]
-
-            #X_array = X_array.reshape(-1, 1)  # Make matrix
-            #model = linear_model.LinearRegression()
-            #model.fit(X_array, y_array)
-            #slope = model.coef_[0]
-
-            slope, intercept, r, p, se = stats.linregress(X_array, y_array)
-
-            return slope
-
-        #if 'buy_score_slope' not in df.columns:
-        #    w = 10  #model.get("buy_window")
-        #    df['buy_score_slope'] = df['buy_score_column'].rolling(window=w, min_periods=max(1, w // 2)).apply(linear_regr_fn, raw=True)
-        #    w = 10  #model.get("sell_window")
-        #    df['sell_score_slope'] = df['sell_score_column'].rolling(window=w, min_periods=max(1, w // 2)).apply(linear_regr_fn, raw=True)
-
-        # Final boolean signal using final thresholds
-        df['buy_signal_column'] = df['buy_score_column'] >= model.get("buy_signal_threshold")
-        df['sell_signal_column'] = df['sell_score_column'] >= model.get("sell_signal_threshold")
-
-        # High score and low slope
-        #df['buy_signal_column'] = (df['buy_score_column'] >= model.get("buy_signal_threshold")) & (df['buy_score_slope'].abs() <= model.get("buy_slope_threshold"))
-        #df['sell_signal_column'] = (df['sell_score_column'] >= model.get("sell_signal_threshold")) & (df['sell_score_slope'].abs() <= model.get("sell_slope_threshold"))
+        generate_signal_columns(df, model, buy_score_column_avg, sell_score_column_avg)
 
         #
         # Simulate trade using close price and two boolean signals
@@ -274,7 +220,7 @@ def main(config_file):
     #
     # Store simulation parameters and performance
     #
-    out_path = (out_path / App.config.get("signal_file_name")).with_suffix(".txt").resolve()
+    out_path = (out_path / App.config.get("signal_models_file_name")).with_suffix(".txt").resolve()
 
     if out_path.is_file():
         add_header = False
@@ -290,84 +236,6 @@ def main(config_file):
 
     elapsed = datetime.now() - now
     print(f"Finished simulation in {str(elapsed).split('.')[0]}")
-
-
-def simulated_trade_performance(df, sell_signal_column, buy_signal_column, price_column):
-    """
-    top_score_column: boolean, true if top is reached - sell signal
-    bot_score_column: boolean, true if bottom is reached - buy signal
-    price_column: numeric price for computing profit
-
-    return performance: tuple, long and short performance as a sum of differences between two transactions
-
-    The functions switches the mode and searches for the very first signal of the opposite score.
-    When found, it again switches the mode and searches for the very first signal of the opposite score.
-
-    Essentially, it is one pass of trade simulation with concrete parameters.
-    """
-    is_buy_mode = True
-
-    long_profit = 0
-    long_transactions = 0
-    long_profitable = 0
-    longs = list()
-
-    short_profit = 0
-    short_transactions = 0
-    short_profitable = 0
-    shorts = list()
-
-    # The order of columns is important for itertuples
-    df = df[[sell_signal_column, buy_signal_column, price_column]]
-    for (index, top_score, bot_score, price) in df.itertuples(name=None):
-        if is_buy_mode:
-            # Check if minimum price
-            if bot_score:
-                profit = longs[-1][2] - price if len(longs) > 0 else 0
-                short_profit += profit
-                short_transactions += 1
-                if profit > 0:
-                    short_profitable += 1
-                shorts.append((index, is_buy_mode, price, profit))  # Bought
-                is_buy_mode = False
-        else:
-            # Check if maximum price
-            if top_score:
-                profit = price - shorts[-1][2] if len(shorts) > 0 else 0
-                long_profit += profit
-                long_transactions += 1
-                if profit > 0:
-                    long_profitable += 1
-                longs.append((index, is_buy_mode, price, profit))  # Sold
-                is_buy_mode = True
-
-    long_performance = dict(
-        long_profit=long_profit,
-        long_transactions=long_transactions,
-        long_profitable=long_profitable / long_transactions if long_transactions else 0.0,
-        #longs=longs,
-    )
-    short_performance = dict(
-        short_profit=short_profit,
-        short_transactions=short_transactions,
-        short_profitable=short_profitable / short_transactions if short_transactions else 0.0,
-        #shorts=shorts,
-    )
-
-    profit = long_performance['long_profit'] + short_performance['short_profit']
-    transactions = long_performance['long_transactions'] + short_performance['short_transactions']
-    profitable = long_profitable + short_profitable
-    minutes_in_month = 1440 * 30.5
-    performance = dict(
-        profit_per_month=profit / (len(df) / minutes_in_month),
-        profit_per_transaction=profit / transactions if transactions else 0.0,
-        profitable=profitable / transactions if transactions else 0.0,
-        transactions_per_month=transactions / (len(df) / minutes_in_month),
-        #transactions=transactions,
-        #profit=profit,
-    )
-
-    return performance, long_performance, short_performance
 
 
 if __name__ == '__main__':
