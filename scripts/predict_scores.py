@@ -114,7 +114,7 @@ def main(config_file):
         elif algo_type == "svc":
             df_y_hat = predict_svc(model_pair, train_df, model_config)
         else:
-            raise ValueError(f"Unknown column name algorithm suffix {score_column_name[-3:]}. Currently only '_gb', '_nn', '_lc' are supported.")
+            raise ValueError(f"Unknown algorithm type '{algo_type}'")
 
         if labels_present:
             scores[score_column_name] = compute_scores(df[label], df_y_hat)

@@ -360,19 +360,26 @@ class Analyzer:
         score_df = pd.DataFrame(index=predict_df.index)
         try:
             for score_column_name, model_pair in self.models.items():
-                if score_column_name.endswith("_gb"):
+
+                label, algo_name = score_to_label_algo_pair(score_column_name)
+                model_config = get_model(algo_name)  # Get algorithm description from the algo store
+                algo_type = model_config.get("algo")
+
+                if algo_type == "gb":
                     df_y_hat = predict_gb(model_pair, predict_df, get_model("gb"))
-                elif score_column_name.endswith("_nn"):
+                elif algo_type == "nn":
                     df_y_hat = predict_nn(model_pair, predict_df, get_model("nn"))
-                elif score_column_name.endswith("_lc"):
+                elif algo_type == "lc":
                     df_y_hat = predict_lc(model_pair, predict_df, get_model("lc"))
-                elif score_column_name.endswith("_svc"):
+                elif algo_type == "svc":
                     df_y_hat = predict_svc(model_pair, predict_df, get_model("svc"))
                 else:
-                    raise ValueError(f"Unknown column name algorithm suffix {score_column_name[-3:]}. Currently only '_gb', '_nn', '_lc' are supported.")
+                    raise ValueError(f"Unknown algorithm type '{algo_type}'")
+
                 score_df[score_column_name] = df_y_hat
+
         except Exception as e:
-            log.error(f"Error in predict: {e}. {score_column_name=}")
+            log.error(f"Error in predict: {e}. Failed '{score_column_name=}'")
             return
 
         # This df contains only one (last) record
