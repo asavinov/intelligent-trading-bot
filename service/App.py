@@ -78,7 +78,8 @@ class App:
         "feature_file_name": "features",
         "matrix_file_name": "matrix",
         "predict_file_name": "predictions",  # predict, predict-rolling
-        "signal_file_name": "performance",
+        "signal_file_name": "signals",
+        "signal_models_file_name": "signal_models",
 
         "time_column": "timestamp",
 
