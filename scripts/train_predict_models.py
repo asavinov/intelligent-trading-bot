@@ -67,7 +67,7 @@ def main(config_file):
     out_columns = ['timestamp', 'open', 'high', 'low', 'close', 'volume', 'close_time']
     out_columns = [x for x in out_columns if x in df.columns]
     all_features = train_features + labels
-    df = df[all_features + out_columns]
+    df = df[out_columns + all_features]
 
     for label in labels:
         # "category" NN does not work without this (note that we assume a classification task here)
@@ -142,13 +142,13 @@ def main(config_file):
     #
     # Store all collected models in files
     #
-    out_path = data_path / "MODELS"
-    out_path.mkdir(parents=True, exist_ok=True)  # Ensure that folder exists
+    model_path = data_path / "MODELS"
+    model_path.mkdir(parents=True, exist_ok=True)  # Ensure that folder exists
 
     for score_column_name, model_pair in models.items():
-        save_model_pair(out_path, score_column_name, model_pair)
+        save_model_pair(model_path, score_column_name, model_pair)
 
-    print(f"Models stored in path: {out_path.absolute()}")
+    print(f"Models stored in path: {model_path.absolute()}")
 
     #
     # Store scores
@@ -158,8 +158,8 @@ def main(config_file):
         line = score_column_name + ", " + str(score)
         lines.append(line)
 
-    metrics_file_name = f"metrics.txt"
-    metrics_path = (out_path / metrics_file_name).resolve()
+    metrics_file_name = f"prediction-metrics.txt"
+    metrics_path = (data_path / metrics_file_name).resolve()
     with open(metrics_path, 'a+') as f:
         f.write("\n".join(lines) + "\n\n")
 
@@ -169,7 +169,7 @@ def main(config_file):
     # Store predictions if necessary
     #
     if P.store_predictions:
-        # We do not store features. Only selected original data, labels, and their predictions
+        # Store only selected original data, labels, and their predictions
         out_df = out_df.join(df[out_columns + labels])
 
         out_path = data_path / App.config.get("predict_file_name")

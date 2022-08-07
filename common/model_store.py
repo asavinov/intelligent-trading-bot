@@ -79,7 +79,7 @@ def score_to_label_algo_pair(score_column_name: str):
     Parse a score column name and return its two constituents: label column name and algorithm name.
     """
     # Return split from right, because underscore occurs also in label names
-    algo_name, label_name = score_column_name.rsplit(label_algo_separator, 1)
+    label_name, algo_name = score_column_name.rsplit(label_algo_separator, 1)
     return label_name, algo_name
 
 
