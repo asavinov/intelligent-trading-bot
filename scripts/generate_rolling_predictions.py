@@ -159,7 +159,7 @@ def main(config_file):
                         model_config = get_model(algo_name)
                         algo_type = model_config.get("algo")
                         algo_train_length = model_config.get("train", {}).get("length")
-                        score_column_name = label + "_" + algo_name
+                        score_column_name = label + label_algo_separator + algo_name
 
                         # Limit length according to algorith parameters
                         if algo_train_length and algo_train_length < train_length:
@@ -193,7 +193,7 @@ def main(config_file):
                     model_config = get_model(algo_name)
                     algo_type = model_config.get("algo")
                     algo_train_length = model_config.get("train", {}).get("length")
-                    score_column_name = label + "_" + algo_name
+                    score_column_name = label + label_algo_separator + algo_name
 
                     # Limit length according to algorith parameters
                     if algo_train_length and algo_train_length < train_length:
@@ -249,10 +249,9 @@ def main(config_file):
     # Compute accuracy for the whole data set (all segments)
     #
 
-    # Alternatively, generate all score column names: score_column_name = label + "_k_" + history_name
     score_lines = []
     for score_column_name in labels_hat_df.columns:
-        label_column = score_column_name.rsplit('_', 1)[0]  # Remove algorithm suffix
+        label_column, _ = score_to_label_algo_pair(score_column_name)
 
         # Drop nans from scores
         df_scores = pd.DataFrame({"y_true": out_df[label_column], "y_predicted": out_df[score_column_name]})

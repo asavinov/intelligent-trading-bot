@@ -105,7 +105,7 @@ def main(config_file):
             model_config = get_model(algo_name)  # Get algorithm description from the algo store
             algo_type = model_config.get("algo")
             algo_train_length = model_config.get("train", {}).get("length")
-            score_column_name = label + "_" + algo_name
+            score_column_name = label + label_algo_separator + algo_name
 
             # Limit length according to the algorith parameters
             if algo_train_length and algo_train_length < train_length:
@@ -175,7 +175,7 @@ def main(config_file):
         out_path = data_path / App.config.get("predict_file_name")
 
         print(f"Storing output file...")
-        out_df.to_csv(out_path.with_suffix(".csv"), index=False)
+        out_df.to_csv(out_path.with_suffix(".csv"), index=False, float_format='%.4f')
         print(f"Predictions stored in file: {out_path}. Length: {len(out_df)}. Columns: {len(out_df.columns)}")
 
     #

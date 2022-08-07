@@ -5,6 +5,9 @@ from joblib import dump, load
 
 from keras.models import Sequential, save_model, load_model
 
+label_algo_separator = "_"
+
+
 """
 It is a model stored implemented as a Python module.
 """
@@ -65,10 +68,19 @@ def load_models(model_path, labels: list, train_features: list, algorithms: list
     """Load all model pairs for all combinations of the model parameters and return as a dict."""
     models = {}
     for predicted_label in itertools.product(labels, train_features, algorithms):
-        score_column_name = predicted_label[0] + "_" + predicted_label[1][0] + "_" + predicted_label[2]
+        score_column_name = predicted_label[0] + label_algo_separator + predicted_label[1][0] + label_algo_separator + predicted_label[2]
         model_pair = load_model_pair(model_path, score_column_name)
         models[score_column_name] = model_pair
     return models
+
+
+def score_to_label_algo_pair(score_column_name: str):
+    """
+    Parse a score column name and return its two constituents: label column name and algorithm name.
+    """
+    # Return split from right, because underscore occurs also in label names
+    algo_name, label_name = score_column_name.rsplit(label_algo_separator, 1)
+    return label_name, algo_name
 
 
 models = [
