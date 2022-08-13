@@ -1,5 +1,7 @@
 import os
 import sys
+from datetime import timedelta, datetime
+
 import asyncio
 import requests
 
@@ -8,6 +10,8 @@ from common.utils import *
 
 import logging
 log = logging.getLogger('notifier')
+
+transaction_file = Path("transactions.txt")
 
 
 async def notify_telegram():
@@ -86,20 +90,20 @@ async def simulate_trade():
     sell_score = signal.get('sell_score')
     close_time = signal.get('close_time')
 
+    # Previous transaction: BUY (we are currently selling) or SELL (we are currently buying)
     t_status = App.transaction.get("status")
     t_price = App.transaction.get("price")
-    if signal_side == "BUY" and (not t_status or t_status == "BUYING"):
+    if signal_side == "BUY" and (not t_status or t_status == "SELL"):
         profit = t_price - close_price if t_price else 0.0
-        t_dict = dict(timestamp=str(close_time), price=close_price, profit=profit, status="SELLING")
-    elif signal_side == "SELL" and (not t_status or t_status == "SELLING"):
+        t_dict = dict(timestamp=str(close_time), price=close_price, profit=round(profit, 2), status="BUY")
+    elif signal_side == "SELL" and (not t_status or t_status == "BUY"):
         profit = close_price - t_price if t_price else 0.0
-        t_dict = dict(timestamp=str(close_time), price=close_price, profit=profit, status="BUYING")
+        t_dict = dict(timestamp=str(close_time), price=close_price, profit=round(profit, 2), status="SELL")
     else:
         return
 
     # Save this transaction
     App.transaction = t_dict
-    transaction_file = Path("transactions.txt")
     with open(transaction_file, 'a+') as f:
         f.write(",".join([str(v) for v in t_dict.values()]) + "\n")
 
