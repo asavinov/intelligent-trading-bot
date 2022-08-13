@@ -47,10 +47,10 @@ class P:
 
     # True if buy and sell hyper-parameters are equal
     # Only buy parameters will be used and sell parameters will be ignored
-    buy_sell_equal = True
+    buy_sell_equal = False
 
     # Haw many best performing parameters from the grid to store
-    topn_to_store = 3
+    topn_to_store = 10
 
 #
 # Specify the ranges of signal hyper-parameters
@@ -73,7 +73,7 @@ grid_signals = [
         "sell_signal_threshold": [0.3, 0.31, 0.32, 0.33, 0.34, 0.35, 0.36, 0.37, 0.38, 0.39, 0.4, 0.41, 0.42, 0.43, 0.44, 0.45, 0.46, 0.47, 0.48, 0.49, 0.5, 0.51, 0.52, 0.53, 0.54, 0.55, 0.56, 0.57, 0.58, 0.59, 0.6],
         "sell_slope_threshold": [None],
 
-        "combine": ["no_combine", "difference", "relative"],  # "no_combine", "difference" (same as no combine or better), "relative" (rather bad)
+        "combine": ["no_combine"],  # "no_combine", "difference" (same as no combine or better), "relative" (rather bad)
     },
 ]
 
@@ -200,6 +200,10 @@ def main(config_file):
     # Sort
     performances = sorted(performances, key=lambda x: x['performance']['profit_per_month'], reverse=True)
     performances = performances[:P.topn_to_store]
+
+    # TODO: Check that profit is correct for daily. Suspiciously large profits. Maybe express profit in %?
+    #  In performance simulation function, use frequency (instead of minutes in month)
+    # TODO: Do not store a list of trades returned by performance function - exclude
 
     # Column names (from one record)
     keys = list(performances[0]['model'].keys()) + \

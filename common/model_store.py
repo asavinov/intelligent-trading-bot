@@ -147,9 +147,7 @@ models = [
     {
         "name": "svc-y",
         "algo": "svc",
-        "params": {
-            "C": 0.5
-        },
+        "params": {"C": 10.0},  # , "gamma": 0.02
         "train": {"is_scale": True, "length": None, "shifts": []},
         "predict": {"length": 1440}
     },

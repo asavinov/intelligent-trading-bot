@@ -44,7 +44,10 @@ async def notify_telegram():
     # Notification logic:
     # 1. Trade signal in the case it is suggested to really buy or sell: BUY or SELL and one corresponding score
     # 2. Notification signal simply to provide information (separate criteria): both scores
-    # Icons: down: 📉, ⬇ ⬇️🔴 (red), up:  📈, ⬆,  ⬆️ ↗️ 🟢 (green)
+    # Icons:
+    # DOWN: 📉, ⬇ ⬇️↘️🔴 (red), ▼ (red), ↘ (red)
+    # UP:  📈, ⬆,  ⬆️ ↗️ 🟢 (green) ▲ (green), ↗ (green)
+    # ✅
     message = ""
     if signal_side == "BUY":
         score_steps = (np.abs(buy_score - buy_signal_threshold) // trade_icon_step) if trade_icon_step else 0
@@ -91,9 +94,9 @@ async def notify_telegram():
     profit, profit_percent, profit_descr, profit_percent_descr = await generate_transaction_stats()
 
     if transaction.get("status") == "SELL":
-        message = "✅💰 *SOLD: "
+        message = "⚡💰 *SOLD: "
     elif transaction.get("status") == "BUY":
-        message = "✅💰 *BOUGHT: "
+        message = "⚡💰 *BOUGHT: "
     else:
         log.error(f"ERROR: Should not happen")
 
@@ -112,9 +115,9 @@ async def notify_telegram():
     # Send stats about previous transactions (including this one)
     #
     if transaction.get("status") == "SELL":
-        message = "📌⬆ *LONG transactions stats (4 weeks)*\n"
+        message = "📌↗ *LONG transactions stats (4 weeks)*\n"
     elif transaction.get("status") == "BUY":
-        message = "📌⬇ *SHORT transactions stats (4 weeks)*\n"
+        message = "📌↘ *SHORT transactions stats (4 weeks)*\n"
     else:
         log.error(f"ERROR: Should not happen")
 

@@ -386,8 +386,6 @@ class Analyzer:
         df = df.join(score_df)
         #df = pd.concat([predict_df, score_df], axis=1)
 
-        row = df.iloc[-1]  # Last row used for decisions
-
         #
         # 4.
         # Generate buy/sell signals using the signal model parameters
@@ -404,6 +402,8 @@ class Analyzer:
             combine_scores_relative(df, 'buy_score_column', 'sell_score_column', 'buy_score_column', 'sell_score_column')
         elif model.get("combine") == "difference":
             combine_scores_difference(df, 'buy_score_column', 'sell_score_column', 'buy_score_column', 'sell_score_column')
+
+        row = df.iloc[-1]  # Last row used for decisions
 
         buy_score = row["buy_score_column"]
         sell_score = row["sell_score_column"]
