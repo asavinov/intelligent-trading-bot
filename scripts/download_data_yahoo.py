@@ -25,7 +25,6 @@ def main(config_file):
         return
 
     now = datetime.now()
-    today = date.today()
 
     data_sources = App.config["data_sources"]
     for ds in data_sources:
@@ -83,7 +82,6 @@ def main(config_file):
         print(f"Stored in '{in_file_path}'")
 
     elapsed = datetime.now() - now
-    #print(f"Finished downloading data in {int(elapsed.total_seconds())} seconds.")
     print(f"Finished downloading data in {str(elapsed).split('.')[0]}")
 
     return df

@@ -51,66 +51,72 @@ def main(config_file):
     """
     load_config(config_file)
 
-    symbol = App.config["symbol"]
-    freq = "1m"
-    save = True
-    futures = False
-    data_path = Path(App.config["data_folder"]) / symbol
+    time_column = App.config["time_column"]
+
+    data_path = Path(App.config["data_folder"])
     if not data_path.is_dir():
         print(f"Data folder does not exist: {data_path}")
         return
 
+    now = datetime.now()
+
+    freq = "1m"
+    save = True
+
+    futures = False
     if futures:
         App.client.API_URL = "https://fapi.binance.com/fapi"
         App.client.PRIVATE_API_VERSION = "v1"
         App.client.PUBLIC_API_VERSION = "v1"
 
-    start_dt = datetime.now()
-    print(f"Start downloading klines...")
+    data_sources = App.config["data_sources"]
+    for ds in data_sources:
+        # Assumption: folder name is equal to the symbol name we want to download
+        quote = ds.get("folder")
+        if not quote:
+            print(f"ERROR. Folder is not specified.")
+            continue
 
-    print(f"Downloader parameters. Symbol {symbol}. Frequency: {freq}. Save: {save}. Futures: {futures}.")
+        print(f"Start downloading '{quote}' ...")
 
-    if futures:
-        filename = f"futures.csv"
-    else:
-        filename = f"klines.csv"
-    file_path = (data_path / filename).resolve()
+        file_path = (data_path / quote / ("futures" if futures else "klines")).with_suffix(".csv")
 
-    if file_path.is_file():
-        data_df = pd.read_csv(file_path)
-        data_df['timestamp'] = pd.to_datetime(data_df['timestamp'])
-        print(f"File found. Downloaded data will be appended to the existing file {file_path}")
-    else:
-        data_df = pd.DataFrame()
-        print(f"File not found. All data will be downloaded and stored in newly created file.")
+        if file_path.is_file():
+            data_df = pd.read_csv(file_path)
+            data_df[time_column] = pd.to_datetime(data_df[time_column])
+            print(f"File found. Downloaded data will be appended to the existing file {file_path}")
+        else:
+            data_df = pd.DataFrame()
+            print(f"File not found. All data will be downloaded and stored in newly created file.")
 
-    oldest_point, newest_point = minutes_of_new_data(symbol, freq, data_df)
+        oldest_point, newest_point = minutes_of_new_data(quote, freq, data_df)
 
-    delta_min = (newest_point - oldest_point).total_seconds() / 60
+        delta_min = (newest_point - oldest_point).total_seconds() / 60
 
-    available_data = math.ceil(delta_min / binsizes[freq])
+        available_data = math.ceil(delta_min / binsizes[freq])
 
-    if oldest_point == datetime.strptime('1 Jan 2017', '%d %b %Y'):
-        print('Downloading all available %s data for %s. Be patient..!' % (freq, symbol))
-    else:
-        print('Downloading %d minutes of new data available for %s, i.e. %d instances of %s data.' % (delta_min, symbol, available_data, freq))
+        if oldest_point == datetime.strptime('1 Jan 2017', '%d %b %Y'):
+            print('Downloading all available %s data for %s. Be patient..!' % (freq, quote))
+        else:
+            print('Downloading %d minutes of new data available for %s, i.e. %d instances of %s data.' % (delta_min, quote, available_data, freq))
 
-    klines = App.client.get_historical_klines(
-        symbol,
-        freq,
-        oldest_point.strftime("%d %b %Y %H:%M:%S"),
-        newest_point.strftime("%d %b %Y %H:%M:%S")
-    )
+        # === Download from the remote server
+        klines = App.client.get_historical_klines(
+            quote,
+            freq,
+            oldest_point.strftime("%d %b %Y %H:%M:%S"),
+            newest_point.strftime("%d %b %Y %H:%M:%S")
+        )
 
-    data_df = klines_to_df(klines, data_df)
+        data_df = klines_to_df(klines, data_df)
 
-    if save:
-        data_df.to_csv(file_path)
+        if save:
+            data_df.to_csv(file_path)
 
-    print('All caught up..!')
+        print(f"Finished downloading '{quote}'. Stored in '{file_path}'")
 
-    elapsed = datetime.now() - start_dt
-    print(f"Finished downloading data in {int(elapsed.total_seconds())} seconds.")
+    elapsed = datetime.now() - now
+    print(f"Finished downloading data in {str(elapsed).split('.')[0]}")
 
     return data_df
 
