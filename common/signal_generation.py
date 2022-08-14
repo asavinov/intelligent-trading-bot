@@ -436,11 +436,13 @@ def simulated_trade_performance(df, sell_signal_column, buy_signal_column, price
     is_buy_mode = True
 
     long_profit = 0
+    long_profit_percent = 0
     long_transactions = 0
     long_profitable = 0
     longs = list()  # Where we buy
 
     short_profit = 0
+    short_profit_percent = 0
     short_transactions = 0
     short_profitable = 0
     shorts = list()  # Where we sell
@@ -453,48 +455,62 @@ def simulated_trade_performance(df, sell_signal_column, buy_signal_column, price
         if is_buy_mode:
             # Check if minimum price
             if buy_signal:
-                profit = shorts[-1][2] - price if len(shorts) > 0 else 0
+                previous_price = shorts[-1][2] if len(shorts) > 0 else 0.0
+                profit = (previous_price - price) if previous_price > 0 else 0.0
+                profit_percent = 100.0 * profit / previous_price if previous_price > 0 else 0.0
                 short_profit += profit
+                short_profit_percent += profit_percent
                 short_transactions += 1
                 if profit > 0:
                     short_profitable += 1
-                longs.append((index, is_buy_mode, price, profit))  # Bought
+                longs.append((index, is_buy_mode, price, profit, profit_percent))  # Bought
                 is_buy_mode = False
         else:
             # Check if maximum price
             if sell_signal:
-                profit = price - longs[-1][2] if len(longs) > 0 else 0
+                previous_price = longs[-1][2] if len(longs) > 0 else 0.0
+                profit = (price - previous_price) if previous_price > 0 else 0.0
+                profit_percent = 100.0 * profit / previous_price if previous_price > 0 else 0.0
                 long_profit += profit
+                long_profit_percent += profit_percent
                 long_transactions += 1
                 if profit > 0:
                     long_profitable += 1
-                shorts.append((index, is_buy_mode, price, profit))  # Sold
+                shorts.append((index, is_buy_mode, price, profit, profit_percent))  # Sold
                 is_buy_mode = True
 
     long_performance = dict(  # Performance of buy at low price and sell at high price
         profit=long_profit,
+        profit_percent=long_profit_percent,
         transaction_no=long_transactions,
         profitable=long_profitable / long_transactions if long_transactions else 0.0,
         transactions=longs,  # Buy signal list
     )
     short_performance = dict(  # Performance of sell at high price and buy at low price
         profit=short_profit,
+        profit_percent=short_profit_percent,
         transaction_no=short_transactions,
         profitable=short_profitable / short_transactions if short_transactions else 0.0,
         transactions=shorts,  # Sell signal list
     )
 
-    profit = long_performance['profit'] + short_performance['profit']
-    transaction_no = long_performance['transaction_no'] + short_performance['transaction_no']
-    profitable = long_profitable + short_profitable
-    minutes_in_month = 1440 * 30.5
+    profit = long_profit + short_profit
+    profit_percent = long_profit_percent + short_profit_percent
+    transaction_no = long_transactions + short_transactions
+    profitable = (long_profitable + short_profitable) / transaction_no
+    #minutes_in_month = 1440 * 30.5
     performance = dict(
-        profit_per_month=profit / (len(df) / minutes_in_month),
+        profit=profit,
+        profit_percent=profit_percent,
+        transaction_no=transaction_no,
+        profitable=profitable,
+
         profit_per_transaction=profit / transaction_no if transaction_no else 0.0,
-        profitable=profitable / transaction_no if transaction_no else 0.0,
-        transactions_per_month=transaction_no / (len(df) / minutes_in_month),
+        profitable_percent=100.0 * profitable / transaction_no if transaction_no else 0.0,
         #transactions=transactions,
         #profit=profit,
+        #profit_per_month=profit / (len(df) / minutes_in_month),
+        #transactions_per_month=transaction_no / (len(df) / minutes_in_month),
     )
 
     return performance, long_performance, short_performance

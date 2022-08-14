@@ -116,14 +116,14 @@ def main(config_file):
     df.loc[short_df.index, "sell_signal"] = True
     df.loc[short_df.index, "signal"] = "SELL"
 
-    df["profit_long"] = 0.0
-    df["profit_short"] = 0.0
-    df["profit"] = 0.0
-    df.update(short_df[3].rename("profit_long"))
-    df.update(long_df[3].rename("profit_short"))
+    df["profit_long_percent"] = 0.0
+    df["profit_short_percent"] = 0.0
+    df["profit_percent"] = 0.0
+    df.update(short_df[4].rename("profit_long_percent"))
+    df.update(long_df[4].rename("profit_short_percent"))
 
-    df.update(short_df[3].rename("profit"))
-    df.update(long_df[3].rename("profit"))
+    df.update(short_df[4].rename("profit_percent"))
+    df.update(long_df[4].rename("profit_percent"))
 
     # TODO: Include true labels and performance/signals on true labels
 
@@ -134,7 +134,7 @@ def main(config_file):
         "timestamp", "open", "high", "low", "close",
         "buy_score_column_avg", "sell_score_column_avg",
         "buy_score_column", "sell_score_column", "buy_signal_column", "sell_signal_column",
-        "buy_signal", "sell_signal", "signal", "profit_long", "profit_short", "profit"
+        "buy_signal", "sell_signal", "signal", "profit_long_percent", "profit_short_percent", "profit_percent"
     ]
     out_df = df[out_columns]
 

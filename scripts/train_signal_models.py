@@ -163,6 +163,8 @@ def main(config_file):
         grid_signals[0]["sell_signal_threshold"] = [None]
         grid_signals[0]["sell_slope_threshold"] = [None]
 
+    months_in_simulation = (df[time_column].iloc[-1] - df[time_column].iloc[0]) / timedelta(days=30.5)
+
     performances = list()
     for model in tqdm(ParameterGrid(grid_signals), desc="MODELS"):
         #
@@ -186,15 +188,24 @@ def main(config_file):
         performance, long_performance, short_performance = \
             simulated_trade_performance(df, 'sell_signal_column', 'buy_signal_column', 'close')
 
-        # Remove lists of transactions which are not needed
+        # Remove some items. Remove lists of transactions which are not needed
         long_performance.pop('transactions', None)
         short_performance.pop('transactions', None)
 
+        # Add some metrics. Add per month metrics
+        performance["profit_percent_per_month"] = performance["profit_percent"] / months_in_simulation
+        performance["transaction_no_per_month"] = performance["transaction_no"] / months_in_simulation
+        performance["profit_percent_per_transaction"] = performance["profit_percent"] / performance["transaction_no"]
+        performance["profit_per_month"] = performance["profit"] / months_in_simulation
+
+        long_performance["profit_percent_per_month"] = long_performance["profit_percent"] / months_in_simulation
+        short_performance["profit_percent_per_month"] = short_performance["profit_percent"] / months_in_simulation
+
         performances.append(dict(
             model=model,
-            performance=performance,
-            long_performance=long_performance,
-            short_performance=short_performance
+            performance={k: performance[k] for k in ['profit_percent_per_month', 'profitable', 'profit_percent_per_transaction', 'transaction_no_per_month']},
+            long_performance={k: long_performance[k] for k in ['profit_percent_per_month', 'profitable']},
+            short_performance={k: short_performance[k] for k in ['profit_percent_per_month', 'profitable']}
         ))
 
     #
@@ -202,7 +213,7 @@ def main(config_file):
     #
 
     # Sort
-    performances = sorted(performances, key=lambda x: x['performance']['profit_per_month'], reverse=True)
+    performances = sorted(performances, key=lambda x: x['performance']['profit_percent_per_month'], reverse=True)
     performances = performances[:P.topn_to_store]
 
     # Column names (from one record)
@@ -217,7 +228,7 @@ def main(config_file):
                  list(p['performance'].values()) + \
                  list(p['long_performance'].values()) + \
                  list(p['short_performance'].values())
-        record = [f"{v:.3f}" if isinstance(v, float) else str(v) for v in record]
+        record = [f"{v:.2f}" if isinstance(v, float) else str(v) for v in record]
         record_str = ",".join(record)
         lines.append(record_str)
 
