@@ -472,27 +472,27 @@ def simulated_trade_performance(df, sell_signal_column, buy_signal_column, price
                 is_buy_mode = True
 
     long_performance = dict(  # Performance of buy at low price and sell at high price
-        long_profit=long_profit,
-        long_transactions=long_transactions,
-        long_profitable=long_profitable / long_transactions if long_transactions else 0.0,
-        longs=longs,  # Buy signals
+        profit=long_profit,
+        transaction_no=long_transactions,
+        profitable=long_profitable / long_transactions if long_transactions else 0.0,
+        transactions=longs,  # Buy signal list
     )
     short_performance = dict(  # Performance of sell at high price and buy at low price
-        short_profit=short_profit,
-        short_transactions=short_transactions,
-        short_profitable=short_profitable / short_transactions if short_transactions else 0.0,
-        shorts=shorts,  # Sell signals
+        profit=short_profit,
+        transaction_no=short_transactions,
+        profitable=short_profitable / short_transactions if short_transactions else 0.0,
+        transactions=shorts,  # Sell signal list
     )
 
-    profit = long_performance['long_profit'] + short_performance['short_profit']
-    transactions = long_performance['long_transactions'] + short_performance['short_transactions']
+    profit = long_performance['profit'] + short_performance['profit']
+    transaction_no = long_performance['transaction_no'] + short_performance['transaction_no']
     profitable = long_profitable + short_profitable
     minutes_in_month = 1440 * 30.5
     performance = dict(
         profit_per_month=profit / (len(df) / minutes_in_month),
-        profit_per_transaction=profit / transactions if transactions else 0.0,
-        profitable=profitable / transactions if transactions else 0.0,
-        transactions_per_month=transactions / (len(df) / minutes_in_month),
+        profit_per_transaction=profit / transaction_no if transaction_no else 0.0,
+        profitable=profitable / transaction_no if transaction_no else 0.0,
+        transactions_per_month=transaction_no / (len(df) / minutes_in_month),
         #transactions=transactions,
         #profit=profit,
     )

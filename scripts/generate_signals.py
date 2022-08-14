@@ -105,8 +105,8 @@ def main(config_file):
     #
     # Convert to columns: longs, shorts, signal, profit (both short and long)
     #
-    long_df = pd.DataFrame(long_performance.get("longs")).set_index(0, drop=True)
-    short_df = pd.DataFrame(short_performance.get("shorts")).set_index(0, drop=True)
+    long_df = pd.DataFrame(long_performance.get("transactions")).set_index(0, drop=True)
+    short_df = pd.DataFrame(short_performance.get("transactions")).set_index(0, drop=True)
     df["buy_signal"] = False
     df["sell_signal"] = False
     df["signal"] = None

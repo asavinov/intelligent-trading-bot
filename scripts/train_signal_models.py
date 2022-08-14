@@ -186,6 +186,10 @@ def main(config_file):
         performance, long_performance, short_performance = \
             simulated_trade_performance(df, 'sell_signal_column', 'buy_signal_column', 'close')
 
+        # Remove lists of transactions which are not needed
+        long_performance.pop('transactions', None)
+        short_performance.pop('transactions', None)
+
         performances.append(dict(
             model=model,
             performance=performance,
@@ -200,10 +204,6 @@ def main(config_file):
     # Sort
     performances = sorted(performances, key=lambda x: x['performance']['profit_per_month'], reverse=True)
     performances = performances[:P.topn_to_store]
-
-    # TODO: Check that profit is correct for daily. Suspiciously large profits. Maybe express profit in %?
-    #  In performance simulation function, use frequency (instead of minutes in month)
-    # TODO: Do not store a list of trades returned by performance function - exclude
 
     # Column names (from one record)
     keys = list(performances[0]['model'].keys()) + \
