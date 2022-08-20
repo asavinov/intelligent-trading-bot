@@ -497,7 +497,7 @@ def simulated_trade_performance(df, sell_signal_column, buy_signal_column, price
     profit = long_profit + short_profit
     profit_percent = long_profit_percent + short_profit_percent
     transaction_no = long_transactions + short_transactions
-    profitable = (long_profitable + short_profitable) / transaction_no
+    profitable = (long_profitable + short_profitable) / transaction_no if transaction_no else 0.0
     #minutes_in_month = 1440 * 30.5
     performance = dict(
         profit=profit,

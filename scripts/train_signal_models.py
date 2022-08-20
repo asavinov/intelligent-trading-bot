@@ -57,20 +57,15 @@ class P:
 #
 grid_signals = [
     {
-        "buy_point_threshold": [None], # + np.arange(0.02, 0.20, 0.01).tolist(),  # None means do not use
-        "buy_window": [3],  # [5, 6, 7, 8, 9, 10, 11, 12]
-        # [0.58, 0.59, 0.60, 0.61, 0.62, 0.63, 0.64, 0.65],
-        # 0.25, 0.26, 0.27, 0.28, 0.29, 0.3, 0.31, 0.32, 0.33, 0.34, 0.35, 0.36, 0.37, 0.38, 0.39, 0.4, 0.41, 0.42, 0.43, 0.44, 0.45, 0.46, 0.47, 0.48, 0.49, 0.5, 0.51, 0.52, 0.53, 0.54, 0.55],
-        # [0.58, 0.59, 0.60, 0.61, 0.62, 0.63, 0.64, 0.65
-        # [0.3, 0.31, 0.32, 0.33, 0.34, 0.35, 0.36, 0.37, 0.38, 0.39, 0.4, 0.41, 0.42, 0.43, 0.44, 0.45, 0.46, 0.47, 0.48, 0.49, 0.5, 0.51, 0.52, 0.53, 0.54, 0.55, 0.56, 0.57, 0.58, 0.59, 0.6]
-        "buy_signal_threshold": [0.3, 0.31, 0.32, 0.33, 0.34, 0.35, 0.36, 0.37, 0.38, 0.39, 0.4, 0.41, 0.42, 0.43, 0.44, 0.45, 0.46, 0.47, 0.48, 0.49, 0.5, 0.51, 0.52, 0.53, 0.54, 0.55, 0.56, 0.57, 0.58, 0.59, 0.6],
-        # 0.0005, 0.001, 0.002, 0.003, 0.004, 0.005, 0.006, 0.007, 0.008, 0.009, 0.010
+        "buy_point_threshold": [None], # np.arange(0.01, 0.21, 0.01).tolist(),  # None means do not use
+        "buy_window": [5],
+        "buy_signal_threshold": np.arange(0.15, 0.30, 0.01).tolist(),
         "buy_slope_threshold": [None],
 
         # If two groups are equal, then these values are ignored
-        "sell_point_threshold": [None], # + np.arange(0.02, 0.20, 0.01).tolist()
-        "sell_window": [3],
-        "sell_signal_threshold": [0.3, 0.31, 0.32, 0.33, 0.34, 0.35, 0.36, 0.37, 0.38, 0.39, 0.4, 0.41, 0.42, 0.43, 0.44, 0.45, 0.46, 0.47, 0.48, 0.49, 0.5, 0.51, 0.52, 0.53, 0.54, 0.55, 0.56, 0.57, 0.58, 0.59, 0.6],
+        "sell_point_threshold": [None],
+        "sell_window": [5],
+        "sell_signal_threshold": np.arange(0.15, 0.30, 0.01).tolist(),
         "sell_slope_threshold": [None],
 
         "combine": ["no_combine"],  # "no_combine", "difference" (same as no combine or better), "relative" (rather bad)
@@ -195,7 +190,7 @@ def main(config_file):
         # Add some metrics. Add per month metrics
         performance["profit_percent_per_month"] = performance["profit_percent"] / months_in_simulation
         performance["transaction_no_per_month"] = performance["transaction_no"] / months_in_simulation
-        performance["profit_percent_per_transaction"] = performance["profit_percent"] / performance["transaction_no"]
+        performance["profit_percent_per_transaction"] = performance["profit_percent"] / performance["transaction_no"] if performance["transaction_no"] else 0.0
         performance["profit_per_month"] = performance["profit"] / months_in_simulation
 
         long_performance["profit_percent_per_month"] = long_performance["profit_percent"] / months_in_simulation
