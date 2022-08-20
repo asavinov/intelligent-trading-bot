@@ -146,8 +146,6 @@ class App:
             "close_trend_10", "close_trend_60",
             "volume_trend_10", "volume_trend_60"
         ],
-        # algorithm descriptors from model store
-        "algorithms": ["lc"],  # gb, nn, lc - these are names from the model store which stores all the necessary parameters for each algorithm
 
         # Models (for each algorithm) will be trained for these target labels
         "labels": [
@@ -156,6 +154,9 @@ class App:
             #"low_01", "low_02", "low_03", "low_04", "low_05",
             "low_10", "low_15", "low_20", "low_25", "low_30"
         ],
+
+        # algorithm names defined in the model store
+        "algorithms": ["lc"],
 
         # ONLINE (PREDICTION) PARAMETERS
         # Minimum history length required to compute derived features

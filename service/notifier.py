@@ -45,9 +45,9 @@ async def notify_telegram():
     # 1. Trade signal in the case it is suggested to really buy or sell: BUY or SELL and one corresponding score
     # 2. Notification signal simply to provide information (separate criteria): both scores
     # Icons:
-    # DOWN: 📉, ⬇ ⬇️↘️🔴 (red), ▼ (red), ↘ (red)
-    # UP:  📈, ⬆,  ⬆️ ↗️ 🟢 (green) ▲ (green), ↗ (green)
-    # ✅
+    # DOWN: 📉, ⬇ ⬇️↘️🔴 (red), 🟥, ▼ (red), ↘ (red)
+    # UP:  📈, ⬆,  ⬆️ ↗️ 🟢 (green), 🟩, ▲ (green), ↗ (green)
+    # ✅ 🔹 (blue) 📌 🔸 (orange)
     message = ""
     if signal_side == "BUY":
         score_steps = (np.abs(buy_score - buy_signal_threshold) // trade_icon_step) if trade_icon_step else 0
@@ -115,15 +115,15 @@ async def notify_telegram():
     # Send stats about previous transactions (including this one)
     #
     if transaction.get("status") == "SELL":
-        message = "📌↗ *LONG transactions stats (4 weeks)*\n"
+        message = "↗ *LONG transactions stats (4 weeks)*\n"
     elif transaction.get("status") == "BUY":
-        message = "📌↘ *SHORT transactions stats (4 weeks)*\n"
+        message = "↘ *SHORT transactions stats (4 weeks)*\n"
     else:
         log.error(f"ERROR: Should not happen")
 
-    message += f"  sum {profit_percent_descr['count'] * profit_percent_descr['mean']:.2f}%, count {int(profit_percent_descr['count'])}\n"
-    message += f"  mean {profit_percent_descr['mean']:.2f}%, std {profit_percent_descr['std']:.2f}%\n"
-    message += f"  min {profit_percent_descr['min']:.2f}%, median {profit_percent_descr['50%']:.2f}%, max {profit_percent_descr['max']:.2f}%\n"
+    message += f"🔸sum={profit_percent_descr['count'] * profit_percent_descr['mean']:.2f}% 🔸count={int(profit_percent_descr['count'])}\n"
+    message += f"🔸mean={profit_percent_descr['mean']:.2f}% 🔸std={profit_percent_descr['std']:.2f}%\n"
+    message += f"🔸min={profit_percent_descr['min']:.2f}% 🔸median={profit_percent_descr['50%']:.2f}% 🔸max={profit_percent_descr['max']:.2f}%\n"
 
     try:
         url = 'https://api.telegram.org/bot' + bot_token + '/sendMessage?chat_id=' + chat_id + '&parse_mode=markdown&text=' + message
