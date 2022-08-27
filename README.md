@@ -70,8 +70,8 @@ If everything is configured then the following scripts have to be executed:
 * `python -m scripts.merge -c config.json`
 * `python -m scripts.features -c config.json`
 * `python -m scripts.labels -c config.json`
-* `python -m scripts.train_predict_models -c config.json`
-* `python -m scripts.train_signal_models -c config.json`
+* `python -m scripts.train -c config.json`
+* `python -m scripts.train_signals -c config.json`
 
 ## Downloading and merging source data
 
@@ -119,7 +119,7 @@ The list of labels to be generated is configured via ``label_sets`` list in the 
 ## Train prediction models
 
 This script uses the specified input features and labels to train several ML models:
-* Script: `python -m scripts.train_predict_models -c config.json`
+* Script: `python -m scripts.train -c config.json`
 * Hyper-parameter tuning is not part of this procedure - they are supposed to be known
 * The algorithm descriptions and hyper-parameters are specified in the model store
 * The results are stored as multiple model files in the model folder. File names are equal to the predicted column names and have this pattern: (label_name, algorithm_name)
@@ -135,7 +135,7 @@ Configuration:
 ## Train signal models
 
 This script simulates trades using many buy-sell signal parameters and then chooses the best performing signal parameters:
-* Script: `python -m scripts.train_signal_models -c config.json`
+* Script: `python -m scripts.train_signals -c config.json`
 
 # Prediction online based on trained models (service)
 
@@ -149,8 +149,8 @@ This script starts a service which periodically executes one and the same task: 
 There are two problems:
 * How to choose best hyper-parameters for ML models. This problem is solved in the classical way, e.g., by grid search. For example, for Gradient Boosting, we train the model on the same data using different hyper-parameters and then select those showing the best score. This approach has one drawback - we optimize it for the best score which is not trading performance. This means that the trading performance is not guaranteed to be good (and in fact it will not be good). Therefore, we use this score as an intermediate feature with the goal to optimize trading performance on later stages.
 * If we compute the final aggregated score (like +0.21), then the question is should we buy, sell or do nothing? In fact, it is the most difficult question. To help answer it, additional scripts were developed for backtesting and optimizing buy-sell signal generation:
-  * Generate rolling predictions which simulates what we do by regularly re-training the models and using them for prediction: `python -m scripts.generate_rolling_predictions -c config.json`
-  * Train signal models for choosing the best thresholds for sell-buy signals producing the best performance on historic data: `python -m scripts.train_signal_models -c config.json` 
+  * Generate rolling predictions which simulates what we do by regularly re-training the models and using them for prediction: `python -m scripts.predict_rolling -c config.json`
+  * Train signal models for choosing the best thresholds for sell-buy signals producing the best performance on historic data: `python -m scripts.train_signals -c config.json` 
 
 # Configuration parameters
 

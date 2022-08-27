@@ -61,12 +61,12 @@ Notes:
 
 ## Train prediction models
 
-Execute: `python -m scripts.train_predict_models -c config.json`
+Execute: `python -m scripts.train -c config.json`
 
 Parameters:
 * `symbol` pair to load
 * `data_folder` data folder
-* Hyper-parameters: currently specified in code in `train_predict_models.py`
+* Hyper-parameters: currently specified in code in `train.py`
 * Input: feature matrix
 * Output: train model files
 
@@ -79,12 +79,12 @@ Notes:
 
 ## Generate rolling predictions
 
-Execute: `python -m scripts.generate_rolling_predictions -c config.json`
+Execute: `python -m scripts.predict_rolling -c config.json`
 
 Parameters:
 * `symbol` pair to load
 * `data_folder` data folder
-* Hyper-parameters: currently specified in code in `generate_rolling_predictions.py`
+* Hyper-parameters: currently specified in code in `predict_rolling.py`
 * Input data: feature matrix
 * Output: data file with rolling predictions
 
@@ -102,12 +102,12 @@ Notes:
 
 ## Train signal models
 
-Execute: `python -m scripts.train_signal_models -c config.json`
+Execute: `python -m scripts.train_signals -c config.json`
 
 Parameters:
 * `symbol` pair to load
 * `data_folder` data folder
-* Hyper-parameters: currently specified in code in `generate_rolling_predictions.py`
+* Hyper-parameters: currently specified in code in `predict_rolling.py`
 * Input data: rolling predictions
 * Output: table with signal generation parameters and the corresponding performance
 
