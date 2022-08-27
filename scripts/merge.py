@@ -133,7 +133,7 @@ def main(config_file):
         ds["df"] = df
 
     # Merge in one df with prefixes and common regular time index
-    df_out = merge_data_frames(data_sources)
+    df_out = merge_data_sources(data_sources)
 
     #
     # Store file with features
@@ -151,7 +151,7 @@ def main(config_file):
     print(f"Output file location: {out_path.with_suffix('.csv')}")
 
 
-def merge_data_frames(data_sources: list):
+def merge_data_sources(data_sources: list):
 
     time_column = App.config["time_column"]
     freq = App.config["freq"]

@@ -66,10 +66,10 @@ Starting the service: `python3 -m service.server -c config.json`
 For the signaler service to work, a number of ML models must be trained and the model files available for the service. All scripts run in batch mode by loading some input data and storing some output files. The batch scripts are located in the `scripts` module.
 
 If everything is configured then the following scripts have to be executed:
-* `python -m scripts.download_data_binance -c config.json`
-* `python -m scripts.merge_data -c config.json`
-* `python -m scripts.generate_features -c config.json`
-* `python -m scripts.generate_labels -c config.json`
+* `python -m scripts.download_binance -c config.json`
+* `python -m scripts.merge -c config.json`
+* `python -m scripts.features -c config.json`
+* `python -m scripts.labels -c config.json`
 * `python -m scripts.train_predict_models -c config.json`
 * `python -m scripts.train_signal_models -c config.json`
 
@@ -77,16 +77,16 @@ If everything is configured then the following scripts have to be executed:
 
 The main configuration parameter for the both scripts is a list of sources in ``data_sources``.
 
-* Download the latest historic data: `python -m scripts.download_data_binance -c config.json`
+* Download the latest historic data: `python -m scripts.download_binance -c config.json`
   * It uses Binance API but you can use any other data source or download data manually using other scripts
 
-* Merge several historic datasets into one dataset: `python -m scripts.merge_data -c config.json`
+* Merge several historic datasets into one dataset: `python -m scripts.merge -c config.json`
   * This script solves two problems: 1) there could be other sources like depth data or futures 2) a data source may have gaps so we need to produce a regular time raster in the output file
 
 ## Generate features
 
 This script computes all derived features and labels defined programmatically:
-* Script: `python -m scripts.generate_features -c config.json`
+* Script: `python -m scripts.features -c config.json`
 * Currently it runs in non-incremental model by computing features for all available data (and not only for the latest update), and hence it may take hours for complex configurations
 * The script loads merged input data, applies feature generation procedures and stores a feature matrix with all derived features in an output file. 
 * Not all generated features will be used for analysis. 
@@ -110,7 +110,7 @@ Example new parameters
 ## Generate labels
 
 This script is similar to feature generation because it adds new columns to the input file. However, these columns describe something that we want to predict and what is not known in online model. For example, it could be price increase in future:
-* Script: `python -m scripts.generate_labels -c config.json`
+* Script: `python -m scripts.labels -c config.json`
 * The script loads feature matrix, computes label columns and stores the result in output file. Features are normally not needed for label computations and they are stored unchanged in the output file
 * Not all generated labels have to be used. It is necessary to choose those relevant for the analysis and trading parameters
 

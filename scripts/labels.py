@@ -3,9 +3,8 @@ from pathlib import Path
 import pandas as pd
 import click
 
-from scripts.generate_features import generate_feature_set
 from service.App import *
-from common.feature_generation_rolling_agg import *
+from scripts.features import generate_feature_set
 from common.label_generation_highlow import *
 from common.label_generation_topbot import *
 

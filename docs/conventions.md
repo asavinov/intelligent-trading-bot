@@ -2,7 +2,7 @@
 
 ## Input data
 
-Column names are defined by the `download_data` functions. Note that future and kline data have the same column names when loaded from API. Future columns get prefix "f_".
+Column names are defined by the `download` script. Note that future and kline data have the same column names when loaded from API. Future columns get prefix "f_".
 
 ## Derived features
 

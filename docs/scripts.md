@@ -6,7 +6,7 @@ Most scripts rely on the `App` class and its configuration parameters. They also
 
 ## Download the latest historic data
 
-Execute: `python -m scripts.download_data -c config.json`
+Execute: `python -m scripts.download -c config.json`
 
 Parameters:
 * `symbol` pair to load
@@ -24,7 +24,7 @@ Notes:
 
 ## Merge several historic datasets into one dataset
 
-Execute: `python -m scripts.merge_data -c config.json`
+Execute: `python -m scripts.merge -c config.json`
 
 Parameters:
 * `symbol` pair to load
@@ -38,7 +38,7 @@ Notes:
 
 ## Generate feature matrix
 
-Execute: `python -m scripts.generate_features -c config.json`
+Execute: `python -m scripts.features -c config.json`
 
 Parameters:
 * `symbol` pair to load

@@ -15,8 +15,8 @@ from common.feature_generation import *
 from common.signal_generation import *
 from common.model_store import *
 
-from scripts.merge_data import *
-from scripts.generate_features import *
+from scripts.merge import *
+from scripts.features import *
 
 import logging
 log = logging.getLogger('analyzer')
@@ -317,7 +317,7 @@ class Analyzer:
             ds["df"] = df
 
         # Merge in one df with prefixes and common regular time index
-        df = merge_data_frames(data_sources)
+        df = merge_data_sources(data_sources)
 
         #
         # 2.
