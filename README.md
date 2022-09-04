@@ -45,23 +45,10 @@ If the score exceeds some threshold specified in the model then buy or sell sign
 
 > 🟢 BUY: ₿ 24,033 Score: +0.34
 
-# Signaler service
-
-Every minute, the signaler performs the following steps to make a prediction about whether the price is likely to increase or decrease:
-* Retrieve the latest data from the server and update the current data window which includes some history (the history length is defined by a configuration parameter)
-* Compute derived features based on the nearest history collected (which now includes the latest data). The features to be computed are described in the configuration file and are exactly the same as used in batch mode during model training
-* Apply several (previously trained) ML models by forecasting some future values (not necessarily prices) which are also treated as (more complex) derived features. We apply several forecasting models (currently, Gradient Boosting, Neural network, and Linear regression) to several target variables (labels)
-* Aggregate the results of forecasting produced by different ML models and compute the final signal score which reflects the strength of the upward or downward trend. Here we use many previously computed scores as inputs and derive one output score. Currently, it is implemented as an aggregation procedure but it could be based on a dedicated ML model trained on previously collected scores and the target variable. Positive score means growth and negative score means fall
-* Use the final score for notifications
-
-Notes:
-* The final result of the signaler is the score (between -1 and +1). The score should be used for further decisions about buying or selling by taking into account other parameters and data sources
-* For the signaler service to work, trained models have to be available and stored in the "MODELS" folder. The models are trained in batch mode and the process is described in the corresponding section.
-
-Starting the service: `python3 -m service.server -c config.json`
-
 
 # Training machine learning models (offline)
+
+![Batch data processing pipeline](docs/images/fig_1.png)
 
 For the signaler service to work, a number of ML models must be trained and the model files available for the service. All scripts run in batch mode by loading some input data and storing some output files. The batch scripts are located in the `scripts` module.
 
@@ -172,6 +159,23 @@ Here are some most important fields (in both `App.py` and `config.json`):
 * `collector` These parameter section is intended for data collection services. There are two types of data collection services: synchronous with regular requests to the data provider and asynchronous streaming service which subscribes to the data provider and gets notifications as soon as new data is available. They are working but not thoroughly tested and integrated into the main service. The current main usage pattern relies on manual batch data updates, feature generation and model training. One reason for having these data collection services is 1) to have faster updates 2) to have data not available in normal API like order book (there exist some features which use this data but they are not integrated into the main workflow).
 
 See sample configuration files and comments in App.config for more details.
+
+
+# Signaler service
+
+Every minute, the signaler performs the following steps to make a prediction about whether the price is likely to increase or decrease:
+* Retrieve the latest data from the server and update the current data window which includes some history (the history length is defined by a configuration parameter)
+* Compute derived features based on the nearest history collected (which now includes the latest data). The features to be computed are described in the configuration file and are exactly the same as used in batch mode during model training
+* Apply several (previously trained) ML models by forecasting some future values (not necessarily prices) which are also treated as (more complex) derived features. We apply several forecasting models (currently, Gradient Boosting, Neural network, and Linear regression) to several target variables (labels)
+* Aggregate the results of forecasting produced by different ML models and compute the final signal score which reflects the strength of the upward or downward trend. Here we use many previously computed scores as inputs and derive one output score. Currently, it is implemented as an aggregation procedure but it could be based on a dedicated ML model trained on previously collected scores and the target variable. Positive score means growth and negative score means fall
+* Use the final score for notifications
+
+Notes:
+* The final result of the signaler is the score (between -1 and +1). The score should be used for further decisions about buying or selling by taking into account other parameters and data sources
+* For the signaler service to work, trained models have to be available and stored in the "MODELS" folder. The models are trained in batch mode and the process is described in the corresponding section.
+
+Starting the service: `python3 -m service.server -c config.json`
+
 
 # Trader
 

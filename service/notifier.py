@@ -45,8 +45,8 @@ async def notify_telegram():
     # 1. Trade signal in the case it is suggested to really buy or sell: BUY or SELL and one corresponding score
     # 2. Notification signal simply to provide information (separate criteria): both scores
     # Icons:
-    # DOWN: 📉, ⬇ ⬇️↘️🔴 (red), 🟥, ▼ (red), ↘ (red)
-    # UP:  📈, ⬆,  ⬆️ ↗️ 🟢 (green), 🟩, ▲ (green), ↗ (green)
+    # DOWN: 📉, ⬇ ⬇️↘️🔽 🔴 (red), 🟥, ▼ (red), ↘ (red)
+    # UP:  📈, ⬆,  ⬆️ ↗️🔼 🟢 (green), 🟩, ▲ (green), ↗ (green)
     # ✅ 🔹 (blue) 📌 🔸 (orange)
     message = ""
     if signal_side == "BUY":
