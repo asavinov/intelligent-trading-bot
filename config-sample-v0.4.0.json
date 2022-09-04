@@ -1,0 +1,81 @@
+{
+  "api_key": "<binance-key>",
+  "api_secret": "<binance-secret>",
+
+  "telegram_bot_token": "<token>",
+  "telegram_chat_id": "<chat-id-to-publish-messages>",
+
+  "data_folder": "C:/DATA_ITB",
+
+  // === DOWNLOAD AND MERGE ===
+
+  "symbol": "BTCUSDT",
+
+  "data_sources": [
+    {"folder": "BTCUSDT", "file": "klines", "column_prefix": ""}
+  ],
+
+  // === GENERATE FEATURES ===
+
+  "feature_sets": [
+      {"column_prefix": "", "generator": "binance_main", "feature_prefix": ""}
+  ],
+  "base_window": 360,
+  "averaging_windows": [1, 10, 60],
+  "area_windows": [10, 60],
+
+  // === LABELS ===
+
+  "label_sets": [
+      {"column_prefix": "", "generator": "highlow", "feature_prefix": ""}
+  ],
+  "highlow_horizon": 60,
+
+  // === TRAIN ===
+
+  "label_horizon": 60,
+  "train_length": 262800,
+
+  "train_features": [
+      "close_1", "close_10", "close_60",
+      "close_std_10", "close_std_60",
+      "volume_1", "volume_10", "volume_60",
+      "span_1", "span_10", "span_60",
+      "trades_1", "trades_10", "trades_60",
+      "tb_base_1", "tb_base_10", "tb_base_60",
+      "close_area_10", "close_area_60",
+      "close_trend_10", "close_trend_60",
+      "volume_trend_10", "volume_trend_60"
+  ],
+
+  "labels": [
+      "high_10", "high_15", "high_20", "high_25", "high_30",
+      "low_10", "low_15", "low_20", "low_25", "low_30"
+  ],
+
+  "algorithms": ["lc"],
+
+  "features_horizon": 10180,
+
+  // === SIGNALS ===
+
+  "buy_labels": ["high_10_lc", "high_15_lc", "high_20_lc"],
+  "sell_labels": ["low_10_lc", "low_15_lc", "low_20_lc"],
+
+  "signal_model": {
+      "buy_point_threshold": null,
+      "buy_window": 3,
+      "buy_signal_threshold": 0.65,
+      "buy_notify_threshold": 0.05,
+
+      "combine": "",
+
+      "sell_point_threshold": null,
+      "sell_window": 3,
+      "sell_signal_threshold": 0.65,
+      "sell_notify_threshold": 0.05,
+
+      "trade_icon_step": 0.1,
+      "notify_frequency_minutes": 10
+  }
+}

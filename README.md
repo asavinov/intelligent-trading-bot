@@ -60,6 +60,8 @@ If everything is configured then the following scripts have to be executed:
 * `python -m scripts.train -c config.json`
 * `python -m scripts.train_signals -c config.json`
 
+Without a configuration file the scripts will use the default parameters which is useful for testing purposes and not intended for showing good performance.
+
 ## Downloading and merging source data
 
 The main configuration parameter for the both scripts is a list of sources in ``data_sources``.
