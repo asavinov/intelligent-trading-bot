@@ -101,9 +101,9 @@ def aggregate_score(df, signal_column: str, score_columns: List[str], point_thre
     # Moving average
     #
     if isinstance(window, int):
-        score_column = score_column.rolling(window, min_periods=window // 2).mean(skipna=True)
+        score_column = score_column.rolling(window, min_periods=window // 2).mean()
     elif isinstance(window, float):
-        score_column = score_column.ewm(span=window, min_periods=window // 2, adjust=False).mean(skipna=True)
+        score_column = score_column.ewm(span=window, min_periods=window // 2, adjust=False).mean()
 
     df[signal_column] = score_column
 

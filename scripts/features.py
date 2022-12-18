@@ -172,7 +172,7 @@ def generate_feature_set(df: pd.DataFrame, fs: dict, last_rows: int) -> Tuple[pd
         top_level_fracs = [0.02, 0.03, 0.04, 0.05, 0.06]
         bot_level_fracs = [-x for x in top_level_fracs]
 
-        features = generate_labels_topbot(f_df, column_name, top_level_fracs, bot_level_fracs)
+        f_df, features = generate_labels_topbot(f_df, column_name, top_level_fracs, bot_level_fracs)
     elif generator == "area_labels":
         area_windows = App.config["area_windows_labels"]
         if not area_windows:

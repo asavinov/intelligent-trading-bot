@@ -67,7 +67,7 @@ def main(config_file):
     out_columns = ['timestamp', 'open', 'high', 'low', 'close', 'volume', 'close_time']
     out_columns = [x for x in out_columns if x in df.columns]
     all_features = train_features + labels
-    df = df[out_columns + all_features]
+    df = df[out_columns + [x for x in all_features if x not in out_columns]]
 
     for label in labels:
         # "category" NN does not work without this (note that we assume a classification task here)

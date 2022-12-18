@@ -379,7 +379,7 @@ class Analyzer:
                 score_df[score_column_name] = df_y_hat
 
         except Exception as e:
-            log.error(f"Error in predict: {e}. Failed '{score_column_name=}'")
+            log.error(f"Error in predict: {e}: '{score_column_name=}', '{algo_name=}")
             return
 
         # This df contains only one (last) record

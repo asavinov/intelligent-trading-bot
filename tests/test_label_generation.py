@@ -51,7 +51,7 @@ def test_interval_and_aggregation():
     maximums = find_all_extremums(sr, True, level_frac, tolerance_frac)
 
     # Add label
-    add_extremum_features(df, column_name='close', level_fracs=[level_frac], tolerance_frac=tolerance_frac, out_names=['is_close_top'])
+    df, _ = add_extremum_features(df, column_name='close', level_fracs=[level_frac], tolerance_frac=tolerance_frac, out_names=['is_close_top'])
 
     # Aggregate score with chosen parameters
     aggregate_score(df, 'score_agg', ['score'], None, 2)
