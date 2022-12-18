@@ -27,16 +27,16 @@ Store the labels, scores and some source columns in an output file.
 
 def generate_labels_topbot(df, column_name: str, top_level_fracs: list, bot_level_fracs: list):
     """For the specified levels, generate extremum labels with different pre-defined tolerances."""
-    labels = []
+    init_column_number = len(df.columns)
 
     # Tolerance 0.0025
     tolerance_frac = 0.0025
     top_labels = ['top1_025', 'top2_025', 'top3_025', 'top4_025', 'top5_025']
     bot_labels = ['bot1_025', 'bot2_025', 'bot3_025', 'bot4_025', 'bot5_025']
 
-    labels += add_extremum_features(df, column_name=column_name, level_fracs=top_level_fracs, tolerance_frac=tolerance_frac, out_names=top_labels)
+    df, labels = add_extremum_features(df, column_name=column_name, level_fracs=top_level_fracs, tolerance_frac=tolerance_frac, out_names=top_labels)
     print(f"Top labels computed: {top_labels}")
-    labels += add_extremum_features(df, column_name=column_name, level_fracs=bot_level_fracs, tolerance_frac=tolerance_frac, out_names=bot_labels)
+    df, labels = add_extremum_features(df, column_name=column_name, level_fracs=bot_level_fracs, tolerance_frac=tolerance_frac, out_names=bot_labels)
     print(f"Bottom labels computed: {bot_labels}")
 
     # Tolerance 0.005
@@ -44,9 +44,9 @@ def generate_labels_topbot(df, column_name: str, top_level_fracs: list, bot_leve
     top_labels = ['top1_05', 'top2_05', 'top3_05', 'top4_05', 'top5_05']
     bot_labels = ['bot1_05', 'bot2_05', 'bot3_05', 'bot4_05', 'bot5_05']
 
-    labels += add_extremum_features(df, column_name=column_name, level_fracs=top_level_fracs, tolerance_frac=tolerance_frac, out_names=top_labels)
+    df, labels = add_extremum_features(df, column_name=column_name, level_fracs=top_level_fracs, tolerance_frac=tolerance_frac, out_names=top_labels)
     print(f"Top labels computed: {top_labels}")
-    labels += add_extremum_features(df, column_name=column_name, level_fracs=bot_level_fracs, tolerance_frac=tolerance_frac, out_names=bot_labels)
+    df, labels = add_extremum_features(df, column_name=column_name, level_fracs=bot_level_fracs, tolerance_frac=tolerance_frac, out_names=bot_labels)
     print(f"Bottom labels computed: {bot_labels}")
 
     # Tolerance 0.0075
@@ -54,9 +54,9 @@ def generate_labels_topbot(df, column_name: str, top_level_fracs: list, bot_leve
     top_labels = ['top1_075', 'top2_075', 'top3_075', 'top4_075', 'top5_075']
     bot_labels = ['bot1_075', 'bot2_075', 'bot3_075', 'bot4_075', 'bot5_075']
 
-    labels += add_extremum_features(df, column_name=column_name, level_fracs=top_level_fracs, tolerance_frac=tolerance_frac, out_names=top_labels)
+    df, labels = add_extremum_features(df, column_name=column_name, level_fracs=top_level_fracs, tolerance_frac=tolerance_frac, out_names=top_labels)
     print(f"Top labels computed: {top_labels}")
-    labels += add_extremum_features(df, column_name=column_name, level_fracs=bot_level_fracs, tolerance_frac=tolerance_frac, out_names=bot_labels)
+    df, labels = add_extremum_features(df, column_name=column_name, level_fracs=bot_level_fracs, tolerance_frac=tolerance_frac, out_names=bot_labels)
     print(f"Bottom labels computed: {bot_labels}")
 
     # Tolerance 0.01
@@ -64,9 +64,9 @@ def generate_labels_topbot(df, column_name: str, top_level_fracs: list, bot_leve
     top_labels = ['top1_1', 'top2_1', 'top3_1', 'top4_1', 'top5_1']
     bot_labels = ['bot1_1', 'bot2_1', 'bot3_1', 'bot4_1', 'bot5_1']
 
-    labels += add_extremum_features(df, column_name=column_name, level_fracs=top_level_fracs, tolerance_frac=tolerance_frac, out_names=top_labels)
+    df, labels = add_extremum_features(df, column_name=column_name, level_fracs=top_level_fracs, tolerance_frac=tolerance_frac, out_names=top_labels)
     print(f"Top labels computed: {top_labels}")
-    labels += add_extremum_features(df, column_name=column_name, level_fracs=bot_level_fracs, tolerance_frac=tolerance_frac, out_names=bot_labels)
+    df, labels = add_extremum_features(df, column_name=column_name, level_fracs=bot_level_fracs, tolerance_frac=tolerance_frac, out_names=bot_labels)
     print(f"Bottom labels computed: {bot_labels}")
 
     # Tolerance 0.0125
@@ -74,9 +74,9 @@ def generate_labels_topbot(df, column_name: str, top_level_fracs: list, bot_leve
     top_labels = ['top1_125', 'top2_125', 'top3_125', 'top4_125', 'top5_125']
     bot_labels = ['bot1_125', 'bot2_125', 'bot3_125', 'bot4_125', 'bot5_125']
 
-    labels += add_extremum_features(df, column_name=column_name, level_fracs=top_level_fracs, tolerance_frac=tolerance_frac, out_names=top_labels)
+    df, labels = add_extremum_features(df, column_name=column_name, level_fracs=top_level_fracs, tolerance_frac=tolerance_frac, out_names=top_labels)
     print(f"Top labels computed: {top_labels}")
-    labels += add_extremum_features(df, column_name=column_name, level_fracs=bot_level_fracs, tolerance_frac=tolerance_frac, out_names=bot_labels)
+    df, labels = add_extremum_features(df, column_name=column_name, level_fracs=bot_level_fracs, tolerance_frac=tolerance_frac, out_names=bot_labels)
     print(f"Bottom labels computed: {bot_labels}")
 
     # Tolerance 0.015
@@ -84,9 +84,9 @@ def generate_labels_topbot(df, column_name: str, top_level_fracs: list, bot_leve
     top_labels = ['top1_15', 'top2_15', 'top3_15', 'top4_15', 'top5_15']
     bot_labels = ['bot1_15', 'bot2_15', 'bot3_15', 'bot4_15', 'bot5_15']
 
-    labels += add_extremum_features(df, column_name=column_name, level_fracs=top_level_fracs, tolerance_frac=tolerance_frac, out_names=top_labels)
+    df, labels = add_extremum_features(df, column_name=column_name, level_fracs=top_level_fracs, tolerance_frac=tolerance_frac, out_names=top_labels)
     print(f"Top labels computed: {top_labels}")
-    labels += add_extremum_features(df, column_name=column_name, level_fracs=bot_level_fracs, tolerance_frac=tolerance_frac, out_names=bot_labels)
+    df, labels = add_extremum_features(df, column_name=column_name, level_fracs=bot_level_fracs, tolerance_frac=tolerance_frac, out_names=bot_labels)
     print(f"Bottom labels computed: {bot_labels}")
 
     # Tolerance 0.0175
@@ -94,9 +94,9 @@ def generate_labels_topbot(df, column_name: str, top_level_fracs: list, bot_leve
     top_labels = ['top1_175', 'top2_175', 'top3_175', 'top4_175', 'top5_175']
     bot_labels = ['bot1_175', 'bot2_175', 'bot3_175', 'bot4_175', 'bot5_175']
 
-    labels += add_extremum_features(df, column_name=column_name, level_fracs=top_level_fracs, tolerance_frac=tolerance_frac, out_names=top_labels)
+    df, labels = add_extremum_features(df, column_name=column_name, level_fracs=top_level_fracs, tolerance_frac=tolerance_frac, out_names=top_labels)
     print(f"Top labels computed: {top_labels}")
-    labels += add_extremum_features(df, column_name=column_name, level_fracs=bot_level_fracs, tolerance_frac=tolerance_frac, out_names=bot_labels)
+    df, labels = add_extremum_features(df, column_name=column_name, level_fracs=bot_level_fracs, tolerance_frac=tolerance_frac, out_names=bot_labels)
     print(f"Bottom labels computed: {bot_labels}")
 
     # Tolerance 0.02
@@ -104,9 +104,9 @@ def generate_labels_topbot(df, column_name: str, top_level_fracs: list, bot_leve
     top_labels = ['top1_2', 'top2_2', 'top3_2', 'top4_2', 'top5_2']
     bot_labels = ['bot1_2', 'bot2_2', 'bot3_2', 'bot4_2', 'bot5_2']
 
-    labels += add_extremum_features(df, column_name=column_name, level_fracs=top_level_fracs, tolerance_frac=tolerance_frac, out_names=top_labels)
+    df, labels = add_extremum_features(df, column_name=column_name, level_fracs=top_level_fracs, tolerance_frac=tolerance_frac, out_names=top_labels)
     print(f"Top labels computed: {top_labels}")
-    labels += add_extremum_features(df, column_name=column_name, level_fracs=bot_level_fracs, tolerance_frac=tolerance_frac, out_names=bot_labels)
+    df, labels = add_extremum_features(df, column_name=column_name, level_fracs=bot_level_fracs, tolerance_frac=tolerance_frac, out_names=bot_labels)
     print(f"Bottom labels computed: {bot_labels}")
 
     # Tolerance 0.025
@@ -114,9 +114,9 @@ def generate_labels_topbot(df, column_name: str, top_level_fracs: list, bot_leve
     top_labels = ['top1_25', 'top2_25', 'top3_25', 'top4_25', 'top5_25']
     bot_labels = ['bot1_25', 'bot2_25', 'bot3_25', 'bot4_25', 'bot5_25']
 
-    labels += add_extremum_features(df, column_name=column_name, level_fracs=top_level_fracs, tolerance_frac=tolerance_frac, out_names=top_labels)
+    df, labels = add_extremum_features(df, column_name=column_name, level_fracs=top_level_fracs, tolerance_frac=tolerance_frac, out_names=top_labels)
     print(f"Top labels computed: {top_labels}")
-    labels += add_extremum_features(df, column_name=column_name, level_fracs=bot_level_fracs, tolerance_frac=tolerance_frac, out_names=bot_labels)
+    df, labels = add_extremum_features(df, column_name=column_name, level_fracs=bot_level_fracs, tolerance_frac=tolerance_frac, out_names=bot_labels)
     print(f"Bottom labels computed: {bot_labels}")
 
     # Tolerance 0.03
@@ -124,12 +124,14 @@ def generate_labels_topbot(df, column_name: str, top_level_fracs: list, bot_leve
     top_labels = ['top1_3', 'top2_3', 'top3_3', 'top4_3', 'top5_3']
     bot_labels = ['bot1_3', 'bot2_3', 'bot3_3', 'bot4_3', 'bot5_3']
 
-    labels += add_extremum_features(df, column_name=column_name, level_fracs=top_level_fracs, tolerance_frac=tolerance_frac, out_names=top_labels)
+    df, labels = add_extremum_features(df, column_name=column_name, level_fracs=top_level_fracs, tolerance_frac=tolerance_frac, out_names=top_labels)
     print(f"Top labels computed: {top_labels}")
-    labels += add_extremum_features(df, column_name=column_name, level_fracs=bot_level_fracs, tolerance_frac=tolerance_frac, out_names=bot_labels)
+    df, labels = add_extremum_features(df, column_name=column_name, level_fracs=bot_level_fracs, tolerance_frac=tolerance_frac, out_names=bot_labels)
     print(f"Bottom labels computed: {bot_labels}")
 
-    return labels
+    labels = df.columns.to_list()[init_column_number:]
+
+    return df, labels
 
 
 def add_extremum_features(df, column_name: str, level_fracs: list, tolerance_frac: float, out_names: list):
@@ -147,6 +149,7 @@ def add_extremum_features(df, column_name: str, level_fracs: list, tolerance_fra
     tolerance fraction. The greater the fraction, the wider true intervals we get.
     """
     column = df[column_name]
+    out_columns = []
     for i, level_frac in enumerate(level_fracs):
         if level_frac > 0.0:  # Max
             extrems = find_all_extremums(column, True, level_frac, tolerance_frac)
@@ -160,9 +163,13 @@ def add_extremum_features(df, column_name: str, level_fracs: list, tolerance_fra
         # (left_level, left_tolerance, extremum, right_tolerance, right_level)
         for extr in extrems:
             out_column.loc[extr[1]: extr[3]] = True  # Assign value to slice
-        df[out_name] = out_column  # Add to df
 
-    return out_names
+        out_columns.append(out_column)
+
+    # Attach all generated label columns to the input data frame
+    df = pd.concat([df] + out_columns, axis=1)
+
+    return df, out_names
 
 
 def find_all_extremums(sr: pd.Series, is_max: bool, level_frac: float, tolerance_frac: float) -> list:
