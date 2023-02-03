@@ -57,6 +57,6 @@ def test_interval_and_aggregation():
     aggregate_score(df, 'score_agg', ['score'], None, 2)
 
     threshold = 6
-    interval_df = find_interval_score(df, label_column='is_close_top', score_column='score_agg', threshold=threshold)
+    interval_df = find_interval_precision(df, label_column='is_close_top', score_column='score_agg', threshold=threshold)
 
     pass
