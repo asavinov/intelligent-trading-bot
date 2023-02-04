@@ -54,7 +54,7 @@ def test_interval_and_aggregation():
     df, _ = add_extremum_features(df, column_name='close', level_fracs=[level_frac], tolerance_frac=tolerance_frac, out_names=['is_close_top'])
 
     # Aggregate score with chosen parameters
-    aggregate_score(df, 'score_agg', ['score'], None, 2)
+    aggregate_scores(df, 'score_agg', ['score'], None, 2)
 
     threshold = 6
     interval_df = find_interval_precision(df, label_column='is_close_top', score_column='score_agg', threshold=threshold)

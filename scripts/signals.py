@@ -87,8 +87,12 @@ def main(config_file):
     # Post-process and apply rule
     #
     model = App.config["signal_model"]
-    # Post-process and add two columns: buy_score_column/sell_score_column
-    aggregate_and_combine_scores(df, model, buy_labels, sell_labels)
+    # Aggregate scores between each other and in time
+    aggregate_scores(df, 'buy_score_column', buy_labels, model.get("buy_point_threshold"), model.get("buy_window"))
+    aggregate_scores(df, 'sell_score_column', sell_labels, model.get("sell_point_threshold"), model.get("sell_window"))
+    # Mutually adjust two independent scores with opposite semantics
+    combine_scores(df, model, 'buy_score_column', 'sell_score_column')
+
     # Apply rule and generate buy_signal_column/sell_signal_column
     apply_rule_with_score_thresholds(df, model, 'buy_score_column', 'sell_score_column')
 

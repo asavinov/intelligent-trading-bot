@@ -18,33 +18,7 @@ given parameters, and 2) finding optimal parameters of rules (currently via grid
 """
 
 
-def aggregate_and_combine_scores(df, model, buy_score_columns_in, sell_score_columns_in):
-    """
-    Use model parameters to convert predicted scores to buy/sell scores and buy/sell signal columns
-
-    Returns post processed results in two columns with pre-defined names: 'buy_score_column' and 'sell_score_column'.
-    """
-
-    #
-    # Smoothen individual input scores between each other and then in time
-    #
-    aggregate_score(df, 'buy_score_column', buy_score_columns_in, model.get("buy_point_threshold"),
-                    model.get("buy_window"))
-    aggregate_score(df, 'sell_score_column', sell_score_columns_in, model.get("sell_point_threshold"),
-                    model.get("sell_window"))
-
-    #
-    # Mutually adjust two independent scores with opposite semantics
-    #
-    if model.get("combine") == "relative":
-        combine_scores_relative(df, 'buy_score_column', 'sell_score_column', 'buy_score_column', 'sell_score_column')
-    elif model.get("combine") == "difference":
-        combine_scores_difference(df, 'buy_score_column', 'sell_score_column', 'buy_score_column', 'sell_score_column')
-
-    # Result is returned in two pre-defined columns
-
-
-def aggregate_score(df, score_column_out: str, score_columns: Union[List[str], str], point_threshold, window):
+def aggregate_scores(df, score_column_out: str, score_columns: Union[List[str], str], point_threshold, window):
     """
     Add two signal numeric (buy and sell) columns by processing a list of buy and sell point-wise predictions.
 
@@ -81,6 +55,17 @@ def aggregate_score(df, score_column_out: str, score_columns: Union[List[str], s
     df[score_column_out] = score_column
 
     return score_column
+
+
+def combine_scores(df, model, buy_score_column, sell_score_column):
+    """
+    Mutually adjust two independent scores with opposite semantics.
+    The result is stored in the same columns by overwriting old values.
+    """
+    if model.get("combine") == "relative":
+        combine_scores_relative(df, buy_score_column, sell_score_column, buy_score_column, sell_score_column)
+    elif model.get("combine") == "difference":
+        combine_scores_difference(df, buy_score_column, sell_score_column, buy_score_column, sell_score_column)
 
 
 def combine_scores_relative(df, buy_column, sell_column, buy_column_out, sell_column_out):
