@@ -172,9 +172,12 @@ def main(config_file):
             model["sell_slope_threshold"] = model["buy_slope_threshold"]
 
         #
-        # Add two pairs of columns: buy_score_column/sell_score_column and buy_signal_column/sell_signal_column
+        # Post-process and apply rule
         #
-        generate_signal_columns(df, model, buy_score_column_avg, sell_score_column_avg)
+        # Post-process and add two columns: buy_score_column/sell_score_column
+        aggregate_and_combine_scores(df, model, buy_score_column_avg, sell_score_column_avg)
+        # Apply rule and generate buy_signal_column/sell_signal_column
+        apply_rule_with_score_thresholds(df, model, 'buy_score_column', 'sell_score_column')
 
         #
         # Simulate trade using close price and two boolean signals

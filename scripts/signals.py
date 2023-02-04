@@ -62,7 +62,7 @@ def main(config_file):
     df = df.reset_index(drop=True)
 
     #
-    # Find maximum performance possible based on true labels only
+    # Find maximum performance possible based on true labels only (and not predictions)
     #
     # Best parameters (just to compute for known parameters)
     #df['buy_signal_column'] = score_to_signal(df[bot_score_column], None, 5, 0.09)
@@ -83,17 +83,14 @@ def main(config_file):
         print(f"ERROR: Some buy/sell labels from config are not present in the input data. Missing labels: {missing_labels}")
         return
 
-    buy_score_column_avg = 'buy_score_column_avg'
-    sell_score_column_avg = 'sell_score_column_avg'
-
-    df[buy_score_column_avg] = df[buy_labels].mean(skipna=True, axis=1)
-    df[sell_score_column_avg] = df[sell_labels].mean(skipna=True, axis=1)
-
     #
-    # Add two pairs of columns: buy_score_column/sell_score_column and buy_signal_column/sell_signal_column
+    # Post-process and apply rule
     #
     model = App.config["signal_model"]
-    generate_signal_columns(df, model, buy_score_column_avg, sell_score_column_avg)
+    # Post-process and add two columns: buy_score_column/sell_score_column
+    aggregate_and_combine_scores(df, model, buy_labels, sell_labels)
+    # Apply rule and generate buy_signal_column/sell_signal_column
+    apply_rule_with_score_thresholds(df, model, 'buy_score_column', 'sell_score_column')
 
     #
     # Simulate trade using close price and two boolean signals

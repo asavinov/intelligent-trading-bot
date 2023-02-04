@@ -388,33 +388,29 @@ class Analyzer:
 
         #
         # 4.
-        # Generate buy/sell signals using the signal model parameters
+        # Post process point-wise ML scores
         #
         model = App.config["signal_model"]
         buy_labels = App.config["buy_labels"]
         sell_labels = App.config["sell_labels"]
 
-        # Produce boolean signal (buy and sell) columns from the current patience parameters
-        aggregate_score(df, 'buy_score_column', buy_labels, model.get("buy_point_threshold"), model.get("buy_window"))
-        aggregate_score(df, 'sell_score_column', sell_labels, model.get("sell_point_threshold"), model.get("sell_window"))
-
-        if model.get("combine") == "relative":
-            combine_scores_relative(df, 'buy_score_column', 'sell_score_column', 'buy_score_column', 'sell_score_column')
-        elif model.get("combine") == "difference":
-            combine_scores_difference(df, 'buy_score_column', 'sell_score_column', 'buy_score_column', 'sell_score_column')
-
-        row = df.iloc[-1]  # Last row used for decisions
-
-        buy_score = row["buy_score_column"]
-        sell_score = row["sell_score_column"]
-
-        buy_signal = (buy_score - sell_score > 0) and (buy_score >= model.get("buy_signal_threshold"))
-        sell_signal = (sell_score - buy_score > 0) and (sell_score >= model.get("sell_signal_threshold"))
+        # Post-process and add two columns: buy_score_column/sell_score_column
+        aggregate_and_combine_scores(df, model, buy_labels, sell_labels)
 
         #
         # 5.
+        # Apply rule to last row
+        #
+        row = df.iloc[-1]  # Last row used for decisions
+        buy_signal, sell_signal = apply_rule_with_score_thresholds_one_row(row, model, 'buy_score_column', 'sell_score_column')
+
+        #
+        # 6.
         # Collect results and create signal object
         #
+        buy_score = row["buy_score_column"]
+        sell_score = row["sell_score_column"]
+
         close_price = row["close"]
         close_time = row.name+timedelta(minutes=1)  # Add 1 minute because timestamp is start of the interval
 
