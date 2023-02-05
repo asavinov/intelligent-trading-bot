@@ -57,18 +57,16 @@ class P:
 #
 grid_signals = [
     {
-        "buy_point_threshold": [None], # np.arange(0.01, 0.21, 0.01).tolist(),  # None means do not use
-        "buy_window": [5],
+        "point_threshold": [None], # np.arange(0.01, 0.21, 0.01).tolist(),  # None means do not use
+        "window": [5],
+        "combine": ["no_combine"],  # "no_combine", "difference" (same as no combine or better), "relative" (rather bad)
+
         "buy_signal_threshold": np.arange(0.15, 0.30, 0.01).tolist(),
         "buy_slope_threshold": [None],
 
         # If two groups are equal, then these values are ignored
-        "sell_point_threshold": [None],
-        "sell_window": [5],
         "sell_signal_threshold": np.arange(0.15, 0.30, 0.01).tolist(),
         "sell_slope_threshold": [None],
-
-        "combine": ["no_combine"],  # "no_combine", "difference" (same as no combine or better), "relative" (rather bad)
     },
 ]
 
@@ -153,8 +151,6 @@ def main(config_file):
     df[sell_score_column_avg] = df[sell_labels].mean(skipna=True, axis=1)
 
     if P.buy_sell_equal:
-        grid_signals[0]["sell_point_threshold"] = [None]
-        grid_signals[0]["sell_window"] = [None]
         grid_signals[0]["sell_signal_threshold"] = [None]
         grid_signals[0]["sell_slope_threshold"] = [None]
 
@@ -166,8 +162,6 @@ def main(config_file):
         # If equal parameters, then use the first group
         #
         if P.buy_sell_equal:
-            model["sell_point_threshold"] = model["buy_point_threshold"]
-            model["sell_window"] = model["buy_window"]
             model["sell_signal_threshold"] = model["buy_signal_threshold"]
             model["sell_slope_threshold"] = model["buy_slope_threshold"]
 
@@ -175,8 +169,8 @@ def main(config_file):
         # Post-process and apply rule
         #
         # Aggregate scores between each other and in time
-        aggregate_scores(df, 'buy_score_column', buy_score_column_avg, model.get("buy_point_threshold"), model.get("buy_window"))
-        aggregate_scores(df, 'sell_score_column', sell_score_column_avg, model.get("sell_point_threshold"), model.get("sell_window"))
+        aggregate_scores(df, model, 'buy_score_column', buy_labels)
+        aggregate_scores(df, model, 'sell_score_column', sell_labels)
         # Mutually adjust two independent scores with opposite semantics
         combine_scores(df, model, 'buy_score_column', 'sell_score_column')
 

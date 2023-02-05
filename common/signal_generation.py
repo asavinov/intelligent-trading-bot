@@ -18,7 +18,7 @@ given parameters, and 2) finding optimal parameters of rules (currently via grid
 """
 
 
-def aggregate_scores(df, score_column_out: str, score_columns: Union[List[str], str], point_threshold, window):
+def aggregate_scores(df, model, score_column_out: str, score_columns: Union[List[str], str]):
     """
     Add two signal numeric (buy and sell) columns by processing a list of buy and sell point-wise predictions.
 
@@ -30,6 +30,12 @@ def aggregate_scores(df, score_column_out: str, score_columns: Union[List[str], 
     Notes:
         - Input point-wise scores in buy and sell columns are always positive
     """
+    if not model:
+        raise ValueError(f"Configuration must specify 'score_aggregation' parameters")
+
+    point_threshold = model.get("point_threshold")
+    window = model.get("window")
+
     if isinstance(score_columns, str):
         score_columns = [score_columns]
 

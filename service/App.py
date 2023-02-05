@@ -174,18 +174,15 @@ class App:
 
         # It defines how signal scores, trade signals, and notification signals will be generated
         # from point-wise prediction scores for two groups of labels
+        "score_aggregation": {
+            "point_threshold": None,  # Produce boolean column (optional)
+            "window": 3,  # Aggregate in time
+            "combine": "",  # "no_combine", "relative", "difference"  Find relative/difference
+        },
         "signal_model": {
-            # First, aggregation in group over various algorithms and label parameters
-            "buy_point_threshold": None,  # Second, produce boolean column (optional)
-            "buy_window": 3,  # Third, aggregate in time
-            # Now we have the final score
             "buy_signal_threshold": 0.65,  # To decide whether to buy/sell after all aggregations/combinations
             "buy_notify_threshold": 0.05,  # To decide whether to notify (can be an option of individual users/consumers)
 
-            "combine": "",  # "no_combine", "relative", "difference"  Find relative/difference
-
-            "sell_point_threshold": None,
-            "sell_window": 3,
             "sell_signal_threshold": 0.65,
             "sell_notify_threshold": 0.05,
 

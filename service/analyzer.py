@@ -395,10 +395,10 @@ class Analyzer:
         sell_labels = App.config["sell_labels"]
 
         # Aggregate scores between each other and in time
-        aggregate_scores(df, 'buy_score_column', buy_labels, model.get("buy_point_threshold"), model.get("buy_window"))
-        aggregate_scores(df, 'sell_score_column', sell_labels, model.get("sell_point_threshold"), model.get("sell_window"))
+        aggregate_scores(df, model.get('score_aggregation'), 'buy_score_column', buy_labels)
+        aggregate_scores(df, model.get('score_aggregation'), 'sell_score_column', sell_labels)
         # Mutually adjust two independent scores with opposite semantics
-        combine_scores(df, model, 'buy_score_column', 'sell_score_column')
+        combine_scores(df, model.get('score_aggregation'), 'buy_score_column', 'sell_score_column')
 
         #
         # 5.
