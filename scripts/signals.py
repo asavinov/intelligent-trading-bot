@@ -128,7 +128,25 @@ def main(config_file):
     # TODO: Include true labels and performance/signals on true labels
 
     #
-    # Store
+    # Store statistics
+    #
+    lines = []
+
+    # Score statistics
+    lines.append(f"'buy_score_column':\n" + df['buy_score_column'].describe().to_string())
+    lines.append(f"'sell_score_column':\n" + df['sell_score_column'].describe().to_string())
+
+    # TODO: Profit
+
+    metrics_file_name = f"signal-metrics.txt"
+    metrics_path = (data_path / metrics_file_name).resolve()
+    with open(metrics_path, 'a+') as f:
+        f.write("\n".join(lines) + "\n\n")
+
+    print(f"Metrics stored in path: {metrics_path.absolute()}")
+
+    #
+    # Store data
     #
     out_columns = [
         "timestamp", "open", "high", "low", "close",
