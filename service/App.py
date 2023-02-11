@@ -165,27 +165,30 @@ class App:
         # Basically, should be equal to base_window
         "features_horizon": 10180,
 
-        # =========================
-        # === SIGNAL GENERATION ===
+        # =======================================
+        # === AGGREGATION AND POST-PROCESSING ===
 
-        # These predicted columns (scores) will be used for generating buy/sell signals
-        "buy_labels": ["high_10_lc", "high_15_lc", "high_20_lc"],
-        "sell_labels": ["low_10_lc", "low_15_lc", "low_20_lc"],
+        "score_aggregation_1": {
+            # These ML predicted columns (scores) will be used for aggregation
+            "buy_labels": ["high_10_lc", "high_15_lc", "high_20_lc"],
+            "sell_labels": ["low_10_lc", "low_15_lc", "low_20_lc"],
 
-        # It defines how signal scores, trade signals, and notification signals will be generated
-        # from point-wise prediction scores for two groups of labels
-        "score_aggregation": {
             "point_threshold": None,  # Produce boolean column (optional)
             "window": 3,  # Aggregate in time
             "combine": "",  # "no_combine" (or empty), "relative", "difference"
             "coefficient": 1.0,  # Scale the scores to make them symmetric
             "constant": 0.0
         },
-        "signal_model": {
-            "buy_signal_threshold": 0.65,  # To decide whether to buy/sell after all aggregations/combinations
-            "buy_notify_threshold": 0.05,  # To decide whether to notify (can be an option of individual users/consumers)
 
+        # ===============================
+        # === TRADE SIGNAL GENERATION ===
+        "signal_model": {
+            # Rule parameters to decide whether to buy/sell after all aggregations/combinations
+            "buy_signal_threshold": 0.65,
             "sell_signal_threshold": 0.65,
+
+            # To decide whether to notify (can be an option of individual users/consumers)
+            "buy_notify_threshold": 0.05,
             "sell_notify_threshold": 0.05,
 
             "trade_icon_step": 0.1,  # For each step, one icon added

@@ -323,11 +323,11 @@ class Analyzer:
         # 2.
         # Generate all necessary derived features (NaNs are possible due to short history)
         #
-        # We want to generate features only for last rows (for performance reasons)
-        # Therefore, determine how many last rows we actually need
-        buy_window = App.config["signal_model"]["buy_window"]
-        sell_window = App.config["signal_model"]["sell_window"]
-        last_rows = max(buy_window, sell_window) + 1
+        # We want to generate features only for the last rows (for performance reasons)
+        # Therefore, determine how many last rows we will actually need
+        window_1 = App.config.get("score_aggregation_1", {}).get("window", 0)
+        window_2 = App.config.get("score_aggregation_2", {}).get("window", 0)
+        last_rows = max(window_1, window_2) + 1
 
         feature_sets = App.config.get("feature_sets", [])
         if not feature_sets:
@@ -388,24 +388,25 @@ class Analyzer:
 
         #
         # 4.
-        # Post process point-wise ML scores
+        # Aggregate and post-process
         #
-        model = App.config["signal_model"]
-        buy_labels = App.config["buy_labels"]
-        sell_labels = App.config["sell_labels"]
+        score_aggregation = App.config["score_aggregation_1"]
+
+        buy_labels = score_aggregation.get("buy_labels")
+        sell_labels = score_aggregation.get("sell_labels")
 
         # Aggregate scores between each other and in time
-        aggregate_scores(df, model.get('score_aggregation'), 'buy_score_column', buy_labels)
-        aggregate_scores(df, model.get('score_aggregation'), 'sell_score_column', sell_labels)
+        aggregate_scores(df, score_aggregation, 'buy_score_column', buy_labels)
+        aggregate_scores(df, score_aggregation, 'sell_score_column', sell_labels)
         # Mutually adjust two independent scores with opposite semantics
-        combine_scores(df, model.get('score_aggregation'), 'buy_score_column', 'sell_score_column')
+        combine_scores(df, score_aggregation, 'buy_score_column', 'sell_score_column')
 
         #
         # 5.
         # Apply rule to last row
         #
         row = df.iloc[-1]  # Last row used for decisions
-        buy_signal, sell_signal = apply_rule_with_score_thresholds_one_row(row, model, 'buy_score_column', 'sell_score_column')
+        buy_signal, sell_signal = apply_rule_with_score_thresholds_one_row(row, App.config["signal_model"], 'buy_score_column', 'sell_score_column')
 
         #
         # 6.

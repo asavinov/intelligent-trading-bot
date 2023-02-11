@@ -55,7 +55,7 @@ class P:
 #
 # Specify the ranges of signal hyper-parameters
 #
-grid_signals = [
+signal_model_grid = [
     {
         "point_threshold": [None], # np.arange(0.01, 0.21, 0.01).tolist(),  # None means do not use
         "window": [5],
@@ -134,48 +134,43 @@ def main(config_file):
     # Maximum possible on labels themselves
     #performance_long, performance_short, long_count, short_count, long_profitable, short_profitable, longs, shorts = performance_score(df, 'top10_2', 'bot10_2', 'close')
 
-    #
-    # Optimization: Compute averages which will be the same for all hyper-parameters
-    #
-    buy_labels = App.config["buy_labels"]
-    sell_labels = App.config["sell_labels"]
-    if set(buy_labels + sell_labels) - set(df.columns):
-        missing_labels = list(set(buy_labels + sell_labels) - set(df.columns))
-        print(f"ERROR: Some buy/sell labels from config are not present in the input data. Missing labels: {missing_labels}")
-        return
-
-    buy_score_column_avg = 'buy_score_column_avg'
-    sell_score_column_avg = 'sell_score_column_avg'
-
-    df[buy_score_column_avg] = df[buy_labels].mean(skipna=True, axis=1)
-    df[sell_score_column_avg] = df[sell_labels].mean(skipna=True, axis=1)
-
     if P.buy_sell_equal:
-        grid_signals[0]["sell_signal_threshold"] = [None]
-        grid_signals[0]["sell_slope_threshold"] = [None]
+        signal_model_grid[0]["sell_signal_threshold"] = [None]
+        signal_model_grid[0]["sell_slope_threshold"] = [None]
 
     months_in_simulation = (df[time_column].iloc[-1] - df[time_column].iloc[0]) / timedelta(days=30.5)
 
     performances = list()
-    for model in tqdm(ParameterGrid(grid_signals), desc="MODELS"):
+    for signal_model in tqdm(ParameterGrid(signal_model_grid), desc="MODELS"):
         #
         # If equal parameters, then use the first group
         #
         if P.buy_sell_equal:
-            model["sell_signal_threshold"] = model["buy_signal_threshold"]
-            model["sell_slope_threshold"] = model["buy_slope_threshold"]
+            signal_model["sell_signal_threshold"] = signal_model["buy_signal_threshold"]
+            signal_model["sell_slope_threshold"] = signal_model["buy_slope_threshold"]
 
         #
-        # Post-process and apply rule
+        # Aggregate and post-process
         #
+        score_aggregation = App.config.get('score_aggregation_1')
+
+        buy_labels = score_aggregation.get("buy_labels")
+        sell_labels = score_aggregation.get("sell_labels")
+        if set(buy_labels + sell_labels) - set(df.columns):
+            missing_labels = list(set(buy_labels + sell_labels) - set(df.columns))
+            print(f"ERROR: Some buy/sell labels from config are not present in the input data. Missing labels: {missing_labels}")
+            return
+
         # Aggregate scores between each other and in time
-        aggregate_scores(df, model, 'buy_score_column', buy_labels)
-        aggregate_scores(df, model, 'sell_score_column', sell_labels)
+        aggregate_scores(df, score_aggregation, 'buy_score_column', buy_labels)
+        aggregate_scores(df, score_aggregation, 'sell_score_column', sell_labels)
         # Mutually adjust two independent scores with opposite semantics
-        combine_scores(df, model, 'buy_score_column', 'sell_score_column')
+        combine_scores(df, score_aggregation, 'buy_score_column', 'sell_score_column')
 
-        # Apply rule and generate buy_signal_column/sell_signal_column
-        apply_rule_with_score_thresholds(df, model, 'buy_score_column', 'sell_score_column')
+        #
+        # Apply signal rule and generate buy_signal_column/sell_signal_column
+        #
+        apply_rule_with_score_thresholds(df, signal_model, 'buy_score_column', 'sell_score_column')
 
         #
         # Simulate trade using close price and two boolean signals
@@ -198,7 +193,7 @@ def main(config_file):
         short_performance["profit_percent_per_month"] = short_performance["profit_percent"] / months_in_simulation
 
         performances.append(dict(
-            model=model,
+            model=signal_model,
             performance={k: performance[k] for k in ['profit_percent_per_month', 'profitable', 'profit_percent_per_transaction', 'transaction_no_per_month']},
             long_performance={k: long_performance[k] for k in ['profit_percent_per_month', 'profitable']},
             short_performance={k: short_performance[k] for k in ['profit_percent_per_month', 'profitable']}

@@ -9,14 +9,13 @@ from sklearn.metrics import (precision_recall_curve, PrecisionRecallDisplay, Roc
 from sklearn.model_selection import ParameterGrid
 
 from service.App import *
-from common.classifiers import *
 from common.label_generation_topbot import *
 from common.signal_generation import *
 
 """
-Use predictions to simulate trade over the whole period based on one signal model.
+Use predictions to process scores, generate signals and simulate trades over the whole period.
 The results of the trade simulation with signals and performances is stored in the output file.
-The results can be used to further analyze (also visually) the selected trade strategy.
+The results can be used to further analyze (also visually) the selected signal and trade strategy.
 """
 
 class P:
@@ -74,27 +73,27 @@ def main(config_file):
     #performance_long, performance_short, long_count, short_count, long_profitable, short_profitable, longs, shorts = performance_score(df, 'top10_2', 'bot10_2', 'close')
 
     #
-    # Optimization: Compute averages which will be the same for all hyper-parameters
+    # Aggregate and post-process
     #
-    buy_labels = App.config["buy_labels"]
-    sell_labels = App.config["sell_labels"]
+    score_aggregation = App.config.get('score_aggregation_1')
+
+    buy_labels = score_aggregation.get("buy_labels")
+    sell_labels = score_aggregation.get("sell_labels")
     if set(buy_labels + sell_labels) - set(df.columns):
         missing_labels = list(set(buy_labels + sell_labels) - set(df.columns))
         print(f"ERROR: Some buy/sell labels from config are not present in the input data. Missing labels: {missing_labels}")
         return
 
-    #
-    # Post-process and apply rule
-    #
-    score_aggregation = App.config.get('score_aggregation')
     # Aggregate scores between each other and in time
     aggregate_scores(df, score_aggregation, 'buy_score_column', buy_labels)
     aggregate_scores(df, score_aggregation, 'sell_score_column', sell_labels)
     # Mutually adjust two independent scores with opposite semantics
     combine_scores(df, score_aggregation, 'buy_score_column', 'sell_score_column')
 
-    # Apply rule and generate buy_signal_column/sell_signal_column
-    apply_rule_with_score_thresholds(df, App.config, 'buy_score_column', 'sell_score_column')
+    #
+    # Apply signal rule and generate buy_signal_column/sell_signal_column
+    #
+    apply_rule_with_score_thresholds(df, App.config["signal_model"], 'buy_score_column', 'sell_score_column')
 
     #
     # Simulate trade using close price and two boolean signals
@@ -133,7 +132,6 @@ def main(config_file):
     #
     out_columns = [
         "timestamp", "open", "high", "low", "close",
-        "buy_score_column_avg", "sell_score_column_avg",
         "buy_score_column", "sell_score_column", "buy_signal_column", "sell_signal_column",
         "buy_signal", "sell_signal", "signal", "profit_long_percent", "profit_short_percent", "profit_percent"
     ]

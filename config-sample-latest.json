@@ -57,12 +57,12 @@
 
   "features_horizon": 10180,
 
-  // === SIGNALS ===
+  // === AGGREGATION AND POST-PROCESSING ===
 
-  "buy_labels": ["high_10_lc", "high_15_lc", "high_20_lc"],
-  "sell_labels": ["low_10_lc", "low_15_lc", "low_20_lc"],
+  "score_aggregation_1": {
+      "buy_labels": ["high_10_lc", "high_15_lc", "high_20_lc"],
+      "sell_labels": ["low_10_lc", "low_15_lc", "low_20_lc"],
 
-  "score_aggregation": {
       "point_threshold": null,
       "window": 3,
       "combine": "",
@@ -70,11 +70,13 @@
       "constant": 0.0
   },
 
+  // === SIGNAL RULES FOR TRADING ===
+
   "signal_model": {
       "buy_signal_threshold": 0.65,
-      "buy_notify_threshold": 0.05,
-
       "sell_signal_threshold": 0.65,
+
+      "buy_notify_threshold": 0.05,
       "sell_notify_threshold": 0.05,
 
       "trade_icon_step": 0.1,
