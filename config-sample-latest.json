@@ -65,7 +65,9 @@
   "score_aggregation": {
       "point_threshold": null,
       "window": 3,
-      "combine": ""
+      "combine": "",
+      "coefficient": 1.0,
+      "constant": 0.0
   },
 
   "signal_model": {

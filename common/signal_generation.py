@@ -73,6 +73,16 @@ def combine_scores(df, model, buy_score_column, sell_score_column):
     elif model.get("combine") == "difference":
         combine_scores_difference(df, buy_score_column, sell_score_column, buy_score_column, sell_score_column)
 
+    # Scale the score distribution to make it symmetric or normalize
+    # Always apply the transformation to buy score. It might be in [0,1] or [-1,+1] depending on combine parameter
+    if model.get("coefficient"):
+        df[buy_score_column] = df[buy_score_column] * model.get("coefficient")
+    if model.get("constant"):
+        df[buy_score_column] = df[buy_score_column] + model.get("constant")
+
+    if model.get("combine") in ["relative", "difference"]:
+        df[sell_score_column] = -df[buy_score_column]  # We know that they are opposite for these types of combination
+
 
 def combine_scores_relative(df, buy_column, sell_column, buy_column_out, sell_column_out):
     """
@@ -91,11 +101,6 @@ def combine_scores_relative(df, buy_column, sell_column, buy_column_out, sell_co
 
     df[sell_column_out] = -buy_sell_score  # High values mean sell signal
     #df[sell_column_out] = df[df[sell_column_out] < 0] = 0  # Set negative values to 0
-
-    # Final score: abs difference between high and low (scaled to [-1,+1] maybe)
-    #in_df["score"] = in_df["high"] - in_df["low"]
-    #from sklearn.preprocessing import StandardScaler
-    #in_df["score"] = StandardScaler().fit_transform(in_df["score"])
 
     return buy_sell_score
 

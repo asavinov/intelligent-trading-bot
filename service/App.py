@@ -177,7 +177,9 @@ class App:
         "score_aggregation": {
             "point_threshold": None,  # Produce boolean column (optional)
             "window": 3,  # Aggregate in time
-            "combine": "",  # "no_combine", "relative", "difference"  Find relative/difference
+            "combine": "",  # "no_combine" (or empty), "relative", "difference"
+            "coefficient": 1.0,  # Scale the scores to make them symmetric
+            "constant": 0.0
         },
         "signal_model": {
             "buy_signal_threshold": 0.65,  # To decide whether to buy/sell after all aggregations/combinations
