@@ -75,27 +75,35 @@ def main(config_file):
     #
     # Aggregate and post-process
     #
-    score_aggregation = App.config.get('score_aggregation')
+    for i, score_aggregation_set in enumerate(['score_aggregation', 'score_aggregation_2']):
+        score_aggregation = App.config.get(score_aggregation_set)
+        if not score_aggregation:
+            continue
 
-    buy_labels = score_aggregation.get("buy_labels")
-    sell_labels = score_aggregation.get("sell_labels")
-    if set(buy_labels + sell_labels) - set(df.columns):
-        missing_labels = list(set(buy_labels + sell_labels) - set(df.columns))
-        print(f"ERROR: Some buy/sell labels from config are not present in the input data. Missing labels: {missing_labels}")
-        return
+        buy_labels = score_aggregation.get("buy_labels")
+        sell_labels = score_aggregation.get("sell_labels")
+        if set(buy_labels + sell_labels) - set(df.columns):
+            missing_labels = list(set(buy_labels + sell_labels) - set(df.columns))
+            print(f"ERROR: Some buy/sell labels from config are not present in the input data. Missing labels: {missing_labels}")
+            return
 
-    # Aggregate scores between each other and in time
-    buy_column = 'buy_score_column'
-    sell_column = 'sell_score_column'
-    aggregate_scores(df, score_aggregation, buy_column, buy_labels)
-    aggregate_scores(df, score_aggregation, sell_column, sell_labels)
-    # Mutually adjust two independent scores with opposite semantics
-    combine_scores(df, score_aggregation, buy_column, sell_column)
+        # Output (post-processed) columns for each aggregation set
+        buy_column = 'buy_score_column'
+        sell_column = 'sell_score_column'
+        if i > 0:
+            buy_column = 'buy_score_column' + '_' + str(i+1)
+            sell_column = 'sell_score_column' + '_' + str(i+1)
+
+        # Aggregate scores between each other and in time
+        aggregate_scores(df, score_aggregation, buy_column, buy_labels)
+        aggregate_scores(df, score_aggregation, sell_column, sell_labels)
+        # Mutually adjust two independent scores with opposite semantics
+        combine_scores(df, score_aggregation, buy_column, sell_column)
 
     #
-    # Apply signal rule and generate buy_signal_column/sell_signal_column
+    # Apply signal rule and generate binary buy_signal_column/sell_signal_column
     #
-    apply_rule_with_score_thresholds(df, App.config["signal_model"], buy_column, sell_column)
+    apply_rule_with_score_thresholds(df, App.config["signal_model"], 'buy_score_column', 'sell_score_column')
 
     #
     # Simulate trade using close price and two boolean signals

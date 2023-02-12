@@ -390,25 +390,33 @@ class Analyzer:
         # 4.
         # Aggregate and post-process
         #
-        score_aggregation = App.config["score_aggregation"]
+        for i, score_aggregation_set in enumerate(['score_aggregation', 'score_aggregation_2']):
+            score_aggregation = App.config.get(score_aggregation_set)
+            if not score_aggregation:
+                continue
 
-        buy_labels = score_aggregation.get("buy_labels")
-        sell_labels = score_aggregation.get("sell_labels")
+            buy_labels = score_aggregation.get("buy_labels")
+            sell_labels = score_aggregation.get("sell_labels")
 
-        # Aggregate scores between each other and in time
-        buy_column = 'buy_score_column'
-        sell_column = 'sell_score_column'
-        aggregate_scores(df, score_aggregation, buy_column, buy_labels)
-        aggregate_scores(df, score_aggregation, sell_column, sell_labels)
-        # Mutually adjust two independent scores with opposite semantics
-        combine_scores(df, score_aggregation, buy_column, sell_column)
+            # Output (post-processed) columns for each aggregation set
+            buy_column = 'buy_score_column'
+            sell_column = 'sell_score_column'
+            if i > 0:
+                buy_column = 'buy_score_column' + '_' + str(i + 1)
+                sell_column = 'sell_score_column' + '_' + str(i + 1)
+
+            # Aggregate scores between each other and in time
+            aggregate_scores(df, score_aggregation, buy_column, buy_labels)
+            aggregate_scores(df, score_aggregation, sell_column, sell_labels)
+            # Mutually adjust two independent scores with opposite semantics
+            combine_scores(df, score_aggregation, buy_column, sell_column)
 
         #
         # 5.
         # Apply rule to last row
         #
         row = df.iloc[-1]  # Last row used for decisions
-        buy_signal, sell_signal = apply_rule_with_score_thresholds_one_row(row, App.config["signal_model"], buy_column, sell_column)
+        buy_signal, sell_signal = apply_rule_with_score_thresholds_one_row(row, App.config["signal_model"], 'buy_score_column', 'sell_score_column')
 
         #
         # 6.
