@@ -73,6 +73,8 @@
   // === SIGNAL RULES FOR TRADING ===
 
   "signal_model": {
+      "rule_type": "",
+
       "buy_signal_threshold": 0.65,
       "sell_signal_threshold": 0.65,
 

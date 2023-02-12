@@ -183,6 +183,8 @@ class App:
         # ===============================
         # === TRADE SIGNAL GENERATION ===
         "signal_model": {
+            "rule_type": "",  # empty, 'two_dim_rule'
+
             # Rule parameters to decide whether to buy/sell after all aggregations/combinations
             "buy_signal_threshold": 0.65,
             "sell_signal_threshold": 0.65,

@@ -152,7 +152,8 @@ def main(config_file):
         #
         # Aggregate and post-process
         #
-        for i, score_aggregation_set in enumerate(['score_aggregation', 'score_aggregation_2']):
+        sa_sets = ['score_aggregation', 'score_aggregation_2']
+        for i, score_aggregation_set in enumerate(sa_sets):
             score_aggregation = App.config.get(score_aggregation_set)
             if not score_aggregation:
                 continue
@@ -180,7 +181,11 @@ def main(config_file):
         #
         # Apply signal rule and generate binary buy_signal_column/sell_signal_column
         #
-        apply_rule_with_score_thresholds(df, signal_model, 'buy_score_column', 'sell_score_column')
+        if signal_model.get('rule_type') == 'two_dim_rule':
+            print(f"ERROR: Currently no function defined for this rule type: 'two_dim_rule'")
+            return
+        else:  # Default one dim rule
+            apply_rule_with_score_thresholds(df, signal_model, 'buy_score_column', 'sell_score_column')
 
         #
         # Simulate trade using close price and two boolean signals

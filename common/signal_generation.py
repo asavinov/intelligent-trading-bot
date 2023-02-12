@@ -123,39 +123,6 @@ def combine_scores_difference(df, buy_column, sell_column, buy_column_out, sell_
     return buy_minus_sell
 
 
-def apply_rule_with_score_thresholds(df, model, buy_score_column, sell_score_column):
-    """
-    Apply rules based on thresholds and generate trade signal buy, sell or do nothing.
-
-    Returns signals in two pre-defined columns: 'buy_signal_column' and 'sell_signal_column'
-    """
-    df['buy_signal_column'] = \
-        ((df[buy_score_column] - df[sell_score_column]) > 0.0) & \
-        (df[buy_score_column] >= model.get("buy_signal_threshold"))
-    df['sell_signal_column'] = \
-        ((df[sell_score_column] - df[buy_score_column]) > 0.0) & \
-        (df[sell_score_column] >= model.get("sell_signal_threshold"))
-
-
-def apply_rule_with_score_thresholds_one_row(row, model, buy_score_column, sell_score_column):
-    """
-    Same as above but applied to one row. It is used for online predictions.
-
-    Returns signals a a tuple with two values: buy_signal and sell_signal
-    """
-    buy_score = row[buy_score_column]
-    sell_score = row[sell_score_column]
-
-    buy_signal = \
-        (buy_score - sell_score > 0) and \
-        (buy_score >= model.get("buy_signal_threshold"))
-    sell_signal = \
-        (sell_score - buy_score > 0) and \
-        (sell_score >= model.get("sell_signal_threshold"))
-
-    return buy_signal, sell_signal
-
-
 def compute_score_slope(df, model, buy_score_columns_in, sell_score_columns_in):
     """
     Experimental. Currently not used.
@@ -190,6 +157,42 @@ def compute_score_slope(df, model, buy_score_columns_in, sell_score_columns_in):
     #    df['buy_score_slope'] = df['buy_score_column'].rolling(window=w, min_periods=max(1, w // 2)).apply(linear_regr_fn, raw=True)
     #    w = 10  #model.get("sell_window")
     #    df['sell_score_slope'] = df['sell_score_column'].rolling(window=w, min_periods=max(1, w // 2)).apply(linear_regr_fn, raw=True)
+
+#
+# Signal rules
+#
+
+def apply_rule_with_score_thresholds(df, model, buy_score_column, sell_score_column):
+    """
+    Apply rules based on thresholds and generate trade signal buy, sell or do nothing.
+
+    Returns signals in two pre-defined columns: 'buy_signal_column' and 'sell_signal_column'
+    """
+    df['buy_signal_column'] = \
+        ((df[buy_score_column] - df[sell_score_column]) > 0.0) & \
+        (df[buy_score_column] >= model.get("buy_signal_threshold"))
+    df['sell_signal_column'] = \
+        ((df[sell_score_column] - df[buy_score_column]) > 0.0) & \
+        (df[sell_score_column] >= model.get("sell_signal_threshold"))
+
+
+def apply_rule_with_score_thresholds_one_row(row, model, buy_score_column, sell_score_column):
+    """
+    Same as above but applied to one row. It is used for online predictions.
+
+    Returns signals as a tuple with two values: buy_signal and sell_signal
+    """
+    buy_score = row[buy_score_column]
+    sell_score = row[sell_score_column]
+
+    buy_signal = \
+        (buy_score - sell_score > 0) and \
+        (buy_score >= model.get("buy_signal_threshold"))
+    sell_signal = \
+        (sell_score - buy_score > 0) and \
+        (sell_score >= model.get("sell_signal_threshold"))
+
+    return buy_signal, sell_signal
 
 
 def apply_rule_with_slope_thresholds(df, model, buy_score_column, sell_score_column):

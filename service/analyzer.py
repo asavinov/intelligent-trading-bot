@@ -390,7 +390,8 @@ class Analyzer:
         # 4.
         # Aggregate and post-process
         #
-        for i, score_aggregation_set in enumerate(['score_aggregation', 'score_aggregation_2']):
+        sa_sets = ['score_aggregation', 'score_aggregation_2']
+        for i, score_aggregation_set in enumerate(sa_sets):
             score_aggregation = App.config.get(score_aggregation_set)
             if not score_aggregation:
                 continue
@@ -415,8 +416,13 @@ class Analyzer:
         # 5.
         # Apply rule to last row
         #
-        row = df.iloc[-1]  # Last row used for decisions
-        buy_signal, sell_signal = apply_rule_with_score_thresholds_one_row(row, App.config["signal_model"], 'buy_score_column', 'sell_score_column')
+        row = df.iloc[-1]  # Last row used for rule-based signal generation
+        signal_model = App.config['signal_model']
+        if signal_model.get('rule_type') == 'two_dim_rule':
+            print(f"ERROR: Currently no function defined for this rule type: 'two_dim_rule'")
+            return
+        else:  # Default one dim rule
+            buy_signal, sell_signal = apply_rule_with_score_thresholds_one_row(row, signal_model, 'buy_score_column', 'sell_score_column')
 
         #
         # 6.
