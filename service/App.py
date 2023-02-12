@@ -168,7 +168,7 @@ class App:
         # =======================================
         # === AGGREGATION AND POST-PROCESSING ===
 
-        "score_aggregation_1": {
+        "score_aggregation": {
             # These ML predicted columns (scores) will be used for aggregation
             "buy_labels": ["high_10_lc", "high_15_lc", "high_20_lc"],
             "sell_labels": ["low_10_lc", "low_15_lc", "low_20_lc"],

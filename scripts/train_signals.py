@@ -152,7 +152,7 @@ def main(config_file):
         #
         # Aggregate and post-process
         #
-        score_aggregation = App.config.get('score_aggregation_1')
+        score_aggregation = App.config.get('score_aggregation')
 
         buy_labels = score_aggregation.get("buy_labels")
         sell_labels = score_aggregation.get("sell_labels")
@@ -162,15 +162,17 @@ def main(config_file):
             return
 
         # Aggregate scores between each other and in time
-        aggregate_scores(df, score_aggregation, 'buy_score_column', buy_labels)
-        aggregate_scores(df, score_aggregation, 'sell_score_column', sell_labels)
+        buy_column = 'buy_score_column'
+        sell_column = 'sell_score_column'
+        aggregate_scores(df, score_aggregation, buy_column, buy_labels)
+        aggregate_scores(df, score_aggregation, sell_column, sell_labels)
         # Mutually adjust two independent scores with opposite semantics
-        combine_scores(df, score_aggregation, 'buy_score_column', 'sell_score_column')
+        combine_scores(df, score_aggregation, buy_column, sell_column)
 
         #
         # Apply signal rule and generate buy_signal_column/sell_signal_column
         #
-        apply_rule_with_score_thresholds(df, signal_model, 'buy_score_column', 'sell_score_column')
+        apply_rule_with_score_thresholds(df, signal_model, buy_column, sell_column)
 
         #
         # Simulate trade using close price and two boolean signals
