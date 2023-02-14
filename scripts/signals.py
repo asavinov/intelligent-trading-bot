@@ -75,6 +75,7 @@ def main(config_file):
     #
     # Aggregate and post-process
     #
+    score_column_names = []
     sa_sets = ['score_aggregation', 'score_aggregation_2']
     for i, score_aggregation_set in enumerate(sa_sets):
         score_aggregation = App.config.get(score_aggregation_set)
@@ -101,6 +102,9 @@ def main(config_file):
         # Mutually adjust two independent scores with opposite semantics
         combine_scores(df, score_aggregation, buy_column, sell_column)
 
+        score_column_names.append(buy_column)
+        score_column_names.append(sell_column)
+
     #
     # Apply signal rule and generate binary buy_signal_column/sell_signal_column
     #
@@ -110,6 +114,8 @@ def main(config_file):
         return
     else:  # Default one dim rule
         apply_rule_with_score_thresholds(df, signal_model, 'buy_score_column', 'sell_score_column')
+
+    signal_column_names = ['buy_signal_column', 'sell_signal_column']
 
     #
     # Simulate trade using close price and two boolean signals
@@ -123,14 +129,14 @@ def main(config_file):
     #
     long_df = pd.DataFrame(long_performance.get("transactions")).set_index(0, drop=True)
     short_df = pd.DataFrame(short_performance.get("transactions")).set_index(0, drop=True)
-    df["buy_signal"] = False
-    df["sell_signal"] = False
-    df["signal"] = None
+    df["buy_transaction"] = False
+    df["sell_transaction"] = False
+    df["transaction_type"] = None
 
-    df.loc[long_df.index, "buy_signal"] = True
-    df.loc[long_df.index, "signal"] = "BUY"
-    df.loc[short_df.index, "sell_signal"] = True
-    df.loc[short_df.index, "signal"] = "SELL"
+    df.loc[long_df.index, "buy_transaction"] = True
+    df.loc[long_df.index, "transaction_type"] = "BUY"
+    df.loc[short_df.index, "sell_transaction"] = True
+    df.loc[short_df.index, "transaction_type"] = "SELL"
 
     df["profit_long_percent"] = 0.0
     df["profit_short_percent"] = 0.0
@@ -141,16 +147,14 @@ def main(config_file):
     df.update(short_df[4].rename("profit_percent"))
     df.update(long_df[4].rename("profit_percent"))
 
-    # TODO: Include true labels and performance/signals on true labels
-
     #
     # Store statistics
     #
     lines = []
 
     # Score statistics
-    lines.append(f"'buy_score_column':\n" + df['buy_score_column'].describe().to_string())
-    lines.append(f"'sell_score_column':\n" + df['sell_score_column'].describe().to_string())
+    for score_col_name in score_column_names:
+        lines.append(f"'{score_col_name}':\n" + df[score_col_name].describe().to_string())
 
     # TODO: Profit
 
@@ -164,17 +168,18 @@ def main(config_file):
     #
     # Store data
     #
-    out_columns = [
-        "timestamp", "open", "high", "low", "close",
-        "buy_score_column", "sell_score_column", "buy_signal_column", "sell_signal_column",
-        "buy_signal", "sell_signal", "signal", "profit_long_percent", "profit_short_percent", "profit_percent"
-    ]
+    out_columns = ["timestamp", "open", "high", "low", "close"]  # Source data
+    out_columns.extend(App.config.get('labels'))  # True labels
+    out_columns.extend(score_column_names)  # Aggregated post-processed scores
+    out_columns.extend(signal_column_names)  # Rule results
+    out_columns.extend(["buy_transaction", "sell_transaction", "transaction_type", "profit_long_percent", "profit_short_percent", "profit_percent"])  # Simulation results
+
     out_df = df[out_columns]
 
     out_path = data_path / App.config.get("signal_file_name")
 
     print(f"Storing output file...")
-    out_df.to_csv(out_path.with_suffix(".csv"), index=False, float_format='%.2f')
+    out_df.to_csv(out_path.with_suffix(".csv"), index=False, float_format='%.4f')
     print(f"Signals stored in file: {out_path}. Length: {len(out_df)}. Columns: {len(out_df.columns)}")
 
     elapsed = datetime.now() - now
