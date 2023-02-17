@@ -59,6 +59,7 @@ If everything is configured then the following scripts have to be executed:
 * `python -m scripts.labels -c config.json`
 * `python -m scripts.train -c config.json`
 * `python -m scripts.train_signals -c config.json`
+* `python -m scripts.backtesting -c config.json`
 
 Without a configuration file the scripts will use the default parameters which is useful for testing purposes and not intended for showing good performance.
 
@@ -125,6 +126,11 @@ Configuration:
 
 This script simulates trades using many buy-sell signal parameters and then chooses the best performing signal parameters:
 * Script: `python -m scripts.train_signals -c config.json`
+
+## Backtest the model
+
+This script uses the model toguether with features created to backtest the stragegy defined in the configuration:
+* Script: `python -m scripts.backtest -c config.json`
 
 # Prediction online based on trained models (service)
 

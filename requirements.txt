@@ -18,3 +18,4 @@ python-binance>=1.0.*  # pip install python-binance
 # yfinance  # if yahoo quotes are going to be used
 #python-snappy  # Compression for fastparquet (gzip is always available)
 #fastparquet  # "conda install -c conda-forge fastparquet"
+backtesting>=0.3.3
