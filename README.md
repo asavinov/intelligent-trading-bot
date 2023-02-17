@@ -59,7 +59,7 @@ If everything is configured then the following scripts have to be executed:
 * `python -m scripts.labels -c config.json`
 * `python -m scripts.train -c config.json`
 * `python -m scripts.train_signals -c config.json`
-* `python -m scripts.backtesting -c config.json`
+* `python -m scripts.backtest -c config.json`
 
 Without a configuration file the scripts will use the default parameters which is useful for testing purposes and not intended for showing good performance.
 
