@@ -1,4 +1,3 @@
-from __future__ import annotations  # Eliminates problem with type annotations like list[int]
 import os
 from datetime import datetime, timezone, timedelta
 from typing import Union
@@ -12,16 +11,16 @@ from common.feature_generation import *
 from common.feature_generation_rolling_agg import *
 
 """
-Label generation.
-(True) labels are features computed from future data but stored as properties of the current row (in contrast to normal features which are computed from past data).
+Label generation. Labels are features which are used for training.
+In forecasting, they are typically computed from future values 
+in contrast to normal features computed from past values.
 """
 
 
 def generate_labels_highlow(df, horizon):
     """
     Generate (compute) a number of labels similar to other derived features but using future data.
-    This function is used only in training.
-    For prediction, the labels are computed by the models (not from future data which is absent).
+    This function is used before training to generate true labels.
 
     We use the following conventions and dimensions for generating binary labels:
     - Threshold is used to compare all values of some parameter, for example, 0.5 or 2.0 (sign is determined from the context)
@@ -113,6 +112,79 @@ def generate_labels_regressor(df, horizon):
     # "low_min"
 
     return labels
+
+
+def first_location_of_crossing_threshold(df, close_column_name, price_column_name, out_column_name, horizon, threshold):
+    """
+    First location of crossing the threshold.
+    For each point, take its close price, and then find the distance (location, index)
+    to the _first_ future point with high or low price higher or lower, respectively
+    than the close price.
+
+    If the location (index) is 0 then it is the next point. If location (index) is NaN,
+    then the price does not cross the specified threshold during the horizon
+    (or there is not enough data, e.g., at the end of the series). Therefore, this
+    function can be used find whether the price will cross the threshold at all
+    during the specified horizon.
+
+    The function is somewhat similar to the tsfresh function first_location_of_maximum
+    or minimum. The difference is that this function does not search for maximum but rather
+    first cross of the threshold.
+
+    Horizon specifies how many points are considered after this point and without this point.
+
+    Threshold is increase or decrease coefficient, say, 0.5 means 50% increase with respect to
+    the current close price.
+    """
+
+    def fn_high(x):
+        if len(x) < 2:
+            return np.nan
+        p = x[0, 0]  # Reference price
+        p_threshold = p*(1+threshold)  # Cross line
+        idx = np.argmax(x[1:, 1] > p_threshold)  # First index where price crossed the threshold
+
+        # If all False, then index is 0 (first element of constant series) and we are not able to distinguish it from first element being True
+        # If index is 0 and first element False (under threshold) then NaN (not exceeds)
+        if idx == 0 and x[1, 1] <= p_threshold:
+            return np.nan
+
+        #print(x)
+        #print(x[1:, 1])
+        #print(x[1:, 1] > p_threshold)
+        #print(p, p_threshold, idx)
+
+        return idx
+
+    def fn_low(x):
+        if len(x) < 2:
+            return np.nan
+        p = x[0, 0]  # Reference price
+        p_threshold = p*(1+threshold)  # Cross line
+        idx = np.argmax(x[1:, 1] < p_threshold)  # First index where price crossed the threshold
+
+        # If all False, then index is 0 (first element of constant series) and we are not able to distinguish it from first element being True
+        # If index is 0 and first element False (under threshold) then NaN (not exceeds)
+        if idx == 0 and x[1, 1] >= p_threshold:
+            return np.nan
+
+        return idx
+
+    # Window df will include the current row as well as horizon of past rows with 0 index starting from the oldest row and last index with the current row
+    rl = df[[close_column_name, price_column_name]].rolling(horizon + 1, method='table')
+
+    if threshold > 0:
+        df_out = rl.apply(fn_high, raw=True, engine='numba')
+    elif threshold < 0:
+        df_out = rl.apply(fn_low, raw=True, engine='numba')
+    else:
+        raise ValueError(f"Threshold cannot be zero.")
+
+    df_out = df_out.shift(-horizon)
+
+    df[out_column_name] = df_out.iloc[:, 0]
+
+    return df[out_column_name]
 
 
 if __name__ == "__main__":
