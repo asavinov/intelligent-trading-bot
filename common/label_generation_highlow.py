@@ -12,8 +12,8 @@ from common.feature_generation_rolling_agg import *
 
 """
 Label generation. Labels are features which are used for training.
-In forecasting, they are typically computed from future values 
-in contrast to normal features computed from past values.
+In forecasting, they are typically computed from future values as 
+opposed to normal features computed from past values.
 """
 
 
@@ -148,12 +148,6 @@ def first_location_of_crossing_threshold(df, close_column_name, price_column_nam
         # If index is 0 and first element False (under threshold) then NaN (not exceeds)
         if idx == 0 and x[1, 1] <= p_threshold:
             return np.nan
-
-        #print(x)
-        #print(x[1:, 1])
-        #print(x[1:, 1] > p_threshold)
-        #print(p, p_threshold, idx)
-
         return idx
 
     def fn_low(x):
@@ -167,7 +161,6 @@ def first_location_of_crossing_threshold(df, close_column_name, price_column_nam
         # If index is 0 and first element False (under threshold) then NaN (not exceeds)
         if idx == 0 and x[1, 1] >= p_threshold:
             return np.nan
-
         return idx
 
     # Window df will include the current row as well as horizon of past rows with 0 index starting from the oldest row and last index with the current row
@@ -180,11 +173,42 @@ def first_location_of_crossing_threshold(df, close_column_name, price_column_nam
     else:
         raise ValueError(f"Threshold cannot be zero.")
 
+    # Because rolling apply processes past records while we need future records
     df_out = df_out.shift(-horizon)
 
+    # For some unknown reason (bug?), rolling apply (with table and numba) returns several columns rather than one column
     df[out_column_name] = df_out.iloc[:, 0]
 
     return df[out_column_name]
+
+
+def first_cross_labels(df, threshold, horizon):
+    """
+    Produce two boolean columns which are true if the price crosses the threshold
+    within the specified horizon either higher (first column) or lower (second column)
+    whichever happens first.
+    """
+    close_column = "close"
+    high_column = "high"
+    low_column = "low"
+
+    # High label - find first (forward) index like +5 of the value exceeds the threshold. Or 0/nan if not found within window
+    first_location_of_crossing_threshold(df, close_column, high_column, "high_idx", horizon, threshold)
+    # Low label - find first (forward) index like +6 of the value lower than threshold. Or 0/nan if not found within window
+    first_location_of_crossing_threshold(df, close_column, low_column, "low_idx", horizon, -threshold)
+
+    # The final value is chosen from these two whichever is smaller (as absolute value), that is, closer to this point
+    def is_high_true(x):
+        if np.isnan(x[0]):
+            return False
+        elif np.isnan(x[1]):
+            return True
+        else:
+            return x[0] < x[1]  # If the cross point is closer to this point
+    df["is_high"] = df[["high_idx", "low_idx"]].apply(is_high_true, raw=True, axis=1)
+    df["is_low"] = df[["low_idx", "high_idx"]].apply(is_high_true, raw=True, axis=1)
+
+    # TODO: introduce and return out column names. Delete intermediate columns
 
 
 if __name__ == "__main__":
