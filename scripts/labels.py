@@ -96,7 +96,7 @@ def main(config_file):
     print(f"Stored {len(all_features)} labels in output file {out_path}")
 
     elapsed = datetime.now() - now
-    print(f"Finished label generation in {str(elapsed).split('.')[0]}")
+    print(f"Finished generating {len(all_features)} labels in {str(elapsed).split('.')[0]}. Time per label: {str(elapsed/len(all_features)).split('.')[0]}")
 
     print(f"Output file location: {out_path}")
 

@@ -8,6 +8,7 @@ import pandas as pd
 from service.App import *
 from common.feature_generation import *
 from common.label_generation_highlow import generate_labels_highlow
+from common.label_generation_highlow import generate_labels_highlow2
 from common.label_generation_topbot import generate_labels_topbot
 
 #
@@ -92,7 +93,7 @@ def main(config_file):
     print(f"Stored {len(all_features)} features in output file {out_path}")
 
     elapsed = datetime.now() - now
-    print(f"Finished feature generation in {str(elapsed).split('.')[0]}")
+    print(f"Finished generating {len(all_features)} features in {str(elapsed).split('.')[0]}. Time per feature: {str(elapsed/len(all_features)).split('.')[0]}")
 
     print(f"Output file location: {out_path}")
 
@@ -164,6 +165,14 @@ def generate_feature_set(df: pd.DataFrame, fs: dict, last_rows: int) -> Tuple[pd
         # Binary labels whether max has exceeded a threshold or not
         print(f"Generating 'highlow' labels with horizon {horizon}...")
         features = generate_labels_highlow(f_df, horizon=horizon)
+
+        print(f"Finished generating 'highlow' labels. {len(features)} labels generated.")
+    elif generator == "highlow2":
+        horizon = App.config["highlow_horizon"]
+
+        # Binary labels whether high/low cross the threshold whichever happens first
+        print(f"Generating 'highlow2' labels with horizon {horizon}...")
+        features = generate_labels_highlow2(f_df, horizon=horizon)
 
         print(f"Finished generating 'highlow' labels. {len(features)} labels generated.")
     elif generator == "topbot":
