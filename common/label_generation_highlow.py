@@ -114,7 +114,7 @@ def generate_labels_regressor(df, horizon):
     return labels
 
 
-def first_location_of_crossing_threshold(df, close_column_name, price_column_name, out_column_name, horizon, threshold):
+def _first_location_of_crossing_threshold(df, horizon, threshold, close_column_name, price_column_name):
     """
     First location of crossing the threshold.
     For each point, take its close price, and then find the distance (location, index)
@@ -164,7 +164,7 @@ def first_location_of_crossing_threshold(df, close_column_name, price_column_nam
         return idx
 
     # Window df will include the current row as well as horizon of past rows with 0 index starting from the oldest row and last index with the current row
-    rl = df[[close_column_name, price_column_name]].rolling(horizon + 1, method='table')
+    rl = df[[close_column_name, price_column_name]].rolling(horizon + 1, min_periods=(horizon // 2), method='table')
 
     if threshold > 0:
         df_out = rl.apply(fn_high, raw=True, engine='numba')
@@ -177,25 +177,28 @@ def first_location_of_crossing_threshold(df, close_column_name, price_column_nam
     df_out = df_out.shift(-horizon)
 
     # For some unknown reason (bug?), rolling apply (with table and numba) returns several columns rather than one column
-    df[out_column_name] = df_out.iloc[:, 0]
+    out_column = df_out.iloc[:, 0]
 
-    return df[out_column_name]
+    return out_column
 
 
-def first_cross_labels(df, threshold, horizon):
+def first_cross_labels(df, horizon, thresholds, close_column, price_columns, out_column):
     """
-    Produce two boolean columns which are true if the price crosses the threshold
-    within the specified horizon either higher (first column) or lower (second column)
-    whichever happens first.
+    Produce one boolean column which is true if the price crosses the first threshold
+    but does not cross the second threshold in the opposite direction before that.
+
+    For example, if columns are (high, low) and thresholds are [0.05, -0.01]
+    then the result is true if price increases by 5% but never decreases lower than 1% during this growth.
+
+    If columns are (low, high) and thresholds are [-0.05, 0.01]
+    the result is true if price decreases by 5% but never increases higher than 1% before that.
     """
-    close_column = "close"
-    high_column = "high"
-    low_column = "low"
 
     # High label - find first (forward) index like +5 of the value exceeds the threshold. Or 0/nan if not found within window
-    first_location_of_crossing_threshold(df, close_column, high_column, "high_idx", horizon, threshold)
+    df["first_idx_column"] = _first_location_of_crossing_threshold(df, horizon, thresholds[0], close_column, price_columns[0])
+
     # Low label - find first (forward) index like +6 of the value lower than threshold. Or 0/nan if not found within window
-    first_location_of_crossing_threshold(df, close_column, low_column, "low_idx", horizon, -threshold)
+    df["second_idx_column"] = _first_location_of_crossing_threshold(df, horizon, thresholds[1], close_column, price_columns[1])
 
     # The final value is chosen from these two whichever is smaller (as absolute value), that is, closer to this point
     def is_high_true(x):
@@ -204,11 +207,14 @@ def first_cross_labels(df, threshold, horizon):
         elif np.isnan(x[1]):
             return True
         else:
-            return x[0] < x[1]  # If the cross point is closer to this point
-    df["is_high"] = df[["high_idx", "low_idx"]].apply(is_high_true, raw=True, axis=1)
-    df["is_low"] = df[["low_idx", "high_idx"]].apply(is_high_true, raw=True, axis=1)
+            return x[0] < x[1]  # If the first cross point is closer to this point than the second one
 
-    # TODO: introduce and return out column names. Delete intermediate columns
+    df[out_column] = df[["first_idx_column", "second_idx_column"]].apply(is_high_true, raw=True, axis=1)
+
+    # Indexes are not needed anymore
+    df.drop(columns=['first_idx_column', 'second_idx_column'], inplace=True)
+
+    return out_column
 
 
 if __name__ == "__main__":
