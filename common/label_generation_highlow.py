@@ -87,18 +87,20 @@ def generate_labels_highlow2(df, horizon):
     labels = []
 
     # Increase higher than the thresholds
-    labels += first_cross_labels(df, horizon, [1.0, -0.5], "close", ["high", "low"], "first_high_10")
-    labels += first_cross_labels(df, horizon, [1.5, -0.75], "close", ["high", "low"], "first_high_15")
-    labels += first_cross_labels(df, horizon, [2.0, -1.0], "close", ["high", "low"], "first_high_20")
-    labels += first_cross_labels(df, horizon, [2.5, -1.25], "close", ["high", "low"], "first_high_25")
-    labels += first_cross_labels(df, horizon, [3.0, -1.5], "close", ["high", "low"], "first_high_30")
+    first_cross_labels(df, horizon, [1.0, -0.5], "close", ["high", "low"], "first_high_10")
+    first_cross_labels(df, horizon, [1.5, -0.75], "close", ["high", "low"], "first_high_15")
+    first_cross_labels(df, horizon, [2.0, -1.0], "close", ["high", "low"], "first_high_20")
+    first_cross_labels(df, horizon, [2.5, -1.25], "close", ["high", "low"], "first_high_25")
+    first_cross_labels(df, horizon, [3.0, -1.5], "close", ["high", "low"], "first_high_30")
+    labels.extend(["first_high_10", "first_high_15", "first_high_20", "first_high_25", "first_high_30"])
 
     # Decrease lower than the thresholds
-    labels += first_cross_labels(df, horizon, [-1.0, 0.5], "close", ["low", "high"], "first_low_10")
-    labels += first_cross_labels(df, horizon, [-1.5, 0.75], "close", ["low", "high"], "first_low_15")
-    labels += first_cross_labels(df, horizon, [-2.0, 1.0], "close", ["low", "high"], "first_low_20")
-    labels += first_cross_labels(df, horizon, [-2.5, 1.25], "close", ["low", "high"], "first_low_25")
-    labels += first_cross_labels(df, horizon, [-3.0, 1.5], "close", ["low", "high"], "first_low_30")
+    first_cross_labels(df, horizon, [-1.0, 0.5], "close", ["low", "high"], "first_low_10")
+    first_cross_labels(df, horizon, [-1.5, 0.75], "close", ["low", "high"], "first_low_15")
+    first_cross_labels(df, horizon, [-2.0, 1.0], "close", ["low", "high"], "first_low_20")
+    first_cross_labels(df, horizon, [-2.5, 1.25], "close", ["low", "high"], "first_low_25")
+    first_cross_labels(df, horizon, [-3.0, 1.5], "close", ["low", "high"], "first_low_30")
+    labels.extend(["first_low_10", "first_low_15", "first_low_20", "first_low_25", "first_low_30"])
 
     return labels
 
