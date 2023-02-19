@@ -133,7 +133,7 @@ def _first_location_of_crossing_threshold(df, horizon, threshold, close_column_n
 
     Horizon specifies how many points are considered after this point and without this point.
 
-    Threshold is increase or decrease coefficient, say, 0.5 means 50% increase with respect to
+    Threshold is increase or decrease coefficient, say, 50.0 means 50% increase with respect to
     the current close price.
     """
 
@@ -141,7 +141,7 @@ def _first_location_of_crossing_threshold(df, horizon, threshold, close_column_n
         if len(x) < 2:
             return np.nan
         p = x[0, 0]  # Reference price
-        p_threshold = p*(1+threshold)  # Cross line
+        p_threshold = p*(1+(threshold/100.0))  # Cross line
         idx = np.argmax(x[1:, 1] > p_threshold)  # First index where price crossed the threshold
 
         # If all False, then index is 0 (first element of constant series) and we are not able to distinguish it from first element being True
@@ -154,7 +154,7 @@ def _first_location_of_crossing_threshold(df, horizon, threshold, close_column_n
         if len(x) < 2:
             return np.nan
         p = x[0, 0]  # Reference price
-        p_threshold = p*(1+threshold)  # Cross line
+        p_threshold = p*(1+(threshold/100.0))  # Cross line
         idx = np.argmax(x[1:, 1] < p_threshold)  # First index where price crossed the threshold
 
         # If all False, then index is 0 (first element of constant series) and we are not able to distinguish it from first element being True
@@ -187,10 +187,10 @@ def first_cross_labels(df, horizon, thresholds, close_column, price_columns, out
     Produce one boolean column which is true if the price crosses the first threshold
     but does not cross the second threshold in the opposite direction before that.
 
-    For example, if columns are (high, low) and thresholds are [0.05, -0.01]
+    For example, if columns are (high, low) and thresholds are [5.0, -1.0]
     then the result is true if price increases by 5% but never decreases lower than 1% during this growth.
 
-    If columns are (low, high) and thresholds are [-0.05, 0.01]
+    If columns are (low, high) and thresholds are [-5.0, 1.0]
     the result is true if price decreases by 5% but never increases higher than 1% before that.
     """
 
