@@ -76,6 +76,33 @@ def generate_labels_highlow(df, horizon):
     return labels
 
 
+def generate_labels_highlow2(df, horizon):
+    """
+    Generate multiple increase/decrease labels which are typically used for training.
+
+    :param df:
+    :param horizon:
+    :return:
+    """
+    labels = []
+
+    # Increase higher than the thresholds
+    labels += first_cross_labels(df, horizon, [1.0, -0.5], "close", ["high", "low"], "first_high_10")
+    labels += first_cross_labels(df, horizon, [1.5, -0.75], "close", ["high", "low"], "first_high_15")
+    labels += first_cross_labels(df, horizon, [2.0, -1.0], "close", ["high", "low"], "first_high_20")
+    labels += first_cross_labels(df, horizon, [2.5, -1.25], "close", ["high", "low"], "first_high_25")
+    labels += first_cross_labels(df, horizon, [3.0, -1.5], "close", ["high", "low"], "first_high_30")
+
+    # Decrease lower than the thresholds
+    labels += first_cross_labels(df, horizon, [-1.0, 0.5], "close", ["low", "high"], "first_low_10")
+    labels += first_cross_labels(df, horizon, [-1.5, 0.75], "close", ["low", "high"], "first_low_15")
+    labels += first_cross_labels(df, horizon, [-2.0, 1.0], "close", ["low", "high"], "first_low_20")
+    labels += first_cross_labels(df, horizon, [-2.5, 1.25], "close", ["low", "high"], "first_low_25")
+    labels += first_cross_labels(df, horizon, [-3.0, 1.5], "close", ["low", "high"], "first_low_30")
+
+    return labels
+
+
 def generate_labels_sim(df, horizon):
     """Currently not used."""
     labels = []
