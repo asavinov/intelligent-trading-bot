@@ -60,8 +60,8 @@ class Analyzer:
             model_path = PACKAGE_ROOT / model_path
         model_path = model_path.resolve()
 
-        buy_labels = App.config["buy_labels"]
-        sell_labels = App.config["sell_labels"]
+        buy_labels = App.config["score_aggregation"]["buy_labels"]
+        sell_labels = App.config["score_aggregation"]["sell_labels"]
         self.models = {label: load_model_pair(model_path, label) for label in buy_labels + sell_labels}
 
         #
@@ -268,59 +268,8 @@ class Analyzer:
                 with open(file, 'a+') as f:
                     f.write(data_str + "\n")
 
-    #
-    # Analysis (features, predictions, signals etc.)
-    #
-
-    def analyze(self):
-        """
-        1. Convert klines to df
-        2. Derive (compute) features (use same function as for model training)
-        3. Derive (predict) labels by applying models trained for each label
-        4. Generate buy/sell signals by applying rule models trained for best overall trade performance
-        """
-        symbol = App.config["symbol"]
-
-        last_kline_ts = self.get_last_kline_ts(symbol)
-        last_kline_ts_str = str(pd.to_datetime(last_kline_ts, unit='ms'))
-
-        log.info(f"Analyze {symbol}. Last kline timestamp: {last_kline_ts_str}")
-
+    def generate_features(self, df:pd.DataFrame, all:bool=False) -> pd.DataFrame:
         #
-        # 1.
-        # MERGE: Produce a single data frame with înput data from all sources
-        #
-        data_sources = App.config.get("data_sources", [])
-        if not data_sources:
-            data_sources = [{"folder": App.config["symbol"], "file": "klines", "column_prefix": ""}]
-
-        # Read data from online sources into data frames
-        for ds in data_sources:
-            if ds.get("file") == "klines":
-                try:
-                    klines = self.klines.get(ds.get("folder"))
-                    df = klines_to_df(klines)
-
-                    # Validate
-                    source_columns = ['open', 'high', 'low', 'close', 'volume', 'close_time', 'quote_av', 'trades', 'tb_base_av', 'tb_quote_av']
-                    if df.isnull().any().any():
-                        null_columns = {k: v for k, v in df.isnull().any().to_dict().items() if v}
-                        log.warning(f"Null in source data found. Columns with Null: {null_columns}")
-                    # TODO: We might receive empty strings or 0s in numeric data - how can we detect them?
-                    # TODO: Check that timestamps in 'close_time' are strictly consecutive
-                except Exception as e:
-                    log.error(f"Error in klines_to_df method: {e}. Length klines: {len(klines)}")
-                    return
-            else:
-                log.error("Unknown data sources. Currently only 'klines' is supported. Check 'data_sources' in config, key 'file'")
-                return
-            ds["df"] = df
-
-        # Merge in one df with prefixes and common regular time index
-        df = merge_data_sources(data_sources)
-
-        #
-        # 2.
         # Generate all necessary derived features (NaNs are possible due to short history)
         #
         # We want to generate features only for the last rows (for performance reasons)
@@ -338,13 +287,18 @@ class Analyzer:
 
         # Apply all feature generators to the data frame which get accordingly new derived columns
         # The feature parameters will be taken from App.config (depending on generator)
+        if all:
+            last_rows = 0
+
         for fs in feature_sets:
             df, _ = generate_feature_set(df, fs, last_rows=last_rows)
 
         df = df.iloc[-last_rows:]  # For signal generation, ew will need only several last rows
+        
+        return df
 
+    def generate_score(self, df:pd.DataFrame) -> pd.DataFrame:
         #
-        # 3.
         # Apply ML models and generate score columns
         #
 
@@ -384,12 +338,10 @@ class Analyzer:
 
         # This df contains only one (last) record
         df = df.join(score_df)
-        #df = pd.concat([predict_df, score_df], axis=1)
 
-        #
-        # 4.
-        # Aggregate and post-process
-        #
+        return df
+
+    def aggregate_post_process(self, df:pd.DataFrame) -> pd.DataFrame:
         sa_sets = ['score_aggregation', 'score_aggregation_2']
         for i, score_aggregation_set in enumerate(sa_sets):
             score_aggregation = App.config.get(score_aggregation_set)
@@ -411,7 +363,68 @@ class Analyzer:
             aggregate_scores(df, score_aggregation, sell_column, sell_labels)
             # Mutually adjust two independent scores with opposite semantics
             combine_scores(df, score_aggregation, buy_column, sell_column)
+        return df
+    #
+    # Analysis (features, predictions, signals etc.)
+    #
 
+    def analyze(self):
+        """
+        1. Convert klines to df
+        2. Derive (compute) features (use same function as for model training)
+        3. Derive (predict) labels by applying models trained for each label
+        4. Generate buy/sell signals by applying rule models trained for best overall trade performance
+        """
+        symbol = App.config["symbol"]
+
+        last_kline_ts = self.get_last_kline_ts(symbol)
+        last_kline_ts_str = str(pd.to_datetime(last_kline_ts, unit='ms'))
+
+        log.debug(f"Analyze {symbol}. Last kline timestamp: {last_kline_ts_str}")
+
+        #
+        # 1.
+        # MERGE: Produce a single data frame with înput data from all sources
+        #
+        data_sources = App.config.get("data_sources", [])
+        if not data_sources:
+            data_sources = [{"folder": App.config["symbol"], "file": "klines", "column_prefix": ""}]
+
+        # Read data from online sources into data frames
+        for ds in data_sources:
+            if ds.get("file") == "klines":
+                try:
+                    klines = self.klines.get(ds.get("folder"))
+                    df = klines_to_df(klines)
+
+                    # Validate
+                    source_columns = ['open', 'high', 'low', 'close', 'volume', 'close_time', 'quote_av', 'trades', 'tb_base_av', 'tb_quote_av']
+                    if df.isnull().any().any():
+                        null_columns = {k: v for k, v in df.isnull().any().to_dict().items() if v}
+                        log.warning(f"Null in source data found. Columns with Null: {null_columns}")
+                    # TODO: We might receive empty strings or 0s in numeric data - how can we detect them?
+                    # TODO: Check that timestamps in 'close_time' are strictly consecutive
+                except Exception as e:
+                    log.error(f"Error in klines_to_df method: {e}. Length klines: {len(klines)}")
+                    return
+            else:
+                log.error("Unknown data sources. Currently only 'klines' is supported. Check 'data_sources' in config, key 'file'")
+                return
+            ds["df"] = df
+
+        # Merge in one df with prefixes and common regular time index
+        df = merge_data_sources(data_sources)
+
+        # 2
+        df = self.generate_features(df)
+
+        # 3.
+        df = self.generate_score(df)
+        #df = pd.concat([predict_df, score_df], axis=1)
+
+        # 4.
+        df = self.aggregate_post_process(df)
+        
         #
         # 5.
         # Apply rule to last row
