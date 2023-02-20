@@ -60,9 +60,16 @@ class Analyzer:
             model_path = PACKAGE_ROOT / model_path
         model_path = model_path.resolve()
 
-        buy_labels = App.config["buy_labels"]
-        sell_labels = App.config["sell_labels"]
-        self.models = {label: load_model_pair(model_path, label) for label in buy_labels + sell_labels}
+        sa_sets = ['score_aggregation', 'score_aggregation_2']
+        all_labels = []
+        for i, score_aggregation_set in enumerate(sa_sets):
+            score_aggregation = App.config.get(score_aggregation_set)
+            if not score_aggregation:
+                continue
+            all_labels.extend(score_aggregation.get("buy_labels"))
+            all_labels.extend(score_aggregation.get("sell_labels"))
+
+        self.models = {label: load_model_pair(model_path, label) for label in all_labels}
 
         #
         # Load latest transaction and (simulated) trade state
@@ -416,23 +423,26 @@ class Analyzer:
         # 5.
         # Apply rule to last row
         #
-        row = df.iloc[-1]  # Last row used for rule-based signal generation
         signal_model = App.config['signal_model']
         if signal_model.get('rule_type') == 'two_dim_rule':
-            print(f"ERROR: Currently no function defined for this rule type: 'two_dim_rule'")
-            return
+            apply_rule_with_score_thresholds_2(df, signal_model, 'buy_score_column', 'buy_score_column_2')
         else:  # Default one dim rule
-            buy_signal, sell_signal = apply_rule_with_score_thresholds_one_row(row, signal_model, 'buy_score_column', 'sell_score_column')
+            apply_rule_with_score_thresholds(df, signal_model, 'buy_score_column', 'sell_score_column')
 
         #
         # 6.
         # Collect results and create signal object
         #
-        buy_score = row["buy_score_column"]
-        sell_score = row["sell_score_column"]
+        row = df.iloc[-1]  # Last row stores the latest values we need
 
         close_price = row["close"]
         close_time = row.name+timedelta(minutes=1)  # Add 1 minute because timestamp is start of the interval
+
+        buy_score = row["buy_score_column"]
+        sell_score = row["sell_score_column"]
+
+        buy_signal = row["buy_signal_column"]
+        sell_signal = row["sell_signal_column"]
 
         signal = dict(
             side="",
