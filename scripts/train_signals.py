@@ -46,27 +46,26 @@ class P:
     end_index = None
 
     # True if buy and sell hyper-parameters are equal
-    # Only buy parameters will be used and sell parameters will be ignored
-    buy_sell_equal = False
+    # Only buy parameters will be used and sell parameters will be ignored or set to the same opposite value
+    buy_sell_equal = True
 
     # Haw many best performing parameters from the grid to store
     topn_to_store = 10
+
 
 #
 # Specify the ranges of signal hyper-parameters
 #
 signal_model_grid = [
     {
-        "point_threshold": [None], # np.arange(0.01, 0.21, 0.01).tolist(),  # None means do not use
-        "window": [5],
-        "combine": ["no_combine"],  # "no_combine", "difference" (same as no combine or better), "relative" (rather bad)
-
-        "buy_signal_threshold": np.arange(0.15, 0.30, 0.01).tolist(),
-        "buy_slope_threshold": [None],
+        "buy_signal_threshold": np.arange(0.16, 0.24, 0.01).tolist(),
+        "buy_signal_threshold_2": [0.001],
+        #"buy_slope_threshold": [0.0],
 
         # If two groups are equal, then these values are ignored
-        "sell_signal_threshold": np.arange(0.15, 0.30, 0.01).tolist(),
-        "sell_slope_threshold": [None],
+        "sell_signal_threshold": (-np.arange(0.16, 0.24, 0.01)).tolist(),
+        "sell_signal_threshold_2": [-0.001],
+        #"sell_slope_threshold": [0.0],
     },
 ]
 
@@ -107,16 +106,16 @@ def main(config_file):
     out_path.mkdir(parents=True, exist_ok=True)  # Ensure that folder exists
 
     #
-    # Load data with (rolling) label point-wise predictions
+    # Load data with (rolling) label point-wise predictions and signals generated
     #
-    file_path = (data_path / App.config.get("predict_file_name")).with_suffix(".csv")
+    file_path = (data_path / App.config.get("signal_file_name")).with_suffix(".csv")
     if not file_path.exists():
         print(f"ERROR: Input file does not exist: {file_path}")
         return
 
-    print(f"Loading predictions from input file: {file_path}")
+    print(f"Loading signals from input file: {file_path}")
     df = pd.read_csv(file_path, parse_dates=[time_column], nrows=P.in_nrows)
-    print(f"Predictions loaded. Length: {len(df)}. Width: {len(df.columns)}")
+    print(f"Signals loaded. Length: {len(df)}. Width: {len(df.columns)}")
 
     # Limit size according to parameters start_index end_index
     df = df.iloc[P.start_index:P.end_index]
@@ -134,56 +133,31 @@ def main(config_file):
     # Maximum possible on labels themselves
     #performance_long, performance_short, long_count, short_count, long_profitable, short_profitable, longs, shorts = performance_score(df, 'top10_2', 'bot10_2', 'close')
 
+    months_in_simulation = (df[time_column].iloc[-1] - df[time_column].iloc[0]) / timedelta(days=30.5)
+
+    # Disable sell parameters in grid search - they will be set from the buy parameters
     if P.buy_sell_equal:
         signal_model_grid[0]["sell_signal_threshold"] = [None]
         signal_model_grid[0]["sell_slope_threshold"] = [None]
-
-    months_in_simulation = (df[time_column].iloc[-1] - df[time_column].iloc[0]) / timedelta(days=30.5)
+        signal_model_grid[0]["sell_signal_threshold_2"] = [None]
 
     performances = list()
     for signal_model in tqdm(ParameterGrid(signal_model_grid), desc="MODELS"):
         #
-        # If equal parameters, then use the first group
+        # If equal parameters, then derive the sell parameter from the buy parameter
         #
         if P.buy_sell_equal:
-            signal_model["sell_signal_threshold"] = signal_model["buy_signal_threshold"]
-            signal_model["sell_slope_threshold"] = signal_model["buy_slope_threshold"]
+            signal_model["sell_signal_threshold"] = -signal_model["buy_signal_threshold"]
+            #signal_model["sell_slope_threshold"] = -signal_model["buy_slope_threshold"]
+            signal_model["sell_signal_threshold_2"] = -signal_model["buy_signal_threshold_2"]
 
-        #
-        # Aggregate and post-process
-        #
-        sa_sets = ['score_aggregation', 'score_aggregation_2']
-        for i, score_aggregation_set in enumerate(sa_sets):
-            score_aggregation = App.config.get(score_aggregation_set)
-            if not score_aggregation:
-                continue
-
-            buy_labels = score_aggregation.get("buy_labels")
-            sell_labels = score_aggregation.get("sell_labels")
-            if set(buy_labels + sell_labels) - set(df.columns):
-                missing_labels = list(set(buy_labels + sell_labels) - set(df.columns))
-                print(f"ERROR: Some buy/sell labels from config are not present in the input data. Missing labels: {missing_labels}")
-                return
-
-            # Output (post-processed) columns for each aggregation set
-            buy_column = 'buy_score_column'
-            sell_column = 'sell_score_column'
-            if i > 0:
-                buy_column = 'buy_score_column' + '_' + str(i + 1)
-                sell_column = 'sell_score_column' + '_' + str(i + 1)
-
-            # Aggregate scores between each other and in time
-            aggregate_scores(df, score_aggregation, buy_column, buy_labels)
-            aggregate_scores(df, score_aggregation, sell_column, sell_labels)
-            # Mutually adjust two independent scores with opposite semantics
-            combine_scores(df, score_aggregation, buy_column, sell_column)
+        signal_model["rule_type"] = App.config["signal_model"]["rule_type"]
 
         #
         # Apply signal rule and generate binary buy_signal_column/sell_signal_column
         #
         if signal_model.get('rule_type') == 'two_dim_rule':
-            print(f"ERROR: Currently no function defined for this rule type: 'two_dim_rule'")
-            return
+            apply_rule_with_score_thresholds_2(df, signal_model, 'buy_score_column', 'buy_score_column_2')
         else:  # Default one dim rule
             apply_rule_with_score_thresholds(df, signal_model, 'buy_score_column', 'sell_score_column')
 
@@ -234,7 +208,7 @@ def main(config_file):
                  list(p['performance'].values()) + \
                  list(p['long_performance'].values()) + \
                  list(p['short_performance'].values())
-        record = [f"{v:.2f}" if isinstance(v, float) else str(v) for v in record]
+        record = [f"{v:.3f}" if isinstance(v, float) else str(v) for v in record]
         record_str = ",".join(record)
         lines.append(record_str)
 
