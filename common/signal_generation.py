@@ -65,7 +65,11 @@ def aggregate_scores(df, model, score_column_out: str, score_columns: Union[List
 def combine_scores(df, model, buy_score_column, sell_score_column):
     """
     Mutually adjust two independent scores with opposite semantics.
-    The result is stored in the same columns by overwriting old values.
+    The both input scores are in [0,1] range as expected from ML classification algorithms.
+    But they have opposite semantics. This function combines them with the goal
+    to produce only one score in [-1,+1] where negative values mean sell and
+    positive values mean buy. The result is stored in the same input buy column
+    while the sell column is redundant (and should be removed in future as unnecessary).
     """
     if model.get("combine") == "relative":
         combine_scores_relative(df, buy_score_column, sell_score_column, buy_score_column, sell_score_column)
@@ -73,8 +77,11 @@ def combine_scores(df, model, buy_score_column, sell_score_column):
         combine_scores_difference(df, buy_score_column, sell_score_column, buy_score_column, sell_score_column)
     else:
         # If buy score is greater than sell score then positive buy, otherwise negative sell
-        df[buy_score_column] = df[[buy_score_column, sell_score_column]].apply(lambda x: x[0] if x[0] >= x[1] else -x[1], raw=True, axis=1)
-        df[sell_score_column] = -df[buy_score_column]
+        temp_buy_score_column = df[[buy_score_column, sell_score_column]].apply(lambda x: x[0] if x[0] >= x[1] else -x[1], raw=True, axis=1)
+        temp_sell_score_column = df[[buy_score_column, sell_score_column]].apply(lambda x: -x[1] if x[0] >= x[1] else x[0], raw=True, axis=1)
+
+        df[sell_score_column] = temp_sell_score_column
+        df[buy_score_column] = temp_buy_score_column
 
     # Scale the score distribution to make it symmetric or normalize
     # Always apply the transformation to buy score. It might be in [0,1] or [-1,+1] depending on combine parameter
