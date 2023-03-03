@@ -45,29 +45,8 @@ class P:
     start_index = 0  # 200_000 for 1m btc
     end_index = None
 
-    # True if buy and sell hyper-parameters are equal
-    # Only buy parameters will be used and sell parameters will be ignored or set to the same opposite value
-    buy_sell_equal = True
-
     # Haw many best performing parameters from the grid to store
     topn_to_store = 10
-
-
-#
-# Specify the ranges of signal hyper-parameters
-#
-signal_model_grid = [
-    {
-        "buy_signal_threshold": np.arange(0.16, 0.24, 0.01).tolist(),
-        "buy_signal_threshold_2": [0.001],
-        #"buy_slope_threshold": [0.0],
-
-        # If two groups are equal, then these values are ignored
-        "sell_signal_threshold": (-np.arange(0.16, 0.24, 0.01)).tolist(),
-        "sell_signal_threshold_2": [-0.001],
-        #"sell_slope_threshold": [0.0],
-    },
-]
 
 
 @click.command()
@@ -135,18 +114,33 @@ def main(config_file):
 
     months_in_simulation = (df[time_column].iloc[-1] - df[time_column].iloc[0]) / timedelta(days=30.5)
 
+    #
+    # Load signal train parameters
+    #
+    train_signal_model = App.config["train_signal_model"]
+    signal_model_grid = train_signal_model["grid"]
+
+    # Evaluate strings to produce lists
+    if isinstance(signal_model_grid["buy_signal_threshold"], str):
+        signal_model_grid["buy_signal_threshold"] = eval(signal_model_grid["buy_signal_threshold"])
+    if isinstance(signal_model_grid["buy_signal_threshold_2"], str):
+        signal_model_grid["buy_signal_threshold_2"] = eval(signal_model_grid["buy_signal_threshold_2"])
+    if isinstance(signal_model_grid["sell_signal_threshold"], str):
+        signal_model_grid["sell_signal_threshold"] = eval(signal_model_grid["sell_signal_threshold"])
+    if isinstance(signal_model_grid["sell_signal_threshold_2"], str):
+        signal_model_grid["sell_signal_threshold_2"] = eval(signal_model_grid["sell_signal_threshold_2"])
+
     # Disable sell parameters in grid search - they will be set from the buy parameters
-    if P.buy_sell_equal:
-        signal_model_grid[0]["sell_signal_threshold"] = [None]
-        signal_model_grid[0]["sell_slope_threshold"] = [None]
-        signal_model_grid[0]["sell_signal_threshold_2"] = [None]
+    if train_signal_model.get("buy_sell_equal"):
+        signal_model_grid["sell_signal_threshold"] = [None]
+        signal_model_grid["sell_signal_threshold_2"] = [None]
 
     performances = list()
-    for signal_model in tqdm(ParameterGrid(signal_model_grid), desc="MODELS"):
+    for signal_model in tqdm(ParameterGrid([signal_model_grid]), desc="MODELS"):
         #
         # If equal parameters, then derive the sell parameter from the buy parameter
         #
-        if P.buy_sell_equal:
+        if train_signal_model.get("buy_sell_equal"):
             signal_model["sell_signal_threshold"] = -signal_model["buy_signal_threshold"]
             #signal_model["sell_slope_threshold"] = -signal_model["buy_slope_threshold"]
             signal_model["sell_signal_threshold_2"] = -signal_model["buy_signal_threshold_2"]
