@@ -83,5 +83,14 @@
 
       "trade_icon_step": 0.1,
       "notify_frequency_minutes": 10
-  }
+  },
+
+  "train_signal_model": {
+      "buy_sell_equal": false,
+
+      "grid": {
+          "buy_signal_threshold": [0.1, 0.2, 0.3],
+          "sell_signal_threshold": [-0.1, -0.2, -0.3]
+      }
+    }
 }

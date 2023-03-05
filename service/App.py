@@ -180,8 +180,8 @@ class App:
             "constant": 0.0
         },
 
-        # ===============================
-        # === TRADE SIGNAL GENERATION ===
+        # ================================
+        # === SIGNAL RULES FOR TRADING ===
         "signal_model": {
             "rule_type": "",  # empty, 'two_dim_rule'
 
@@ -195,6 +195,16 @@ class App:
 
             "trade_icon_step": 0.1,  # For each step, one icon added
             "notify_frequency_minutes": 10,  # 1m, 5m, 10m, 15m etc. Minutes will be divided by this number
+        },
+
+        "train_signal_model": {
+            "buy_sell_equal": False,  # If true, only buy parameters will be used
+
+            "grid": {
+                # Lists of rule thresholds to test performance
+                "buy_signal_threshold": [0.1, 0.2, 0.3],
+                "sell_signal_threshold": [-0.1, -0.2, -0.3]
+            }
         },
 
         # =====================
