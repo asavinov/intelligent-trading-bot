@@ -66,7 +66,7 @@ def main(config_file):
         all_features = train_features + labels
     else:
         all_features = train_features
-    df = df[out_columns + all_features]
+    df = df[out_columns + [x for x in all_features if x not in out_columns]]
 
     # Spot and futures have different available histories. If we drop nans in all of them, then we get a very short data frame (corresponding to futureus which have little data)
     # So we do not drop data here but rather when we select necessary input features
