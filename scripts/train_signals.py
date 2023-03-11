@@ -148,15 +148,28 @@ def main(config_file):
         signal_model["rule_type"] = App.config["signal_model"]["rule_type"]
 
         #
+        # Do not aggregate but assume that we have already the aggregation results in the data
+        #
+        trade_score_column_names = []
+        sa_sets = ['score_aggregation', 'score_aggregation_2']
+        for i, score_aggregation_set in enumerate(sa_sets):
+            score_aggregation = App.config.get(score_aggregation_set)
+            if not score_aggregation:
+                continue
+
+            trade_score_column = score_aggregation.get("trade_score")
+            trade_score_column_names.append(trade_score_column)
+
+        #
         # Apply signal rule and generate binary buy_signal_column/sell_signal_column
         #
         if signal_model.get('rule_type') == 'two_dim_rule':
-            apply_rule_with_score_thresholds_2(df, signal_model, 'buy_score_column', 'buy_score_column_2')
+            apply_rule_with_score_thresholds_2(df, signal_model, trade_score_column_names[0], trade_score_column_names[1])
         else:  # Default one dim rule
-            apply_rule_with_score_thresholds(df, signal_model, 'buy_score_column', 'sell_score_column')
+            apply_rule_with_score_thresholds(df, signal_model, trade_score_column_names[0])
 
         #
-        # Simulate trade using close price and two boolean signals
+        # Simulate trade and compute performance using close price and two boolean signals
         # Add a pair of two dicts: performance dict and model parameters dict
         #
         performance, long_performance, short_performance = \

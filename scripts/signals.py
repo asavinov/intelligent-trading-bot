@@ -75,7 +75,7 @@ def main(config_file):
     #
     # Aggregate and post-process
     #
-    score_column_names = []
+    trade_score_column_names = []
     sa_sets = ['score_aggregation', 'score_aggregation_2']
     for i, score_aggregation_set in enumerate(sa_sets):
         score_aggregation = App.config.get(score_aggregation_set)
@@ -92,34 +92,31 @@ def main(config_file):
         # Output (post-processed) columns for each aggregation set
         buy_column = 'buy_score_column'
         sell_column = 'sell_score_column'
-        if i > 0:
-            buy_column = 'buy_score_column' + '_' + str(i+1)
-            sell_column = 'sell_score_column' + '_' + str(i+1)
-
         # Aggregate scores between each other and in time
         aggregate_scores(df, score_aggregation, buy_column, buy_labels)
         aggregate_scores(df, score_aggregation, sell_column, sell_labels)
+
         # Mutually adjust two independent scores with opposite semantics
         combine_scores(df, score_aggregation, buy_column, sell_column)
 
-        score_column_names.append(buy_column)
-        score_column_names.append(sell_column)
+        trade_score_column = score_aggregation.get("trade_score")
+        trade_score_column_names.append(trade_score_column)
 
     #
     # Apply signal rule and generate binary buy_signal_column/sell_signal_column
     #
     signal_model = App.config['signal_model']
     if signal_model.get('rule_type') == 'two_dim_rule':
-        apply_rule_with_score_thresholds_2(df, signal_model, 'buy_score_column', 'buy_score_column_2')
+        apply_rule_with_score_thresholds_2(df, signal_model, trade_score_column_names[0], trade_score_column_names[1])
     else:  # Default one dim rule
-        apply_rule_with_score_thresholds(df, signal_model, 'buy_score_column', 'sell_score_column')
-
-    signal_column_names = ['buy_signal_column', 'sell_signal_column']
+        apply_rule_with_score_thresholds(df, signal_model, trade_score_column_names[0])
 
     #
-    # Simulate trade using close price and two boolean signals
+    # Simulate trade and compute performance using close price and two boolean signals
     # Add a pair of two dicts: performance dict and model parameters dict
     #
+    signal_column_names = ['buy_signal_column', 'sell_signal_column']
+
     performance, long_performance, short_performance = \
         simulated_trade_performance(df, 'sell_signal_column', 'buy_signal_column', 'close')
 
@@ -152,7 +149,7 @@ def main(config_file):
     lines = []
 
     # Score statistics
-    for score_col_name in score_column_names:
+    for score_col_name in trade_score_column_names:
         lines.append(f"'{score_col_name}':\n" + df[score_col_name].describe().to_string())
 
     # TODO: Profit
@@ -169,7 +166,7 @@ def main(config_file):
     #
     out_columns = ["timestamp", "open", "high", "low", "close"]  # Source data
     out_columns.extend(App.config.get('labels'))  # True labels
-    out_columns.extend(score_column_names)  # Aggregated post-processed scores
+    out_columns.extend(trade_score_column_names)  # Aggregated post-processed scores
     out_columns.extend(signal_column_names)  # Rule results
     out_columns.extend(["buy_transaction", "sell_transaction", "transaction_type", "profit_long_percent", "profit_short_percent", "profit_percent"])  # Simulation results
 

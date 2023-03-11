@@ -398,6 +398,7 @@ class Analyzer:
         # 4.
         # Aggregate and post-process
         #
+        trade_score_column_names = []
         sa_sets = ['score_aggregation', 'score_aggregation_2']
         for i, score_aggregation_set in enumerate(sa_sets):
             score_aggregation = App.config.get(score_aggregation_set)
@@ -410,15 +411,15 @@ class Analyzer:
             # Output (post-processed) columns for each aggregation set
             buy_column = 'buy_score_column'
             sell_column = 'sell_score_column'
-            if i > 0:
-                buy_column = 'buy_score_column' + '_' + str(i + 1)
-                sell_column = 'sell_score_column' + '_' + str(i + 1)
-
             # Aggregate scores between each other and in time
             aggregate_scores(df, score_aggregation, buy_column, buy_labels)
             aggregate_scores(df, score_aggregation, sell_column, sell_labels)
+
             # Mutually adjust two independent scores with opposite semantics
             combine_scores(df, score_aggregation, buy_column, sell_column)
+
+            trade_score_column = score_aggregation.get("trade_score")
+            trade_score_column_names.append(trade_score_column)
 
         #
         # 5.
@@ -426,9 +427,9 @@ class Analyzer:
         #
         signal_model = App.config['signal_model']
         if signal_model.get('rule_type') == 'two_dim_rule':
-            apply_rule_with_score_thresholds_2(df, signal_model, 'buy_score_column', 'buy_score_column_2')
+            apply_rule_with_score_thresholds_2(df, signal_model, trade_score_column_names[0], trade_score_column_names[1])
         else:  # Default one dim rule
-            apply_rule_with_score_thresholds(df, signal_model, 'buy_score_column', 'sell_score_column')
+            apply_rule_with_score_thresholds(df, signal_model, trade_score_column_names[0])
 
         #
         # 6.

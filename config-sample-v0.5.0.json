@@ -63,6 +63,8 @@
       "buy_labels": ["high_10_lc", "high_15_lc", "high_20_lc"],
       "sell_labels": ["low_10_lc", "low_15_lc", "low_20_lc"],
 
+      "trade_score": "trade_score",
+
       "point_threshold": null,
       "window": 3,
       "combine": "",

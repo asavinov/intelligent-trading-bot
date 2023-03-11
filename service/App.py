@@ -175,6 +175,8 @@ class App:
             "buy_labels": ["high_10_lc", "high_15_lc", "high_20_lc"],
             "sell_labels": ["low_10_lc", "low_15_lc", "low_20_lc"],
 
+            "trade_score": "trade_score",  # Output column name: positive values - buy, negative values - sell
+
             "point_threshold": None,  # Produce boolean column (optional)
             "window": 3,  # Aggregate in time
             "combine": "",  # "no_combine" (or empty), "relative", "difference"
@@ -188,8 +190,8 @@ class App:
             "rule_type": "",  # empty, 'two_dim_rule'
 
             # Rule parameters to decide whether to buy/sell after all aggregations/combinations
-            "buy_signal_threshold": 0.65,
-            "sell_signal_threshold": 0.65,
+            "buy_signal_threshold": 0.1,
+            "sell_signal_threshold": -0.1,
 
             # To decide whether to notify (can be an option of individual users/consumers)
             "buy_notify_threshold": 0.05,

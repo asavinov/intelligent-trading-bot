@@ -71,30 +71,24 @@ def combine_scores(df, model, buy_score_column, sell_score_column):
     positive values mean buy. The result is stored in the same input buy column
     while the sell column is redundant (and should be removed in future as unnecessary).
     """
+    trade_score_column = model.get("trade_score")
     if model.get("combine") == "relative":
-        combine_scores_relative(df, buy_score_column, sell_score_column, buy_score_column, sell_score_column)
+        combine_scores_relative(df, buy_score_column, sell_score_column, trade_score_column)
     elif model.get("combine") == "difference":
-        combine_scores_difference(df, buy_score_column, sell_score_column, buy_score_column, sell_score_column)
+        combine_scores_difference(df, buy_score_column, sell_score_column, trade_score_column)
     else:
         # If buy score is greater than sell score then positive buy, otherwise negative sell
-        temp_buy_score_column = df[[buy_score_column, sell_score_column]].apply(lambda x: x[0] if x[0] >= x[1] else -x[1], raw=True, axis=1)
-        temp_sell_score_column = df[[buy_score_column, sell_score_column]].apply(lambda x: -x[1] if x[0] >= x[1] else x[0], raw=True, axis=1)
-
-        df[sell_score_column] = temp_sell_score_column
-        df[buy_score_column] = temp_buy_score_column
+        df[trade_score_column] = df[[buy_score_column, sell_score_column]].apply(lambda x: x[0] if x[0] >= x[1] else -x[1], raw=True, axis=1)
 
     # Scale the score distribution to make it symmetric or normalize
     # Always apply the transformation to buy score. It might be in [0,1] or [-1,+1] depending on combine parameter
     if model.get("coefficient"):
-        df[buy_score_column] = df[buy_score_column] * model.get("coefficient")
+        df[trade_score_column] = df[trade_score_column] * model.get("coefficient")
     if model.get("constant"):
-        df[buy_score_column] = df[buy_score_column] + model.get("constant")
-
-    if model.get("combine") in ["relative", "difference"]:
-        df[sell_score_column] = -df[buy_score_column]  # We know that they are opposite for these types of combination
+        df[trade_score_column] = df[trade_score_column] + model.get("constant")
 
 
-def combine_scores_relative(df, buy_column, sell_column, buy_column_out, sell_column_out):
+def combine_scores_relative(df, buy_column, sell_column, trade_column_out):
     """
     Mutually adjust input buy and sell scores by producing two output scores.
     The idea is that if both scores (buy and sell) are equally high then in the output
@@ -106,16 +100,13 @@ def combine_scores_relative(df, buy_column, sell_column, buy_column_out, sell_co
     buy_plus_sell = df[buy_column] + df[sell_column]
     buy_sell_score = ((df[buy_column] / buy_plus_sell) * 2) - 1.0  # in [-1, +1]
 
-    df[buy_column_out] = buy_sell_score  # High values mean buy signal
+    df[trade_column_out] = buy_sell_score  # High values mean buy signal
     #df[buy_column_out] = df[df[buy_column_out] < 0] = 0  # Set negative values to 0
-
-    df[sell_column_out] = -buy_sell_score  # High values mean sell signal
-    #df[sell_column_out] = df[df[sell_column_out] < 0] = 0  # Set negative values to 0
 
     return buy_sell_score
 
 
-def combine_scores_difference(df, buy_column, sell_column, buy_column_out, sell_column_out):
+def combine_scores_difference(df, buy_column, sell_column, trade_column_out):
     """
     This transformation represents how much buy score higher than sell score.
     If they are equal then the output is 0. The output scores have opposite signs.
@@ -124,11 +115,8 @@ def combine_scores_difference(df, buy_column, sell_column, buy_column_out, sell_
     # difference
     buy_minus_sell = df[buy_column] - df[sell_column]
 
-    df[buy_column_out] = buy_minus_sell  # High values mean buy signal
+    df[trade_column_out] = buy_minus_sell  # High values mean buy signal
     #df[buy_column_out] = df[df[buy_column_out] < 0] = 0  # Set negative values to 0
-
-    df[sell_column_out] = -buy_minus_sell  # High values mean sell signal
-    #df[sell_column_out] = df[df[sell_column_out] < 0] = 0  # Set negative values to 0
 
     return buy_minus_sell
 
@@ -172,31 +160,37 @@ def compute_score_slope(df, model, buy_score_columns_in, sell_score_columns_in):
 # Signal rules
 #
 
-def apply_rule_with_score_thresholds(df, model, buy_score_column, sell_score_column):
+def apply_rule_with_score_thresholds(df, model, trade_score_column):
     """
     Apply rules based on thresholds and generate trade signal buy, sell or do nothing.
 
     Returns signals in two pre-defined columns: 'buy_signal_column' and 'sell_signal_column'
     """
     df['buy_signal_column'] = \
-        (df[buy_score_column] >= model.get("buy_signal_threshold"))
+        (df[trade_score_column] >= model.get("buy_signal_threshold"))
     df['sell_signal_column'] = \
-        (df[buy_score_column] <= model.get("sell_signal_threshold"))
+        (df[trade_score_column] <= model.get("sell_signal_threshold"))
 
 
-def apply_rule_with_score_thresholds_2(df, model, buy_score_column, buy_score_column_2):
+def apply_rule_with_score_thresholds_2(df, model, trade_score_column, trade_score_column_2):
     """
     Assume using difference combination with negative sell scores
     """
+    #two_dim_distance_threshold = model.get("two_dim_distance_threshold")
+    #distance = ((df[buy_score_column]*df[buy_score_column]) + (df[buy_score_column_2]*df[buy_score_column_2]))**0.5
+    #distance_signal = (distance >= two_dim_distance_threshold)  # Far enough from the center
+
     # Both buy scores are greater than the corresponding thresholds
     df['buy_signal_column'] = \
-        (df[buy_score_column] >= model.get("buy_signal_threshold")) & \
-        (df[buy_score_column_2] >= model.get("buy_signal_threshold_2"))
+        (df[trade_score_column] >= model.get("buy_signal_threshold")) & \
+        (df[trade_score_column_2] >= model.get("buy_signal_threshold_2"))
+    #df['buy_signal_column'] = df['buy_signal_column'] & distance_signal
 
     # Both sell scores are smaller than the corresponding thresholds
     df['sell_signal_column'] = \
-        (df[buy_score_column] <= model.get("sell_signal_threshold")) & \
-        (df[buy_score_column_2] <= model.get("sell_signal_threshold_2"))
+        (df[trade_score_column] <= model.get("sell_signal_threshold")) & \
+        (df[trade_score_column_2] <= model.get("sell_signal_threshold_2"))
+    #df['sell_signal_column'] = df['sell_signal_column'] & distance_signal
 
 
 def apply_rule_with_score_thresholds_one_row(row, model, buy_score_column, sell_score_column):
