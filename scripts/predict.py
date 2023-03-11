@@ -85,9 +85,9 @@ def main(config_file):
     #
     # Load models for all score columns
     #
-    model_path = data_path / "MODELS"
+    model_path = Path(App.config["model_folder"])
     if not model_path.is_absolute():
-        model_path = PACKAGE_ROOT / model_path
+        model_path = data_path / model_path
     model_path = model_path.resolve()
 
     buy_labels = App.config["buy_labels"]

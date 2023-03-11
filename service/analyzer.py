@@ -55,9 +55,10 @@ class Analyzer:
         #
         symbol = App.config["symbol"]
         data_path = Path(App.config["data_folder"]) / symbol
-        model_path = data_path / "MODELS"
+
+        model_path = Path(App.config["model_folder"])
         if not model_path.is_absolute():
-            model_path = PACKAGE_ROOT / model_path
+            model_path = data_path / model_path
         model_path = model_path.resolve()
 
         sa_sets = ['score_aggregation', 'score_aggregation_2']

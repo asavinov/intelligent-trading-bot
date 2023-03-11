@@ -142,7 +142,11 @@ def main(config_file):
     #
     # Store all collected models in files
     #
-    model_path = data_path / "MODELS"
+    model_path = Path(App.config["model_folder"])
+    if not model_path.is_absolute():
+        model_path = data_path / model_path
+    model_path = model_path.resolve()
+
     model_path.mkdir(parents=True, exist_ok=True)  # Ensure that folder exists
 
     for score_column_name, model_pair in models.items():

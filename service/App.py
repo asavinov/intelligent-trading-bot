@@ -81,6 +81,8 @@ class App:
         "signal_file_name": "signals",
         "signal_models_file_name": "signal_models",
 
+        "model_folder": "MODELS",
+
         "time_column": "timestamp",
 
         # File locations
