@@ -427,9 +427,9 @@ class Analyzer:
         #
         signal_model = App.config['signal_model']
         if signal_model.get('rule_type') == 'two_dim_rule':
-            apply_rule_with_score_thresholds_2(df, signal_model, trade_score_column_names[0], trade_score_column_names[1])
+            apply_rule_with_score_thresholds_2(df, signal_model, trade_score_column_names)
         else:  # Default one dim rule
-            apply_rule_with_score_thresholds(df, signal_model, trade_score_column_names[0])
+            apply_rule_with_score_thresholds(df, signal_model, trade_score_column_names)
 
         #
         # 6.

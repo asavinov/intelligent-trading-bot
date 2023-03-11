@@ -160,25 +160,30 @@ def compute_score_slope(df, model, buy_score_columns_in, sell_score_columns_in):
 # Signal rules
 #
 
-def apply_rule_with_score_thresholds(df, model, trade_score_column):
+def apply_rule_with_score_thresholds(df, model, trade_score_columns: Union[List[str], str]):
     """
     Apply rules based on thresholds and generate trade signal buy, sell or do nothing.
 
     Returns signals in two pre-defined columns: 'buy_signal_column' and 'sell_signal_column'
     """
+    trade_score_column = trade_score_columns[0] if isinstance(trade_score_columns, list) else trade_score_columns
+
     df['buy_signal_column'] = \
         (df[trade_score_column] >= model.get("buy_signal_threshold"))
     df['sell_signal_column'] = \
         (df[trade_score_column] <= model.get("sell_signal_threshold"))
 
 
-def apply_rule_with_score_thresholds_2(df, model, trade_score_column, trade_score_column_2):
+def apply_rule_with_score_thresholds_2(df, model, trade_score_columns: list):
     """
     Assume using difference combination with negative sell scores
     """
     #two_dim_distance_threshold = model.get("two_dim_distance_threshold")
     #distance = ((df[buy_score_column]*df[buy_score_column]) + (df[buy_score_column_2]*df[buy_score_column_2]))**0.5
     #distance_signal = (distance >= two_dim_distance_threshold)  # Far enough from the center
+
+    trade_score_column = trade_score_columns[0]
+    trade_score_column_2 = trade_score_columns[1]
 
     # Both buy scores are greater than the corresponding thresholds
     df['buy_signal_column'] = \
@@ -193,13 +198,15 @@ def apply_rule_with_score_thresholds_2(df, model, trade_score_column, trade_scor
     #df['sell_signal_column'] = df['sell_signal_column'] & distance_signal
 
 
-def apply_rule_with_score_thresholds_one_row(row, model, buy_score_column, sell_score_column):
+def apply_rule_with_score_thresholds_one_row(row, model, trade_score_columns: Union[List[str], str]):
     """
     Same as above but applied to one row. It is used for online predictions.
 
     Returns signals as a tuple with two values: buy_signal and sell_signal
     """
-    buy_score = row[buy_score_column]
+    trade_score_column = trade_score_columns[0] if isinstance(trade_score_columns, list) else trade_score_columns
+
+    buy_score = row[trade_score_column]
 
     buy_signal = \
         (buy_score >= model.get("buy_signal_threshold"))
