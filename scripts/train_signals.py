@@ -121,14 +121,14 @@ def main(config_file):
     signal_model_grid = train_signal_model["grid"]
 
     # Evaluate strings to produce lists
-    if isinstance(signal_model_grid["buy_signal_threshold"], str):
-        signal_model_grid["buy_signal_threshold"] = eval(signal_model_grid["buy_signal_threshold"])
-    if isinstance(signal_model_grid["buy_signal_threshold_2"], str):
-        signal_model_grid["buy_signal_threshold_2"] = eval(signal_model_grid["buy_signal_threshold_2"])
-    if isinstance(signal_model_grid["sell_signal_threshold"], str):
-        signal_model_grid["sell_signal_threshold"] = eval(signal_model_grid["sell_signal_threshold"])
-    if isinstance(signal_model_grid["sell_signal_threshold_2"], str):
-        signal_model_grid["sell_signal_threshold_2"] = eval(signal_model_grid["sell_signal_threshold_2"])
+    if isinstance(signal_model_grid.get("buy_signal_threshold"), str):
+        signal_model_grid["buy_signal_threshold"] = eval(signal_model_grid.get("buy_signal_threshold"))
+    if isinstance(signal_model_grid.get("buy_signal_threshold_2"), str):
+        signal_model_grid["buy_signal_threshold_2"] = eval(signal_model_grid.get("buy_signal_threshold_2"))
+    if isinstance(signal_model_grid.get("sell_signal_threshold"), str):
+        signal_model_grid["sell_signal_threshold"] = eval(signal_model_grid.get("sell_signal_threshold"))
+    if isinstance(signal_model_grid.get("sell_signal_threshold_2"), str):
+        signal_model_grid["sell_signal_threshold_2"] = eval(signal_model_grid.get("sell_signal_threshold_2"))
 
     # Disable sell parameters in grid search - they will be set from the buy parameters
     if train_signal_model.get("buy_sell_equal"):
