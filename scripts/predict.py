@@ -90,9 +90,16 @@ def main(config_file):
         model_path = data_path / model_path
     model_path = model_path.resolve()
 
-    buy_labels = App.config["buy_labels"]
-    sell_labels = App.config["sell_labels"]
-    models = {label: load_model_pair(model_path, label) for label in buy_labels + sell_labels}
+    sa_sets = ['score_aggregation', 'score_aggregation_2']
+    all_labels = []
+    for i, score_aggregation_set in enumerate(sa_sets):
+        score_aggregation = App.config.get(score_aggregation_set)
+        if not score_aggregation:
+            continue
+        all_labels.extend(score_aggregation.get("buy_labels"))
+        all_labels.extend(score_aggregation.get("sell_labels"))
+
+    models = {label: load_model_pair(model_path, label) for label in all_labels}
 
     #
     # Loop over score columns with models and apply them to features
