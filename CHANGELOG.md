@@ -1,6 +1,6 @@
 # Change Log
 
-* v0.5.0 (2023-03-xx)
+* v0.5.0 (2023-03-26)
   * refactor and improve signal training (grid search) by taking into account the new rule model and external config file 
   * introduce rules with multiple inputs (currently only two dimensional rules with two thresholds)
   * introduce a new rule model with different rule type 
