@@ -93,7 +93,7 @@ models = [
             "n_epochs": 50,  # 5 for quick analysis, 20 or 30 for production
             "bs": 1024,
         },
-        "train": {"is_scale": True, "length": int(2.0 * 525_600), "shifts": []},
+        "train": {"is_scale": True, "length": int(2.5 * 525_600), "shifts": []},
         "predict": {"length": "1w"}
     },
     {
@@ -107,7 +107,7 @@ models = [
             "max_iter": 200,
             # "tol": 0.1,  # Tolerance for performance (check how it influences precision)
         },
-        "train": {"is_scale": True, "length": int(2.0 * 525_600), "shifts": []},
+        "train": {"is_scale": True, "length": int(2.5 * 525_600), "shifts": []},
         "predict": {"length": 1440}
     },
     {
@@ -122,7 +122,7 @@ models = [
             "lambda_l1": 1.0,
             "lambda_l2": 1.0,
         },
-        "train": {"is_scale": False, "length": int(2.0 * 525_600), "shifts": []},
+        "train": {"is_scale": False, "length": int(2.5 * 525_600), "shifts": []},
         "predict": {"length": 1440}
     },
 
@@ -156,21 +156,21 @@ models = [
         "name": "nn_long",
         "algo": "nn",
         "params": {"layers": [29], "learning_rate": 0.001, "n_epochs": 20, "bs": 128, },
-        "train": {"is_scale": True, "length": int(1.5 * 525_600), "shifts": []},
+        "train": {"is_scale": True, "length": int(2.0 * 525_600), "shifts": []},
         "predict": {"length": 0}
     },
     {
         "name": "nn_middle",
         "algo": "nn",
         "params": {"layers": [29], "learning_rate": 0.001, "n_epochs": 20, "bs": 128, },
-        "train": {"is_scale": True, "length": int(1.0 * 525_600), "shifts": []},
+        "train": {"is_scale": True, "length": int(1.5 * 525_600), "shifts": []},
         "predict": {"length": 0}
     },
     {
         "name": "nn_short",
         "algo": "nn",
         "params": {"layers": [29], "learning_rate": 0.001, "n_epochs": 20, "bs": 128, },
-        "train": {"is_scale": True, "length": int(0.5 * 525_600), "shifts": []},
+        "train": {"is_scale": True, "length": int(1.0 * 525_600), "shifts": []},
         "predict": {"length": 0}
     },
 ]
