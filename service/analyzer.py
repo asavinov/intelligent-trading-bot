@@ -440,20 +440,19 @@ class Analyzer:
         close_price = row["close"]
         close_time = row.name+timedelta(minutes=1)  # Add 1 minute because timestamp is start of the interval
 
-        buy_score = row["buy_score_column"]
-        sell_score = row["sell_score_column"]
+        trade_score = row[trade_score_column_names[0]]
 
         buy_signal = row["buy_signal_column"]
         sell_signal = row["sell_signal_column"]
 
         signal = dict(
             side="",
-            buy_score=buy_score, sell_score=sell_score,
+            trade_score=trade_score,
             buy_signal=buy_signal, sell_signal=sell_signal,
             close_price=close_price, close_time=close_time
         )
 
-        if pd.isnull(buy_score) or pd.isnull(sell_score):
+        if pd.isnull(trade_score):
             pass  # Something is wrong with the computation results
         elif buy_signal and sell_signal:  # Both signals are true - should not happen
             pass
@@ -466,7 +465,7 @@ class Analyzer:
 
         App.signal = signal
 
-        log.info(f"Analyze finished. Signal: {signal['side']}. Buy score: {buy_score:+.3f}. Sell score: {sell_score:+.3f}. Price: {int(close_price):,}")
+        log.info(f"Analyze finished. Signal: {signal['side']}. Trade score: {trade_score:+.3f}. Price: {int(close_price):,}")
 
 
 if __name__ == "__main__":

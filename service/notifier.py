@@ -21,8 +21,7 @@ async def notify_telegram():
     signal = App.signal
     signal_side = signal.get("side")
     close_price = signal.get('close_price')
-    buy_score = signal.get('buy_score')
-    sell_score = signal.get('sell_score')
+    trade_score = signal.get('trade_score')
     close_time = signal.get('close_time')
 
     model = App.config["signal_model"]
@@ -50,21 +49,21 @@ async def notify_telegram():
     # ✅ 🔹 (blue) 📌 🔸 (orange)
     message = ""
     if signal_side == "BUY":
-        score_steps = (np.abs(buy_score - buy_signal_threshold) // trade_icon_step) if trade_icon_step else 0
-        message = "🟢"*int(score_steps+1) + f" *BUY: {symbol_char} {int(close_price):,} Score: {buy_score:+.2f}*"
+        score_steps = (np.abs(trade_score - buy_signal_threshold) // trade_icon_step) if trade_icon_step else 0
+        message = "🟢"*int(score_steps+1) + f" *BUY: {symbol_char} {int(close_price):,} Score: {trade_score:+.2f}*"
     elif signal_side == "SELL":
-        score_steps = (np.abs(sell_score - sell_signal_threshold) // trade_icon_step) if trade_icon_step else 0
-        message = "🔴"*int(score_steps+1) + f" *SELL: {symbol_char} {int(close_price):,} Score: {-sell_score:+.2f}*"
+        score_steps = (np.abs(trade_score - sell_signal_threshold) // trade_icon_step) if trade_icon_step else 0
+        message = "🔴"*int(score_steps+1) + f" *SELL: {symbol_char} {int(close_price):,} Score: {trade_score:+.2f}*"
     elif (close_time.minute % notify_frequency_minutes) == 0:  # Info message with custom frequency
-        if buy_score > sell_score:
-            message = f"{symbol_char} {int(close_price):,} 📈{buy_score:+.2f}"
+        if trade_score >= 0:
+            message = f"{symbol_char} {int(close_price):,} 📈{trade_score:+.2f}"
         else:
-            message = f"{symbol_char} {int(close_price):,} 📉{-sell_score:+.2f}"
+            message = f"{symbol_char} {int(close_price):,} 📉{trade_score:+.2f}"
     message = message.replace("+", "%2B")  # For Telegram to display plus sign
 
     if not message:
         return
-    if buy_score < buy_notify_threshold and sell_score < sell_notify_threshold:
+    if trade_score < buy_notify_threshold and trade_score > sell_notify_threshold:
         return  # Do not send notifications with low notification threshold (also no buy/sell notifications)
 
     bot_token = App.config["telegram_bot_token"]
