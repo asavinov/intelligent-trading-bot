@@ -1,10 +1,10 @@
 numpy>=1.23.*
 pandas>=1.4.*
-scikit-learn>=1.*
+scikit-learn==1.2.*
 #scipy>=1.9.*  # Should be automatically installed as a dep of scikit-learn
 statsmodels>=0.13.*
 patsy>=0.5.*
-apscheduler>=3.9.*  # "conda install -c conda-forge apscheduler"
+apscheduler==3.9.*  # "conda install -c conda-forge apscheduler"
 click
 
 lightgbm>=3.3.*  # For Linux, glibc >= 2.14 is required. "conda install -c conda-forge lightgbm"
@@ -12,9 +12,13 @@ tensorflow>=2.9.*  # pip install --upgrade tensorflow
 #keras  # pip install --upgrade keras
 #pytorch # conda install pytorch torchvision cpuonly -c pytorch
 #fastai # pip install fastai
-tsfresh  # For calculated features
+tsfresh  # For derived features. It depends on matrixprofile with binary (in pip) only for Python 3.8. Not checked but maybe there are other binaries (say, Python 3.10) via conda.
 
 python-binance>=1.0.*  # pip install python-binance
-# yfinance  # if yahoo quotes are going to be used
 #python-snappy  # Compression for fastparquet (gzip is always available)
 #fastparquet  # "conda install -c conda-forge fastparquet"
+# yfinance  # if yahoo quotes are going to be used
+
+# Visualizations
+# bokeh==2.4.*
+# selenium==4.7.*  # to export pictures. note that it uses browser lib
