@@ -36,7 +36,7 @@ def save_model_pair(model_path, score_column_name: str, model_pair: tuple):
     if score_column_name.endswith("_nn"):
         model_extension = ".h5"
         model_file_name = (model_path / score_column_name).with_suffix(model_extension)
-        save_model(model, model_file_name)
+        save_model(model, model_file_name, include_optimizer=False)
     else:
         model_extension = ".pickle"
         model_file_name = (model_path / score_column_name).with_suffix(model_extension)
