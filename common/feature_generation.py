@@ -1,4 +1,6 @@
 import os
+import sys
+import importlib
 from datetime import datetime, timezone, timedelta
 from typing import Union
 import json
@@ -104,6 +106,193 @@ def generate_features_tsfresh(df, column_name: str, windows: Union[int, List[int
         else:
             df[feature_name] = _aggregate_last_rows(column, w, last_rows, tsf.first_location_of_maximum)
         features.append(feature_name)
+
+    return features
+
+
+def generate_features_talib(df, config: dict, last_rows: int = 0):
+    """
+    Apply TA functions from talib according to the specified configuration parameters.
+
+    config = {
+        "parameters": {"relative": True, "realtive_to_last": True, "percentage": True},
+        "columns": ["close"],
+        "functions": ["SMA"],
+        "windows": [2, 3],  # If numbers, then to argument timeperiod. If dict, then
+        "args": {},  # Pass to the function as additional arguments
+        "names": "my_output",  # How the output feature(s) will be named
+    }
+
+    talib is very sensitive to NaN values so that one NaN somewhere in the input series can produce
+    NaN in output even if formally it does not influence it. For example, one NaN in the beginning of
+    input series will produce NaN of SMA in the end with small window like 2.
+    Therefore, NaN should be completely removed to get meaningful results (even if they formally do
+    not influence the result values you are interested in).
+
+    # TODO: Add math functions with two (or more) columns passed to certain arguments, no windows or parameters
+    #   two arguments: real0, real1. Alternative, pass as a list (no argument names)
+
+    # TODO: add streaming and last_row argument
+    # TODO: currently it works for only one window per function. Some talib functions may take 2 or more windows (similar to taking 2 input columns)
+    # TODO: If window list is a dict, then use key as argument name for this call
+    # TODO: If columns list is a dict, then key is argment to ta function, and value is column name (if ta function takes some custom arguments)
+    # TODO: args - pass in unchanged for to each call
+    # TODO: Currently works only for one column (second ignored). Make it work for two and more input columns
+    # TODO: add parameter: use_differences if true then compute differences first, another parameter is using log=2,10 etc. (or some conventional)
+
+    # TODO: We have area feature (with its onw windows area_windows) which we lose if remove our custom feature generator. Is there something similar in talib? Is it really a good feature?
+    # TODO: In tsfresh we have ... What is important and how we can replace them by ta functions?
+
+    :param feature_config:
+    :return:
+    """
+    # If the function value is represented as a portion relative to some other function value
+    relative = config.get('parameters', {}).get('relative', True)
+    # If false, then relative to the next window. If true, then relative to the last window
+    realtive_to_last = config.get('parameters', {}).get('realtive_to_last', True)
+    # If true, then relative values are multiplied by 100
+    percentage = config.get('parameters', {}).get('percentage', True)
+
+    #
+    # talib module where all ta functions are defined. we use it below to resolve TA function names
+    #
+    mod_name = "talib"
+    talib_mod = sys.modules.get(mod_name)  # Try to load
+    if talib_mod is None:  # If not yet imported
+        try:
+            talib_mod = importlib.import_module(mod_name)  # Try to import
+        except Exception as e:
+            raise ValueError(f"Cannot import module 'talib'. Check if talib is installed correctly")
+
+    #
+    # Process configuration parameters and prepare all needed for feature generation
+    #
+
+    # Transform str/list and list to dict with argument names as keys and column names as values
+    column_names = config.get('columns')
+    if isinstance(column_names, str):
+        column_names = {'real': column_names}  # Single default input series
+    elif isinstance(column_names, list) and len(column_names) == 1:
+        column_names = {'real': column_names[0]}  # Single default input series
+    elif isinstance(column_names, list):
+        column_names = {f'real{i}': col for i, col in enumerate(column_names)}  # Multiple default input series
+    elif isinstance(column_names, dict):
+        pass  # Do nothing
+    else:
+        raise ValueError(f"Columns are provided as a string, list or dict. Wrong type: {type(column_names)}")
+
+    # For each key, resolve name and interpolate data
+    # Interpolate (we should always do it because one NaN in input can produce all NaNs in output)
+    columns = {arg: df[col_name].interpolate() for arg, col_name in column_names.items()}
+
+    col_out_names = "_".join(column_names.values())  # Join all column names
+
+    func_names = config.get('functions')
+    if not isinstance(func_names, list):
+        func_names = [func_names]
+
+    windows = config.get('windows')
+    if not isinstance(windows, list):
+        windows = [windows]
+
+    names = config.get('names')
+
+    #
+    # For each function, make several calls for each window size
+    #
+    outs = []
+    features = []
+    for func_name in func_names:
+        # Resolve ta function name
+        try:
+            fn = getattr(talib_mod, func_name)
+        except AttributeError as e:
+            raise ValueError(
+                f"Cannot resolve talib function name '{func_name}'. Check the (existence of) name of the function")
+
+        fn_outs = []
+        fn_out_names = []
+        # Now this function will be called for each window as a parameter
+        for j, w in enumerate(windows):
+
+            #
+            # Prepare arguments
+            #
+
+            # Only aggregation functions have window argument (arithmetic functions do not have it)
+            args = columns
+            if w:
+                args['timeperiod'] = w
+
+            # Aggregation function (with window)
+            if not last_rows:
+                out = fn(**args)
+            else:
+                #df[feature_name] = _aggregate_last_rows(column, w, last_rows, tsf.mean_second_derivative_central)
+                #TODO:
+                """
+                length = len(column)
+                # In a loop, compute individual values, by applying only to the last slice with length of the window (or somewhat more for guarantee)
+                # In case of talib, fn is a resolved talib function
+                # TODO: we need to modify call by using stream mode (or find some way to make single call and not rolling apply by talib)
+                values = [fn(column.iloc[-window - r:length - r].to_numpy(), *args) for r in range(last_rows)]
+                # Then these values are transformed to a series
+                feature = pd.Series(data=np.nan, index=column.index, dtype=float)
+                feature.iloc[-last_rows:] = list(reversed(values))
+                return feature
+                """
+                raise NotImplementedError("Last rows parameter in talib not implemented.")
+
+            # Name of the output column
+            # Now combin[e: columnnames + functionname + [if prefix null window [i] | elif prefix str + window[i] | else if list prefix[i]]
+            if not w:
+                if not names:
+                    out_name = f"{col_out_names}_{func_name}"
+                elif isinstance(names, str):
+                    out_name = names
+                elif isinstance(names, list):
+                    out_name = names[j]  # Should not happen
+            else:
+                out_name = f"{col_out_names}_{func_name}_"
+                win_name = str(w)
+                if not names:
+                    out_name = out_name + win_name
+                elif isinstance(names, str):
+                    out_name = out_name + names + "_" + win_name
+                elif isinstance(names, list):
+                    out_name = out_name + names[j]
+
+            fn_out_names.append(out_name)
+
+            out.name = out_name
+
+            fn_outs.append(out)
+
+        # Convert to relative values and percentage (except for the last output)
+        rel_outs = []
+        if relative:
+            for i in range(len(fn_outs) - 1):
+                if realtive_to_last:
+                    base_series = fn_outs[-1]
+                else:
+                    base_series = fn_outs[i+1]
+                rel_out = fn_outs[i] / base_series
+                if percentage:
+                    rel_out = rel_out * 100.0
+                rel_out.name = fn_outs[i].name
+                rel_outs.append(rel_out)
+
+            rel_outs.append(fn_outs[-1])  # Last window as added unchanged
+
+        else:
+            rel_outs = fn_outs
+
+        features.extend(fn_out_names)
+
+        outs.extend(rel_outs)
+
+    for out in outs:
+        df[out.name] = out
 
     return features
 
