@@ -61,13 +61,13 @@ def main(config_file):
     print(f"Start generating features for {len(df)} input records.")
 
     all_features = []
-    for fs in feature_sets:
+    for i, fs in enumerate(feature_sets):
         fs_now = datetime.now()
-        print(f"Start generator {fs.get('generator')}...")
+        print(f"Start feature set {i}. Generator {fs.get('generator')}...")
         df, new_features = generate_feature_set(df, fs, last_rows=0)
         all_features.extend(new_features)
         fs_elapsed = datetime.now() - fs_now
-        print(f"Finished generator {fs.get('generator')}. Features: {len(new_features)}. Time: {str(fs_elapsed).split('.')[0]}")
+        print(f"Finished feature set {i}. Generator {fs.get('generator')}. Features: {len(new_features)}. Time: {str(fs_elapsed).split('.')[0]}")
 
     print(f"Finished generating features.")
 
@@ -157,6 +157,8 @@ def generate_feature_set(df: pd.DataFrame, fs: dict, last_rows: int) -> Tuple[pd
     elif generator == "tsfresh":
         tsfresh_windows = App.config["tsfresh_windows"]
         features = generate_features_tsfresh(f_df, column_name="close", windows=tsfresh_windows, last_rows=last_rows)
+    elif generator == "talib":
+        features = generate_features_talib(f_df, fs.get('config', {}), last_rows=last_rows)
 
     # Labels
     elif generator == "highlow":
