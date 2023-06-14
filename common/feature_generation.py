@@ -131,9 +131,8 @@ def generate_features_talib(df, config: dict, last_rows: int = 0):
 
     # TODO: Add math functions with two (or more) columns passed to certain arguments, no windows or parameters
     #   two arguments: real0, real1. Alternative, pass as a list (no argument names)
-
-    # TODO: add streaming and last_row argument
     # TODO: currently it works for only one window per function. Some talib functions may take 2 or more windows (similar to taking 2 input columns)
+
     # TODO: If window list is a dict, then use key as argument name for this call
     # TODO: If columns list is a dict, then key is argment to ta function, and value is column name (if ta function takes some custom arguments)
     # TODO: args - pass in unchanged for to each call
@@ -141,7 +140,6 @@ def generate_features_talib(df, config: dict, last_rows: int = 0):
     # TODO: add parameter: use_differences if true then compute differences first, another parameter is using log=2,10 etc. (or some conventional)
 
     # TODO: We have area feature (with its onw windows area_windows) which we lose if remove our custom feature generator. Is there something similar in talib? Is it really a good feature?
-    # TODO: In tsfresh we have ... What is important and how we can replace them by ta functions?
 
     :param feature_config:
     :return:
@@ -156,11 +154,19 @@ def generate_features_talib(df, config: dict, last_rows: int = 0):
     #
     # talib module where all ta functions are defined. we use it below to resolve TA function names
     #
-    mod_name = "talib"
+    mod_name = "talib"  # Functions are applied to a (rolling) series of windows
     talib_mod = sys.modules.get(mod_name)  # Try to load
     if talib_mod is None:  # If not yet imported
         try:
             talib_mod = importlib.import_module(mod_name)  # Try to import
+        except Exception as e:
+            raise ValueError(f"Cannot import module 'talib'. Check if talib is installed correctly")
+
+    mod_name = "talib.stream"  # Functions which are applied to single window and return one value
+    talib_mod_stream = sys.modules.get(mod_name)  # Try to load
+    if talib_mod_stream is None:  # If not yet imported
+        try:
+            talib_mod_stream = importlib.import_module(mod_name)  # Try to import
         except Exception as e:
             raise ValueError(f"Cannot import module 'talib'. Check if talib is installed correctly")
 
@@ -203,13 +209,6 @@ def generate_features_talib(df, config: dict, last_rows: int = 0):
     outs = []
     features = []
     for func_name in func_names:
-        # Resolve ta function name
-        try:
-            fn = getattr(talib_mod, func_name)
-        except AttributeError as e:
-            raise ValueError(
-                f"Cannot resolve talib function name '{func_name}'. Check the (existence of) name of the function")
-
         fn_outs = []
         fn_out_names = []
         # Now this function will be called for each window as a parameter
@@ -220,28 +219,36 @@ def generate_features_talib(df, config: dict, last_rows: int = 0):
             #
 
             # Only aggregation functions have window argument (arithmetic functions do not have it)
-            args = columns
-            if w:
-                args['timeperiod'] = w
 
-            # Aggregation function (with window)
-            if not last_rows:
-                out = fn(**args)
+            if not (last_rows and w):
+                try:
+                    fn = getattr(talib_mod, func_name)  # Resolve function name
+                except AttributeError as e:
+                    raise ValueError(f"Cannot resolve talib function name '{func_name}'. Check the (existence of) name of the function")
+
+                args = columns
+                if w:
+                    args['timeperiod'] = w
+                out = fn(**args)  # The function will be executed in a rolling manner and applied to all windows
             else:
-                #df[feature_name] = _aggregate_last_rows(column, w, last_rows, tsf.mean_second_derivative_central)
-                #TODO:
-                """
-                length = len(column)
-                # In a loop, compute individual values, by applying only to the last slice with length of the window (or somewhat more for guarantee)
-                # In case of talib, fn is a resolved talib function
-                # TODO: we need to modify call by using stream mode (or find some way to make single call and not rolling apply by talib)
-                values = [fn(column.iloc[-window - r:length - r].to_numpy(), *args) for r in range(last_rows)]
+                try:
+                    fn = getattr(talib_mod_stream, func_name)  # Resolve function name
+                except AttributeError as e:
+                    raise ValueError(f"Cannot resolve talib.stream function name '{func_name}'. Check the (existence of) name of the function")
+
+                # Here fn (function) is a different function from a different module (this function is applied to single window and not to rolling windows)
+                out_values = []
+                for r in range(last_rows):
+                    # Remove r elements from the end
+                    # Note that we do not remove elements from the start so the length is limited from one side only
+                    args = {k: v.iloc[:len(v)-r] for k, v in columns.items()}
+                    if w:
+                        args['timeperiod'] = w
+                    out_values.append(fn(**args))  # Compute one value and append to the results
+
                 # Then these values are transformed to a series
-                feature = pd.Series(data=np.nan, index=column.index, dtype=float)
-                feature.iloc[-last_rows:] = list(reversed(values))
-                return feature
-                """
-                raise NotImplementedError("Last rows parameter in talib not implemented.")
+                out = pd.Series(data=np.nan, index=df.index, dtype=float)
+                out.iloc[-last_rows:] = list(reversed(out_values))  # Assign values to the last elements
 
             # Name of the output column
             # Now combin[e: columnnames + functionname + [if prefix null window [i] | elif prefix str + window[i] | else if list prefix[i]]
