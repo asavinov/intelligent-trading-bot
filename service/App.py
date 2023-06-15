@@ -110,7 +110,7 @@ class App:
         # What columns to pass to which feature generator and how to prefix its derived features
         # Each executes one feature generation function applied to columns with the specified prefix
         "feature_sets": [
-            {"column_prefix": "", "generator": "binance_main", "feature_prefix": ""}
+            {"column_prefix": "", "generator": "itblib", "feature_prefix": ""}
         ],
         # Parameters of some feature generators
         # They influence generated feature names (below)

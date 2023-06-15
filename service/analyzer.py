@@ -342,7 +342,7 @@ class Analyzer:
             log.error(f"ERROR: no feature sets defined. Nothing to process.")
             return
             # By default, we generate standard kline features
-            #feature_sets = [{"column_prefix": "", "generator": "binance_main", "feature_prefix": ""}]
+            #feature_sets = [{"column_prefix": "", "generator": "itblib", "feature_prefix": ""}]
 
         # Apply all feature generators to the data frame which get accordingly new derived columns
         # The feature parameters will be taken from App.config (depending on generator)

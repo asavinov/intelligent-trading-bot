@@ -120,18 +120,8 @@ def generate_feature_set(df: pd.DataFrame, fs: dict, last_rows: int) -> Tuple[pd
     # Resolve and apply feature generator functions from the configuration
     #
     generator = fs.get("generator")
-    if generator == "binance_main":
-        features = generate_features_binance_main(
-            f_df, use_differences=False,
-            base_window=App.config["base_window"], windows=App.config["averaging_windows"],
-            area_windows=App.config["area_windows"], last_rows=last_rows
-        )
-    elif generator == "binance_secondary":
-        features = generate_features_binance_secondary(
-            f_df, use_differences=False,
-            base_window=App.config["base_window"], windows=App.config["averaging_windows"],
-            area_windows=App.config["area_windows"], last_rows=last_rows
-        )
+    if generator == "itblib":
+        features = generate_features_itblib(f_df, fs.get('config', {}), last_rows=last_rows)
     elif generator == "futures":
         features = generate_features_futures(f_df)
     elif generator == "depth":
