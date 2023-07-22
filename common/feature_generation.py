@@ -114,8 +114,6 @@ def generate_features_talib(df, config: dict, last_rows: int = 0):
     # TODO: Currently works only for one column (second ignored). Make it work for two and more input columns
     # TODO: add parameter: use_differences if true then compute differences first, another parameter is using log=2,10 etc. (or some conventional)
 
-    # TODO: We have area feature (with its onw windows area_windows) which we lose if remove our custom feature generator. Is there something similar in talib? Is it really a good feature?
-
     :param feature_config:
     :return:
     """

@@ -124,12 +124,6 @@ def generate_feature_set(df: pd.DataFrame, fs: dict, last_rows: int) -> Tuple[pd
         features = generate_features_itblib(f_df, fs.get('config', {}), last_rows=last_rows)
     elif generator == "depth":
         features = generate_features_depth(f_df)
-    elif generator == "area_features":
-        area_windows = App.config["area_windows"]
-        if not area_windows:
-            area_windows = [60, 120, 180, 300]
-        # Numeric features which is a ratio between areas over and under the latest price
-        features = add_area_ratio(f_df, is_future=False, column_name="close", windows=area_windows, suffix="_area_past")
     elif generator == "tsfresh":
         tsfresh_windows = App.config["tsfresh_windows"]
         features = generate_features_tsfresh(f_df, column_name="close", windows=tsfresh_windows, last_rows=last_rows)
@@ -162,12 +156,6 @@ def generate_feature_set(df: pd.DataFrame, fs: dict, last_rows: int) -> Tuple[pd
         bot_level_fracs = [-x for x in top_level_fracs]
 
         f_df, features = generate_labels_topbot(f_df, column_name, top_level_fracs, bot_level_fracs)
-    elif generator == "area_labels":
-        area_windows = App.config["area_windows_labels"]
-        if not area_windows:
-            area_windows = [60, 120, 180, 300]
-        # Numeric label which is a ratio between areas over and under the latest price
-        features = add_area_ratio(f_df, is_future=True, column_name="close", windows=area_windows, suffix = "_area_future")
     else:
         print(f"Unknown feature generator {generator}")
         return

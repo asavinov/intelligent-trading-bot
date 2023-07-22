@@ -116,7 +116,6 @@ class App:
         # They influence generated feature names (below)
         "base_window": 360,
         "averaging_windows": [1, 10, 60],
-        "area_windows": [10, 60],
 
         # ========================
         # === LABEL GENERATION ===

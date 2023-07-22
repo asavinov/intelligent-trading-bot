@@ -87,14 +87,12 @@ The list of features to be generated is configured via ``feature_sets`` list in 
 ```
 Example old parameters
 "base_window": 1440,
-"averaging_windows": [1, 5, 15, 60, 180, 720],
-"area_windows": [60, 120, 180, 300, 720],
+"averaging_windows": [1, 5, 15, 60, 180, 720]
 ```
 ```
 Example new parameters
 "base_window": 40320,
-"averaging_windows": [1, 60, 360, 1440, 4320, 10080],
-"area_windows": [60, 360, 1440, 4320, 10080],
+"averaging_windows": [1, 60, 360, 1440, 4320, 10080]
 ```
 
 ## Generate labels
