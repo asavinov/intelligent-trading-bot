@@ -122,8 +122,6 @@ def generate_feature_set(df: pd.DataFrame, fs: dict, last_rows: int) -> Tuple[pd
     generator = fs.get("generator")
     if generator == "itblib":
         features = generate_features_itblib(f_df, fs.get('config', {}), last_rows=last_rows)
-    elif generator == "futures":
-        features = generate_features_futures(f_df)
     elif generator == "depth":
         features = generate_features_depth(f_df)
     elif generator == "area_features":
