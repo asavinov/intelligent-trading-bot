@@ -11,8 +11,6 @@ import pandas as pd
 from scipy.stats import kurtosis
 from scipy.stats import skew
 
-import tsfresh.feature_extraction.feature_calculators as tsf
-
 from common.utils import *
 from common.feature_generation_rolling_agg import *
 from common.feature_generation_rolling_agg import _aggregate_last_rows
@@ -54,7 +52,15 @@ def generate_features_yahoo_secondary(df, use_differences, base_window, windows,
 
 
 def generate_features_tsfresh(df, column_name: str, windows: Union[int, List[int]], last_rows: int = 0):
-    """These features will be applied to the main symbol which we want to predict."""
+    """
+    This feature generator relies on tsfresh functions.
+
+    tsfresh depends on matrixprofile for which binaries are not available for many versions.
+    Therefore, the use of tsfresh may require Python 3.8
+    """
+    # It is imported here in order to avoid installation of tsfresh if it is not used
+    import tsfresh.feature_extraction.feature_calculators as tsf
+
     column = df[column_name].interpolate()
 
     if isinstance(windows, int):
