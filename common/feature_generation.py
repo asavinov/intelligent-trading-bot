@@ -20,7 +20,7 @@ A feature generator knows how to generate features from its delcarative specific
 """
 
 
-def generate_features_tsfresh(df, column_name: str, windows: Union[int, List[int]], last_rows: int = 0):
+def generate_features_tsfresh(df, config: dict, last_rows: int = 0):
     """
     This feature generator relies on tsfresh functions.
 
@@ -30,9 +30,24 @@ def generate_features_tsfresh(df, column_name: str, windows: Union[int, List[int
     # It is imported here in order to avoid installation of tsfresh if it is not used
     import tsfresh.feature_extraction.feature_calculators as tsf
 
+    # Transform str/list and list to dict with argument names as keys and column names as values
+    column_names = config.get('columns')
+    if not column_names:
+        raise ValueError(f"No input column for feature generator 'stats': {column_names}")
+
+    if isinstance(column_names, str):
+        column_name = column_names
+    elif isinstance(column_names, list):
+        column_name = column_names[0]
+    elif isinstance(column_names, dict):
+        column_name = next(iter(column_names.values()))
+    else:
+        raise ValueError(f"Columns are provided as a string, list or dict. Wrong type: {type(column_names)}")
+
     column = df[column_name].interpolate()
 
-    if isinstance(windows, int):
+    windows = config.get('windows')
+    if not isinstance(windows, list):
         windows = [windows]
 
     features = []

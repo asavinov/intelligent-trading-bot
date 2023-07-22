@@ -125,8 +125,7 @@ def generate_feature_set(df: pd.DataFrame, fs: dict, last_rows: int) -> Tuple[pd
     elif generator == "depth":
         features = generate_features_depth(f_df)
     elif generator == "tsfresh":
-        tsfresh_windows = App.config["tsfresh_windows"]
-        features = generate_features_tsfresh(f_df, column_name="close", windows=tsfresh_windows, last_rows=last_rows)
+        features = generate_features_tsfresh(f_df, fs.get('config', {}), last_rows=last_rows)
     elif generator == "talib":
         features = generate_features_talib(f_df, fs.get('config', {}), last_rows=last_rows)
     elif generator == "itbstats":
