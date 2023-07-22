@@ -126,18 +126,6 @@ def generate_feature_set(df: pd.DataFrame, fs: dict, last_rows: int) -> Tuple[pd
         features = generate_features_futures(f_df)
     elif generator == "depth":
         features = generate_features_depth(f_df)
-    elif generator == "yahoo_main":
-        features = generate_features_yahoo_main(
-            f_df, use_differences=False,
-            base_window=App.config["base_window"], windows=App.config["averaging_windows"],
-            area_windows=App.config["area_windows"], last_rows=last_rows
-        )
-    elif generator == "yahoo_secondary":
-        features = generate_features_yahoo_secondary(
-            f_df, use_differences=False,
-            base_window=App.config["base_window"], windows=App.config["averaging_windows"],
-            area_windows=App.config["area_windows"], last_rows=last_rows
-        )
     elif generator == "area_features":
         area_windows = App.config["area_windows"]
         if not area_windows:
