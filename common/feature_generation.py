@@ -8,8 +8,7 @@ import json
 import numpy as np
 import pandas as pd
 
-from scipy.stats import kurtosis
-from scipy.stats import skew
+import scipy.stats as stats
 
 from common.utils import *
 from common.feature_generation_rolling_agg import *
@@ -306,6 +305,89 @@ def generate_features_talib(df, config: dict, last_rows: int = 0):
 
     for out in outs:
         df[out.name] = out
+
+    return features
+
+
+def generate_features_itbstats(df, config: dict, last_rows: int = 0):
+    """
+    Statistical and various other features.
+
+    In particular, it is intended to replace functions from tsfresh as well as implement
+    functions which are not available in other libraries like volume weighted close price.
+
+    Currently applied to only one input column.
+    Currently generates all functions - 'functions' parameter is not used.
+    """
+
+    # Transform str/list and list to dict with argument names as keys and column names as values
+    column_names = config.get('columns')
+    if not column_names:
+        raise ValueError(f"No input column for feature generator 'stats': {column_names}")
+
+    if isinstance(column_names, str):
+        column_name = column_names
+    elif isinstance(column_names, list):
+        column_name = column_names[0]
+    elif isinstance(column_names, dict):
+        column_name = next(iter(column_names.values()))
+    else:
+        raise ValueError(f"Columns are provided as a string, list or dict. Wrong type: {type(column_names)}")
+
+    column = df[column_name].interpolate()
+
+    windows = config.get('windows')
+    if not isinstance(windows, list):
+        windows = [windows]
+
+    # TODO: use custom names instead of automatically generated ones
+    names = config.get('names')
+
+    features = []
+    for w in windows:
+        ro = column.rolling(window=w, min_periods=max(1, w // 2))
+
+        #
+        # Statistics
+        #
+        feature_name = column_name + "_skew_" + str(w)
+        if not last_rows:
+            df[feature_name] = ro.apply(stats.skew, raw=True)
+        else:
+            df[feature_name] = _aggregate_last_rows(column, w, last_rows, stats.skew)
+        features.append(feature_name)
+
+        feature_name = column_name + "_kurtosis_" + str(w)
+        if not last_rows:
+            df[feature_name] = ro.apply(stats.kurtosis, raw=True)
+        else:
+            df[feature_name] = _aggregate_last_rows(column, w, last_rows, stats.kurtosis)
+        features.append(feature_name)
+
+        #feature_name = column_name + "_msdc_" + str(w)
+        #if not last_rows:
+        #    df[feature_name] = ro.apply(tsf.mean_second_derivative_central, raw=True)
+        #else:
+        #    df[feature_name] = _aggregate_last_rows(column, w, last_rows, tsf.mean_second_derivative_central)
+        #features.append(feature_name)
+
+        #
+        # Counts
+        # first/last_location_of_maximum/minimum
+        #
+        #feature_name = column_name + "_lsbm_" + str(w)
+        #if not last_rows:
+        #    df[feature_name] = ro.apply(tsf.longest_strike_below_mean, raw=True)
+        #else:
+        #    df[feature_name] = _aggregate_last_rows(column, w, last_rows, tsf.longest_strike_below_mean)
+        #features.append(feature_name)
+
+        #feature_name = column_name + "_fmax_" + str(w)
+        #if not last_rows:
+        #    df[feature_name] = ro.apply(tsf.first_location_of_maximum, raw=True)
+        #else:
+        #    df[feature_name] = _aggregate_last_rows(column, w, last_rows, tsf.first_location_of_maximum)
+        #features.append(feature_name)
 
     return features
 
