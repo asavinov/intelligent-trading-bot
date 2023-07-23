@@ -93,7 +93,7 @@ models = [
             "n_epochs": 50,  # 5 for quick analysis, 20 or 30 for production
             "bs": 1024,
         },
-        "train": {"is_scale": True, "length": int(2.5 * 525_600), "shifts": []},
+        "train": {"is_scale": True, "length": int(3.0 * 525_600), "shifts": []},
         "predict": {"length": "1w"}
     },
     {
@@ -107,7 +107,7 @@ models = [
             "max_iter": 200,
             # "tol": 0.1,  # Tolerance for performance (check how it influences precision)
         },
-        "train": {"is_scale": True, "length": int(2.5 * 525_600), "shifts": []},
+        "train": {"is_scale": True, "length": int(3.0 * 525_600), "shifts": []},
         "predict": {"length": 1440}
     },
     {
@@ -122,7 +122,7 @@ models = [
             "lambda_l1": 1.0,
             "lambda_l2": 1.0,
         },
-        "train": {"is_scale": False, "length": int(2.5 * 525_600), "shifts": []},
+        "train": {"is_scale": False, "length": int(3.0 * 525_600), "shifts": []},
         "predict": {"length": 1440}
     },
 

@@ -125,11 +125,11 @@ def generate_features_talib(df, config: dict, last_rows: int = 0):
 
     # TODO: If window list is a dict, then use key as argument name for this call
     # TODO: If columns list is a dict, then key is argment to ta function, and value is column name (if ta function takes some custom arguments)
-    # TODO: args - pass in unchanged for to each call
+    # TODO: args config parameters - pass in unchanged for to each call
     # TODO: Currently works only for one column (second ignored). Make it work for two and more input columns
     # TODO: add parameter: use_differences if true then compute differences first, another parameter is using log=2,10 etc. (or some conventional)
 
-    :param feature_config:
+    :param config:
     :return:
     """
     # If the function value is represented as a portion relative to some other function value
@@ -214,17 +214,20 @@ def generate_features_talib(df, config: dict, last_rows: int = 0):
                 except AttributeError as e:
                     raise ValueError(f"Cannot resolve talib function name '{func_name}'. Check the (existence of) name of the function")
 
-                args = columns
+                args = columns.copy()
                 if w:
                     args['timeperiod'] = w
-                out = fn(**args)  # The function will be executed in a rolling manner and applied to all windows
+                if w == 1 and len(columns) == 1:  # For window 1 use the original values (because talib fails to do this)
+                    out = next(iter(columns.values()))
+                else:
+                    out = fn(**args)  # The function will be executed in a rolling manner and applied to rolling windows
             else:
                 try:
                     fn = getattr(talib_mod_stream, func_name)  # Resolve function name
                 except AttributeError as e:
                     raise ValueError(f"Cannot resolve talib.stream function name '{func_name}'. Check the (existence of) name of the function")
 
-                # Here fn (function) is a different function from a different module (this function is applied to single window and not to rolling windows)
+                # Here fn (function) is a different function from a different module (this function is applied to a single window rather than to rolling windows)
                 out_values = []
                 for r in range(last_rows):
                     # Remove r elements from the end
@@ -232,7 +235,13 @@ def generate_features_talib(df, config: dict, last_rows: int = 0):
                     args = {k: v.iloc[:len(v)-r] for k, v in columns.items()}
                     if w:
                         args['timeperiod'] = w
-                    out_values.append(fn(**args))  # Compute one value and append to the results
+
+                    if w == 1 and len(columns) == 1:  # For window 1 use the original values (because talib fails to do this)
+                        col = next(iter(columns.values()))
+                        out_val = col.iloc[-r-1]
+                    else:
+                        out_val = fn(**args)  # Compute single value for one selected window
+                    out_values.append(out_val)
 
                 # Then these values are transformed to a series
                 out = pd.Series(data=np.nan, index=df.index, dtype=float)

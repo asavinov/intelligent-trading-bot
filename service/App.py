@@ -112,10 +112,6 @@ class App:
         "feature_sets": [
             {"column_prefix": "", "generator": "itblib", "feature_prefix": ""}
         ],
-        # Parameters of some feature generators
-        # They influence generated feature names (below)
-        "base_window": 360,
-        "averaging_windows": [1, 10, 60],
 
         # ========================
         # === LABEL GENERATION ===
