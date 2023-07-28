@@ -132,12 +132,11 @@ def generate_features_talib(df, config: dict, last_rows: int = 0):
     :param config:
     :return:
     """
-    # If the function value is represented as a portion relative to some other function value
-    relative = config.get('parameters', {}).get('relative', True)
-    # If false, then relative to the next window. If true, then relative to the last window
-    realtive_to_last = config.get('parameters', {}).get('realtive_to_last', True)
+    rel = config.get('parameters', {}).get('rel', False)
     # If true, then relative values are multiplied by 100
-    percentage = config.get('parameters', {}).get('percentage', True)
+    percentage = config.get('parameters', {}).get('percentage', False)
+    # If true, then logarithm is applied to the result
+    log = config.get('parameters', {}).get('log', False)
 
     #
     # talib module where all ta functions are defined. we use it below to resolve TA function names
@@ -208,7 +207,7 @@ def generate_features_talib(df, config: dict, last_rows: int = 0):
 
             # Only aggregation functions have window argument (arithmetic functions do not have it)
 
-            if not (last_rows and w):
+            if not (last_rows and w):  # The function will be executed in a rolling manner and applied to rolling windows
                 try:
                     fn = getattr(talib_mod, func_name)  # Resolve function name
                 except AttributeError as e:
@@ -220,8 +219,8 @@ def generate_features_talib(df, config: dict, last_rows: int = 0):
                 if w == 1 and len(columns) == 1:  # For window 1 use the original values (because talib fails to do this)
                     out = next(iter(columns.values()))
                 else:
-                    out = fn(**args)  # The function will be executed in a rolling manner and applied to rolling windows
-            else:
+                    out = fn(**args)
+            else:  # Compute the specified number of single values for the manually prepared windows
                 try:
                     fn = getattr(talib_mod_stream, func_name)  # Resolve function name
                 except AttributeError as e:
@@ -240,7 +239,7 @@ def generate_features_talib(df, config: dict, last_rows: int = 0):
                         col = next(iter(columns.values()))
                         out_val = col.iloc[-r-1]
                     else:
-                        out_val = fn(**args)  # Compute single value for one selected window
+                        out_val = fn(**args)
                     out_values.append(out_val)
 
                 # Then these values are transformed to a series
@@ -274,29 +273,31 @@ def generate_features_talib(df, config: dict, last_rows: int = 0):
 
         # Convert to relative values and percentage (except for the last output)
         rel_outs = []
-        if relative:
-            for i in range(len(fn_outs) - 1):
-                if realtive_to_last:
-                    base_series = fn_outs[-1]
-                else:
-                    base_series = fn_outs[i+1]
-                rel_out = fn_outs[i] / base_series
+        for i in range(len(fn_outs) - 1):
+            if not rel:
+                rel_out = fn_outs[i]  # No change
+            elif rel == "next" or rel == "last":
+                if rel == "next":
+                    rel_out = fn_outs[i] / fn_outs[i + 1]  # Relative to next
+                elif rel == "last":
+                    rel_out = fn_outs[i] / fn_outs[-1]  # Relative to last
+
                 if percentage:
                     rel_out = rel_out * 100.0
-                rel_out.name = fn_outs[i].name
-                rel_outs.append(rel_out)
+            else:
+                raise ValueError(f"Unknown value of feature generator parameter {rel=}")
 
-            rel_outs.append(fn_outs[-1])  # Last window as added unchanged
+            rel_out.name = fn_outs[i].name
+            rel_outs.append(rel_out)
 
-        else:
-            rel_outs = fn_outs
+        rel_outs.append(fn_outs[-1])  # Last window as added always unchanged
 
         features.extend(fn_out_names)
 
         outs.extend(rel_outs)
 
     for out in outs:
-        df[out.name] = out
+        df[out.name] = np.log(out) if log else out
 
     return features
 

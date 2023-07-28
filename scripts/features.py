@@ -67,7 +67,7 @@ def main(config_file):
         df, new_features = generate_feature_set(df, fs, last_rows=0)
         all_features.extend(new_features)
         fs_elapsed = datetime.now() - fs_now
-        print(f"Finished feature set {i}. Generator {fs.get('generator')}. Features: {len(new_features)}. Time: {str(fs_elapsed).split('.')[0]}")
+        print(f"Finished feature set {i}/{len(feature_sets)}. Generator {fs.get('generator')}. Features: {len(new_features)}. Time: {str(fs_elapsed).split('.')[0]}")
 
     print(f"Finished generating features.")
 
