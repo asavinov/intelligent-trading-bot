@@ -25,6 +25,50 @@ which are smaller/greater than the extremum by this fraction.
 Store the labels, scores and some source columns in an output file.
 """
 
+def generate_labels_topbot2(df, config: dict):
+    """Find and label top points."""
+    init_column_number = len(df.columns)
+
+    column_name = config.get('columns')
+    if not column_name:
+        raise ValueError(f"The 'columns' parameter must be a non-empty string. {type(column_name)}")
+    elif not isinstance(column_name, str):
+        raise ValueError(f"Wrong type of the 'columns' parameter: {type(column_name)}")
+    elif column_name not in df.columns:
+        raise ValueError(f"{column_name} does not exist  in the input data. Existing columns: {df.columns.to_list()}")
+
+    function = config.get('function')
+    if not isinstance(function, str):
+        raise ValueError(f"Wrong type of the 'function' parameter: {type(function)}")
+    if function not in ['top', 'bot']:
+        raise ValueError(f"Unknown function name {function}. Only 'top' or 'bot' are possible")
+
+    tolerances = config.get('tolerances')  # For example, 0.0025 for 0.25% tolerance
+    if not isinstance(tolerances, list):
+        tolerances = [tolerances]
+
+    level = config.get('level')  # For example, 0.01 for 1% (positive or negative)
+    if function == 'top':
+        level = abs(level)
+    elif function == 'bot':
+        level = - abs(level)
+
+    names = config.get('names')  # For example, ['top1_025', 'top1_01'] for two tolerances
+    if len(names) != len(tolerances):
+        raise ValueError(f"'topbot2' Label generator: for each tolerance value one name has to be provided.")
+
+    labels = []
+    for i, tolerance in enumerate(tolerances):
+        df, new_labels = add_extremum_features(df, column_name=column_name, level_fracs=[level], tolerance_frac=tolerance, out_names=names[i:i+1])
+        labels.extend(new_labels)
+
+    print(f"{len(names)} topbot2 labels computed: {names}")
+
+    labels = df.columns.to_list()[init_column_number:]
+
+    return df, labels
+
+
 def generate_labels_topbot(df, column_name: str, top_level_fracs: list, bot_level_fracs: list):
     """For the specified levels, generate extremum labels with different pre-defined tolerances."""
     init_column_number = len(df.columns)
