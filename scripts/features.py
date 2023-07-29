@@ -10,6 +10,7 @@ from common.feature_generation import *
 from common.label_generation_highlow import generate_labels_highlow
 from common.label_generation_highlow import generate_labels_highlow2
 from common.label_generation_topbot import generate_labels_topbot
+from common.label_generation_topbot import generate_labels_topbot2
 
 #
 # Parameters
@@ -151,10 +152,12 @@ def generate_feature_set(df: pd.DataFrame, fs: dict, last_rows: int) -> Tuple[pd
     elif generator == "topbot":
         column_name = App.config.get("topbot_column_name", "close")
 
-        top_level_fracs = [0.02, 0.03, 0.04, 0.05, 0.06]
+        top_level_fracs = [0.01, 0.02, 0.03, 0.04, 0.05]
         bot_level_fracs = [-x for x in top_level_fracs]
 
         f_df, features = generate_labels_topbot(f_df, column_name, top_level_fracs, bot_level_fracs)
+    elif generator == "topbot2":
+        f_df, features = generate_labels_topbot2(f_df, fs.get('config', {}))
     else:
         print(f"Unknown feature generator {generator}")
         return
