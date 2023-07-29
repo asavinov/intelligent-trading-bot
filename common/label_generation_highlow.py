@@ -76,7 +76,7 @@ def generate_labels_highlow(df, horizon):
     return labels
 
 
-def generate_labels_highlow2(df, horizon):
+def generate_labels_highlow2(df, config: dict):
     """
     Generate multiple increase/decrease labels which are typically used for training.
 
@@ -84,27 +84,46 @@ def generate_labels_highlow2(df, horizon):
     :param horizon:
     :return:
     """
+    column_names = config.get('columns')
+    close_column = column_names[0]
+    high_column = column_names[1]
+    low_column = column_names[2]
+
+    function = config.get('function')
+    if not isinstance(function, str):
+        raise ValueError(f"Wrong type of the 'function' parameter: {type(function)}")
+    if function not in ['high', 'low']:
+        raise ValueError(f"Unknown function name {function}. Only 'high' or 'low' are possible")
+
+    tolerance = config.get('tolerance')  # Fraction of the level/threshold
+
+    thresholds = config.get('thresholds')  # List of thresholds which are growth/drop in percent
+    if not isinstance(thresholds, list):
+        thresholds = [thresholds]
+
+    if function == 'high':
+        thresholds = [abs(t) for t in thresholds]
+        price_columns = [high_column, low_column]
+    elif function == 'low':
+        thresholds = [-abs(t) for t in thresholds]
+        price_columns = [low_column, high_column]
+
+    tolerances = [round(-t*tolerance, 6) for t in thresholds]  # Tolerance have opposite sign
+
+    horizon = config.get('horizon')  # Length of history to be analyzed
+
+    names = config.get('names')  # For example, ['first_high_10', 'first_high_15'] for two tolerances
+    if len(names) != len(thresholds):
+        raise ValueError(f"'highlow2' Label generator: for each threshold value one name has to be provided.")
+
     labels = []
-
-    # Increase higher than the thresholds
-    first_cross_labels(df, horizon, [1.0, -1.0/5], "close", ["high", "low"], "first_high_10")
-    first_cross_labels(df, horizon, [1.5, -1.5/5], "close", ["high", "low"], "first_high_15")
-    first_cross_labels(df, horizon, [2.0, -2.0/5], "close", ["high", "low"], "first_high_20")
-    first_cross_labels(df, horizon, [2.5, -2.5/5], "close", ["high", "low"], "first_high_25")
-    first_cross_labels(df, horizon, [3.0, -3.0/5], "close", ["high", "low"], "first_high_30")
-    labels.extend(["first_high_10", "first_high_15", "first_high_20", "first_high_25", "first_high_30"])
-
-    # Decrease lower than the thresholds
-    first_cross_labels(df, horizon, [-1.0, 1.0/5], "close", ["low", "high"], "first_low_10")
-    first_cross_labels(df, horizon, [-1.5, 1.5/5], "close", ["low", "high"], "first_low_15")
-    first_cross_labels(df, horizon, [-2.0, 2.0/5], "close", ["low", "high"], "first_low_20")
-    first_cross_labels(df, horizon, [-2.5, 2.5/5], "close", ["low", "high"], "first_low_25")
-    first_cross_labels(df, horizon, [-3.0, 3.0/5], "close", ["low", "high"], "first_low_30")
-    labels.extend(["first_low_10", "first_low_15", "first_low_20", "first_low_25", "first_low_30"])
+    for i, threshold in enumerate(thresholds):
+        first_cross_labels(df, horizon, [threshold, tolerances[i]], close_column, price_columns, names[i])
+        labels.append(names[i])
 
     print(f"Highlow2 labels computed: {labels}")
 
-    return labels
+    return df, labels
 
 
 def generate_labels_sim(df, horizon):

@@ -142,13 +142,9 @@ def generate_feature_set(df: pd.DataFrame, fs: dict, last_rows: int) -> Tuple[pd
 
         print(f"Finished generating 'highlow' labels. {len(features)} labels generated.")
     elif generator == "highlow2":
-        horizon = App.config["highlow_horizon"]
-
-        # Binary labels whether high/low cross the threshold whichever happens first
-        print(f"Generating 'highlow2' labels with horizon {horizon}...")
-        features = generate_labels_highlow2(f_df, horizon=horizon)
-
-        print(f"Finished generating 'highlow' labels. {len(features)} labels generated.")
+        print(f"Generating 'highlow2' labels...")
+        f_df, features = generate_labels_highlow2(f_df, fs.get('config', {}))
+        print(f"Finished generating 'highlow2' labels. {len(features)} labels generated.")
     elif generator == "topbot":
         column_name = App.config.get("topbot_column_name", "close")
 
