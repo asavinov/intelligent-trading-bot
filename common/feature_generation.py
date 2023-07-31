@@ -4,6 +4,7 @@ import importlib
 from datetime import datetime, timezone, timedelta
 from typing import Union
 import json
+import itertools
 
 import numpy as np
 import pandas as pd
@@ -333,9 +334,6 @@ def generate_features_itbstats(df, config: dict, last_rows: int = 0):
     if not isinstance(windows, list):
         windows = [windows]
 
-    # TODO: use custom names instead of automatically generated ones
-    names = config.get('names')
-
     features = []
     for w in windows:
         ro = column.rolling(window=w, min_periods=max(1, w // 2))
@@ -357,32 +355,49 @@ def generate_features_itbstats(df, config: dict, last_rows: int = 0):
             df[feature_name] = _aggregate_last_rows(column, w, last_rows, stats.kurtosis)
         features.append(feature_name)
 
-        #feature_name = column_name + "_msdc_" + str(w)
-        #if not last_rows:
-        #    df[feature_name] = ro.apply(tsf.mean_second_derivative_central, raw=True)
-        #else:
-        #    df[feature_name] = _aggregate_last_rows(column, w, last_rows, tsf.mean_second_derivative_central)
-        #features.append(feature_name)
-
         #
         # Counts
         # first/last_location_of_maximum/minimum
         #
-        #feature_name = column_name + "_lsbm_" + str(w)
-        #if not last_rows:
-        #    df[feature_name] = ro.apply(tsf.longest_strike_below_mean, raw=True)
-        #else:
-        #    df[feature_name] = _aggregate_last_rows(column, w, last_rows, tsf.longest_strike_below_mean)
-        #features.append(feature_name)
+        feature_name = column_name + "_lsbm_" + str(w)
+        if not last_rows:
+            df[feature_name] = ro.apply(lsbm_fn, raw=True)
+        else:
+            df[feature_name] = _aggregate_last_rows(column, w, last_rows, lsbm_fn)
+        features.append(feature_name)
 
-        #feature_name = column_name + "_fmax_" + str(w)
-        #if not last_rows:
-        #    df[feature_name] = ro.apply(tsf.first_location_of_maximum, raw=True)
-        #else:
-        #    df[feature_name] = _aggregate_last_rows(column, w, last_rows, tsf.first_location_of_maximum)
-        #features.append(feature_name)
+        def fmax_fn(x):
+            return np.argmax(x) / len(x) if len(x) > 0 else np.NaN
+        feature_name = column_name + "_fmax_" + str(w)
+        if not last_rows:
+            df[feature_name] = ro.apply(fmax_fn, raw=True)
+        else:
+            df[feature_name] = _aggregate_last_rows(column, w, last_rows, fmax_fn)
+        features.append(feature_name)
 
     return features
+
+
+def lsbm_fn(x):
+    """
+    The longest consecutive interval of values higher than the mean.
+    A similar feature might be higher than the last (current) value.
+    Area under mean/last value is also a variation of this approach but instead of computing the sum of length, we compute their integral (along with the values).
+
+    Equivalent of tsfresh.feature_extraction.feature_calculators.longest_strike_below_mean
+    """
+
+    def _get_length_sequences_where(x):
+        # [0,1,0,0,1,1,1,0,0,1,0,1,1] -> [1, 3, 1, 2]
+        # [0,True,0,0,True,True,True,0,0,True,0,True,True] -> [1, 3, 1, 2]
+        # [0,True,0,0,1,True,1,0,0,True,0,1,True] -> [1, 3, 1, 2]
+        if len(x) == 0:
+            return [0]
+        else:
+            res = [len(list(group)) for value, group in itertools.groupby(x) if value == 1]
+            return res if len(res) > 0 else [0]
+
+    return np.max(_get_length_sequences_where(x < np.mean(x))) if x.size > 0 else 0
 
 
 def generate_features_itblib(df, config: dict, last_rows: int = 0):
