@@ -313,6 +313,8 @@ def generate_features_itbstats(df, config: dict, last_rows: int = 0):
     Currently applied to only one input column.
     Currently generates all functions - 'functions' parameter is not used.
     """
+    # If true, then logarithm is applied to the result
+    log = config.get('parameters', {}).get('log', False)
 
     # Transform str/list and list to dict with argument names as keys and column names as values
     column_names = config.get('columns')
@@ -330,52 +332,63 @@ def generate_features_itbstats(df, config: dict, last_rows: int = 0):
 
     column = df[column_name].interpolate()
 
+    func_names = config.get('functions')
+    if not isinstance(func_names, list):
+        func_names = [func_names]
+
     windows = config.get('windows')
     if not isinstance(windows, list):
         windows = [windows]
 
+    names = config.get('names')
+
+    #
+    # For each function, make several calls for each window size
+    #
+    outs = []
     features = []
-    for w in windows:
-        ro = column.rolling(window=w, min_periods=max(1, w // 2))
+    for func_name in func_names:
 
-        #
-        # Statistics
-        #
-        feature_name = column_name + "_skew_" + str(w)
-        if not last_rows:
-            df[feature_name] = ro.apply(stats.skew, raw=True)
+        # Resolve function name to function reference
+        if func_name.lower() == 'skew':
+            fn = stats.skew
+        elif func_name.lower() == 'kurtosis':
+            fn = stats.kurtosis
+        elif func_name.lower() == 'lsbm':
+            fn = lsbm_fn
+        elif func_name.lower() == 'fmax':
+            fn = fmax_fn
         else:
-            df[feature_name] = _aggregate_last_rows(column, w, last_rows, stats.skew)
-        features.append(feature_name)
+            raise ValueError(f"Unknown function '{func_name}' of feature generator {'itbstats'}")
 
-        feature_name = column_name + "_kurtosis_" + str(w)
-        if not last_rows:
-            df[feature_name] = ro.apply(stats.kurtosis, raw=True)
-        else:
-            df[feature_name] = _aggregate_last_rows(column, w, last_rows, stats.kurtosis)
-        features.append(feature_name)
+        fn_outs = []
+        fn_out_names = []
 
-        #
-        # Counts
-        # first/last_location_of_maximum/minimum
-        #
-        feature_name = column_name + "_lsbm_" + str(w)
-        if not last_rows:
-            df[feature_name] = ro.apply(lsbm_fn, raw=True)
-        else:
-            df[feature_name] = _aggregate_last_rows(column, w, last_rows, lsbm_fn)
-        features.append(feature_name)
+        # Now this function will be called for each window as a parameter
+        for j, w in enumerate(windows):
+            ro = column.rolling(window=w, min_periods=max(1, w // 2))
 
-        def fmax_fn(x):
-            return np.argmax(x) / len(x) if len(x) > 0 else np.NaN
-        feature_name = column_name + "_fmax_" + str(w)
-        if not last_rows:
-            df[feature_name] = ro.apply(fmax_fn, raw=True)
-        else:
-            df[feature_name] = _aggregate_last_rows(column, w, last_rows, fmax_fn)
-        features.append(feature_name)
+            out_name = column_name + "_" + func_name + "_" + str(w)
+            if not last_rows:
+                out = ro.apply(fn, raw=True)
+            else:
+                out = _aggregate_last_rows(column, w, last_rows, fn)
+
+            fn_out_names.append(out_name)
+            out.name = out_name
+            fn_outs.append(out)
+
+        features.extend(fn_out_names)
+        outs.extend(fn_outs)
+
+    for out in outs:
+        df[out.name] = np.log(out) if log else out
 
     return features
+
+
+def fmax_fn(x):
+    return np.argmax(x) / len(x) if len(x) > 0 else np.NaN
 
 
 def lsbm_fn(x):
