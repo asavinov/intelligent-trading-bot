@@ -273,34 +273,40 @@ def generate_features_talib(df, config: dict, last_rows: int = 0):
             fn_outs.append(out)
 
         # Convert to relative values and percentage (except for the last output)
-        rel_outs = []
-        for i in range(len(fn_outs) - 1):
-            if not rel:
-                rel_out = fn_outs[i]  # No change
-            elif rel == "next" or rel == "last":
-                if rel == "next":
-                    rel_out = fn_outs[i] / fn_outs[i + 1]  # Relative to next
-                elif rel == "last":
-                    rel_out = fn_outs[i] / fn_outs[-1]  # Relative to last
-
-                if percentage:
-                    rel_out = rel_out * 100.0
-            else:
-                raise ValueError(f"Unknown value of feature generator parameter {rel=}")
-
-            rel_out.name = fn_outs[i].name
-            rel_outs.append(rel_out)
-
-        rel_outs.append(fn_outs[-1])  # Last window as added always unchanged
+        fn_outs = _convert_to_relative(fn_outs, rel, percentage)
 
         features.extend(fn_out_names)
-
-        outs.extend(rel_outs)
+        outs.extend(fn_outs)
 
     for out in outs:
         df[out.name] = np.log(out) if log else out
 
     return features
+
+
+def _convert_to_relative(fn_outs: list, rel, percentage):
+    # Convert to relative values and percentage (except for the last output)
+    rel_outs = []
+    for i in range(len(fn_outs) - 1):
+        if not rel:
+            rel_out = fn_outs[i]  # No change
+        elif rel == "next" or rel == "last":
+            if rel == "next":
+                rel_out = fn_outs[i] / fn_outs[i + 1]  # Relative to next
+            elif rel == "last":
+                rel_out = fn_outs[i] / fn_outs[-1]  # Relative to last
+
+            if percentage:
+                rel_out = rel_out * 100.0
+        else:
+            raise ValueError(f"Unknown value of feature generator parameter {rel=}")
+
+        rel_out.name = fn_outs[i].name
+        rel_outs.append(rel_out)
+
+    rel_outs.append(fn_outs[-1])  # Last window as added always unchanged
+
+    return rel_outs
 
 
 def generate_features_itbstats(df, config: dict, last_rows: int = 0):
@@ -313,6 +319,9 @@ def generate_features_itbstats(df, config: dict, last_rows: int = 0):
     Currently applied to only one input column.
     Currently generates all functions - 'functions' parameter is not used.
     """
+    rel = config.get('parameters', {}).get('rel', False)
+    # If true, then relative values are multiplied by 100
+    percentage = config.get('parameters', {}).get('percentage', False)
     # If true, then logarithm is applied to the result
     log = config.get('parameters', {}).get('log', False)
 
@@ -377,6 +386,9 @@ def generate_features_itbstats(df, config: dict, last_rows: int = 0):
             fn_out_names.append(out_name)
             out.name = out_name
             fn_outs.append(out)
+
+        # Convert to relative values and percentage (except for the last output)
+        fn_outs = _convert_to_relative(fn_outs, rel, percentage)
 
         features.extend(fn_out_names)
         outs.extend(fn_outs)
