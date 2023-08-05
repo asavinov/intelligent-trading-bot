@@ -399,7 +399,6 @@ class Analyzer:
         # 4.
         # Aggregate and post-process
         #
-        trade_score_column_names = []
         score_aggregation_sets = App.config['score_aggregation_sets']
         # Temporary (post-processed) columns for each aggregation set
         buy_column = 'aggregated_buy_score'
@@ -424,17 +423,15 @@ class Analyzer:
             # Mutually adjust two independent scores with opposite buy/sell semantics
             combine_scores(df, parameters, buy_column, sell_column, trade_score_column)
 
-            trade_score_column_names.append(trade_score_column)
-
         #
         # 5.
         # Apply rule to last row
         #
         signal_model = App.config['signal_model']
-        if signal_model.get('rule_type') == 'two_dim_rule':
-            apply_rule_with_score_thresholds_2(df, signal_model, trade_score_column_names)
+        if signal_model.get('rule_name') == 'two_dim_rule':
+            apply_rule_with_score_thresholds_2(df, signal_model)
         else:  # Default one dim rule
-            apply_rule_with_score_thresholds(df, signal_model, trade_score_column_names)
+            apply_rule_with_score_thresholds(df, signal_model)
 
         #
         # 6.
@@ -445,22 +442,27 @@ class Analyzer:
         close_price = row["close"]
         close_time = row.name+timedelta(minutes=1)  # Add 1 minute because timestamp is start of the interval
 
-        trade_score = row[trade_score_column_names[0]]
+        score_column_names = signal_model.get("score_columns")
+        trade_scores = [row[col] for col in score_column_names]
 
-        buy_signal = row["buy_signal_column"]
-        sell_signal = row["sell_signal_column"]
+        signal_column_names = signal_model.get("signal_columns")
+        buy_signal_column = signal_column_names[0]
+        sell_signal_column = signal_column_names[1]
+        buy_signal = row[buy_signal_column]
+        sell_signal = row[sell_signal_column]
 
         signal = dict(
             side="",
-            trade_score=trade_score,
+            trade_score=trade_scores,
             buy_signal=buy_signal, sell_signal=sell_signal,
             close_price=close_price, close_time=close_time
         )
 
-        if pd.isnull(trade_score):
+        if any(x is None or not np.isfinite(x) for x in trade_scores):
+            log.warning(f"Null or infinite/nan score found: {trade_scores=}. Score ignored. No signal.")
             pass  # Something is wrong with the computation results
         elif buy_signal and sell_signal:  # Both signals are true - should not happen
-            pass
+            signal["side"] = "BOTH"
         elif buy_signal:
             signal["side"] = "BUY"
         elif sell_signal:
@@ -470,7 +472,8 @@ class Analyzer:
 
         App.signal = signal
 
-        log.info(f"Analyze finished. Signal: {signal['side']}. Trade score: {trade_score:+.3f}. Price: {int(close_price):,}")
+        scores = ["{x:+.3f}" for x in trade_scores]
+        log.info(f"Analyze finished. Signal: {signal['side']}. Trade scores: {scores}. Price: {int(close_price):,}")
 
 
 if __name__ == "__main__":
