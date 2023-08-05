@@ -76,30 +76,30 @@ def main(config_file):
     # Aggregate and post-process
     #
     trade_score_column_names = []
-    sa_sets = ['score_aggregation', 'score_aggregation_2']
-    for i, score_aggregation_set in enumerate(sa_sets):
-        score_aggregation = App.config.get(score_aggregation_set)
-        if not score_aggregation:
-            continue
+    score_aggregation_sets = App.config['score_aggregation_sets']
+    # Temporary (post-processed) columns for each aggregation set
+    buy_column = 'aggregated_buy_score'
+    sell_column = 'aggregated_sell_score'
+    for i, sa_set in enumerate(score_aggregation_sets):
 
-        buy_labels = score_aggregation.get("buy_labels")
-        sell_labels = score_aggregation.get("sell_labels")
+        buy_labels = sa_set.get("buy_labels")
+        sell_labels = sa_set.get("sell_labels")
         if set(buy_labels + sell_labels) - set(df.columns):
             missing_labels = list(set(buy_labels + sell_labels) - set(df.columns))
             print(f"ERROR: Some buy/sell labels from config are not present in the input data. Missing labels: {missing_labels}")
             return
 
-        # Output (post-processed) columns for each aggregation set
-        buy_column = 'buy_score_column'
-        sell_column = 'sell_score_column'
-        # Aggregate scores between each other and in time
-        aggregate_scores(df, score_aggregation, buy_column, buy_labels)
-        aggregate_scores(df, score_aggregation, sell_column, sell_labels)
+        parameters = sa_set.get("parameters", {})
+        # Aggregate predictions of different algorithms separately for buy and sell
+        aggregate_scores(df, parameters, buy_column, buy_labels)  # Output is buy column
+        aggregate_scores(df, parameters, sell_column, sell_labels)  # Output is sell column
 
-        # Mutually adjust two independent scores with opposite semantics
-        combine_scores(df, score_aggregation, buy_column, sell_column)
+        trade_score_column = sa_set.get("column")
 
-        trade_score_column = score_aggregation.get("trade_score")
+        # Here we want to take into account relative values of buy and sell scores
+        # Mutually adjust two independent scores with opposite buy/sell semantics
+        combine_scores(df, parameters, buy_column, sell_column, trade_score_column)
+
         trade_score_column_names.append(trade_score_column)
 
     #

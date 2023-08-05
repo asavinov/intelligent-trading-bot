@@ -58,18 +58,16 @@
 
   // === AGGREGATION AND POST-PROCESSING ===
 
-  "score_aggregation": {
-      "buy_labels": ["high_10_lc", "high_15_lc", "high_20_lc"],
-      "sell_labels": ["low_10_lc", "low_15_lc", "low_20_lc"],
+  "score_aggregation_sets": [
+      {
+          "column": "trade_score",
 
-      "trade_score": "trade_score",
+          "buy_labels": ["high_10_lc", "high_15_lc", "high_20_lc"],
+          "sell_labels": ["low_10_lc", "low_15_lc", "low_20_lc"],
 
-      "point_threshold": null,
-      "window": 3,
-      "combine": "",
-      "coefficient": 1.0,
-      "constant": 0.0
-  },
+          "parameters": {"point_threshold": null,  "window": 3, "combine": "", "coefficient": 1.0, "constant": 0.0}
+      }
+  ],
 
   // === SIGNAL RULES FOR TRADING ===
 

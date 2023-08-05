@@ -62,7 +62,7 @@ def aggregate_scores(df, model, score_column_out: str, score_columns: Union[List
     return score_column
 
 
-def combine_scores(df, model, buy_score_column, sell_score_column):
+def combine_scores(df, model, buy_score_column, sell_score_column, trade_score_column):
     """
     Mutually adjust two independent scores with opposite semantics.
     The both input scores are in [0,1] range as expected from ML classification algorithms.
@@ -71,7 +71,6 @@ def combine_scores(df, model, buy_score_column, sell_score_column):
     positive values mean buy. The result is stored in the same input buy column
     while the sell column is redundant (and should be removed in future as unnecessary).
     """
-    trade_score_column = model.get("trade_score")
     if model.get("combine") == "relative":
         combine_scores_relative(df, buy_score_column, sell_score_column, trade_score_column)
     elif model.get("combine") == "difference":
@@ -191,11 +190,19 @@ def apply_rule_with_score_thresholds_2(df, model, trade_score_columns: list):
         (df[trade_score_column_2] >= model.get("buy_signal_threshold_2"))
     #df['buy_signal_column'] = df['buy_signal_column'] & distance_signal
 
+    if model.get("buy_signal_diff_threshold") is not None:
+        small_diff = df[trade_score_column].diff() <= model.get("buy_signal_diff_threshold")
+        df['buy_signal_column'] = df['buy_signal_column'] & small_diff
+
     # Both sell scores are smaller than the corresponding thresholds
     df['sell_signal_column'] = \
         (df[trade_score_column] <= model.get("sell_signal_threshold")) & \
         (df[trade_score_column_2] <= model.get("sell_signal_threshold_2"))
     #df['sell_signal_column'] = df['sell_signal_column'] & distance_signal
+
+    if model.get("sell_signal_diff_threshold") is not None:
+        small_diff = df[trade_score_column].diff() >= model.get("sell_signal_diff_threshold")
+        df['sell_signal_column'] = df['sell_signal_column'] & small_diff
 
 
 def apply_rule_with_score_thresholds_one_row(row, model, trade_score_columns: Union[List[str], str]):
