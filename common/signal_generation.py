@@ -159,21 +159,26 @@ def compute_score_slope(df, model, buy_score_columns_in, sell_score_columns_in):
 # Signal rules
 #
 
-def apply_rule_with_score_thresholds(df, model, trade_score_columns: Union[List[str], str]):
+def apply_rule_with_score_thresholds(df, model):
     """
     Apply rules based on thresholds and generate trade signal buy, sell or do nothing.
 
     Returns signals in two pre-defined columns: 'buy_signal_column' and 'sell_signal_column'
     """
-    trade_score_column = trade_score_columns[0] if isinstance(trade_score_columns, list) else trade_score_columns
+    parameters = model.get("parameters", {})
 
-    df['buy_signal_column'] = \
-        (df[trade_score_column] >= model.get("buy_signal_threshold"))
-    df['sell_signal_column'] = \
-        (df[trade_score_column] <= model.get("sell_signal_threshold"))
+    signal_column = model.get("signal_columns")[0]
+    signal_column_2 = model.get("signal_columns")[1]
+
+    score_column = model.get("score_columns")[0] if isinstance(model.get("score_columns"), list) else model.get("score_columns")
+
+    df[signal_column] = \
+        (df[score_column] >= parameters.get("buy_signal_threshold"))
+    df[signal_column_2] = \
+        (df[score_column] <= parameters.get("sell_signal_threshold"))
 
 
-def apply_rule_with_score_thresholds_2(df, model, trade_score_columns: list):
+def apply_rule_with_score_thresholds_2(df, model):
     """
     Assume using difference combination with negative sell scores
     """
@@ -181,44 +186,49 @@ def apply_rule_with_score_thresholds_2(df, model, trade_score_columns: list):
     #distance = ((df[buy_score_column]*df[buy_score_column]) + (df[buy_score_column_2]*df[buy_score_column_2]))**0.5
     #distance_signal = (distance >= two_dim_distance_threshold)  # Far enough from the center
 
-    trade_score_column = trade_score_columns[0]
-    trade_score_column_2 = trade_score_columns[1]
+    parameters = model.get("parameters", {})
+
+    score_column = model.get("score_columns")[0]
+    score_column_2 = model.get("score_columns")[1]
+
+    signal_column = model.get("signal_columns")[0]
+    signal_column_2 = model.get("signal_columns")[1]
 
     # Both buy scores are greater than the corresponding thresholds
-    df['buy_signal_column'] = \
-        (df[trade_score_column] >= model.get("buy_signal_threshold")) & \
-        (df[trade_score_column_2] >= model.get("buy_signal_threshold_2"))
-    #df['buy_signal_column'] = df['buy_signal_column'] & distance_signal
+    df[signal_column] = \
+        (df[score_column] >= parameters.get("buy_signal_threshold")) & \
+        (df[score_column_2] >= parameters.get("buy_signal_threshold_2"))
 
-    if model.get("buy_signal_diff_threshold") is not None:
-        small_diff = df[trade_score_column].diff() <= model.get("buy_signal_diff_threshold")
-        df['buy_signal_column'] = df['buy_signal_column'] & small_diff
+    #if model.get("buy_signal_diff_threshold") is not None:
+    #    small_increase = df[score_column].diff() <= parameters.get("buy_signal_diff_threshold")
+    #    df[signal_column] = df[signal_column] & small_increase
 
     # Both sell scores are smaller than the corresponding thresholds
-    df['sell_signal_column'] = \
-        (df[trade_score_column] <= model.get("sell_signal_threshold")) & \
-        (df[trade_score_column_2] <= model.get("sell_signal_threshold_2"))
-    #df['sell_signal_column'] = df['sell_signal_column'] & distance_signal
+    df[signal_column_2] = \
+        (df[score_column] <= parameters.get("sell_signal_threshold")) & \
+        (df[score_column_2] <= parameters.get("sell_signal_threshold_2"))
 
-    if model.get("sell_signal_diff_threshold") is not None:
-        small_diff = df[trade_score_column].diff() >= model.get("sell_signal_diff_threshold")
-        df['sell_signal_column'] = df['sell_signal_column'] & small_diff
+    #if model.get("sell_signal_diff_threshold") is not None:
+    #    small_increase = df[score_column_2].diff() >= model.get("sell_signal_diff_threshold")
+    #    df[signal_column] = df[signal_column] & small_increase
 
 
-def apply_rule_with_score_thresholds_one_row(row, model, trade_score_columns: Union[List[str], str]):
+def apply_rule_with_score_thresholds_one_row(row, model):
     """
-    Same as above but applied to one row. It is used for online predictions.
+    Same as above but applied to one row rather than data frame. It is used for online predictions.
 
     Returns signals as a tuple with two values: buy_signal and sell_signal
     """
-    trade_score_column = trade_score_columns[0] if isinstance(trade_score_columns, list) else trade_score_columns
+    parameters = model.get("parameters", {})
 
-    buy_score = row[trade_score_column]
+    score_column = model.get("score_columns")[0] if isinstance(model.get("score_columns"), list) else model.get("score_columns")
+
+    buy_score = row[score_column]
 
     buy_signal = \
-        (buy_score >= model.get("buy_signal_threshold"))
+        (buy_score >= parameters.get("buy_signal_threshold"))
     sell_signal = \
-        (buy_score <= model.get("sell_signal_threshold"))
+        (buy_score <= parameters.get("sell_signal_threshold"))
 
     return buy_signal, sell_signal
 

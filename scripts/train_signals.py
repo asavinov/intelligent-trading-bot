@@ -145,7 +145,7 @@ def main(config_file):
             #signal_model["sell_slope_threshold"] = -signal_model["buy_slope_threshold"]
             signal_model["sell_signal_threshold_2"] = -signal_model["buy_signal_threshold_2"]
 
-        signal_model["rule_type"] = App.config["signal_model"]["rule_type"]
+        signal_model["rule_name"] = App.config["signal_model"]["rule_name"]
 
         #
         # Do not aggregate but assume that we have already the aggregation results in the data
@@ -163,7 +163,7 @@ def main(config_file):
         #
         # Apply signal rule and generate binary buy_signal_column/sell_signal_column
         #
-        if signal_model.get('rule_type') == 'two_dim_rule':
+        if signal_model.get('rule_name') == 'two_dim_rule':
             apply_rule_with_score_thresholds_2(df, signal_model, trade_score_column_names)
         else:  # Default one dim rule
             apply_rule_with_score_thresholds(df, signal_model, trade_score_column_names)

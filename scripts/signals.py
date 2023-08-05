@@ -75,7 +75,6 @@ def main(config_file):
     #
     # Aggregate and post-process
     #
-    trade_score_column_names = []
     score_aggregation_sets = App.config['score_aggregation_sets']
     # Temporary (post-processed) columns for each aggregation set
     buy_column = 'aggregated_buy_score'
@@ -99,26 +98,27 @@ def main(config_file):
         # Here we want to take into account relative values of buy and sell scores
         # Mutually adjust two independent scores with opposite buy/sell semantics
         combine_scores(df, parameters, buy_column, sell_column, trade_score_column)
-
-        trade_score_column_names.append(trade_score_column)
+    # Delete temporary columns
+    del df[buy_column]
+    del df[sell_column]
 
     #
     # Apply signal rule and generate binary buy_signal_column/sell_signal_column
     #
     signal_model = App.config['signal_model']
-    if signal_model.get('rule_type') == 'two_dim_rule':
-        apply_rule_with_score_thresholds_2(df, signal_model, trade_score_column_names)
+    if signal_model.get('rule_name') == 'two_dim_rule':
+        apply_rule_with_score_thresholds_2(df, signal_model)
     else:  # Default one dim rule
-        apply_rule_with_score_thresholds(df, signal_model, trade_score_column_names)
+        apply_rule_with_score_thresholds(df, signal_model)
 
     #
     # Simulate trade and compute performance using close price and two boolean signals
     # Add a pair of two dicts: performance dict and model parameters dict
     #
-    signal_column_names = ['buy_signal_column', 'sell_signal_column']
+    signal_column_names = signal_model.get("signal_columns")
 
     performance, long_performance, short_performance = \
-        simulated_trade_performance(df, 'sell_signal_column', 'buy_signal_column', 'close')
+        simulated_trade_performance(df, signal_column_names[1], signal_column_names[0], 'close')
 
     #
     # Convert to columns: longs, shorts, signal, profit (both short and long)
@@ -149,7 +149,8 @@ def main(config_file):
     lines = []
 
     # Score statistics
-    for score_col_name in trade_score_column_names:
+    score_column_names = signal_model.get("score_columns")
+    for score_col_name in score_column_names:
         lines.append(f"'{score_col_name}':\n" + df[score_col_name].describe().to_string())
 
     # TODO: Profit
@@ -166,7 +167,7 @@ def main(config_file):
     #
     out_columns = ["timestamp", "open", "high", "low", "close"]  # Source data
     out_columns.extend(App.config.get('labels'))  # True labels
-    out_columns.extend(trade_score_column_names)  # Aggregated post-processed scores
+    out_columns.extend(score_column_names)  # Aggregated post-processed scores
     out_columns.extend(signal_column_names)  # Rule results
     out_columns.extend(["buy_transaction", "sell_transaction", "transaction_type", "profit_long_percent", "profit_short_percent", "profit_percent"])  # Simulation results
 
