@@ -331,11 +331,12 @@ class Analyzer:
         # 2.
         # Generate all necessary derived features (NaNs are possible due to short history)
         #
+
         # We want to generate features only for the last rows (for performance reasons)
         # Therefore, determine how many last rows we will actually need
-        window_1 = App.config.get("score_aggregation", {}).get("window", 0)
-        window_2 = App.config.get("score_aggregation_2", {}).get("window", 0)
-        last_rows = max(window_1, window_2) + 1
+        score_aggregation_sets = App.config['score_aggregation_sets']
+        windows = [sa_set.get("parameters", {}).get("window", 0) for sa_set in score_aggregation_sets]
+        last_rows = max(windows) + 1
 
         feature_sets = App.config.get("feature_sets", [])
         if not feature_sets:
