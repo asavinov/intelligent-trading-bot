@@ -1,7 +1,9 @@
 # Change Log
 
 * v0.6.dev
-  * add talib package for feature generation 
+  * add a feature generator based on TA-lib technical analysis libarary
+  * add configurations to feature generators instead of global parameters
+  * add configuration parameters to label generators
 
 * v0.5.0 (2023-03-26)
   * refactor and improve signal training (grid search) by taking into account the new rule model and external config file 

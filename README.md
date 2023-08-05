@@ -75,34 +75,34 @@ The main configuration parameter for the both scripts is a list of sources in ``
 
 ## Generate features
 
-This script computes all derived features and labels defined programmatically:
+This script is intended for computing derived features:
 * Script: `python -m scripts.features -c config.json`
-* Currently it runs in non-incremental model by computing features for all available data (and not only for the latest update), and hence it may take hours for complex configurations
-* The script loads merged input data, applies feature generation procedures and stores a feature matrix with all derived features in an output file. 
-* Not all generated features will be used for analysis. 
-* Feature functions get additional parameters like windows from the configuration file
+* Currently it runs in non-incremental model by computing features for *all* available input records (and not only for the latest update), and hence it may take hours for complex configurations
+* The script loads merged input data, applies feature generation procedures and stores all derived features in an output file
+* Not all generated features will be used for training and prediction. For the train/predict phases, a separate list of features is specified 
+* Feature functions get additional parameters like windows from the config section
 * The same features must be used for on-line feature generation (in the service when they are generated for a micro-batch) and off-line feature generation.
 
-The list of features to be generated is configured via ``feature_sets`` list in the configuration. Other feature parameters in config: 
-```
-Example old parameters
-"base_window": 1440,
-"averaging_windows": [1, 5, 15, 60, 180, 720]
-```
-```
-Example new parameters
-"base_window": 40320,
-"averaging_windows": [1, 60, 360, 1440, 4320, 10080]
-```
+The list of features to be generated is configured via ``feature_sets`` list in the configuration file. How features are generated is defined by the *feature generator* each having some parameters specified in its config section.
+
+* ``talib`` feature generator relies on the TA-lib technical analysis library. Here an example of its configuration: ``"config":  {"columns": ["close"], "functions": ["SMA"], "windows": [5, 10, 15], "parameters": {"rel": "next"}}``
+* ``itbstats`` feature generator implements functions which can be found in tsfresh like skew, kurtosis, lsbm (longest strike below mean), fmax (first location of maximum). Here are typical parameters: ``"config":  {"columns": ["close"], "functions": ["skew", "fmax"], "windows": [5, 10, 15], "parameters": {"rel": false}}``   
+* ``itblib`` feature generator implemented in ITB but most of its features can be generated (much faster) via talib
+* ``tsfresh`` generates functions from the tsfresh library
 
 ## Generate labels
 
-This script is similar to feature generation because it adds new columns to the input file. However, these columns describe something that we want to predict and what is not known in online model. For example, it could be price increase in future:
+This script is similar to feature generation because it adds new columns to the input file. However, these columns describe something that we want to predict and what is not known when executing in online mode. For example, it could be price increase in future:
 * Script: `python -m scripts.labels -c config.json`
-* The script loads feature matrix, computes label columns and stores the result in output file. Features are normally not needed for label computations and they are stored unchanged in the output file
-* Not all generated labels have to be used. It is necessary to choose those relevant for the analysis and trading parameters
+* The script loads features, computes label columns and stores the result in output file
+* Not all generated labels have to be used. The labels to be used for training are specified in a separate list
 
-The list of labels to be generated is configured via ``label_sets`` list in the configuration. An element of a label set points to the function which generates additional columns storing the label values like `highlow`.
+The list of labels to be generated is configured via ``label_sets`` list in the configuration. One label set points to the function which generates additional columns. Their configuration is very similar to feature configurations.
+
+* ``highlow`` label generator returns True if the price is higher than the specified threshold within some future horizon
+* ``highlow2`` Computes future increases (decreases) with the conditions that there are no significant decreses (increases) before that. Here is its typical configuration: ``"config":  {"columns": ["close", "high", "low"], "function": "high", "thresholds": [1.0, 1.5, 2.0], "tolerance": 0.2, "horizon": 10080, "names": ["first_high_10", "first_high_15", "first_high_20"]}``
+* ``topbot`` Deprecated
+* ``topbot2`` Computes maximum and minimum values (labeled as True). Every labelled maximum (minimum) is guaranteed to be surrounded by minimums (maximums) lower (higher) than the specified level. The required minimum difference between adjacent minimums and maximums is specified via ``level`` parameters. The tolerance parameter allows for including also points close to the maximum/minimum. Here is a typical configuration: ``"config":  {"columns": "close", "function": "bot", "level": 0.02, "tolerances": [0.0025, 0.005, 0.0075], "names": ["bot2_025", "bot2_05", "bot2_075"]}``
 
 ## Train prediction models
 
