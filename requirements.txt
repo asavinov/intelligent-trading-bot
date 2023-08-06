@@ -1,5 +1,6 @@
 numpy>=1.23.*
 pandas>=1.4.*
+numba  # For highlow label generator
 scikit-learn==1.2.*
 #scipy>=1.9.*  # Should be automatically installed as a dep of scikit-learn
 statsmodels>=0.13.*

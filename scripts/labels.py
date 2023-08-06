@@ -71,7 +71,7 @@ def main(config_file):
     all_features = []
     for i, fs in enumerate(label_sets):
         fs_now = datetime.now()
-        print(f"Start label set {i}. Generator {fs.get('generator')}...")
+        print(f"Start label set {i}/{len(label_sets)}. Generator {fs.get('generator')}...")
         df, new_features = generate_feature_set(df, fs, last_rows=0)
         all_features.extend(new_features)
         fs_elapsed = datetime.now() - fs_now
