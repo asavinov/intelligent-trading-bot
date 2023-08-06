@@ -150,15 +150,8 @@ def main(config_file):
         #
         # Do not aggregate but assume that we have already the aggregation results in the data
         #
-        trade_score_column_names = []
-        sa_sets = ['score_aggregation', 'score_aggregation_2']
-        for i, score_aggregation_set in enumerate(sa_sets):
-            score_aggregation = App.config.get(score_aggregation_set)
-            if not score_aggregation:
-                continue
-
-            trade_score_column = score_aggregation.get("trade_score")
-            trade_score_column_names.append(trade_score_column)
+        score_aggregation_sets = App.config['score_aggregation_sets']
+        trade_score_column_names = [sa_set.get("column") for sa_set in score_aggregation_sets]
 
         #
         # Apply signal rule and generate binary buy_signal_column/sell_signal_column

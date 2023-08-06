@@ -61,14 +61,8 @@ class Analyzer:
             model_path = data_path / model_path
         model_path = model_path.resolve()
 
-        sa_sets = ['score_aggregation', 'score_aggregation_2']
-        all_labels = []
-        for i, score_aggregation_set in enumerate(sa_sets):
-            score_aggregation = App.config.get(score_aggregation_set)
-            if not score_aggregation:
-                continue
-            all_labels.extend(score_aggregation.get("buy_labels"))
-            all_labels.extend(score_aggregation.get("sell_labels"))
+        score_aggregation_sets = App.config['score_aggregation_sets']
+        all_labels = list(itertools.chain.from_iterable([x.get("buy_labels") + x.get("sell_labels") for x in score_aggregation_sets]))
 
         self.models = {label: load_model_pair(model_path, label) for label in all_labels}
 
@@ -335,8 +329,8 @@ class Analyzer:
         # We want to generate features only for the last rows (for performance reasons)
         # Therefore, determine how many last rows we will actually need
         score_aggregation_sets = App.config['score_aggregation_sets']
-        windows = [sa_set.get("parameters", {}).get("window", 0) for sa_set in score_aggregation_sets]
-        last_rows = max(windows) + 1
+        all_windows = [sa_set.get("parameters", {}).get("window", 0) for sa_set in score_aggregation_sets]
+        last_rows = max(all_windows) + 1
 
         feature_sets = App.config.get("feature_sets", [])
         if not feature_sets:
@@ -422,6 +416,9 @@ class Analyzer:
             # Here we want to take into account relative values of buy and sell scores
             # Mutually adjust two independent scores with opposite buy/sell semantics
             combine_scores(df, parameters, buy_column, sell_column, trade_score_column)
+        # Delete temporary columns
+        del df[buy_column]
+        del df[sell_column]
 
         #
         # 5.

@@ -165,19 +165,23 @@ class App:
         # =======================================
         # === AGGREGATION AND POST-PROCESSING ===
 
-        "score_aggregation": {
-            # These ML predicted columns (scores) will be used for aggregation
-            "buy_labels": ["high_10_lc", "high_15_lc", "high_20_lc"],
-            "sell_labels": ["low_10_lc", "low_15_lc", "low_20_lc"],
+        "score_aggregation_sets": [
+            {
+                "column": "trade_score",  # Output column name: positive values - buy, negative values - sell
 
-            "trade_score": "trade_score",  # Output column name: positive values - buy, negative values - sell
+                # These ML predicted columns (scores) will be used for aggregation
+                "buy_labels": ["high_10_lc", "high_15_lc", "high_20_lc"],
+                "sell_labels": ["low_10_lc", "low_15_lc", "low_20_lc"],
 
-            "point_threshold": None,  # Produce boolean column (optional)
-            "window": 3,  # Aggregate in time
-            "combine": "",  # "no_combine" (or empty), "relative", "difference"
-            "coefficient": 1.0,  # Scale the scores to make them symmetric
-            "constant": 0.0
-        },
+                "parameters": {
+                    "point_threshold": None,  # Produce boolean column (optional)
+                    "window": 3,  # Aggregate in time
+                    "combine": "",  # "no_combine" (or empty), "relative", "difference"
+                    "coefficient": 1.0,  # Scale the scores to make them symmetric
+                    "constant": 0.0
+                }
+            }
+        ],
 
         # ================================
         # === SIGNAL RULES FOR TRADING ===
