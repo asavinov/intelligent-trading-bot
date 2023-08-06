@@ -5,7 +5,7 @@
   "telegram_bot_token": "<token>",
   "telegram_chat_id": "<chat-id-to-publish-messages>",
 
-  "data_folder": "C:/DATA_ITB",
+  "data_folder": "C:/DATA_ITB_test",
 
   // === DOWNLOAD AND MERGE ===
 
@@ -19,42 +19,35 @@
 
   "feature_sets": [
       // all functions: close_WMA, close_STD, volume_SMA, span_SMA, trades_SMA, tb_base_SMA, close_AREA, close_SLOPE, volume_SLOPE
-      // binance_secondary: close_WMA, volume_SMA, close_AREA, close_SLOPE, volume_SLOPE
-      {"column_prefix": "", "generator": "itblib", "feature_prefix": "", "config":  {"functions": [], "windows": [1, 10, 60], "base_window": 360, "use_differences":  false}}
+      //{"column_prefix": "", "generator": "itblib", "feature_prefix": "", "config":  {"functions": [], "windows": [1, 10, 60], "base_window": 360, "use_differences":  false}},
+      {"column_prefix": "", "generator": "talib", "feature_prefix": "", "config":  {"columns": ["close"], "functions": ["SMA"], "windows": [1, 5, 10, 15, 60]}}
   ],
 
   // === LABELS ===
 
   "label_sets": [
-      {"column_prefix": "", "generator": "highlow", "feature_prefix": ""}
+      //{"column_prefix": "", "generator": "highlow", "feature_prefix": ""},
+      {"column_prefix": "", "generator": "highlow2", "feature_prefix": "", "config":  {"columns": ["close", "high", "low"], "function": "high", "thresholds": [1.0, 2.0], "tolerance": 0.2, "horizon": 20, "names": ["high_10", "high_20"]}},
+      {"column_prefix": "", "generator": "highlow2", "feature_prefix": "", "config":  {"columns": ["close", "high", "low"], "function": "low", "thresholds": [1.0, 2.0], "tolerance": 0.2, "horizon": 20, "names": ["low_10", "low_20"]}}
   ],
-  "highlow_horizon": 60,
 
   // === TRAIN ===
 
-  "label_horizon": 60,
+  "label_horizon": 0,
   "train_length": 262800,
 
   "train_features": [
-      "close_1", "close_10", "close_60",
-      "close_std_10", "close_std_60",
-      "volume_1", "volume_10", "volume_60",
-      "span_1", "span_10", "span_60",
-      "trades_1", "trades_10", "trades_60",
-      "tb_base_1", "tb_base_10", "tb_base_60",
-      "close_area_10", "close_area_60",
-      "close_trend_10", "close_trend_60",
-      "volume_trend_10", "volume_trend_60"
+      "close_SMA_1", "close_SMA_5", "close_SMA_10", "close_SMA_15", "close_SMA_60"
   ],
 
   "labels": [
-      "high_10", "high_15", "high_20", "high_25", "high_30",
-      "low_10", "low_15", "low_20", "low_25", "low_30"
+      "high_10", "high_20",
+      "low_10", "low_20"
   ],
 
   "algorithms": ["lc"],
 
-  "features_horizon": 10180,
+  "features_horizon": 100,
 
   // === AGGREGATION AND POST-PROCESSING ===
 
@@ -62,34 +55,39 @@
       {
           "column": "trade_score",
 
-          "buy_labels": ["high_10_lc", "high_15_lc", "high_20_lc"],
-          "sell_labels": ["low_10_lc", "low_15_lc", "low_20_lc"],
+          "buy_labels": ["high_10_lc", "high_20_lc"],
+          "sell_labels": ["low_10_lc", "low_20_lc"],
 
-          "parameters": {"point_threshold": null,  "window": 3, "combine": "", "coefficient": 1.0, "constant": 0.0}
+          "parameters": {"point_threshold": null,  "window": 3, "combine": "difference", "coefficient": 1.0, "constant": 0.0}
       }
   ],
 
   // === SIGNAL RULES FOR TRADING ===
 
   "signal_model": {
-      "rule_type": "",
+      "rule_name": "",
 
-      "buy_signal_threshold": 0.1,
-      "sell_signal_threshold": -0.1,
+      "score_columns": ["trade_score"],
+      "signal_columns": ["buy_signal_column", "sell_signal_column"],
 
-      "buy_notify_threshold": 0.05,
-      "sell_notify_threshold": -0.05,
-
-      "trade_icon_step": 0.1,
-      "notify_frequency_minutes": 10
+      "parameters": {
+        "buy_signal_threshold": 0.05,
+        "sell_signal_threshold": -0.05
+      },
+      "notification": {
+        "buy_notify_threshold": 0.01,
+        "sell_notify_threshold": -0.01,
+        "trade_icon_step": 0.02,
+        "notify_frequency_minutes": 1
+      }
   },
 
   "train_signal_model": {
       "buy_sell_equal": false,
 
       "grid": {
-          "buy_signal_threshold": [0.1, 0.2, 0.3],
-          "sell_signal_threshold": [-0.1, -0.2, -0.3]
+          "buy_signal_threshold": [0.05, 0.1, 0.15, 0.2],
+          "sell_signal_threshold": [-0.05, -0.1, -0.15, -0.2]
       }
     }
 }
