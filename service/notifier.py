@@ -21,16 +21,20 @@ async def notify_telegram():
     signal = App.signal
     signal_side = signal.get("side")
     close_price = signal.get('close_price')
-    trade_score = signal.get('trade_score')
+    trade_scores = signal.get('trade_score')
+    trade_score_primary = trade_scores[0]
+    trade_score_secondary = trade_scores[1] if len(trade_scores) > 1 else None
     close_time = signal.get('close_time')
 
     model = App.config["signal_model"]
-    buy_notify_threshold = model["buy_notify_threshold"]
-    sell_notify_threshold = model["sell_notify_threshold"]
-    buy_signal_threshold = model["buy_signal_threshold"]
-    sell_signal_threshold = model["sell_signal_threshold"]
-    trade_icon_step = model.get("trade_icon_step", 0)
-    notify_frequency_minutes = model.get("notify_frequency_minutes", 1)
+
+    buy_signal_threshold = model.get("parameters", {}).get("buy_signal_threshold", 0)
+    sell_signal_threshold = model.get("parameters", {}).get("sell_signal_threshold", 0)
+
+    buy_notify_threshold = model.get("notification", {}).get("buy_notify_threshold", 0)
+    sell_notify_threshold = model.get("notification", {}).get("sell_notify_threshold", 0)
+    trade_icon_step = model.get("notification", {}).get("trade_icon_step", 0.1)
+    notify_frequency_minutes = model.get("notification", {}).get("notify_frequency_minutes", 1)
 
     # Crypto Currency Symbols: https://github.com/yonilevy/crypto-currency-symbols
     if symbol == "BTCUSDT":
@@ -48,22 +52,24 @@ async def notify_telegram():
     # UP:  📈, ⬆,  ⬆️ ↗️🔼 🟢 (green), 🟩, ▲ (green), ↗ (green)
     # ✅ 🔹 (blue) 📌 🔸 (orange)
     message = ""
+    primary_score_str = f"{trade_score_primary:+.2f}"
+    secondary_score_str = f"{trade_score_secondary:+.2f}" if trade_score_secondary is not None else ''
     if signal_side == "BUY":
-        score_steps = (np.abs(trade_score - buy_signal_threshold) // trade_icon_step) if trade_icon_step else 0
-        message = "🟢"*int(score_steps+1) + f" *BUY: {symbol_char} {int(close_price):,} Score: {trade_score:+.2f}*"
+        score_steps = (np.abs(trade_score_primary - buy_signal_threshold) // trade_icon_step) if trade_icon_step else 0
+        message = "🟢"*int(score_steps+1) + f" *BUY: {symbol_char} {int(close_price):,} Score: {primary_score_str}* {secondary_score_str}"
     elif signal_side == "SELL":
-        score_steps = (np.abs(trade_score - sell_signal_threshold) // trade_icon_step) if trade_icon_step else 0
-        message = "🔴"*int(score_steps+1) + f" *SELL: {symbol_char} {int(close_price):,} Score: {trade_score:+.2f}*"
-    elif (close_time.minute % notify_frequency_minutes) == 0:  # Info message with custom frequency
-        if trade_score >= 0:
-            message = f"{symbol_char} {int(close_price):,} 📈{trade_score:+.2f}"
+        score_steps = (np.abs(trade_score_primary - sell_signal_threshold) // trade_icon_step) if trade_icon_step else 0
+        message = "🔴"*int(score_steps+1) + f" *SELL: {symbol_char} {int(close_price):,} Score: {primary_score_str}* {secondary_score_str}"
+    elif (close_time.minute % notify_frequency_minutes) == 0:  # Info message with the specified frequency
+        if trade_score_primary >= 0:
+            message = f"{symbol_char} {int(close_price):,} 📈{primary_score_str} {secondary_score_str}"
         else:
-            message = f"{symbol_char} {int(close_price):,} 📉{trade_score:+.2f}"
+            message = f"{symbol_char} {int(close_price):,} 📉{primary_score_str} {secondary_score_str}"
     message = message.replace("+", "%2B")  # For Telegram to display plus sign
 
     if not message:
         return
-    if trade_score < buy_notify_threshold and trade_score > sell_notify_threshold:
+    if trade_score_primary < buy_notify_threshold and trade_score_primary > sell_notify_threshold:
         return  # Do not send notifications with low notification threshold (also no buy/sell notifications)
 
     bot_token = App.config["telegram_bot_token"]
