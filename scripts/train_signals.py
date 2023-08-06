@@ -118,48 +118,50 @@ def main(config_file):
     # Load signal train parameters
     #
     train_signal_model = App.config["train_signal_model"]
-    signal_model_grid = train_signal_model["grid"]
+    parameter_grid = train_signal_model["grid"]
 
     # Evaluate strings to produce lists
-    if isinstance(signal_model_grid.get("buy_signal_threshold"), str):
-        signal_model_grid["buy_signal_threshold"] = eval(signal_model_grid.get("buy_signal_threshold"))
-    if isinstance(signal_model_grid.get("buy_signal_threshold_2"), str):
-        signal_model_grid["buy_signal_threshold_2"] = eval(signal_model_grid.get("buy_signal_threshold_2"))
-    if isinstance(signal_model_grid.get("sell_signal_threshold"), str):
-        signal_model_grid["sell_signal_threshold"] = eval(signal_model_grid.get("sell_signal_threshold"))
-    if isinstance(signal_model_grid.get("sell_signal_threshold_2"), str):
-        signal_model_grid["sell_signal_threshold_2"] = eval(signal_model_grid.get("sell_signal_threshold_2"))
+    if isinstance(parameter_grid.get("buy_signal_threshold"), str):
+        parameter_grid["buy_signal_threshold"] = eval(parameter_grid.get("buy_signal_threshold"))
+    if isinstance(parameter_grid.get("buy_signal_threshold_2"), str):
+        parameter_grid["buy_signal_threshold_2"] = eval(parameter_grid.get("buy_signal_threshold_2"))
+    if isinstance(parameter_grid.get("sell_signal_threshold"), str):
+        parameter_grid["sell_signal_threshold"] = eval(parameter_grid.get("sell_signal_threshold"))
+    if isinstance(parameter_grid.get("sell_signal_threshold_2"), str):
+        parameter_grid["sell_signal_threshold_2"] = eval(parameter_grid.get("sell_signal_threshold_2"))
 
     # Disable sell parameters in grid search - they will be set from the buy parameters
     if train_signal_model.get("buy_sell_equal"):
-        signal_model_grid["sell_signal_threshold"] = [None]
-        signal_model_grid["sell_signal_threshold_2"] = [None]
+        parameter_grid["sell_signal_threshold"] = [None]
+        parameter_grid["sell_signal_threshold_2"] = [None]
 
     performances = list()
-    for signal_model in tqdm(ParameterGrid([signal_model_grid]), desc="MODELS"):
+    for parameters in tqdm(ParameterGrid([parameter_grid]), desc="MODELS"):
+
         #
         # If equal parameters, then derive the sell parameter from the buy parameter
         #
         if train_signal_model.get("buy_sell_equal"):
-            signal_model["sell_signal_threshold"] = -signal_model["buy_signal_threshold"]
+            parameters["sell_signal_threshold"] = -parameters["buy_signal_threshold"]
             #signal_model["sell_slope_threshold"] = -signal_model["buy_slope_threshold"]
-            signal_model["sell_signal_threshold_2"] = -signal_model["buy_signal_threshold_2"]
+            if parameters.get("buy_signal_threshold_2") is not None:
+                parameters["sell_signal_threshold_2"] = -parameters["buy_signal_threshold_2"]
 
-        signal_model["rule_name"] = App.config["signal_model"]["rule_name"]
+        signal_model = App.config["signal_model"].copy()
+        signal_model["parameters"] = parameters
 
         #
         # Do not aggregate but assume that we have already the aggregation results in the data
         #
-        score_aggregation_sets = App.config['score_aggregation_sets']
-        trade_score_column_names = [sa_set.get("column") for sa_set in score_aggregation_sets]
+        pass
 
         #
         # Apply signal rule and generate binary buy_signal_column/sell_signal_column
         #
-        if signal_model.get('rule_name') == 'two_dim_rule':
-            apply_rule_with_score_thresholds_2(df, signal_model, trade_score_column_names)
+        if parameters.get('rule_name') == 'two_dim_rule':
+            apply_rule_with_score_thresholds_2(df, signal_model)
         else:  # Default one dim rule
-            apply_rule_with_score_thresholds(df, signal_model, trade_score_column_names)
+            apply_rule_with_score_thresholds(df, signal_model)
 
         #
         # Simulate trade and compute performance using close price and two boolean signals
@@ -182,7 +184,7 @@ def main(config_file):
         short_performance["profit_percent_per_month"] = short_performance["profit_percent"] / months_in_simulation
 
         performances.append(dict(
-            model=signal_model,
+            model=parameters,
             performance={k: performance[k] for k in ['profit_percent_per_month', 'profitable', 'profit_percent_per_transaction', 'transaction_no_per_month']},
             long_performance={k: long_performance[k] for k in ['profit_percent_per_month', 'profitable']},
             short_performance={k: short_performance[k] for k in ['profit_percent_per_month', 'profitable']}

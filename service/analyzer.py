@@ -469,7 +469,7 @@ class Analyzer:
 
         App.signal = signal
 
-        scores = ["{x:+.3f}" for x in trade_scores]
+        scores = [f"{x:+.3f}" for x in trade_scores]
         log.info(f"Analyze finished. Signal: {signal['side']}. Trade scores: {scores}. Price: {int(close_price):,}")
 
 
