@@ -56,7 +56,8 @@ def main(config_file):
     data_path = Path(App.config["data_folder"])
     if not data_path.is_dir():
         print(f"Data folder does not exist: {data_path}")
-        return
+        os.makedirs(data_path)
+        print(f"Data folder is created: {data_path}")
 
     now = datetime.now()
 
@@ -79,12 +80,19 @@ def main(config_file):
 
         print(f"Start downloading '{quote}' ...")
 
-        file_path = (data_path / quote / ("futures" if futures else "klines")).with_suffix(".csv")
+        file_path = (data_path / quote)
 
-        if file_path.is_file():
-            data_df = pd.read_csv(file_path)
+        if not file_path.is_dir():
+            print(f"Data folder does not exist: {file_path}")
+            os.makedirs(file_path)
+            print(f"Data folder is created: {file_path}")
+
+        file_name = (data_path / quote / ("futures" if futures else "klines")).with_suffix(".csv")
+
+        if file_name.is_file():
+            data_df = pd.read_csv(file_name)
             data_df[time_column] = pd.to_datetime(data_df[time_column])
-            print(f"File found. Downloaded data will be appended to the existing file {file_path}")
+            print(f"File found. Downloaded data will be appended to the existing file {file_name}")
         else:
             data_df = pd.DataFrame()
             print(f"File not found. All data will be downloaded and stored in newly created file.")
@@ -111,9 +119,9 @@ def main(config_file):
         data_df = klines_to_df(klines, data_df)
 
         if save:
-            data_df.to_csv(file_path)
+            data_df.to_csv(file_name)
 
-        print(f"Finished downloading '{quote}'. Stored in '{file_path}'")
+        print(f"Finished downloading '{quote}'. Stored in '{file_name}'")
 
     elapsed = datetime.now() - now
     print(f"Finished downloading data in {str(elapsed).split('.')[0]}")
