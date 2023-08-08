@@ -359,10 +359,14 @@ def generate_features_itbstats(df, config: dict, last_rows: int = 0):
     for func_name in func_names:
 
         # Resolve function name to function reference
+        args = tuple()
+        bias = config.get('parameters', {}).get('bias', False)  # By default false (as in pandas)
         if func_name.lower() == 'skew':
             fn = stats.skew
+            args = (0, bias)
         elif func_name.lower() == 'kurtosis':
             fn = stats.kurtosis
+            args = (0, bias)
         elif func_name.lower() == 'lsbm':
             fn = lsbm_fn
         elif func_name.lower() == 'fmax':
@@ -379,9 +383,9 @@ def generate_features_itbstats(df, config: dict, last_rows: int = 0):
 
             out_name = column_name + "_" + func_name + "_" + str(w)
             if not last_rows:
-                out = ro.apply(fn, raw=True)
+                out = ro.apply(fn, args=args, raw=True)
             else:
-                out = _aggregate_last_rows(column, w, last_rows, fn)
+                out = _aggregate_last_rows(column, w, last_rows, fn, *args)
 
             fn_out_names.append(out_name)
             out.name = out_name
