@@ -360,22 +360,23 @@ class Analyzer:
             return
 
         # Do prediction by applying all models (for the score columns declared in config) to the data
+        algorithms = App.config.get("algorithms")
         score_df = pd.DataFrame(index=predict_df.index)
         try:
             for score_column_name, model_pair in self.models.items():
 
                 label, algo_name = score_to_label_algo_pair(score_column_name)
-                model_config = get_model(algo_name)  # Get algorithm description from the algo store
+                model_config = get_algorithm(algorithms, algo_name)  # Get algorithm description from the algo store
                 algo_type = model_config.get("algo")
 
                 if algo_type == "gb":
-                    df_y_hat = predict_gb(model_pair, predict_df, get_model("gb"))
+                    df_y_hat = predict_gb(model_pair, predict_df, model_config)
                 elif algo_type == "nn":
-                    df_y_hat = predict_nn(model_pair, predict_df, get_model("nn"))
+                    df_y_hat = predict_nn(model_pair, predict_df, model_config)
                 elif algo_type == "lc":
-                    df_y_hat = predict_lc(model_pair, predict_df, get_model("lc"))
+                    df_y_hat = predict_lc(model_pair, predict_df, model_config)
                 elif algo_type == "svc":
-                    df_y_hat = predict_svc(model_pair, predict_df, get_model("svc"))
+                    df_y_hat = predict_svc(model_pair, predict_df, model_config)
                 else:
                     raise ValueError(f"Unknown algorithm type '{algo_type}'")
 

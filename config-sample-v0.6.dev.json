@@ -5,7 +5,7 @@
   "telegram_bot_token": "<token>",
   "telegram_chat_id": "<chat-id-to-publish-messages>",
 
-  "data_folder": "C:/DATA_ITB_test",
+  "data_folder": "C:/DATA_ITB",
 
   // === DOWNLOAD AND MERGE ===
 
@@ -45,7 +45,15 @@
       "low_10", "low_20"
   ],
 
-  "algorithms": ["lc"],
+  "algorithms": [
+    {
+      "name": "lc",  // Unique name to be used as a suffix
+      "algo": "lc",  // Altorithm type is mapped to train/predict functions
+      "params": {"penalty": "l2", "C": 1.0, "class_weight": null, "solver": "sag", "max_iter": 200},
+      "train": {"is_scale": true, "length": 250000, "shifts": []},
+      "predict": {"length": 1440}
+    }
+  ],
 
   "features_horizon": 100,
 

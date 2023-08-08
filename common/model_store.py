@@ -16,6 +16,12 @@ def get_model(name: str):
     """Given model name, return its JSON object"""
     return next(x for x in models if x.get("name") == name)
 
+
+def get_algorithm(algorithms: list, name: str):
+    """Given a list of algorithms (from config), find an entry for the algorithm with the specified model name"""
+    return next(x for x in algorithms if x.get("name") == name)
+
+
 def load_models_from_file(file):
     """Load model store from file to memory"""
     pass

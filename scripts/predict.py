@@ -104,7 +104,7 @@ def main(config_file):
     for score_column_name, model_pair in tqdm(models.items(), desc="PREDICTIONS"):
 
         label, algo_name = score_to_label_algo_pair(score_column_name)
-        model_config = get_model(algo_name)  # Get algorithm description from the algo store
+        model_config = get_algorithm(algorithms, algo_name)  # Get algorithm description from the algo store
         algo_type = model_config.get("algo")
 
         if algo_type == "gb":

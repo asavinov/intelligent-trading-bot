@@ -155,8 +155,8 @@ def main(config_file):
                 # Submit train-predict algorithms to the pool
                 execution_results = dict()
                 with ProcessPoolExecutor(max_workers=P.max_workers) as executor:
-                    for algo_name in algorithms:
-                        model_config = get_model(algo_name)
+                    for model_config in algorithms:
+                        algo_name = model_config.get("name")
                         algo_type = model_config.get("algo")
                         algo_train_length = model_config.get("train", {}).get("length")
                         score_column_name = label + label_algo_separator + algo_name
@@ -189,8 +189,8 @@ def main(config_file):
                         print(f"Exception while train-predict {score_column_name}.")
                         return
             else:  # No multiprocessing - sequential execution
-                for algo_name in algorithms:
-                    model_config = get_model(algo_name)
+                for model_config in algorithms:
+                    algo_name = model_config.get("name")
                     algo_type = model_config.get("algo")
                     algo_train_length = model_config.get("train", {}).get("length")
                     score_column_name = label + label_algo_separator + algo_name

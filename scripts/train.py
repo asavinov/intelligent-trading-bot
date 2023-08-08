@@ -101,8 +101,8 @@ def main(config_file):
 
     for label in tqdm(labels, desc="LABELS", colour='red', position=0):
 
-        for algo_name in tqdm(algorithms, desc="ALGORITHMS", colour='red', leave=False, position=1):
-            model_config = get_model(algo_name)  # Get algorithm description from the algo store
+        for model_config in tqdm(algorithms, desc="ALGORITHMS", colour='red', leave=False, position=1):
+            algo_name = model_config.get("name")
             algo_type = model_config.get("algo")
             algo_train_length = model_config.get("train", {}).get("length")
             score_column_name = label + label_algo_separator + algo_name
