@@ -146,27 +146,13 @@ def add_area_ratio(df, is_future: bool, column_name: str, windows: Union[int, Li
     if suffix is None:
         suffix = "_" + "area_ratio"
 
-    def area_ratio_fn(x, is_future):
-        if is_future:
-            level = x[0]  # Relative to the oldest element
-        else:
-            level = x[-1]  # Relative to the newest element
-        x_diff = x - level  # Difference from the level
-        a = np.nansum(x_diff)
-        b = np.nansum(np.absolute(x_diff))
-        pos = (b+a)/2
-        neg = (b-a)/2
-        ratio = pos / b  # in [0,1]
-        ratio = (ratio * 2) - 1  # scale to [-1,+1]
-        return ratio
-
     features = []
     for w in windows:
         if not last_rows:
             ro = column.rolling(window=w, min_periods=max(1, w // 2))
-            feature = ro.apply(area_ratio_fn, kwargs=dict(is_future=is_future), raw=True)
+            feature = ro.apply(area_fn, kwargs=dict(is_future=is_future), raw=True)
         else:  # Only for last row
-            feature = _aggregate_last_rows(column, w, last_rows, area_ratio_fn, is_future)
+            feature = _aggregate_last_rows(column, w, last_rows, area_fn, is_future)
 
         feature_name = column_name + suffix + '_' + str(w)
 
@@ -178,6 +164,21 @@ def add_area_ratio(df, is_future: bool, column_name: str, windows: Union[int, Li
         features.append(feature_name)
 
     return features
+
+
+def area_fn(x, is_future):
+    if is_future:
+        level = x[0]  # Relative to the oldest element
+    else:
+        level = x[-1]  # Relative to the newest element
+    x_diff = x - level  # Difference from the level
+    a = np.nansum(x_diff)
+    b = np.nansum(np.absolute(x_diff))
+    pos = (b+a)/2
+    #neg = (b-a)/2
+    ratio = pos / b  # in [0,1]
+    ratio = (ratio * 2) - 1  # scale to [-1,+1]
+    return ratio
 
 
 def add_linear_trends(df, is_future: bool, column_name: str, windows: Union[int, List[int]], suffix=None, last_rows: int = 0):

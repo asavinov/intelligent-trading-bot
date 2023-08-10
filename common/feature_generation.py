@@ -375,6 +375,9 @@ def generate_features_itbstats(df, config: dict, last_rows: int = 0):
             fn = np.nanmean
         elif func_name.lower() == 'std':
             fn = np.nanstd
+        elif func_name.lower() == 'area':
+            fn = area_fn
+            args = (False,)
         else:
             raise ValueError(f"Unknown function '{func_name}' of feature generator {'itbstats'}")
 
