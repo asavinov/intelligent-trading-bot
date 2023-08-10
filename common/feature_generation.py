@@ -371,6 +371,10 @@ def generate_features_itbstats(df, config: dict, last_rows: int = 0):
             fn = lsbm_fn
         elif func_name.lower() == 'fmax':
             fn = fmax_fn
+        elif func_name.lower() == 'mean':
+            fn = np.nanmean
+        elif func_name.lower() == 'std':
+            fn = np.nanstd
         else:
             raise ValueError(f"Unknown function '{func_name}' of feature generator {'itbstats'}")
 
@@ -379,10 +383,9 @@ def generate_features_itbstats(df, config: dict, last_rows: int = 0):
 
         # Now this function will be called for each window as a parameter
         for j, w in enumerate(windows):
-            ro = column.rolling(window=w, min_periods=max(1, w // 2))
-
             out_name = column_name + "_" + func_name + "_" + str(w)
             if not last_rows:
+                ro = column.rolling(window=w, min_periods=max(1, w // 2))
                 out = ro.apply(fn, args=args, raw=True)
             else:
                 out = _aggregate_last_rows(column, w, last_rows, fn, *args)
