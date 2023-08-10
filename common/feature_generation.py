@@ -133,7 +133,8 @@ def generate_features_talib(df, config: dict, last_rows: int = 0):
     :param config:
     :return:
     """
-    rel = config.get('parameters', {}).get('rel', False)
+    rel_base = config.get('parameters', {}).get('rel_base', False)
+    rel_func = config.get('parameters', {}).get('rel_func', False)
     # If true, then relative values are multiplied by 100
     percentage = config.get('parameters', {}).get('percentage', False)
     # If true, then logarithm is applied to the result
@@ -273,7 +274,7 @@ def generate_features_talib(df, config: dict, last_rows: int = 0):
             fn_outs.append(out)
 
         # Convert to relative values and percentage (except for the last output)
-        fn_outs = _convert_to_relative(fn_outs, rel, percentage)
+        fn_outs = _convert_to_relative(fn_outs, rel_base, rel_func, percentage)
 
         features.extend(fn_out_names)
         outs.extend(fn_outs)
@@ -284,22 +285,54 @@ def generate_features_talib(df, config: dict, last_rows: int = 0):
     return features
 
 
-def _convert_to_relative(fn_outs: list, rel, percentage):
+def _convert_to_relative(fn_outs: list, rel_base, rel_func, percentage):
     # Convert to relative values and percentage (except for the last output)
     rel_outs = []
-    for i in range(len(fn_outs) - 1):
-        if not rel:
+    size = len(fn_outs)
+    for i, feature in enumerate(fn_outs):
+        if not rel_base:
             rel_out = fn_outs[i]  # No change
-        elif rel == "next" or rel == "last":
-            if rel == "next":
-                rel_out = fn_outs[i] / fn_outs[i + 1]  # Relative to next
-            elif rel == "last":
-                rel_out = fn_outs[i] / fn_outs[-1]  # Relative to last
+        elif (rel_base == "next" or rel_base == "last") and i == size - 1:
+            rel_out = fn_outs[i]  # No change
+        elif (rel_base == "prev" or rel_base == "first") and i == 0:
+            rel_out = fn_outs[i]  # No change
 
-            if percentage:
-                rel_out = rel_out * 100.0
-        else:
-            raise ValueError(f"Unknown value of feature generator parameter {rel=}")
+        elif rel_base == "next" or rel_base == "last":
+            if rel_base == "next":
+                base = fn_outs[i + 1]  # Relative to next
+            elif rel_base == "last":
+                base = fn_outs[size-1]  # Relative to last
+            else:
+                raise ValueError(f"Unknown value of the 'rel_base' config parameter: {rel_base=}")
+
+            if rel_func == "rel":
+                rel_out = feature / base
+            elif rel_func == "diff":
+                rel_out = (feature - base)
+            elif rel_func == "rel_diff":
+                rel_out = (feature - base) / base
+            else:
+                raise ValueError(f"Unknown value of the 'rel_func' config parameter: {rel_func=}")
+
+        elif rel_base == "prev" or rel_base == "first":
+            if rel_base == "prev":
+                base = fn_outs[i - 1]  # Relative to previous
+            elif rel_base == "first":
+                base = fn_outs[size-1]  # Relative to first
+            else:
+                raise ValueError(f"Unknown value of the 'rel_base' config parameter: {rel_base=}")
+
+            if rel_func == "rel":
+                rel_out = feature / base
+            elif rel_func == "diff":
+                rel_out = (feature - base)
+            elif rel_func == "rel_diff":
+                rel_out = (feature - base) / base
+            else:
+                raise ValueError(f"Unknown value of the 'rel_func' config parameter: {rel_func=}")
+
+        if percentage:
+            rel_out = rel_out * 100.0
 
         rel_out.name = fn_outs[i].name
         rel_outs.append(rel_out)
@@ -319,7 +352,8 @@ def generate_features_itbstats(df, config: dict, last_rows: int = 0):
     Currently applied to only one input column.
     Currently generates all functions - 'functions' parameter is not used.
     """
-    rel = config.get('parameters', {}).get('rel', False)
+    rel_base = config.get('parameters', {}).get('rel_base', False)
+    rel_func = config.get('parameters', {}).get('rel_func', False)
     # If true, then relative values are multiplied by 100
     percentage = config.get('parameters', {}).get('percentage', False)
     # If true, then logarithm is applied to the result
@@ -400,7 +434,7 @@ def generate_features_itbstats(df, config: dict, last_rows: int = 0):
             fn_outs.append(out)
 
         # Convert to relative values and percentage (except for the last output)
-        fn_outs = _convert_to_relative(fn_outs, rel, percentage)
+        fn_outs = _convert_to_relative(fn_outs, rel_base, rel_func, percentage)
 
         features.extend(fn_out_names)
         outs.extend(fn_outs)
