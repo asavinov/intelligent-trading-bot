@@ -196,34 +196,13 @@ def add_linear_trends(df, is_future: bool, column_name: str, windows: Union[int,
     if suffix is None:
         suffix = "_" + "trend"
 
-    def linear_trend_fn(X):
-        """
-        Given a Series, fit a linear regression model and return its slope interpreted as a trend.
-        The sequence of values in X must correspond to increasing time in order for the trend to make sense.
-        """
-        X_array = np.asarray(range(len(X)))
-        y_array = X
-        if np.isnan(y_array).any():
-            nans = ~np.isnan(y_array)
-            X_array = X_array[nans]
-            y_array = y_array[nans]
-
-        #X_array = X_array.reshape(-1, 1)  # Make matrix
-        #model = linear_model.LinearRegression()
-        #model.fit(X_array, y_array)
-        # slope = model.coef_[0]
-
-        slope, intercept, r, p, se = stats.linregress(X_array, y_array)
-
-        return slope
-
     features = []
     for w in windows:
         if not last_rows:
             ro = column.rolling(window=w, min_periods=max(1, w // 2))
-            feature = ro.apply(linear_trend_fn, raw=True)
+            feature = ro.apply(slope_fn, raw=True)
         else:  # Only for last row
-            feature = _aggregate_last_rows(column, w, last_rows, linear_trend_fn)
+            feature = _aggregate_last_rows(column, w, last_rows, slope_fn)
 
         feature_name = column_name + suffix + '_' + str(w)
 
@@ -235,6 +214,28 @@ def add_linear_trends(df, is_future: bool, column_name: str, windows: Union[int,
         features.append(feature_name)
 
     return features
+
+
+def slope_fn(x):
+    """
+    Given a Series, fit a linear regression model and return its slope interpreted as a trend.
+    The sequence of values in X must correspond to increasing time in order for the trend to make sense.
+    """
+    X_array = np.asarray(range(len(x)))
+    y_array = x
+    if np.isnan(y_array).any():
+        nans = ~np.isnan(y_array)
+        X_array = X_array[nans]
+        y_array = y_array[nans]
+
+    #X_array = X_array.reshape(-1, 1)  # Make matrix
+    #model = linear_model.LinearRegression()
+    #model.fit(X_array, y_array)
+    # slope = model.coef_[0]
+
+    slope, intercept, r, p, se = stats.linregress(X_array, y_array)
+
+    return slope
 
 
 def to_log_diff(sr):

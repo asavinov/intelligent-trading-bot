@@ -378,6 +378,8 @@ def generate_features_itbstats(df, config: dict, last_rows: int = 0):
         elif func_name.lower() == 'area':
             fn = area_fn
             args = (False,)
+        elif func_name.lower() == 'slope':
+            fn = slope_fn
         else:
             raise ValueError(f"Unknown function '{func_name}' of feature generator {'itbstats'}")
 
