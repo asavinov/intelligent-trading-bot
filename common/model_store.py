@@ -88,7 +88,7 @@ def score_to_label_algo_pair(score_column_name: str):
     label_name, algo_name = score_column_name.rsplit(label_algo_separator, 1)
     return label_name, algo_name
 
-
+# Deprecated. Use them for reference and include in "algorithms" in config instead.
 models = [
     {
         "name": "nn",

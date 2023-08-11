@@ -1,7 +1,8 @@
 # Change Log
 
 * v0.6.dev
-  * add a feature generator based on TA-lib technical analysis libarary
+  * move algorithm configurations from source code to configuration file algorithms section
+  * add a feature generator based on TA-lib technical analysis library
   * add configurations to feature generators instead of global parameters
   * add configuration parameters to label generators
 

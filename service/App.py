@@ -126,89 +126,36 @@ class App:
         # === MODEL TRAIN/PREDICT ===
         #     predict off-line and on-line
 
-        # This number of tail rows will be excluded from model training
-        "label_horizon": 60,
-        "train_length": int(0.5 * 525_600),  # train set maximum size. algorithms may decrease this length
+        "label_horizon": 0,  # This number of tail rows will be excluded from model training
+        "train_length": 0,  # train set maximum size. algorithms may decrease this length
 
-        # List all features to be used for training/prediction by selecting them from the result of reature generation
-        # Remove: "_std_1", "_trend_1"
-        "train_features": [
-            "close_1", "close_10", "close_60",
-            "close_std_10", "close_std_60",
-            "volume_1", "volume_10", "volume_60",
-            "span_1", "span_10", "span_60",
-            "trades_1", "trades_10", "trades_60",
-            "tb_base_1", "tb_base_10", "tb_base_60",
-            "close_area_10", "close_area_60",
-            "close_trend_10", "close_trend_60",
-            "volume_trend_10", "volume_trend_60"
-        ],
+        # List all features to be used for training/prediction by selecting them from the result of feature generation
+        # The list of features can be found in the output of the feature generation (but not all must be used)
+        # Currently the same feature set for all algorithms
+        "train_features": [],
 
-        # Models (for each algorithm) will be trained for these target labels
-        "labels": [
-            "high_10", "high_15", "high_20", "high_25", "high_30",
-            #"high_01", "high_02", "high_03", "high_04", "high_05",
-            #"low_01", "low_02", "low_03", "low_04", "low_05",
-            "low_10", "low_15", "low_20", "low_25", "low_30"
-        ],
+        # Labels to be used for training/prediction by all algorithms
+        # List of available labels can be found in the output of the label generation (but not all must be used)
+        "labels": [],
 
-        # algorithm names defined in the model store
-        "algorithms": ["lc"],
+        # Algorithms and their configurations to be used for training/prediction
+        "algorithms": [],
 
+        # ===========================
         # ONLINE (PREDICTION) PARAMETERS
         # Minimum history length required to compute derived features
-        # It is used in online mode where we need to maintain data window of this size or larger
-        # Take maximum aggregation windows from feature generation code (and add something to be sure that we have all what is needed)
-        # Basically, should be equal to base_window
-        "features_horizon": 10180,
+        "features_horizon": 10,
 
         # =======================================
         # === AGGREGATION AND POST-PROCESSING ===
 
-        "score_aggregation_sets": [
-            {
-                "column": "trade_score",  # Output column name: positive values - buy, negative values - sell
-
-                # These ML predicted columns (scores) will be used for aggregation
-                "buy_labels": ["high_10_lc", "high_15_lc", "high_20_lc"],
-                "sell_labels": ["low_10_lc", "low_15_lc", "low_20_lc"],
-
-                "parameters": {
-                    "point_threshold": None,  # Produce boolean column (optional)
-                    "window": 3,  # Aggregate in time
-                    "combine": "",  # "no_combine" (or empty), "relative", "difference"
-                    "coefficient": 1.0,  # Scale the scores to make them symmetric
-                    "constant": 0.0
-                }
-            }
-        ],
+        "score_aggregation_sets": [],
 
         # ================================
         # === SIGNAL RULES FOR TRADING ===
-        "signal_model": {
-            "rule_name": "",  # empty, 'two_dim_rule'
+        "signal_model": {},
 
-            # Rule parameters to decide whether to buy/sell after all aggregations/combinations
-            "buy_signal_threshold": 0.1,
-            "sell_signal_threshold": -0.1,
-
-            # To decide whether to notify (can be an option of individual users/consumers)
-            "buy_notify_threshold": 0.05,
-            "sell_notify_threshold": 0.05,
-
-            "trade_icon_step": 0.1,  # For each step, one icon added
-            "notify_frequency_minutes": 10,  # 1m, 5m, 10m, 15m etc. Minutes will be divided by this number
-        },
-
-        "train_signal_model": {
-            "buy_sell_equal": False,  # If true, only buy parameters will be used
-
-            "grid": {
-                # Lists of rule thresholds to test performance
-                "buy_signal_threshold": [0.1, 0.2, 0.3],
-                "sell_signal_threshold": [-0.1, -0.2, -0.3]
-            }
-        },
+        "train_signal_model": {},
 
         # =====================
         # === TRADER SERVER ===
