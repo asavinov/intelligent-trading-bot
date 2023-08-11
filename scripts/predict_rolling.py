@@ -162,8 +162,8 @@ def main(config_file):
                         score_column_name = label + label_algo_separator + algo_name
 
                         # Limit length according to algorith parameters
-                        if algo_train_length and algo_train_length < train_length:
-                            train_df_2 = train_df.iloc[-algo_train_length:]
+                        if algo_train_length:
+                            train_df_2 = train_df.tail(algo_train_length)
                         else:
                             train_df_2 = train_df
                         df_X = train_df_2[train_features]
@@ -196,8 +196,8 @@ def main(config_file):
                     score_column_name = label + label_algo_separator + algo_name
 
                     # Limit length according to algorith parameters
-                    if algo_train_length and algo_train_length < train_length:
-                        train_df_2 = train_df.iloc[-algo_train_length:]
+                    if algo_train_length:
+                        train_df_2 = train_df.tail(algo_train_length)
                     else:
                         train_df_2 = train_df
                     df_X = train_df_2[train_features]

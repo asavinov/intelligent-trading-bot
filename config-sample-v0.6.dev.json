@@ -55,18 +55,24 @@
     }
   ],
 
-  "features_horizon": 100,
+  "features_horizon": 20, // Minimum data length for computing features (in online mode). Take it from feature generator parameters
 
   // === AGGREGATION AND POST-PROCESSING ===
 
   "score_aggregation_sets": [
       {
-          "column": "trade_score",
+          "column": "trade_score", // Output column name: positive values - buy, negative values - sell
 
           "buy_labels": ["high_10_lc", "high_20_lc"],
           "sell_labels": ["low_10_lc", "low_20_lc"],
 
-          "parameters": {"point_threshold": null,  "window": 3, "combine": "difference", "coefficient": 1.0, "constant": 0.0}
+          "parameters": {
+            "point_threshold": null, // Produce boolean column (optional)
+            "window": 3, // Aggregate in time
+            "combine": "difference", // "no_combine" (or empty), "relative", "difference"
+            "coefficient": 1.0,
+            "constant": 0.0
+          }
       }
   ],
 

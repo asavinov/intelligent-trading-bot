@@ -73,27 +73,24 @@ def main(config_file):
         # "category" NN does not work without this (note that we assume a classification task here)
         df[label] = df[label].astype(int)
 
-    # Spot and futures have different available histories. If we drop nans in all of them, then we get a very short data frame (corresponding to futureus which have little data)
-    # So we do not drop data here but rather when we select necessary input features
-    # Nans result in constant accuracy and nan loss. MissingValues procedure does not work and produces exceptions
-    pd.set_option('use_inf_as_na', True)
-    #in_df = in_df.dropna(subset=labels)
-    df = df.reset_index(drop=True)  # We must reset index after removing rows to remove gaps
-
-    # Remove the tail data for which no labels are available
-    # The reason is that these labels are computed from future which is not available
+    # Remove the tail data for which no (correct) labels are available
+    # The reason is that these labels are computed from future values which are not available and hence labels might be wrong
     if label_horizon:
         df = df.head(-label_horizon)
 
-    # Limit maximum length
-    train_df = df.tail(train_length)
-
-    train_df = train_df.dropna(subset=train_features)
-
-    if len(train_df) == 0:
+    pd.set_option('use_inf_as_na', True)
+    #df = df.dropna(subset=labels)
+    df = df.dropna(subset=train_features)
+    if len(df) == 0:
         print(f"ERROR: Empty data set after removing NULLs in feature columns. Some features might have all NULL values.")
-        #print(train_df.isnull().sum().sort_values(ascending=False))
+        #print(df.isnull().sum().sort_values(ascending=False))
         return
+
+    # Limit maximum length for all algorithms (algorithms can further limit their train size)
+    if train_length:
+        df = df.tail(train_length)
+
+    df = df.reset_index(drop=True)  # To remove gaps in index before use
 
     models = dict()
     scores = dict()
@@ -108,12 +105,12 @@ def main(config_file):
             score_column_name = label + label_algo_separator + algo_name
 
             # Limit length according to the algorith parameters
-            if algo_train_length and algo_train_length < train_length:
-                train_df_2 = train_df.iloc[-algo_train_length:]
+            if algo_train_length:
+                train_df = df.tail(algo_train_length)
             else:
-                train_df_2 = train_df
-            df_X = train_df_2[train_features]
-            df_y = train_df_2[label]
+                train_df = df
+            df_X = train_df[train_features]
+            df_y = train_df[label]
 
             print(f"Train '{score_column_name}'. Train length {len(df_X)}. Train columns {len(df_X.columns)}. Algorithm {algo_name}")
             if algo_type == "gb":
