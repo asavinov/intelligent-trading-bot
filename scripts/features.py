@@ -17,7 +17,7 @@ from common.label_generation_topbot import generate_labels_topbot2
 #
 class P:
     in_nrows = 50_000_000  # Load only this number of records
-    tail_rows = int(3.0 * 525_600)  # Process only this number of last rows
+    tail_rows = int(10.0 * 525_600)  # Process only this number of last rows
 
 
 @click.command()
