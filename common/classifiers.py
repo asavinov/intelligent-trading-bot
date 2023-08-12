@@ -115,7 +115,7 @@ def train_gb(df_X, df_y, model_config: dict):
         num_boost_round=num_boost_round,
         #valid_sets=[lgbm.Dataset(X_validate, y_validate)],
         #early_stopping_rounds=int(num_boost_round / 5),
-        verbose_eval=100,
+        #verbose_eval=100,
     )
 
     return (model, scaler)
