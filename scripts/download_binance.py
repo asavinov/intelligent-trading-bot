@@ -54,10 +54,6 @@ def main(config_file):
     time_column = App.config["time_column"]
 
     data_path = Path(App.config["data_folder"])
-    if not data_path.is_dir():
-        print(f"Data folder does not exist: {data_path}")
-        os.makedirs(data_path)
-        print(f"Data folder is created: {data_path}")
 
     now = datetime.now()
 
@@ -80,20 +76,18 @@ def main(config_file):
 
         print(f"Start downloading '{quote}' ...")
 
-        file_path = (data_path / quote)
-
-        if not file_path.is_dir():
-            print(f"Data folder does not exist: {file_path}")
-            os.makedirs(file_path)
-            print(f"Data folder is created: {file_path}")
+        file_path = data_path / quote
+        file_path.mkdir(parents=True, exist_ok=True)  # Ensure that folder exists
 
         file_name = (data_path / quote / ("futures" if futures else "klines")).with_suffix(".csv")
 
         if file_name.is_file():
+            # Load the existing data in order to append newly downloaded data
             data_df = pd.read_csv(file_name)
-            data_df[time_column] = pd.to_datetime(data_df[time_column])
+            data_df[time_column] = pd.to_datetime(data_df[time_column], format='ISO8601')
             print(f"File found. Downloaded data will be appended to the existing file {file_name}")
         else:
+            # No existing data so we will download all available data and store as a new file
             data_df = pd.DataFrame()
             print(f"File not found. All data will be downloaded and stored in newly created file.")
 
@@ -108,7 +102,7 @@ def main(config_file):
         else:
             print('Downloading %d minutes of new data available for %s, i.e. %d instances of %s data.' % (delta_min, quote, available_data, freq))
 
-        # === Download from the remote server
+        # === Download from the remote server using binance client
         klines = App.client.get_historical_klines(
             quote,
             freq,
