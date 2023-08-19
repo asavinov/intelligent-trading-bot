@@ -103,5 +103,20 @@
           "buy_signal_threshold": [0.05, 0.1, 0.15, 0.2],
           "sell_signal_threshold": [-0.05, -0.1, -0.15, -0.2]
       }
-    }
+    },
+
+  "rolling_predict": {
+    // Limit the data to be used
+    // Null, int or string with date which will be (if possible and if exists) resolved using time_column
+    "data_start": "2020-02-01 00:00:00",
+    "data_end": null,
+
+    // One of these 3 parameters can be null and will be computed from the other two
+    "prediction_start": null,  // First row for starting predictions, for example, "2022-02-01 00:00:00"
+    "prediction_size": 10080, // How many predictions, for example, 1 week 7*1440
+    "prediction_steps": 4, // How many train-prediction steps
+
+    "use_multiprocessing": false,
+    "max_workers": 8
+  }
 }
