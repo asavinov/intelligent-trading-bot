@@ -79,7 +79,7 @@ def main(config_file):
         file_path = data_path / quote
         file_path.mkdir(parents=True, exist_ok=True)  # Ensure that folder exists
 
-        file_name = (data_path / quote / ("futures" if futures else "klines")).with_suffix(".csv")
+        file_name = (file_path / ("futures" if futures else "klines")).with_suffix(".csv")
 
         if file_name.is_file():
             # Load the existing data in order to append newly downloaded data

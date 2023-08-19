@@ -20,9 +20,6 @@ def main(config_file):
     time_column = App.config["time_column"]
 
     data_path = Path(App.config["data_folder"])
-    if not data_path.is_dir():
-        print(f"Data folder does not exist: {data_path}")
-        return
 
     now = datetime.now()
 
@@ -41,10 +38,13 @@ def main(config_file):
 
         print(f"Start downloading '{quote}' ...")
 
-        in_file_path = (data_path / quote / file).with_suffix(".csv")
+        file_path = data_path / quote
+        file_path.mkdir(parents=True, exist_ok=True)  # Ensure that folder exists
 
-        if in_file_path.is_file():
-            df = pd.read_csv(in_file_path, parse_dates=[time_column])
+        file_name = (file_path / file).with_suffix(".csv")
+
+        if file_name.is_file():
+            df = pd.read_csv(file_name, parse_dates=[time_column])
             #df['Date'] = pd.to_datetime(df['Date'])  # "2022-06-07" iso format
             df[time_column] = df[time_column].dt.date
             last_date = df.iloc[-1][time_column]
@@ -77,9 +77,8 @@ def main(config_file):
 
         df = df.sort_values(by=time_column)
 
-        in_file_path.parent.mkdir(parents=True, exist_ok=True)
-        df.to_csv(in_file_path, index=False)
-        print(f"Stored in '{in_file_path}'")
+        df.to_csv(file_name, index=False)
+        print(f"Stored in '{file_name}'")
 
     elapsed = datetime.now() - now
     print(f"Finished downloading data in {str(elapsed).split('.')[0]}")
