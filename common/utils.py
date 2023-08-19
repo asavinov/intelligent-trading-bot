@@ -112,7 +112,7 @@ def now_timestamp():
     return int(datetime.utcnow().replace(tzinfo=timezone.utc).timestamp() * 1000)
 
 
-def find_index(df: pd.DataFrame, date_str: str, column_name: str= "timestamp"):
+def find_index(df: pd.DataFrame, date_str: str, column_name: str = "timestamp"):
     """
     Return index of the record with the specified datetime string.
 
@@ -131,6 +131,9 @@ def find_index(df: pd.DataFrame, date_str: str, column_name: str= "timestamp"):
 
         # Repeat
         res = df[df[column_name] == d]
+
+    if res is None or len(res) == 0:
+        raise ValueError(f"Cannot find date '{date_str}' in the column '{column_name}'. Either it does not exist or wrong format")
 
     id = res.index[0]
 
