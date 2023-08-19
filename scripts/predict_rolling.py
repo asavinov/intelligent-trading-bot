@@ -21,20 +21,12 @@ This file is intended for training signal models (by simulating trade process an
 The output predicted labels will cover shorter period of time because we need some relatively long history to train the very first model.
 """
 
+
 #
 # Parameters
 #
 class P:
     in_nrows = 100_000_000
-
-    start_index = 0
-    end_index = None
-
-    # First row for starting predictions: "2020-02-01 00:00:00" - minimum start for futures
-    prediction_start_str = "2017-08-01"  # For BTC: "2020-02-01 00:00:00"
-    # How frequently re-train models: 1 day: 1_440 = 60 * 24, one week: 10_080
-    prediction_length = 10  # For 1m (BTC): 2*7*1440 (2 weeks)
-    prediction_count = 0  # How many prediction steps. If None or 0, then from prediction start till the data end. Use: https://www.timeanddate.com/date/duration.html
 
     use_multiprocessing = False
     max_workers = 8  # None means number of processors
@@ -50,6 +42,8 @@ def main(config_file):
     load_config(config_file)
 
     time_column = App.config["time_column"]
+
+    rp_config = App.config["rolling_predict"]
 
     now = datetime.now()
 
@@ -68,8 +62,46 @@ def main(config_file):
     df = pd.read_csv(file_path, parse_dates=[time_column], nrows=P.in_nrows)
     print(f"Finished loading {len(df)} records with {len(df.columns)} columns.")
 
-    df = df.iloc[P.start_index:P.end_index]
+    #
+    # Determine parameters of the rolling prediction loop
+    #
+
+    data_start = rp_config.get("data_start", 0)
+    if isinstance(data_start, str):
+        data_start = find_index(df, data_start)
+    data_end = rp_config.get("data_end", None)
+    if isinstance(data_end, str):
+        data_end = find_index(df, data_end)
+
+    df = df.iloc[data_start:data_end]
     df = df.reset_index(drop=True)
+
+    prediction_start = rp_config.get("prediction_start", None)
+    if isinstance(data_start, str):
+        prediction_start = find_index(df, prediction_start)
+    prediction_size = rp_config.get("prediction_size")
+    prediction_steps = rp_config.get("prediction_steps")
+
+    # Compute a missing parameter if any
+    if not prediction_start:
+        if not prediction_size or not prediction_steps:
+            raise ValueError(f"Only one of the three rolling prediction loop parameters can be empty.")
+        # Where we have to start in order to perform the specified number of steps each having the specified length
+        prediction_start = len(df) - prediction_size*prediction_steps
+    elif not prediction_size:
+        if not prediction_start or not prediction_steps:
+            raise ValueError(f"Only one of the three rolling prediction loop parameters can be empty.")
+        # Size of one prediction in order to get the specified number of steps with the specified length
+        prediction_size = (len(df) - prediction_start) // prediction_steps
+    elif not prediction_steps:
+        if not prediction_start or not prediction_size:
+            raise ValueError(f"Only one of the three rolling prediction loop parameters can be empty.")
+        # Number of steps with the specified length with the specified start
+        prediction_steps = (len(df) - prediction_start) // prediction_size
+
+    # Check consistency of the loop parameters
+    if len(df) - prediction_start < prediction_steps * prediction_size:
+        raise ValueError(f"Not enough data for {prediction_steps} steps each of size {prediction_size} starting from {prediction_start}. Available data for prediction: {len(df) - prediction_start}")
 
     #
     # Prepare data by selecting columns and rows
@@ -97,33 +129,20 @@ def main(config_file):
     #in_df = in_df.dropna(subset=labels)
     df = df.reset_index(drop=True)  # We must reset index after removing rows to remove gaps
 
-    prediction_start = find_index(df, P.prediction_start_str)
-    print(f"Start index: {prediction_start}")
-
-    #
-    # Rolling train-predict loop
-    #
-    stride = P.prediction_length
-    steps = P.prediction_count
-    if not steps:
-        # Use all available rest data (from the prediction start to the dataset end)
-        steps = (len(df) - prediction_start) // stride
-    if len(df) - prediction_start < steps * stride:
-        raise ValueError(f"Number of steps {steps} is too large (not enough data after start). Data available for prediction: {len(df) - prediction_start}. Data to be predicted: {steps * stride} ")
-
-    print(f"Starting rolling predict loop with {steps} steps. Each step with {stride} horizon...")
-
     # Result rows. Here store only rows for which we make predictions
     labels_hat_df = pd.DataFrame()
 
-    for step in range(steps):
+    print(f"Start index: {prediction_start}. Number of steps: {prediction_steps}. Step size: {prediction_size}")
+    print(f"Starting rolling predict loop...")
 
-        print(f"\n===>>> Start step {step}/{steps}")
+    for step in range(prediction_steps):
+
+        print(f"\n===>>> Start step {step}/{prediction_steps}")
 
         # Predict data
 
-        predict_start = prediction_start + (step * stride)
-        predict_end = predict_start + stride
+        predict_start = prediction_start + (step * prediction_size)
+        predict_end = predict_start + prediction_size
 
         predict_df = df.iloc[predict_start:predict_end]  # We assume that iloc is equal to index
         # predict_df = predict_df.dropna(subset=features)  # Nans will be droped by the algorithms themselves
@@ -141,10 +160,12 @@ def main(config_file):
         # We exclude recent objects from training, because they do not have labels yet - the labels are in future
         # In real (stream) data, we will have null labels for recent objects. During simulation, labels are available and hence we need to ignore/exclude them manually
         train_end = predict_start - label_horizon - 1
-        train_start = train_end - train_length
-        train_start = 0 if train_start < 0 else train_start
+        if train_length:
+            train_start = max(0, train_end - train_length)
+        else:
+            train_start = 0
 
-        train_df = df.iloc[int(train_start):int(train_end)]  # We assume that iloc is equal to index
+        train_df = df.iloc[train_start:train_end]  # We assume that iloc is equal to index
         train_df = train_df.dropna(subset=train_features)
 
         print(f"Train range: [{train_start}, {train_end}]={train_end-train_start}. Prediction range: [{predict_start}, {predict_end}]={predict_end-predict_start}. ")
@@ -223,14 +244,14 @@ def main(config_file):
         # Predictions for all labels and histories (and algorithms) have been generated for the iteration
         labels_hat_df = pd.concat([labels_hat_df, predict_labels_df])
 
-        print(f"End step {step}/{steps}.")
+        print(f"End step {step}/{prediction_steps}.")
         print(f"Predicted {len(predict_labels_df.columns)} labels.")
 
 
     # End of loop over prediction steps
     print("")
-    print(f"Finished all {steps} prediction steps each with {stride} predicted rows (stride). ")
-    print(f"Size of predicted dataframe {len(labels_hat_df)}. Number of rows in all steps {steps*stride} (steps * stride). ")
+    print(f"Finished all {prediction_steps} prediction steps each with {prediction_size} predicted rows (stride). ")
+    print(f"Size of predicted dataframe {len(labels_hat_df)}. Number of rows in all steps {prediction_steps*prediction_size} (steps * stride). ")
     print(f"Number of predicted columns {len(labels_hat_df.columns)}")
 
     #
