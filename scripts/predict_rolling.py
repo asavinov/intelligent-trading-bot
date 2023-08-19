@@ -171,14 +171,14 @@ def main(config_file):
         train_df = df.iloc[train_start:train_end]  # We assume that iloc is equal to index
         train_df = train_df.dropna(subset=train_features)
 
-        print(f"Train range: [{train_start}, {train_end}]={train_end-train_start}. Prediction range: [{predict_start}, {predict_end}]={predict_end-predict_start}. ")
+        print(f"Train range: [{train_start}, {train_end}]={train_end-train_start}. Prediction range: [{predict_start}, {predict_end}]={predict_end-predict_start}. Jobs/scores: {len(labels)*len(algorithms)}. {use_multiprocessing=} ")
 
-        for label in labels:  # Train-predict different labels (and algorithms) using same X
+        if use_multiprocessing:
 
-            if use_multiprocessing:
-                # Submit train-predict algorithms to the pool
-                execution_results = dict()
-                with ProcessPoolExecutor(max_workers=max_workers) as executor:
+            execution_results = dict()
+            with ProcessPoolExecutor(max_workers=max_workers) as executor:
+                # Submit train-predict label-algorithms jobs to the pool
+                for label in labels:  # Train-predict different labels (and algorithms) using same X
                     for model_config in algorithms:
                         algo_name = model_config.get("name")
                         algo_type = model_config.get("algo")
@@ -206,13 +206,16 @@ def main(config_file):
                             print(f"ERROR: Unknown algorithm type {algo_type}. Check algorithm list.")
                             return
 
-                # Process the results as the tasks are finished
+                # Wait for the job finish and collect their results
                 for score_column_name, future in execution_results.items():
                     predict_labels_df[score_column_name] = future.result()
                     if future.exception():
                         print(f"Exception while train-predict {score_column_name}.")
                         return
-            else:  # No multiprocessing - sequential execution
+
+        else:  # No multiprocessing - sequential execution
+
+            for label in labels:  # Train-predict different labels (and algorithms) using same X
                 for model_config in algorithms:
                     algo_name = model_config.get("name")
                     algo_type = model_config.get("algo")
