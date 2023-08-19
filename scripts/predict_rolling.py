@@ -28,10 +28,6 @@ The output predicted labels will cover shorter period of time because we need so
 class P:
     in_nrows = 100_000_000
 
-    use_multiprocessing = False
-    max_workers = 8  # None means number of processors
-
-
 #
 # Main
 #
@@ -43,9 +39,12 @@ def main(config_file):
 
     time_column = App.config["time_column"]
 
+    now = datetime.now()
+
     rp_config = App.config["rolling_predict"]
 
-    now = datetime.now()
+    use_multiprocessing = rp_config.get("use_multiprocessing", False)
+    max_workers = rp_config.get("max_workers", None)
 
     #
     # Load feature matrix
@@ -172,10 +171,10 @@ def main(config_file):
 
         for label in labels:  # Train-predict different labels (and algorithms) using same X
 
-            if P.use_multiprocessing:
+            if use_multiprocessing:
                 # Submit train-predict algorithms to the pool
                 execution_results = dict()
-                with ProcessPoolExecutor(max_workers=P.max_workers) as executor:
+                with ProcessPoolExecutor(max_workers=max_workers) as executor:
                     for model_config in algorithms:
                         algo_name = model_config.get("name")
                         algo_type = model_config.get("algo")
