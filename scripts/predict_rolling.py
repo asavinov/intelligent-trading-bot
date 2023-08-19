@@ -114,8 +114,12 @@ def main(config_file):
     # Select necessary features and label
     out_columns = [time_column, 'open', 'high', 'low', 'close', 'volume', 'close_time']
     out_columns = [x for x in out_columns if x in df.columns]
-    all_features = train_features + labels
-    df = df[all_features + out_columns]
+    labels_present = set(labels).issubset(df.columns)
+    if labels_present:
+        all_features = train_features + labels
+    else:
+        all_features = train_features
+    df = df[out_columns + [x for x in all_features if x not in out_columns]]
 
     for label in labels:
         # "category" NN does not work without this (note that we assume a classification task here)
