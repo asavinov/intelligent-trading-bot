@@ -76,7 +76,7 @@ def main(config_file):
     df = df.reset_index(drop=True)
 
     prediction_start = rp_config.get("prediction_start", None)
-    if isinstance(data_start, str):
+    if isinstance(prediction_start, str):
         prediction_start = find_index(df, prediction_start)
     prediction_size = rp_config.get("prediction_size")
     prediction_steps = rp_config.get("prediction_steps")
