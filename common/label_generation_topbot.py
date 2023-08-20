@@ -51,7 +51,7 @@ def generate_labels_topbot2(df, config: dict):
     if function == 'top':
         level = abs(level)
     elif function == 'bot':
-        level = - abs(level)
+        level = -abs(level)
 
     names = config.get('names')  # For example, ['top1_025', 'top1_01'] for two tolerances
     if len(names) != len(tolerances):
@@ -59,7 +59,7 @@ def generate_labels_topbot2(df, config: dict):
 
     labels = []
     for i, tolerance in enumerate(tolerances):
-        df, new_labels = add_extremum_features(df, column_name=column_name, level_fracs=[level], tolerance_frac=tolerance, out_names=names[i:i+1])
+        df, new_labels = add_extremum_features(df, column_name=column_name, level_fracs=[level], tolerance_frac=abs(level)*tolerance, out_names=names[i:i+1])
         labels.extend(new_labels)
 
     print(f"{len(names)} topbot2 labels computed: {names}")
