@@ -39,7 +39,7 @@ def main(config_file):
     symbol = App.config["symbol"]
     data_path = Path(App.config["data_folder"]) / symbol
 
-    file_path = (data_path / App.config.get("feature_file_name")).with_suffix(".csv")
+    file_path = (data_path / App.config.get("matrix_file_name")).with_suffix(".csv")
     if not file_path.is_file():
         print(f"ERROR: Input file does not exist: {file_path}")
         return
@@ -68,14 +68,13 @@ def main(config_file):
         all_features = train_features
     df = df[out_columns + [x for x in all_features if x not in out_columns]]
 
-    # Spot and futures have different available histories. If we drop nans in all of them, then we get a very short data frame (corresponding to futureus which have little data)
-    # So we do not drop data here but rather when we select necessary input features
-    # Nans result in constant accuracy and nan loss. MissingValues procedure does not work and produces exceptions
     pd.set_option('use_inf_as_na', True)
+    #df = df.dropna(subset=labels)
+    df = df.dropna(subset=train_features)
     #in_df = in_df.dropna(subset=labels)
     df = df.reset_index(drop=True)  # We must reset index after removing rows to remove gaps
 
-    train_df = df[train_features].dropna(subset=train_features)
+    train_df = df[train_features]
 
     if len(train_df) == 0:
         print(f"ERROR: Empty data set after removing NULLs in feature columns. Some features might have all NULL values.")

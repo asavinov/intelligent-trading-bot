@@ -125,9 +125,6 @@ def main(config_file):
         # "category" NN does not work without this (note that we assume a classification task here)
         df[label] = df[label].astype(int)
 
-    # Spot and futures have different available histories. If we drop nans in all of them, then we get a very short data frame (corresponding to futureus which have little data)
-    # So we do not drop data here but rather when we select necessary input features
-    # Nans result in constant accuracy and nan loss. MissingValues procedure does not work and produces exceptions
     pd.set_option('use_inf_as_na', True)
     #in_df = in_df.dropna(subset=labels)
     df = df.reset_index(drop=True)  # We must reset index after removing rows to remove gaps
@@ -139,8 +136,6 @@ def main(config_file):
     print(f"Starting rolling predict loop...")
 
     for step in range(prediction_steps):
-
-        print(f"\n===>>> Start step {step}/{prediction_steps}")
 
         # Predict data
 
@@ -171,7 +166,9 @@ def main(config_file):
         train_df = df.iloc[train_start:train_end]  # We assume that iloc is equal to index
         train_df = train_df.dropna(subset=train_features)
 
-        print(f"Train range: [{train_start}, {train_end}]={train_end-train_start}. Prediction range: [{predict_start}, {predict_end}]={predict_end-predict_start}. Jobs/scores: {len(labels)*len(algorithms)}. {use_multiprocessing=} ")
+        print(f"\n===>>> Start step {step}/{prediction_steps}. Train range: [{train_start}, {train_end}]={train_end-train_start}. Prediction range: [{predict_start}, {predict_end}]={predict_end-predict_start}. Jobs/scores: {len(labels)*len(algorithms)}. {use_multiprocessing=} ")
+
+        step_start_time = datetime.now()
 
         if use_multiprocessing:
 
@@ -250,8 +247,8 @@ def main(config_file):
         # Predictions for all labels and histories (and algorithms) have been generated for the iteration
         labels_hat_df = pd.concat([labels_hat_df, predict_labels_df])
 
-        print(f"End step {step}/{prediction_steps}.")
-        print(f"Predicted {len(predict_labels_df.columns)} labels.")
+        elapsed = datetime.now() - step_start_time
+        print(f"End step {step}/{prediction_steps}. Scores predicted: {len(predict_labels_df.columns)}. Time elapsed: {str(elapsed).split('.')[0]}")
 
 
     # End of loop over prediction steps
@@ -301,7 +298,7 @@ def main(config_file):
         f.write("\n".join([str(x) for x in score_lines]) + "\n\n")
 
     elapsed = datetime.now() - now
-    print(f"Finished feature prediction in {str(elapsed).split('.')[0]}")
+    print(f"Finished rolling prediction in {str(elapsed).split('.')[0]}")
 
 
 if __name__ == '__main__':
