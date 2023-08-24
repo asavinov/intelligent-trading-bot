@@ -44,8 +44,8 @@ def main(config_file):
         file_name = (file_path / file).with_suffix(".csv")
 
         if file_name.is_file():
-            df = pd.read_csv(file_name, parse_dates=[time_column])
-            #df['Date'] = pd.to_datetime(df['Date'])  # "2022-06-07" iso format
+            df = pd.read_csv(file_name, parse_dates=[time_column], date_format="ISO8601")
+            #df['Date'] = pd.to_datetime(df['Date'], format="ISO8601")  # "2022-06-07" iso format
             df[time_column] = df[time_column].dt.date
             last_date = df.iloc[-1][time_column]
 
@@ -53,7 +53,7 @@ def main(config_file):
             new_df = yf.download(quote, last_date - timedelta(days=5))  # Download somewhat more than we need
 
             new_df = new_df.reset_index()
-            new_df['Date'] = pd.to_datetime(new_df['Date']).dt.date
+            new_df['Date'] = pd.to_datetime(new_df['Date'], format="ISO8601").dt.date
             del new_df['Close']
             new_df.rename({'Adj Close': 'Close', 'Date': time_column}, axis=1, inplace=True)
             new_df.columns = new_df.columns.str.lower()
@@ -68,7 +68,7 @@ def main(config_file):
             df = yf.download(quote, date(1990, 1, 1))
 
             df = df.reset_index()
-            df['Date'] = pd.to_datetime(df['Date']).dt.date
+            df['Date'] = pd.to_datetime(df['Date'], format="ISO8601").dt.date
             del df['Close']
             df.rename({'Adj Close': 'Close', 'Date': time_column}, axis=1, inplace=True)
             df.columns = df.columns.str.lower()

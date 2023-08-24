@@ -174,7 +174,7 @@ async def simulate_trade():
 async def generate_transaction_stats():
     """Here we assume that the latest transaction is saved in the file and this function computes various properties."""
 
-    df = pd.read_csv(transaction_file, parse_dates=[0], header=None, names=["timestamp", "close", "profit", "status"])
+    df = pd.read_csv(transaction_file, parse_dates=[0], header=None, names=["timestamp", "close", "profit", "status"], date_format="ISO8601")
 
     mask = (df['timestamp'] >= (datetime.now() - timedelta(weeks=4)))
     df = df[max(mask.idxmax()-1, 0):]  # We add one previous row to use the previous close

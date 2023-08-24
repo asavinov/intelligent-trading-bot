@@ -41,7 +41,7 @@ def main(config_file):
         return
 
     print(f"Loading data from source data file {file_path}...")
-    df = pd.read_csv(file_path, parse_dates=[time_column], nrows=P.in_nrows)
+    df = pd.read_csv(file_path, parse_dates=[time_column], date_format="ISO8601", nrows=P.in_nrows)
     print(f"Finished loading {len(df)} records with {len(df.columns)} columns.")
 
     df = df.iloc[-P.tail_rows:]

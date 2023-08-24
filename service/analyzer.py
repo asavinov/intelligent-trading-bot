@@ -284,7 +284,7 @@ class Analyzer:
         symbol = App.config["symbol"]
 
         last_kline_ts = self.get_last_kline_ts(symbol)
-        last_kline_ts_str = str(pd.to_datetime(last_kline_ts, unit='ms'))
+        last_kline_ts_str = str(pd.to_datetime(last_kline_ts, unit='ms'), format="ISO8601")
 
         log.info(f"Analyze {symbol}. Last kline timestamp: {last_kline_ts_str}")
 

@@ -34,7 +34,7 @@ depth_file_names = [  # Leave empty to skip
 def load_futur_files(futur_file_path):
     """Return a data frame with future features."""
 
-    df = pd.read_csv(futur_file_path, parse_dates=['timestamp'])
+    df = pd.read_csv(futur_file_path, parse_dates=['timestamp'], date_format="ISO8601")
     start = df["timestamp"].iloc[0]
     end = df["timestamp"].iloc[-1]
 
@@ -48,7 +48,7 @@ def load_futur_files(futur_file_path):
 def load_kline_files(kline_file_path):
     """Return a data frame with kline features."""
 
-    df = pd.read_csv(kline_file_path, parse_dates=['timestamp'])
+    df = pd.read_csv(kline_file_path, parse_dates=['timestamp'], date_format="ISO8601")
     start = df["timestamp"].iloc[0]
     end = df["timestamp"].iloc[-1]
 
@@ -66,7 +66,7 @@ def load_depth_files():
     start = None
     end = None
     for depth_file_name in depth_file_names:
-        df = pd.read_csv(depth_file_name, parse_dates=['timestamp'])
+        df = pd.read_csv(depth_file_name, parse_dates=['timestamp'], date_format="ISO8601")
         # Start
         if start is None:
             start = df["timestamp"].iloc[0]
@@ -127,7 +127,7 @@ def main(config_file):
             return
 
         print(f"Reading data file: {file_path}")
-        df = pd.read_csv(file_path, parse_dates=[time_column])
+        df = pd.read_csv(file_path, parse_dates=[time_column], date_format="ISO8601")
         print(f"Loaded file with {len(df)} records.")
 
         ds["df"] = df

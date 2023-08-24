@@ -166,7 +166,7 @@ def main():
     #
 
     # Load all data
-    df_all = pd.read_csv(data_path + "\\" + data_file, parse_dates=['timestamp'], nrows=nrows)
+    df_all = pd.read_csv(data_path + "\\" + data_file, parse_dates=['timestamp'], date_format="ISO8601", nrows=nrows)
 
     print(f"Feature matrix loaded. Length: {len(df_all)}. Width: {len(df_all.columns)}")
 

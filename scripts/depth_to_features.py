@@ -225,7 +225,7 @@ def main(args=None):
 
 if __name__ == '__main__':
 
-    #start = pd.to_datetime(1576324740000, unit='ms')
+    #start = pd.to_datetime(1576324740000, unit='ms', format="ISO8601")
     #datetime.fromtimestamp(float(1576324740000) / 1e3, tz=pytz.UTC)
 
     #find_depth_statistics()

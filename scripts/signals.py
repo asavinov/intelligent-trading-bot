@@ -53,7 +53,7 @@ def main(config_file):
         return
 
     print(f"Loading predictions from input file: {file_path}")
-    df = pd.read_csv(file_path, parse_dates=[time_column], nrows=P.in_nrows)
+    df = pd.read_csv(file_path, parse_dates=[time_column], date_format="ISO8601", nrows=P.in_nrows)
     print(f"Predictions loaded. Length: {len(df)}. Width: {len(df.columns)}")
 
     # Limit size according to parameters start_index end_index

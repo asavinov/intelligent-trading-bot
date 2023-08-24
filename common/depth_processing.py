@@ -47,7 +47,7 @@ def depth_to_df(depth: list):
     # Alternatively, from_records() or json_normalize()
 
     # Timestamp is an index
-    df["timestamp"] = pd.to_datetime(df["timestamp"], unit='ms')
+    df["timestamp"] = pd.to_datetime(df["timestamp"], unit='ms', format="ISO8601")
     df = df.set_index("timestamp")
     df = df.sort_index()
 
@@ -67,8 +67,8 @@ def depth_to_df(depth: list):
     # Create index for this interval of timestamps
     #
     # NOTE: Add utc=True to get tz-aware object (with tz="UTC" instead of tz-unaware object with tz=None), so it seems that no tz means UTC
-    start = pd.to_datetime(start_ts, unit='ms')
-    end = pd.to_datetime(end_ts, unit='ms')
+    start = pd.to_datetime(start_ts, unit='ms', format="ISO8601")
+    end = pd.to_datetime(end_ts, unit='ms', format="ISO8601")
 
     # Alternatively:
     # If tz is not specified then 1 hour difference will be added so it seems that no tz means locale tz

@@ -114,21 +114,24 @@ def generate_features_talib(df, config: dict, last_rows: int = 0):
         "names": "my_output",  # How the output feature(s) will be named
     }
 
-    talib is very sensitive to NaN values so that one NaN somewhere in the input series can produce
+    TA-lib is very sensitive to NaN values so that one NaN somewhere in the input series can produce
     NaN in output even if formally it does not influence it. For example, one NaN in the beginning of
     input series will produce NaN of SMA in the end with small window like 2.
     Therefore, NaN should be completely removed to get meaningful results (even if they formally do
     not influence the result values you are interested in).
 
-    # TODO: Add math functions with two (or more) columns passed to certain arguments, no windows or parameters
-    #   two arguments: real0, real1. Alternative, pass as a list (no argument names)
-    # TODO: currently it works for only one window per function. Some talib functions may take 2 or more windows (similar to taking 2 input columns)
-
-    # TODO: If window list is a dict, then use key as argument name for this call
-    # TODO: If columns list is a dict, then key is argment to ta function, and value is column name (if ta function takes some custom arguments)
-    # TODO: args config parameters - pass in unchanged for to each call
-    # TODO: Currently works only for one column (second ignored). Make it work for two and more input columns
-    # TODO: add parameter: use_differences if true then compute differences first, another parameter is using log=2,10 etc. (or some conventional)
+    TODO Future extensions and improvement todos:
+    * Column parameters:
+        * Add math functions with two (or more) columns passed to certain arguments, no windows or parameters. Two TA-lib arguments: real0, real1. Alternatively, pass as a list (no argument names)
+        * Currently it works only for one column (second ignored). Make it work for two and more input columns
+        * If columns list is a dict, then key is argument to ta function, and value is column name (if ta function takes some custom arguments)
+    * Window list parameter:
+        * Currently, we can pass only one window per function. However, some TA-lib functions may take 2 or more windows. Think about how to pass such windows
+        * Currently, windows are passed as a list. Introduce windows as a dict. The keys are used as argument names for this call.
+    * args config parameter. It is passed in unchanged form to each TA-lib call
+    * Post-processing and pre-processing parameters:
+        * use_differences: if true then compute differences first
+        * In addition to differences, another parameter is using log=2,10 etc.
 
     :param config:
     :return:
@@ -682,8 +685,8 @@ def klines_to_df(klines: list):
 
     df = pd.DataFrame(klines, columns=columns)
 
-    df['timestamp'] = pd.to_datetime(df['timestamp'], unit='ms')
-    df['close_time'] = pd.to_datetime(df['close_time'], unit='ms')
+    df['timestamp'] = pd.to_datetime(df['timestamp'], unit='ms', format="ISO8601")
+    df['close_time'] = pd.to_datetime(df['close_time'], unit='ms', format="ISO8601")
 
     df["open"] = pd.to_numeric(df["open"])
     df["high"] = pd.to_numeric(df["high"])
