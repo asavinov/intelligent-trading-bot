@@ -79,6 +79,7 @@ def main(config_file):
     # Temporary (post-processed) columns for each aggregation set
     buy_column = 'aggregated_buy_score'
     sell_column = 'aggregated_sell_score'
+    score_column_names = []
     for i, sa_set in enumerate(score_aggregation_sets):
 
         buy_labels = sa_set.get("buy_labels")
@@ -93,11 +94,12 @@ def main(config_file):
         aggregate_scores(df, parameters, buy_column, buy_labels)  # Output is buy column
         aggregate_scores(df, parameters, sell_column, sell_labels)  # Output is sell column
 
-        trade_score_column = sa_set.get("column")
+        score_column = sa_set.get("column")
+        score_column_names.append(score_column)
 
         # Here we want to take into account relative values of buy and sell scores
         # Mutually adjust two independent scores with opposite buy/sell semantics
-        combine_scores(df, parameters, buy_column, sell_column, trade_score_column)
+        combine_scores(df, parameters, buy_column, sell_column, score_column)
     # Delete temporary columns
     del df[buy_column]
     del df[sell_column]
@@ -107,9 +109,9 @@ def main(config_file):
     #
     signal_model = App.config['signal_model']
     if signal_model.get('rule_name') == 'two_dim_rule':
-        apply_rule_with_score_thresholds_2(df, signal_model)
+        apply_rule_with_score_thresholds_2(df, score_column_names, signal_model)
     else:  # Default one dim rule
-        apply_rule_with_score_thresholds(df, signal_model)
+        apply_rule_with_score_thresholds(df, score_column_names, signal_model)
 
     #
     # Simulate trade and compute performance using close price and two boolean signals
@@ -149,7 +151,6 @@ def main(config_file):
     lines = []
 
     # Score statistics
-    score_column_names = signal_model.get("score_columns")
     for score_col_name in score_column_names:
         lines.append(f"'{score_col_name}':\n" + df[score_col_name].describe().to_string())
 

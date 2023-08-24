@@ -159,7 +159,7 @@ def compute_score_slope(df, model, buy_score_columns_in, sell_score_columns_in):
 # Signal rules
 #
 
-def apply_rule_with_score_thresholds(df, model):
+def apply_rule_with_score_thresholds(df, score_column_names, model):
     """
     Apply rules based on thresholds and generate trade signal buy, sell or do nothing.
 
@@ -170,7 +170,7 @@ def apply_rule_with_score_thresholds(df, model):
     signal_column = model.get("signal_columns")[0]
     signal_column_2 = model.get("signal_columns")[1]
 
-    score_column = model.get("score_columns")[0] if isinstance(model.get("score_columns"), list) else model.get("score_columns")
+    score_column = score_column_names[0]
 
     df[signal_column] = \
         (df[score_column] >= parameters.get("buy_signal_threshold"))
@@ -178,7 +178,7 @@ def apply_rule_with_score_thresholds(df, model):
         (df[score_column] <= parameters.get("sell_signal_threshold"))
 
 
-def apply_rule_with_score_thresholds_2(df, model):
+def apply_rule_with_score_thresholds_2(df, score_column_names, model):
     """
     Assume using difference combination with negative sell scores
     """
@@ -188,8 +188,8 @@ def apply_rule_with_score_thresholds_2(df, model):
 
     parameters = model.get("parameters", {})
 
-    score_column = model.get("score_columns")[0]
-    score_column_2 = model.get("score_columns")[1]
+    score_column = score_column_names[0]
+    score_column_2 = score_column_names[1]
 
     signal_column = model.get("signal_columns")[0]
     signal_column_2 = model.get("signal_columns")[1]
@@ -213,7 +213,7 @@ def apply_rule_with_score_thresholds_2(df, model):
     #    df[signal_column] = df[signal_column] & small_increase
 
 
-def apply_rule_with_score_thresholds_one_row(row, model):
+def apply_rule_with_score_thresholds_one_row(row, score_column_names, model):
     """
     Same as above but applied to one row rather than data frame. It is used for online predictions.
 
@@ -221,7 +221,7 @@ def apply_rule_with_score_thresholds_one_row(row, model):
     """
     parameters = model.get("parameters", {})
 
-    score_column = model.get("score_columns")[0] if isinstance(model.get("score_columns"), list) else model.get("score_columns")
+    score_column = score_column_names[0]
 
     buy_score = row[score_column]
 

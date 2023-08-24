@@ -154,14 +154,17 @@ def main(config_file):
         # Do not aggregate but assume that we have already the aggregation results in the data
         #
         pass
+        # We need only to get the column names for the scores to be used for rules
+        score_aggregation_sets = App.config['score_aggregation_sets']
+        score_column_names = [sa_set.get("column") for sa_set in score_aggregation_sets]
 
         #
         # Apply signal rule and generate binary buy_signal_column/sell_signal_column
         #
         if parameters.get('rule_name') == 'two_dim_rule':
-            apply_rule_with_score_thresholds_2(df, signal_model)
+            apply_rule_with_score_thresholds_2(df, score_column_names, signal_model)
         else:  # Default one dim rule
-            apply_rule_with_score_thresholds(df, signal_model)
+            apply_rule_with_score_thresholds(df, score_column_names, signal_model)
 
         #
         # Simulate trade and compute performance using close price and two boolean signals
