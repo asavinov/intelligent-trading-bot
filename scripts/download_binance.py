@@ -166,7 +166,7 @@ def minutes_of_new_data(symbol, freq, data):
 
     # List of tuples like this: [1569728580000, '8156.65000000', '8156.66000000', '8154.75000000', '8155.32000000', '4.63288700', 1569728639999, '37786.23994297', 74, '3.18695100', '25993.68396886', '0']
     new_info = App.client.get_klines(symbol=symbol, interval=freq)
-    new = pd.to_datetime(new_info[-1][0], unit='ms', format="ISO8601")
+    new = pd.to_datetime(new_info[-1][0], unit='ms')
     
     return old, new
 
@@ -175,7 +175,7 @@ def minutes_of_new_data(symbol, freq, data):
 def klines_to_df(klines, df):
 
     data = pd.DataFrame(klines, columns = ['timestamp', 'open', 'high', 'low', 'close', 'volume', 'close_time', 'quote_av', 'trades', 'tb_base_av', 'tb_quote_av', 'ignore' ])
-    data['timestamp'] = pd.to_datetime(data['timestamp'], unit='ms', format="ISO8601")
+    data['timestamp'] = pd.to_datetime(data['timestamp'], unit='ms')
     dtypes = {
         'open': 'float64', 'high': 'float64', 'low': 'float64', 'close': 'float64', 'volume': 'float64',
         'close_time': 'int64',

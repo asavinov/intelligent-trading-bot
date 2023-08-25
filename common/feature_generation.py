@@ -685,8 +685,8 @@ def klines_to_df(klines: list):
 
     df = pd.DataFrame(klines, columns=columns)
 
-    df['timestamp'] = pd.to_datetime(df['timestamp'], unit='ms', format="ISO8601")
-    df['close_time'] = pd.to_datetime(df['close_time'], unit='ms', format="ISO8601")
+    df['timestamp'] = pd.to_datetime(df['timestamp'], unit='ms')
+    df['close_time'] = pd.to_datetime(df['close_time'], unit='ms')
 
     df["open"] = pd.to_numeric(df["open"])
     df["high"] = pd.to_numeric(df["high"])

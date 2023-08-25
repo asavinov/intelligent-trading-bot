@@ -284,7 +284,7 @@ class Analyzer:
         symbol = App.config["symbol"]
 
         last_kline_ts = self.get_last_kline_ts(symbol)
-        last_kline_ts_str = str(pd.to_datetime(last_kline_ts, unit='ms'), format="ISO8601")
+        last_kline_ts_str = str(pd.to_datetime(last_kline_ts, unit='ms'))
 
         log.info(f"Analyze {symbol}. Last kline timestamp: {last_kline_ts_str}")
 
@@ -442,7 +442,6 @@ class Analyzer:
         close_price = row["close"]
         close_time = row.name+timedelta(minutes=1)  # Add 1 minute because timestamp is start of the interval
 
-        score_column_names = signal_model.get("score_columns")
         trade_scores = [row[col] for col in score_column_names]
 
         signal_column_names = signal_model.get("signal_columns")

@@ -58,7 +58,7 @@ def get_interval(freq: str, timestamp: int=None):
     if not timestamp:
         timestamp = datetime.utcnow()  # datetime.now(timezone.utc)
     elif isinstance(timestamp, int):
-        timestamp = pd.to_datetime(timestamp, unit='ms', format="ISO8601").to_pydatetime()
+        timestamp = pd.to_datetime(timestamp, unit='ms').to_pydatetime()
 
     # Although in 3.6 (at least), datetime.timestamp() assumes a timezone naive (tzinfo=None) datetime is in UTC
     timestamp = timestamp.replace(microsecond=0, tzinfo=timezone.utc)
