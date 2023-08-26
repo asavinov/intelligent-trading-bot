@@ -398,12 +398,16 @@ def generate_features_itbstats(df, config: dict, last_rows: int = 0):
         # Resolve function name to function reference
         args = tuple()
         bias = config.get('parameters', {}).get('bias', False)  # By default false (as in pandas)
-        if func_name.lower() == 'skew':
-            fn = stats.skew
+        if func_name.lower() == 'scipy_skew':
+            fn = stats.skew  # scipy skew is very slow
             args = (0, bias)
-        elif func_name.lower() == 'kurtosis':
+        elif func_name.lower() == 'pandas_skew':
+            fn = lambda x: pd.Series(x).skew()
+        elif func_name.lower() == 'scipy_kurtosis':
             fn = stats.kurtosis
             args = (0, bias)
+        elif func_name.lower() == 'pandas_kurtosis':
+            fn = lambda x: pd.Series(x).kurtosis()
         elif func_name.lower() == 'lsbm':
             fn = lsbm_fn
         elif func_name.lower() == 'fmax':
