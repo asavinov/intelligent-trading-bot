@@ -152,7 +152,7 @@ def generate_features_talib(df, config: dict, last_rows: int = 0):
         try:
             talib_mod = importlib.import_module(mod_name)  # Try to import
         except Exception as e:
-            raise ValueError(f"Cannot import module 'talib'. Check if talib is installed correctly")
+            raise ValueError(f"Cannot import module {mod_name}. Check if talib is installed correctly")
 
     mod_name = "talib.stream"  # Functions which are applied to single window and return one value
     talib_mod_stream = sys.modules.get(mod_name)  # Try to load
@@ -160,7 +160,15 @@ def generate_features_talib(df, config: dict, last_rows: int = 0):
         try:
             talib_mod_stream = importlib.import_module(mod_name)  # Try to import
         except Exception as e:
-            raise ValueError(f"Cannot import module 'talib'. Check if talib is installed correctly")
+            raise ValueError(f"Cannot import module {mod_name}. Check if talib is installed correctly")
+
+    mod_name = "talib.abstract"  # We need this to get function annotations, particularly, if they are unstable (support stream mode)
+    talib_mod_abstract = sys.modules.get(mod_name)  # Try to load
+    if talib_mod_abstract is None:  # If not yet imported
+        try:
+            talib_mod_abstract = importlib.import_module(mod_name)  # Try to import
+        except Exception as e:
+            raise ValueError(f"Cannot import module {mod_name}. Check if talib is installed correctly")
 
     #
     # Process configuration parameters and prepare all needed for feature generation
@@ -203,16 +211,25 @@ def generate_features_talib(df, config: dict, last_rows: int = 0):
     for func_name in func_names:
         fn_outs = []
         fn_out_names = []
+
+        # Determine if the function support stream mode
+        try:
+            fn = getattr(talib_mod_abstract, func_name)  # Resolve function name
+        except AttributeError as e:
+            raise ValueError(f"Cannot resolve talib function name '{func_name}'. Check the (existence of) name of the function")
+        is_streamable_function = fn.function_flags is None or 'Function has an unstable period' not in fn.function_flags
+
+        # TODO: Currently disable stream functions
+        is_streamable_function = False
+
         # Now this function will be called for each window as a parameter
         for j, w in enumerate(windows):
 
             #
-            # Prepare arguments
+            # Offline: The function will be executed in a rolling manner and applied to rolling windows
+            # Only aggregation functions have window argument (arithmetic row-level functions do not have it)
             #
-
-            # Only aggregation functions have window argument (arithmetic functions do not have it)
-
-            if not (last_rows and w):  # The function will be executed in a rolling manner and applied to rolling windows
+            if not last_rows or not w or not is_streamable_function:
                 try:
                     fn = getattr(talib_mod, func_name)  # Resolve function name
                 except AttributeError as e:
@@ -225,7 +242,11 @@ def generate_features_talib(df, config: dict, last_rows: int = 0):
                     out = next(iter(columns.values()))
                 else:
                     out = fn(**args)
-            else:  # Compute the specified number of single values for the manually prepared windows
+
+            #
+            # Online: In a loop, compute the specified number of single values for the manually prepared windows
+            #
+            else:
                 try:
                     fn = getattr(talib_mod_stream, func_name)  # Resolve function name
                 except AttributeError as e:
@@ -251,7 +272,9 @@ def generate_features_talib(df, config: dict, last_rows: int = 0):
                 out = pd.Series(data=np.nan, index=df.index, dtype=float)
                 out.iloc[-last_rows:] = list(reversed(out_values))  # Assign values to the last elements
 
+            #
             # Name of the output column
+            #
             # Now combin[e: columnnames + functionname + [if prefix null window [i] | elif prefix str + window[i] | else if list prefix[i]]
             if not w:
                 if not names:
