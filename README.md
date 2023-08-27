@@ -86,7 +86,7 @@ This script is intended for computing derived features:
 The list of features to be generated is configured via ``feature_sets`` list in the configuration file. How features are generated is defined by the *feature generator* each having some parameters specified in its config section.
 
 * ``talib`` feature generator relies on the TA-lib technical analysis library. Here an example of its configuration: ``"config":  {"columns": ["close"], "functions": ["SMA"], "windows": [5, 10, 15]}``
-* ``itbstats`` feature generator implements functions which can be found in tsfresh like ``skew``, ``kurtosis``, ``lsbm`` (longest strike below mean), ``fmax`` (first location of maximum), ``mean``, ``std``, ``area``, ``slope``. Here are typical parameters: ``"config":  {"columns": ["close"], "functions": ["skew", "fmax"], "windows": [5, 10, 15]}``   
+* ``itbstats`` feature generator implements functions which can be found in tsfresh like ``scipy_skew``, ``scipy_kurtosis``, ``lsbm`` (longest strike below mean), ``fmax`` (first location of maximum), ``mean``, ``std``, ``area``, ``slope``. Here are typical parameters: ``"config":  {"columns": ["close"], "functions": ["skew", "fmax"], "windows": [5, 10, 15]}``   
 * ``itblib`` feature generator implemented in ITB but most of its features can be generated (much faster) via talib
 * ``tsfresh`` generates functions from the tsfresh library
 
