@@ -18,17 +18,16 @@
   // === GENERATE FEATURES ===
 
   "feature_sets": [
-      // all functions: close_WMA, close_STD, volume_SMA, span_SMA, trades_SMA, tb_base_SMA, close_AREA, close_SLOPE, volume_SLOPE
-      //{"column_prefix": "", "generator": "itblib", "feature_prefix": "", "config":  {"functions": [], "windows": [1, 10, 60], "base_window": 360, "use_differences":  false}},
-      {"column_prefix": "", "generator": "talib", "feature_prefix": "", "config":  {"columns": ["close"], "functions": ["SMA"], "windows": [1, 5, 10, 15, 60]}}
+      {"column_prefix": "", "generator": "talib", "feature_prefix": "", "config":  {"columns": ["close"], "functions": ["SMA"], "windows": [1, 5, 10, 15, 60]}},
+      {"column_prefix": "", "generator": "talib", "feature_prefix": "", "config":  {"columns": ["close"], "functions": ["LINEARREG_SLOPE"], "windows": [5, 10, 15, 60]}},
+      {"column_prefix": "", "generator": "talib", "feature_prefix": "", "config":  {"columns": ["close"], "functions": ["STDDEV"], "windows": [5, 10, 15, 60]}}
   ],
 
   // === LABELS ===
 
   "label_sets": [
-      //{"column_prefix": "", "generator": "highlow", "feature_prefix": ""},
-      {"column_prefix": "", "generator": "highlow2", "feature_prefix": "", "config":  {"columns": ["close", "high", "low"], "function": "high", "thresholds": [1.0, 2.0], "tolerance": 0.2, "horizon": 20, "names": ["high_10", "high_20"]}},
-      {"column_prefix": "", "generator": "highlow2", "feature_prefix": "", "config":  {"columns": ["close", "high", "low"], "function": "low", "thresholds": [1.0, 2.0], "tolerance": 0.2, "horizon": 20, "names": ["low_10", "low_20"]}}
+      {"column_prefix": "", "generator": "highlow2", "feature_prefix": "", "config":  {"columns": ["close", "high", "low"], "function": "high", "thresholds": [2.0], "tolerance": 0.2, "horizon": 60, "names": ["high_20"]}},
+      {"column_prefix": "", "generator": "highlow2", "feature_prefix": "", "config":  {"columns": ["close", "high", "low"], "function": "low", "thresholds": [2.0], "tolerance": 0.2, "horizon": 60, "names": ["low_20"]}}
   ],
 
   // === TRAIN ===
@@ -37,12 +36,14 @@
   "train_length": 262800,
 
   "train_features": [
-      "close_SMA_1", "close_SMA_5", "close_SMA_10", "close_SMA_15", "close_SMA_60"
+    "close_SMA_1", "close_SMA_5", "close_SMA_10", "close_SMA_15", "close_SMA_60",
+    "close_LINEARREG_SLOPE_5", "close_LINEARREG_SLOPE_10", "close_LINEARREG_SLOPE_15", "close_LINEARREG_SLOPE_60",
+    "close_STDDEV_5", "close_STDDEV_10", "close_STDDEV_15", "close_STDDEV_60"
   ],
 
   "labels": [
-      "high_10", "high_20",
-      "low_10", "low_20"
+      "high_20",
+      "low_20"
   ],
 
   "algorithms": [
@@ -50,12 +51,12 @@
       "name": "lc",  // Unique name to be used as a suffix
       "algo": "lc",  // Altorithm type is mapped to train/predict functions
       "params": {"penalty": "l2", "C": 1.0, "class_weight": null, "solver": "sag", "max_iter": 200},
-      "train": {"is_scale": true, "length": 250000, "shifts": []},
+      "train": {"is_scale": true, "length": 1000000, "shifts": []},
       "predict": {"length": 1440}
     }
   ],
 
-  "features_horizon": 20, // Minimum data length for computing features (in online mode). Take it from feature generator parameters
+  "features_horizon": 100, // Minimum data length for computing features (in online mode). Take it from feature generator parameters
 
   // === AGGREGATION AND POST-PROCESSING ===
 
@@ -63,8 +64,8 @@
       {
           "column": "trade_score", // Output column name: positive values - buy, negative values - sell
 
-          "buy_labels": ["high_10_lc", "high_20_lc"],
-          "sell_labels": ["low_10_lc", "low_20_lc"],
+          "buy_labels": ["high_20_lc"],
+          "sell_labels": ["low_20_lc"],
 
           "parameters": {
             "point_threshold": null, // Produce boolean column (optional)
@@ -81,17 +82,16 @@
   "signal_model": {
       "rule_name": "",
 
-      "score_columns": ["trade_score"],
       "signal_columns": ["buy_signal_column", "sell_signal_column"],
 
       "parameters": {
-        "buy_signal_threshold": 0.05,
-        "sell_signal_threshold": -0.05
+        "buy_signal_threshold": 0.15,
+        "sell_signal_threshold": -0.15
       },
       "notification": {
-        "buy_notify_threshold": 0.01,
-        "sell_notify_threshold": -0.01,
-        "trade_icon_step": 0.02,
+        "buy_notify_threshold": 0.1,
+        "sell_notify_threshold": -0.1,
+        "trade_icon_step": 0.05,
         "notify_frequency_minutes": 1
       }
   },
