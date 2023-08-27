@@ -1,25 +1,19 @@
-numpy>=1.23.*
-pandas>=1.4.*
-numba  # For highlow label generator
-scikit-learn==1.2.*
-#scipy>=1.9.*  # Should be automatically installed as a dep of scikit-learn
-statsmodels>=0.13.*
-patsy>=0.5.*
-apscheduler==3.9.*  # "conda install -c conda-forge apscheduler"
+numpy>=1.24.*  # version is limited by numba 0.57.1 and tensorflow 2.13
+pandas>=2.*  # The version might be important for parsing timestamps
+numba  # For highlow label generator. numba 0.57.1 requires numpy<1.25,>=1.21,
+
+apscheduler==3.10.*
 click
+tqdm
 
-lightgbm>=3.3.*  # For Linux, glibc >= 2.14 is required. "conda install -c conda-forge lightgbm"
-tensorflow>=2.9.*  # pip install --upgrade tensorflow
-#keras  # pip install --upgrade keras
-#pytorch # conda install pytorch torchvision cpuonly -c pytorch
-#fastai # pip install fastai
-# tsfresh  # For derived features. It depends on matrixprofile with binary (in pip) only for Python 3.8. Install only if tsfresh feature generator is used
-
+# Downloaders
 python-binance>=1.0.*  # pip install python-binance
-#python-snappy  # Compression for fastparquet (gzip is always available)
-#fastparquet  # "conda install -c conda-forge fastparquet"
-# yfinance  # if yahoo quotes are going to be used
 
-# Visualizations
-# bokeh==2.4.*
-# selenium==4.7.*  # to export pictures. note that it uses browser lib
+# Features/label generation
+# tsfresh  # Only if tsfresh feature generator is used. It depends on matrixprofile with binary (in pip) only for Python 3.8
+ta-lib  # Python wrapper for TA-lib native library which must be installed
+
+# Algorithms
+scikit-learn==1.3.*
+lightgbm>=4.*
+tensorflow>=2.13.*  # pip install --upgrade tensorflow==2.13, requires numpy<=1.24.3,>=1.22
