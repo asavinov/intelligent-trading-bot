@@ -62,7 +62,7 @@ def main(config_file):
     print(f"Finished loading {len(df)} records with {len(df.columns)} columns.")
 
     #
-    # Determine parameters of the rolling prediction loop
+    # Limit the source data
     #
 
     data_start = rp_config.get("data_start", 0)
@@ -74,6 +74,10 @@ def main(config_file):
 
     df = df.iloc[data_start:data_end]
     df = df.reset_index(drop=True)
+
+    #
+    # Determine parameters of the rolling prediction loop
+    #
 
     prediction_start = rp_config.get("prediction_start", None)
     if isinstance(prediction_start, str):

@@ -9,6 +9,7 @@ from sklearn.metrics import (precision_recall_curve, PrecisionRecallDisplay, Roc
 from sklearn.model_selection import ParameterGrid
 
 from service.App import *
+from common.utils import *
 from common.classifiers import *
 from common.label_generation_topbot import *
 from common.signal_generation import *
@@ -42,9 +43,6 @@ assuming only the necessary columns for predicted label scores and trade columns
 class P:
     in_nrows = 100_000_000
 
-    start_index = 0  # 200_000 for 1m btc
-    end_index = None
-
 
 @click.command()
 @click.option('--config_file', '-c', type=click.Path(), default='', help='Configuration file name')
@@ -73,6 +71,8 @@ def main(config_file):
 
     now = datetime.now()
 
+    train_signal_config = App.config["train_signal_model"]
+
     symbol = App.config["symbol"]
     data_path = Path(App.config["data_folder"]) / symbol
     if not data_path.is_dir():
@@ -93,8 +93,18 @@ def main(config_file):
     df = pd.read_csv(file_path, parse_dates=[time_column], date_format="ISO8601", nrows=P.in_nrows)
     print(f"Signals loaded. Length: {len(df)}. Width: {len(df.columns)}")
 
-    # Limit size according to parameters start_index end_index
-    df = df.iloc[P.start_index:P.end_index]
+    #
+    # Limit the source data
+    #
+
+    data_start = train_signal_config.get("data_start", 0)
+    if isinstance(data_start, str):
+        data_start = find_index(df, data_start)
+    data_end = train_signal_config.get("data_end", None)
+    if isinstance(data_end, str):
+        data_end = find_index(df, data_end)
+
+    df = df.iloc[data_start:data_end]
     df = df.reset_index(drop=True)
 
     #
@@ -114,12 +124,11 @@ def main(config_file):
     #
     # Load signal train parameters
     #
-    train_signal_model = App.config["train_signal_model"]
-    parameter_grid = train_signal_model.get("grid")
-    direction = train_signal_model.get("direction", "")
+    parameter_grid = train_signal_config.get("grid")
+    direction = train_signal_config.get("direction", "")
     if direction not in ['long', 'short', 'both', '']:
         raise ValueError(f"Unknown value of {direction} in signal train model. Only 'long', 'short' and 'both' are possible.")
-    topn_to_store = train_signal_model.get("topn_to_store", 10)
+    topn_to_store = train_signal_config.get("topn_to_store", 10)
 
     # Evaluate strings to produce lists
     if isinstance(parameter_grid.get("buy_signal_threshold"), str):
@@ -132,7 +141,7 @@ def main(config_file):
         parameter_grid["sell_signal_threshold_2"] = eval(parameter_grid.get("sell_signal_threshold_2"))
 
     # Disable sell parameters in grid search - they will be set from the buy parameters
-    if train_signal_model.get("buy_sell_equal"):
+    if train_signal_config.get("buy_sell_equal"):
         parameter_grid["sell_signal_threshold"] = [None]
         parameter_grid["sell_signal_threshold_2"] = [None]
 
@@ -142,7 +151,7 @@ def main(config_file):
         #
         # If equal parameters, then derive the sell parameter from the buy parameter
         #
-        if train_signal_model.get("buy_sell_equal"):
+        if train_signal_config.get("buy_sell_equal"):
             parameters["sell_signal_threshold"] = -parameters["buy_signal_threshold"]
             #signal_model["sell_slope_threshold"] = -signal_model["buy_slope_threshold"]
             if parameters.get("buy_signal_threshold_2") is not None:

@@ -97,6 +97,9 @@
   },
 
   "train_signal_model": {
+      "data_start": 0,
+      "data_end": null,
+
       "buy_sell_equal": false,
       "direction": "long",
       "topn_to_store": 10,
@@ -108,8 +111,7 @@
     },
 
   "rolling_predict": {
-    // Limit the data to be used
-    // Null, int or string with date which will be (if possible and if exists) resolved using time_column
+    // int, null or string with date which will be resolved using time_column and removed from source data
     "data_start": "2020-02-01 00:00:00",
     "data_end": null,
 
