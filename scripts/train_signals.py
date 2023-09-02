@@ -45,9 +45,6 @@ class P:
     start_index = 0  # 200_000 for 1m btc
     end_index = None
 
-    # Haw many best performing parameters from the grid to store
-    topn_to_store = 10
-
 
 @click.command()
 @click.option('--config_file', '-c', type=click.Path(), default='', help='Configuration file name')
@@ -118,7 +115,11 @@ def main(config_file):
     # Load signal train parameters
     #
     train_signal_model = App.config["train_signal_model"]
-    parameter_grid = train_signal_model["grid"]
+    parameter_grid = train_signal_model.get("grid")
+    direction = train_signal_model.get("direction", "")
+    if direction not in ['long', 'short', 'both', '']:
+        raise ValueError(f"Unknown value of {direction} in signal train model. Only 'long', 'short' and 'both' are possible.")
+    topn_to_store = train_signal_model.get("topn_to_store", 10)
 
     # Evaluate strings to produce lists
     if isinstance(parameter_grid.get("buy_signal_threshold"), str):
@@ -177,20 +178,25 @@ def main(config_file):
         long_performance.pop('transactions', None)
         short_performance.pop('transactions', None)
 
+        if direction == "long":
+            performance = long_performance
+        elif direction == "short":
+            performance = short_performance
+
         # Add some metrics. Add per month metrics
         performance["profit_percent_per_month"] = performance["profit_percent"] / months_in_simulation
         performance["transaction_no_per_month"] = performance["transaction_no"] / months_in_simulation
         performance["profit_percent_per_transaction"] = performance["profit_percent"] / performance["transaction_no"] if performance["transaction_no"] else 0.0
         performance["profit_per_month"] = performance["profit"] / months_in_simulation
 
-        long_performance["profit_percent_per_month"] = long_performance["profit_percent"] / months_in_simulation
-        short_performance["profit_percent_per_month"] = short_performance["profit_percent"] / months_in_simulation
+        #long_performance["profit_percent_per_month"] = long_performance["profit_percent"] / months_in_simulation
+        #short_performance["profit_percent_per_month"] = short_performance["profit_percent"] / months_in_simulation
 
         performances.append(dict(
             model=parameters,
             performance={k: performance[k] for k in ['profit_percent_per_month', 'profitable', 'profit_percent_per_transaction', 'transaction_no_per_month']},
-            long_performance={k: long_performance[k] for k in ['profit_percent_per_month', 'profitable']},
-            short_performance={k: short_performance[k] for k in ['profit_percent_per_month', 'profitable']}
+            #long_performance={k: long_performance[k] for k in ['profit_percent_per_month', 'profitable']},
+            #short_performance={k: short_performance[k] for k in ['profit_percent_per_month', 'profitable']}
         ))
 
     #
@@ -199,20 +205,20 @@ def main(config_file):
 
     # Sort
     performances = sorted(performances, key=lambda x: x['performance']['profit_percent_per_month'], reverse=True)
-    performances = performances[:P.topn_to_store]
+    performances = performances[:topn_to_store]
 
     # Column names (from one record)
     keys = list(performances[0]['model'].keys()) + \
-           list(performances[0]['performance'].keys()) + \
-           list(performances[0]['long_performance'].keys()) + \
-           list(performances[0]['short_performance'].keys())
+           list(performances[0]['performance'].keys())
+           #list(performances[0]['long_performance'].keys()) + \
+           #list(performances[0]['short_performance'].keys())
 
     lines = []
     for p in performances:
         record = list(p['model'].values()) + \
-                 list(p['performance'].values()) + \
-                 list(p['long_performance'].values()) + \
-                 list(p['short_performance'].values())
+                 list(p['performance'].values())
+                 #list(p['long_performance'].values()) + \
+                 #list(p['short_performance'].values())
         record = [f"{v:.3f}" if isinstance(v, float) else str(v) for v in record]
         record_str = ",".join(record)
         lines.append(record_str)

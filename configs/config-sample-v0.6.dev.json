@@ -98,6 +98,8 @@
 
   "train_signal_model": {
       "buy_sell_equal": false,
+      "direction": "long",
+      "topn_to_store": 10,
 
       "grid": {
           "buy_signal_threshold": [0.05, 0.1, 0.15, 0.2],
