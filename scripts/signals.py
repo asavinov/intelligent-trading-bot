@@ -60,6 +60,8 @@ def main(config_file):
     df = df.iloc[P.start_index:P.end_index]
     df = df.reset_index(drop=True)
 
+    print(f"Input data size {len(df)} records. Range: [{df.iloc[0][time_column]}, {df.iloc[-1][time_column]}]")
+
     #
     # Find maximum performance possible based on true labels only (and not predictions)
     #
