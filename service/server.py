@@ -41,11 +41,14 @@ async def main_task():
         return
     # Signal is stored in App.signal
 
-    if "notify" in App.config["actions"]:
+    if "diagram" in App.config.get("actions", {}):
+        diagram_task = App.loop.create_task(send_diagram())
+
+    if "notify" in App.config.get("actions", {}):
         notify_task = App.loop.create_task(notify_telegram())
 
     # Now we have a list of signals and can make trade decisions using trading logic and trade
-    if "trade" in App.config["actions"]:
+    if "trade" in App.config.get("actions", {}):
         trade_task = App.loop.create_task(main_trader_task())
 
     return
