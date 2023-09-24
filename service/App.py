@@ -1,6 +1,7 @@
 from pathlib import Path
 from typing import Union
 import json
+from datetime import datetime, date, timedelta
 import re
 
 import pandas as pd
@@ -28,8 +29,6 @@ class App:
     bm = None
     conn_key = None  # Socket
 
-    signal = None,  # Latest signal "BUY", "SELL"
-
     #
     # State of the server (updated after each interval)
     #
@@ -38,6 +37,9 @@ class App:
     server_status = 0  # If server allow us to trade (maintenance, down etc.)
     account_status = 0  # If account allows us to trade (funds, suspended etc.)
     trade_state_status = 0  # Something wrong with our trading logic (wrong use, inconsistent state etc. what we cannot recover)
+
+    signal = None  # Latest signal "BUY", "SELL"
+    feature_df = None  # Data from the latest analysis
 
     # Trade status
     transaction = None
@@ -233,6 +235,33 @@ def load_config(config_file):
 
             conf_json = json.loads(conf_str)
             App.config.update(conf_json)
+
+
+def load_last_transaction():
+    transaction_file = Path("transactions.txt")
+    t_dict = dict(timestamp=str(datetime.now()), price=0.0, profit=0.0, status="")
+    if transaction_file.is_file():
+        with open(transaction_file, "r") as f:
+            line = ""
+            for line in f:
+                pass
+        if line:
+            t_dict = dict(zip("timestamp,price,profit,status".split(","), line.strip().split(",")))
+            t_dict["price"] = float(t_dict["price"])
+            t_dict["profit"] = float(t_dict["profit"])
+            #t_dict = json.loads(line)
+    else:  # Create file with header
+        pass
+        #with open(transaction_file, 'a+') as f:
+        #    f.write("timestamp,price,profit,status\n")
+    return t_dict
+
+
+def load_all_transaction():
+    transaction_file = Path("transactions.txt")
+    df = pd.read_csv(transaction_file, names="timestamp,price,profit,status".split(","), header=None)
+    df['timestamp'] = pd.to_datetime(df['timestamp'], format='ISO8601')
+    return df
 
 
 if __name__ == "__main__":

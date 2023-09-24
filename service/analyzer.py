@@ -66,30 +66,8 @@ class Analyzer:
 
         self.models = {label: load_model_pair(model_path, label) for label in all_labels}
 
-        #
         # Load latest transaction and (simulated) trade state
-        #
-        transaction_file = Path("transactions.txt")
-        t_dict = dict(timestamp=str(datetime.now()), price=0.0, profit=0.0, status="")
-        if transaction_file.is_file():
-            with open(transaction_file, "r") as f:
-                line = ""
-                for line in f:
-                    pass
-            if line:
-                t_dict = dict(zip("timestamp,price,profit,status".split(","), line.strip().split(",")))
-                t_dict["price"] = float(t_dict["price"])
-                t_dict["profit"] = float(t_dict["profit"])
-                #t_dict = json.loads(line)
-        else:  # Create file with header
-            pass
-            #with open(transaction_file, 'a+') as f:
-            #    f.write("timestamp,price,profit,status\n")
-        App.transaction = t_dict
-
-        #
-        # Start a thread for storing data
-        #
+        App.transaction = load_last_transaction()
 
     #
     # Data state operations
@@ -344,7 +322,9 @@ class Analyzer:
         for fs in feature_sets:
             df, _ = generate_feature_set(df, fs, last_rows=last_rows)
 
-        df = df.iloc[-last_rows:]  # For signal generation, ew will need only several last rows
+        App.feature_df = df  # These data might be needed later on, for example, visualization
+
+        df = df.iloc[-last_rows:]  # For signal generation, only several last rows
 
         #
         # 3.
