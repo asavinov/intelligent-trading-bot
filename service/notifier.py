@@ -16,7 +16,7 @@ log = logging.getLogger('notifier')
 transaction_file = Path("transactions.txt")
 
 
-async def notify_telegram():
+async def send_message():
     symbol = App.config["symbol"]
 
     status = App.status
@@ -46,9 +46,7 @@ async def notify_telegram():
     else:
         symbol_char = symbol
 
-    # Notification logic:
-    # 1. Trade signal in the case it is suggested to really buy or sell: BUY or SELL and one corresponding score
-    # 2. Notification signal simply to provide information (separate criteria): both scores
+    # Message to be sent depends on the availability and direction of signal
     # Icons:
     # DOWN: 📉, ⬇ ⬇️↘️🔽 🔴 (red), 🟥, ▼ (red), ↘ (red)
     # UP:  📈, ⬆,  ⬆️ ↗️🔼 🟢 (green), 🟩, ▲ (green), ↗ (green)
@@ -62,24 +60,39 @@ async def notify_telegram():
     elif signal_side == "SELL":
         score_steps = (np.abs(trade_score_primary - sell_signal_threshold) // trade_icon_step) if trade_icon_step else 0
         message = "🔴"*int(score_steps+1) + f" *SELL: {symbol_char} {int(close_price):,} Score: {primary_score_str}* {secondary_score_str}"
-    elif (close_time.minute % notify_frequency_minutes) == 0:  # Info message with the specified frequency
-        if trade_score_primary >= 0:
-            message = f"{symbol_char} {int(close_price):,} 📈{primary_score_str} {secondary_score_str}"
-        else:
-            message = f"{symbol_char} {int(close_price):,} 📉{primary_score_str} {secondary_score_str}"
+    elif trade_score_primary >= 0:
+        message = f"{symbol_char} {int(close_price):,} 📈{primary_score_str} {secondary_score_str}"
+    else:
+        message = f"{symbol_char} {int(close_price):,} 📉{primary_score_str} {secondary_score_str}"
     message = message.replace("+", "%2B")  # For Telegram to display plus sign
 
+    #
+    # To send or not to send (for example, to avoid to frequent insignificant messages)
+    #
     if not message:
         return
-    if trade_score_primary < buy_notify_threshold and trade_score_primary > sell_notify_threshold:
-        return  # Do not send notifications with low notification threshold (also no buy/sell notifications)
 
+    # Too small score according to notification ranges
+    if trade_score_primary < buy_notify_threshold and trade_score_primary > sell_notify_threshold:
+        return
+
+    # If corresponds to desired frequency then send. Otherwise, check other conditions
+    if (close_time.minute % notify_frequency_minutes) != 0:
+        # Within internal, send only signals and only one time
+        if signal_side not in ["BUY", "SELL"]:
+            return
+
+        # TODO: Check if it is first time
+        # Send if not already sent, that is, only if just crossed the buy/sell threshold
+        # We need to store somewhere the current band: lower, middle/None, high
+        pass
+
+    #
+    # Send notification
+    #
     bot_token = App.config["telegram_bot_token"]
     chat_id = App.config["telegram_chat_id"]
 
-    #
-    # Send signal
-    #
     try:
         url = 'https://api.telegram.org/bot' + bot_token + '/sendMessage?chat_id=' + chat_id + '&parse_mode=markdown&text=' + message
         response = requests.get(url)
@@ -89,6 +102,8 @@ async def notify_telegram():
     except Exception as e:
         log.error(f"Error sending notification: {e}")
 
+
+async def send_transaction_message():
     #
     # Send transaction notification (if any)
     # Note that we assume that transactions may happen only if notifications are sent
@@ -109,6 +124,8 @@ async def notify_telegram():
 
     message += f" Profit: {profit_percent:.2f}% {profit:.2f}₮*"
 
+    bot_token = App.config["telegram_bot_token"]
+    chat_id = App.config["telegram_chat_id"]
     try:
         url = 'https://api.telegram.org/bot' + bot_token + '/sendMessage?chat_id=' + chat_id + '&parse_mode=markdown&text=' + message
         response = requests.get(url)
@@ -235,6 +252,11 @@ async def send_diagram():
     description = App.config.get("description", "")
     close_time = signal.get('close_time')
 
+    model = App.config["signal_model"]
+
+    buy_signal_threshold = model.get("parameters", {}).get("buy_signal_threshold", 0)
+    sell_signal_threshold = model.get("parameters", {}).get("sell_signal_threshold", 0)
+
     # Examples: every hour (say, 0th minute or 15th minute), every day (0th hour, 2nd hour etc.)
     # If daily, then parameter is hour no., and we check that hour is this hour AND all lower params are 0 (minutes, seconds etc.)
 
@@ -277,9 +299,6 @@ async def send_diagram():
     score_exists = False
 
     title = f"$\\bf{{{symbol}}}$"
-
-    buy_signal_threshold = App.config.get("signal_model", {}).get("parameters").get("buy_signal_threshold")
-    sell_signal_threshold = App.config.get("signal_model", {}).get("parameters").get("sell_signal_threshold")
 
     fig = generate_chart(
         df, title,

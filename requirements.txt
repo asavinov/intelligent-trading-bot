@@ -11,9 +11,11 @@ python-binance>=1.0.*  # pip install python-binance
 
 # Features/label generation
 # tsfresh  # Only if tsfresh feature generator is used. It depends on matrixprofile with binary (in pip) only for Python 3.8
-ta-lib  # Python wrapper for TA-lib native library which must be installed
+ta-lib  # Python wrapper for TA-lib native library
 
 # Algorithms
 scikit-learn==1.3.*
 lightgbm>=4.*
 tensorflow>=2.13.*  # pip install --upgrade tensorflow==2.13, requires numpy<=1.24.3,>=1.22
+
+# seaborn  # Only if diagrams are turned on
