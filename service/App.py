@@ -257,7 +257,7 @@ def load_last_transaction():
     return t_dict
 
 
-def load_all_transaction():
+def load_all_transactions():
     transaction_file = Path("transactions.txt")
     df = pd.read_csv(transaction_file, names="timestamp,price,profit,status".split(","), header=None)
     df['timestamp'] = pd.to_datetime(df['timestamp'], format='ISO8601')

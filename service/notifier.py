@@ -13,10 +13,13 @@ from common.utils import *
 import logging
 log = logging.getLogger('notifier')
 
+logging.getLogger('PIL').setLevel(logging.WARNING)
+logging.getLogger('matplotlib').setLevel(logging.WARNING)
+
 transaction_file = Path("transactions.txt")
 
 
-async def send_message():
+async def send_signal_message():
     symbol = App.config["symbol"]
 
     status = App.status
@@ -103,15 +106,7 @@ async def send_message():
         log.error(f"Error sending notification: {e}")
 
 
-async def send_transaction_message():
-    #
-    # Send transaction notification (if any)
-    # Note that we assume that transactions may happen only if notifications are sent
-    #
-    transaction = await simulate_trade()  # Here we check additional conditions (in addition to signaling)
-
-    if not transaction:
-        return
+async def send_transaction_message(transaction):
 
     profit, profit_percent, profit_descr, profit_percent_descr = await generate_transaction_stats()
 
@@ -160,6 +155,9 @@ async def send_transaction_message():
 
 
 async def simulate_trade():
+    """
+    Very simple trade strategy where we only buy and sell using the whole available amount
+    """
     symbol = App.config["symbol"]
 
     status = App.status
@@ -243,45 +241,30 @@ async def generate_transaction_stats():
     return profit, profit_percent, profit_descr, profit_percent_descr
 
 
-async def send_diagram():
+async def send_diagram(freq, nrows):
     """
     Produce a line chart based on latest data and send it to the channel.
-    """
-    symbol = App.config["symbol"]
-    signal = App.signal
-    description = App.config.get("description", "")
-    close_time = signal.get('close_time')
 
+    :param freq: Aggregation interval 'H' - hour.
+    :param nrows: Time range (x axis) of the diagram, for example, 1 week 168 hours, 2 weeks 336 hours
+    """
     model = App.config["signal_model"]
 
     buy_signal_threshold = model.get("parameters", {}).get("buy_signal_threshold", 0)
     sell_signal_threshold = model.get("parameters", {}).get("sell_signal_threshold", 0)
 
-    # Examples: every hour (say, 0th minute or 15th minute), every day (0th hour, 2nd hour etc.)
-    # If daily, then parameter is hour no., and we check that hour is this hour AND all lower params are 0 (minutes, seconds etc.)
-
-    # If hourly, then parameter is minute (or 0), and we check that current minute is 0 AND all other are 0 (but in our case we do not need this because maximum freq is 1 min)
-    if close_time.minute != 0:
-        return
-
-    #notify_frequency_minutes = 2
-    #if (close_time.minute % notify_frequency_minutes) != 0:
-    #    return
-
     #
     # Prepare data to be visualized
     #
-    freq = 'H'
-    nrows = 2*7*24  # 1 week 168 hours, 2 weeks 336 hours
-
     # Get main df with high, low, close for the symbol.
     df_ohlc = App.feature_df[['open', 'high', 'low', 'close']]
     df_ohlc = resample_ohlc_data(df_ohlc.reset_index(), freq, nrows, buy_signal_column=None, sell_signal_column=None)
 
     # Get transaction data.
-    df_t = load_all_transaction()  # timestamp,price,profit,status
+    df_t = load_all_transactions()  # timestamp,price,profit,status
     df_t['buy_long'] = df_t['status'].apply(lambda x: True if isinstance(x, str) and x == 'BUY' else False)
     df_t['sell_long'] = df_t['status'].apply(lambda x: True if isinstance(x, str) and x == 'SELL' else False)
+    df_t = df_t[df_t.timestamp >= df_ohlc.timestamp.min()]  # select only transactions for the last time
     transactions_exist = len(df_t) > 0
 
     if transactions_exist:
@@ -298,7 +281,12 @@ async def send_diagram():
     # Load score
     score_exists = False
 
+    symbol = App.config["symbol"]
     title = f"$\\bf{{{symbol}}}$"
+
+    description = App.config.get("description", "")
+    if description:
+        title += ": " + description
 
     fig = generate_chart(
         df, title,
@@ -314,8 +302,6 @@ async def send_diagram():
         im_bytes = buf.getvalue()  # Get complete content (while read returns from current position)
     img_data = im_bytes
 
-    msg_txt = f""
-
     #
     # Send image
     #
@@ -325,12 +311,11 @@ async def send_diagram():
     files = {'photo': img_data}
     payload = {
         'chat_id': chat_id,
-        'caption': msg_txt,
+        'caption': f"",  # Currently no text
         'parse_mode': 'markdown'
     }
 
     try:
-        # https://core.telegram.org/bots/api#sendphoto
         url = 'https://api.telegram.org/bot' + bot_token + '/sendPhoto'
         req = requests.post(url=url, data=payload, files=files)
         response = req.json()

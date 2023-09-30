@@ -92,7 +92,10 @@
         "buy_notify_threshold": 0.1,
         "sell_notify_threshold": -0.1,
         "trade_icon_step": 0.05,
-        "notify_frequency_minutes": 1
+        "notify_frequency_minutes": 1,
+        "notify_signal": true,
+        "notify_transaction": true,
+        "notify_diagram": false
       }
   },
 
