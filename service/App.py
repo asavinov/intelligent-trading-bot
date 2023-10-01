@@ -63,7 +63,7 @@ class App:
     # Constant configuration parameters
     #
     config = {
-        "actions": ["notify"],  # Values: notify, trade
+        "actions": [],  # Values: trade
 
         # Binance
         "api_key": "",
@@ -74,7 +74,7 @@ class App:
         "telegram_chat_id": "",  # Destination address of messages
 
         #
-        # Naming conventions
+        # Conventions for the file and column names
         #
         "merge_file_name": "data",
         "feature_file_name": "features",
@@ -102,27 +102,19 @@ class App:
 
         # This list is used for downloading and then merging data
         # "folder" is symbol name for downloading. prefix will be added column names during merge
-        "data_sources": [
-            {"folder": "BTCUSDT", "file": "klines", "column_prefix": ""}
-        ],
+        "data_sources": [],
 
         # ==========================
         # === FEATURE GENERATION ===
 
         # What columns to pass to which feature generator and how to prefix its derived features
         # Each executes one feature generation function applied to columns with the specified prefix
-        "feature_sets": [
-            {"column_prefix": "", "generator": "itblib", "feature_prefix": ""}
-        ],
+        "feature_sets": [],
 
         # ========================
         # === LABEL GENERATION ===
 
-        "label_sets": [
-            {"column_prefix": "", "generator": "highlow", "feature_prefix": ""},
-        ],
-        # highlow label parameter: max (of high) and min (of low) for this horizon ahead
-        "highlow_horizon": 60,  # 1 hour prediction
+        "label_sets": [],
 
         # ===========================
         # === MODEL TRAIN/PREDICT ===

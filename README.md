@@ -65,7 +65,7 @@ Without a configuration file the scripts will use the default parameters which i
 
 ## Downloading and merging source data
 
-The main configuration parameter for the both scripts is a list of sources in ``data_sources``.
+The main configuration parameter for the both scripts is a list of sources in ``data_sources``. One entry in this list specifies a data source as well as ``column_prefix`` used to distinguish columns with the same name from different sources. 
 
 * Download the latest historic data: `python -m scripts.download_binance -c config.json`
   * It uses Binance API but you can use any other data source or download data manually using other scripts

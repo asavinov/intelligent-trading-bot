@@ -123,20 +123,21 @@ def generate_feature_set(df: pd.DataFrame, fs: dict, last_rows: int) -> Tuple[pd
     # Resolve and apply feature generator functions from the configuration
     #
     generator = fs.get("generator")
+    gen_config = fs.get('config', {})
     if generator == "itblib":
-        features = generate_features_itblib(f_df, fs.get('config', {}), last_rows=last_rows)
+        features = generate_features_itblib(f_df, gen_config, last_rows=last_rows)
     elif generator == "depth":
         features = generate_features_depth(f_df)
     elif generator == "tsfresh":
-        features = generate_features_tsfresh(f_df, fs.get('config', {}), last_rows=last_rows)
+        features = generate_features_tsfresh(f_df, gen_config, last_rows=last_rows)
     elif generator == "talib":
-        features = generate_features_talib(f_df, fs.get('config', {}), last_rows=last_rows)
+        features = generate_features_talib(f_df, gen_config, last_rows=last_rows)
     elif generator == "itbstats":
-        features = generate_features_itbstats(f_df, fs.get('config', {}), last_rows=last_rows)
+        features = generate_features_itbstats(f_df, gen_config, last_rows=last_rows)
 
     # Labels
     elif generator == "highlow":
-        horizon = App.config["highlow_horizon"]
+        horizon = gen_config.get("horizon")
 
         # Binary labels whether max has exceeded a threshold or not
         print(f"Generating 'highlow' labels with horizon {horizon}...")
@@ -145,17 +146,17 @@ def generate_feature_set(df: pd.DataFrame, fs: dict, last_rows: int) -> Tuple[pd
         print(f"Finished generating 'highlow' labels. {len(features)} labels generated.")
     elif generator == "highlow2":
         print(f"Generating 'highlow2' labels...")
-        f_df, features = generate_labels_highlow2(f_df, fs.get('config', {}))
+        f_df, features = generate_labels_highlow2(f_df, gen_config)
         print(f"Finished generating 'highlow2' labels. {len(features)} labels generated.")
     elif generator == "topbot":
-        column_name = App.config.get("topbot_column_name", "close")
+        column_name = gen_config.get("columns", "close")
 
         top_level_fracs = [0.01, 0.02, 0.03, 0.04, 0.05]
         bot_level_fracs = [-x for x in top_level_fracs]
 
         f_df, features = generate_labels_topbot(f_df, column_name, top_level_fracs, bot_level_fracs)
     elif generator == "topbot2":
-        f_df, features = generate_labels_topbot2(f_df, fs.get('config', {}))
+        f_df, features = generate_labels_topbot2(f_df, gen_config)
     else:
         print(f"Unknown feature generator {generator}")
         return
