@@ -317,11 +317,11 @@ def _convert_to_relative(fn_outs: list, rel_base, rel_func, percentage):
     size = len(fn_outs)
     for i, feature in enumerate(fn_outs):
         if not rel_base:
-            rel_out = fn_outs[i]  # No change
+            rel_out = fn_outs[i]  # No change requested
         elif (rel_base == "next" or rel_base == "last") and i == size - 1:
-            rel_out = fn_outs[i]  # No change
+            rel_out = fn_outs[i]  # No change because it is the last (no next - it is the base)
         elif (rel_base == "prev" or rel_base == "first") and i == 0:
-            rel_out = fn_outs[i]  # No change
+            rel_out = fn_outs[i]  # No change because it is the first (no previous - it is the base)
 
         elif rel_base == "next" or rel_base == "last":
             if rel_base == "next":
@@ -362,8 +362,6 @@ def _convert_to_relative(fn_outs: list, rel_base, rel_func, percentage):
 
         rel_out.name = fn_outs[i].name
         rel_outs.append(rel_out)
-
-    rel_outs.append(fn_outs[-1])  # Last window as added always unchanged
 
     return rel_outs
 
