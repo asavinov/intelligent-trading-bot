@@ -32,8 +32,8 @@
 
   // === TRAIN ===
 
-  "label_horizon": 0,
-  "train_length": 262800,
+  "label_horizon": 60,
+  "train_length": 525600,
 
   "train_features": [
     "close_SMA_1", "close_SMA_5", "close_SMA_10", "close_SMA_15", "close_SMA_60",
@@ -48,9 +48,9 @@
 
   "algorithms": [
     {
-      "name": "lc",  // Unique name to be used as a suffix
-      "algo": "lc",  // Altorithm type is mapped to train/predict functions
-      "params": {"penalty": "l2", "C": 1.0, "class_weight": null, "solver": "sag", "max_iter": 200},
+      "name": "lc",  // Unique name will be used as a column suffix
+      "algo": "lc",  // Altorithm type is used to choose the train/predict function
+      "params": {"penalty": "l2", "C": 1.0, "class_weight": null, "solver": "sag", "max_iter": 100},
       "train": {"is_scale": true, "length": 1000000, "shifts": []},
       "predict": {"length": 1440}
     }
@@ -85,12 +85,12 @@
       "signal_columns": ["buy_signal_column", "sell_signal_column"],
 
       "parameters": {
-        "buy_signal_threshold": 0.15,
-        "sell_signal_threshold": -0.15
+        "buy_signal_threshold": 0.05,
+        "sell_signal_threshold": -0.05
       },
       "notification": {
-        "buy_notify_threshold": 0.1,
-        "sell_notify_threshold": -0.1,
+        "buy_notify_threshold": 0.02,
+        "sell_notify_threshold": -0.02,
         "trade_icon_step": 0.05,
         "notify_frequency_minutes": 1,
         "notify_signal": true,
@@ -108,8 +108,8 @@
       "topn_to_store": 10,
 
       "grid": {
-          "buy_signal_threshold": [0.05, 0.1, 0.15, 0.2],
-          "sell_signal_threshold": [-0.05, -0.1, -0.15, -0.2]
+          "buy_signal_threshold": [0.02, 0.03, 0.04, 0.05, 0.1, 0.15],
+          "sell_signal_threshold": [-0.02, -0.03, -0.04, -0.05, -0.1, -0.15]
       }
     },
 

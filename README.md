@@ -61,7 +61,7 @@ If everything is configured then the following scripts have to be executed:
 * `python -m scripts.signals -c config.json`
 * `python -m scripts.train_signals -c config.json`
 
-Without a configuration file the scripts will use the default parameters which is useful for testing purposes and not intended for showing good performance. Use sample configuration files which are provided for each release like `config-sample-v0.5.0.json`.
+Without a configuration file the scripts will use the default parameters which is useful for testing purposes and not intended for showing good performance. Use sample configuration files which are provided for each release like `config-sample-v0.6.0.jsonc`.
 
 ## Downloading and merging source data
 
