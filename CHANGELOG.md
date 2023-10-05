@@ -1,10 +1,12 @@
 # Change Log
 
-* v0.6.dev
+* v0.6.0 (2023-10-05)
+  * add visualization of previous transactions
   * move algorithm configurations from source code to configuration file algorithms section
   * add a feature generator based on TA-lib technical analysis library
   * add configurations to feature generators instead of global parameters
   * add configuration parameters to label generators
+  * refactor aggregation logic
 
 * v0.5.0 (2023-03-26)
   * refactor and improve signal training (grid search) by taking into account the new rule model and external config file 
