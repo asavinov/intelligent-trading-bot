@@ -202,7 +202,8 @@ def merge_data_sources(data_sources: list):
     for ds in data_sources:
         # Note that timestamps must have the same semantics, for example, start of kline (and not end of kline)
         # If different data sets have different semantics for timestamps, then data must be shifted accordingly
-        df_out = df_out.join(ds["df"])
+        df_out = df_out.join(ds["df"], rsuffix="_" + ds['column_prefix'])
+
 
     return df_out
 
