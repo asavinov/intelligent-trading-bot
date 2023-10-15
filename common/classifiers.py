@@ -207,6 +207,10 @@ def train_nn(df_X, df_y, model_config: dict):
 
     n_features = X_train.shape[1]
     layers = params.get("layers")  # List of ints
+    if not layers:
+        layers = [n_features // 4]  # Default
+    if not isinstance(layers, list):
+        layers = [layers]
     learning_rate = params.get("learning_rate")
     n_epochs = params.get("n_epochs")
     batch_size = params.get("bs")
@@ -218,15 +222,10 @@ def train_nn(df_X, df_y, model_config: dict):
 
     reg_l2 = 0.001
 
-    model.add(Dense(n_features // 4, activation='sigmoid', input_dim=n_features))  # , kernel_regularizer=l2(reg_l2)
-    #model.add(Dropout(rate=0.5))
-    #model.add(Dense(n_features // 4, activation='sigmoid'))
-
-    #model.add(Dense(layers[0], activation='sigmoid', input_dim=n_features, kernel_regularizer=l2(reg_l2)))
-    #if len(layers) > 1:
-    #    model.add(Dense(layers[1], activation='sigmoid', kernel_regularizer=l2(reg_l2)))
-    #if len(layers) > 2:
-    #    model.add(Dense(layers[2], activation='sigmoid', kernel_regularizer=l2(reg_l2)))
+    for i, out_features in enumerate(layers):
+        in_features = n_features if i == 0 else layers[i-1]
+        model.add(Dense(out_features, activation='sigmoid', input_dim=in_features))  # , kernel_regularizer=l2(reg_l2)
+        #model.add(Dropout(rate=0.5))
 
     model.add(Dense(1, activation='sigmoid'))
 
