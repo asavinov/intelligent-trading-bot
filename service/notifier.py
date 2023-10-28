@@ -107,9 +107,9 @@ async def send_transaction_message(transaction):
     profit, profit_percent, profit_descr, profit_percent_descr = await generate_transaction_stats()
 
     if transaction.get("status") == "SELL":
-        message = "🟢⚡💰 *SOLD: "
+        message = "⚡💰 *SOLD: "
     elif transaction.get("status") == "BUY":
-        message = "🔴⚡💰 *BOUGHT: "
+        message = "⚡💰 *BOUGHT: "
     else:
         log.error(f"ERROR: Should not happen")
 
@@ -242,7 +242,7 @@ async def send_diagram(freq, nrows):
     :param freq: Aggregation interval 'H' - hour.
     :param nrows: Time range (x axis) of the diagram, for example, 1 week 168 hours, 2 weeks 336 hours
     """
-    model = App.config["signal_model"]
+    model = App.config["trade_signal_model"]
 
     buy_signal_threshold = model.get("parameters", {}).get("buy_signal_threshold", 0)
     sell_signal_threshold = model.get("parameters", {}).get("sell_signal_threshold", 0)

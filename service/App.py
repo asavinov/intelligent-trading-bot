@@ -147,7 +147,7 @@ class App:
 
         # ================================
         # === SIGNAL RULES FOR TRADING ===
-        "signal_model": {},
+        "trade_signal_model": {},
 
         "train_signal_model": {},
 

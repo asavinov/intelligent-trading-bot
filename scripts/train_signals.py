@@ -159,8 +159,8 @@ def main(config_file):
             if parameters.get("buy_signal_threshold_2") is not None:
                 parameters["sell_signal_threshold_2"] = -parameters["buy_signal_threshold_2"]
 
-        signal_model = App.config["signal_model"].copy()
-        signal_model["parameters"] = parameters
+        trade_signal_model = App.config["trade_signal_model"].copy()
+        trade_signal_model["parameters"] = parameters
 
         #
         # Do not aggregate but assume that we have already the aggregation results in the data
@@ -174,9 +174,9 @@ def main(config_file):
         # Apply signal rule and generate binary buy_signal_column/sell_signal_column
         #
         if parameters.get('rule_name') == 'two_dim_rule':
-            apply_rule_with_score_thresholds_2(df, score_column_names, signal_model)
+            apply_rule_with_score_thresholds_2(df, score_column_names, trade_signal_model)
         else:  # Default one dim rule
-            apply_rule_with_score_thresholds(df, score_column_names, signal_model)
+            apply_rule_with_score_thresholds(df, score_column_names, trade_signal_model)
 
         #
         # Simulate trade and compute performance using close price and two boolean signals
