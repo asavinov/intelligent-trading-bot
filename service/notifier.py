@@ -53,7 +53,10 @@ async def send_score_notification():
     band_dn = prev_band_no is not None and prev_band_no > band_no
     model["prev_band_no"] = band_no  # Store for the next time in the config section
 
-    new_to_time_interval = close_time.minute % band.get("frequency") == 0
+    if band.get("frequency"):
+        new_to_time_interval = close_time.minute % band.get("frequency") == 0
+    else:
+        new_to_time_interval = False
 
     # Send only if one of these conditions is true  or entered new time interval (current time)
     notification_is_needed = (
