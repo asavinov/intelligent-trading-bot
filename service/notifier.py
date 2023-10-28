@@ -102,98 +102,14 @@ async def send_score_notification():
         log.error(f"Error sending notification: {e}")
 
 
-async def send_score_message_OLD():
-    symbol = App.config["symbol"]
-
-    status = App.status
-    signal = App.signal
-    signal_side = signal.get("side")
-
-    close_price = signal.get('close_price')
-    trade_scores = signal.get('trade_score')
-    trade_score_primary = trade_scores[0]
-    trade_score_secondary = trade_scores[1] if len(trade_scores) > 1 else None
-    close_time = signal.get('close_time')
-
-    model = App.config["signal_model"]
-
-    buy_signal_threshold = model.get("parameters", {}).get("buy_signal_threshold", 0)
-    sell_signal_threshold = model.get("parameters", {}).get("sell_signal_threshold", 0)
-
-    buy_notify_threshold = model.get("notification", {}).get("buy_notify_threshold", 0)
-    sell_notify_threshold = model.get("notification", {}).get("sell_notify_threshold", 0)
-    trade_icon_step = model.get("notification", {}).get("trade_icon_step", 0.1)
-    notify_frequency_minutes = model.get("notification", {}).get("notify_frequency_minutes", 1)
-
-    # Crypto Currency Symbols: https://github.com/yonilevy/crypto-currency-symbols
-    if symbol == "BTCUSDT":
-        symbol_char = "₿"
-    elif symbol == "ETHUSDT":
-        symbol_char = "Ξ"
-    else:
-        symbol_char = symbol
-
-    # Message to be sent depends on the availability and direction of signal
-    message = ""
-    primary_score_str = f"{trade_score_primary:+.2f}"
-    secondary_score_str = f"{trade_score_secondary:+.2f}" if trade_score_secondary is not None else ''
-    if signal_side == "BUY":
-        score_steps = (np.abs(trade_score_primary - buy_signal_threshold) // trade_icon_step) if trade_icon_step else 0
-        message = "🟢"*int(score_steps+1) + f" *BUY: {symbol_char} {int(close_price):,} Score: {primary_score_str}* {secondary_score_str}"
-    elif signal_side == "SELL":
-        score_steps = (np.abs(trade_score_primary - sell_signal_threshold) // trade_icon_step) if trade_icon_step else 0
-        message = "🔴"*int(score_steps+1) + f" *SELL: {symbol_char} {int(close_price):,} Score: {primary_score_str}* {secondary_score_str}"
-    elif trade_score_primary >= 0:
-        message = f"{symbol_char} {int(close_price):,} 📈{primary_score_str} {secondary_score_str}"
-    else:
-        message = f"{symbol_char} {int(close_price):,} 📉{primary_score_str} {secondary_score_str}"
-    message = message.replace("+", "%2B")  # For Telegram to display plus sign
-
-    #
-    # To send or not to send (for example, to avoid to frequent insignificant messages)
-    #
-    if not message:
-        return
-
-    # Too small score according to notification ranges
-    if trade_score_primary < buy_notify_threshold and trade_score_primary > sell_notify_threshold:
-        return
-
-    # If corresponds to desired frequency then send. Otherwise, check other conditions
-    if (close_time.minute % notify_frequency_minutes) != 0:
-        # Within internal, send only signals and only one time
-        if signal_side not in ["BUY", "SELL"]:
-            return
-
-        # TODO: Check if it is first time
-        # Send if not already sent, that is, only if just crossed the buy/sell threshold
-        # We need to store somewhere the current band: lower, middle/None, high
-        pass
-
-    #
-    # Send notification
-    #
-    bot_token = App.config["telegram_bot_token"]
-    chat_id = App.config["telegram_chat_id"]
-
-    try:
-        url = 'https://api.telegram.org/bot' + bot_token + '/sendMessage?chat_id=' + chat_id + '&parse_mode=markdown&text=' + message
-        response = requests.get(url)
-        response_json = response.json()
-        if not response_json.get('ok'):
-            log.error(f"Error sending notification.")
-    except Exception as e:
-        log.error(f"Error sending notification: {e}")
-
-
 async def send_transaction_message(transaction):
 
     profit, profit_percent, profit_descr, profit_percent_descr = await generate_transaction_stats()
 
     if transaction.get("status") == "SELL":
-        message = "⚡💰 *SOLD: "
+        message = "🟢⚡💰 *SOLD: "
     elif transaction.get("status") == "BUY":
-        message = "⚡💰 *BOUGHT: "
+        message = "🔴⚡💰 *BOUGHT: "
     else:
         log.error(f"ERROR: Should not happen")
 

@@ -45,17 +45,17 @@ async def main_task():
     if "trade" in App.config.get("actions", {}):
         trade_task = App.loop.create_task(main_trader_task())
 
-    if App.config["score_notification_model"].get("score_notification"):
+    score_notification_model = App.config["score_notification_model"]
+    if score_notification_model.get("score_notification"):
         await send_score_notification()
 
-    notification_model = App.config.get("signal_model", {}).get("notification", {})
-
-    if notification_model.get("notify_transaction"):
+    trade_signal_model = App.config.get("trade_signal_model", {})
+    if trade_signal_model.get("simulate_trade"):
         transaction = await simulate_trade()
         if transaction:
             await send_transaction_message(transaction)
 
-    if notification_model.get("notify_diagram"):
+    if score_notification_model.get("notify_diagram"):
         close_time = App.signal.get('close_time')
         if close_time.hour == 0 and close_time.minute == 0:  # Every day
             await send_diagram(freq='H', nrows=2*7*24)  # 2 previous weeks with hourly aggregation

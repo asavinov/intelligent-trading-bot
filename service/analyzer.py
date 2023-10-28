@@ -407,11 +407,11 @@ class Analyzer:
         # 5.
         # Apply rule to last row
         #
-        signal_model = App.config['signal_model']
-        if signal_model.get('rule_name') == 'two_dim_rule':
-            apply_rule_with_score_thresholds_2(df, score_column_names, signal_model)
+        trade_signal_model = App.config['trade_signal_model']
+        if trade_signal_model.get('rule_name') == 'two_dim_rule':
+            apply_rule_with_score_thresholds_2(df, score_column_names, trade_signal_model)
         else:  # Default one dim rule
-            apply_rule_with_score_thresholds(df, score_column_names, signal_model)
+            apply_rule_with_score_thresholds(df, score_column_names, trade_signal_model)
 
         #
         # 6.
@@ -424,7 +424,7 @@ class Analyzer:
 
         trade_scores = [row[col] for col in score_column_names]
 
-        signal_column_names = signal_model.get("signal_columns")
+        signal_column_names = trade_signal_model.get("signal_columns")
         buy_signal_column = signal_column_names[0]
         sell_signal_column = signal_column_names[1]
         buy_signal = row[buy_signal_column]
