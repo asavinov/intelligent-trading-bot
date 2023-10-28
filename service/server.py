@@ -45,10 +45,10 @@ async def main_task():
     if "trade" in App.config.get("actions", {}):
         trade_task = App.loop.create_task(main_trader_task())
 
-    notification_model = App.config.get("signal_model", {}).get("notification", {})
+    if App.config["score_notification_model"].get("score_notification"):
+        await send_score_notification()
 
-    if notification_model.get("notify_signal"):
-        await send_signal_message()
+    notification_model = App.config.get("signal_model", {}).get("notification", {})
 
     if notification_model.get("notify_transaction"):
         transaction = await simulate_trade()

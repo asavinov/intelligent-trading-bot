@@ -19,12 +19,96 @@ logging.getLogger('matplotlib').setLevel(logging.WARNING)
 transaction_file = Path("transactions.txt")
 
 
-async def send_signal_message():
+async def send_score_notification():
+    symbol = App.config["symbol"]
+
+    signal = App.signal
+
+    close_price = signal.get('close_price')
+    close_time = signal.get('close_time')
+    trade_scores = signal.get('trade_score')
+    trade_score_primary = trade_scores[0]
+    trade_score_secondary = trade_scores[1] if len(trade_scores) > 1 else None
+
+    model = App.config["score_notification_model"]
+    # Determine the band for the current score
+    if trade_score_primary > 0:
+        bands = model.get("positive_bands", [])
+        band_no, band = next(((i, x) for i, x in enumerate(bands) if trade_score_primary <= x.get("edge")), (len(bands), None))
+    else:
+        bands = model.get("negative_bands", [])
+        band_no, band = next(((i, x) for i, x in enumerate(bands) if trade_score_primary >= x.get("edge")), (len(bands), None))
+
+    if not band:
+        log.error(f"Notification band for the score {trade_score_primary} not found. Check the list of bands in config. Ignore")
+        return
+
+    #
+    # To message or not to message depending on score value and time
+    #
+
+    # Determine if the band was changed since the last time
+    prev_band_no = model.get("prev_band_no")
+    band_up = prev_band_no is not None and prev_band_no < band_no
+    band_dn = prev_band_no is not None and prev_band_no > band_no
+    model["prev_band_no"] = band_no  # Store for the next time in the config section
+
+    new_to_time_interval = close_time.minute % band.get("frequency") == 0
+
+    # Send only if one of these conditions is true  or entered new time interval (current time)
+    notification_is_needed = (
+        (model.get("notify_band_up") and band_up) or  # entered a higher band (absolute score increased)
+        (model.get("notify_band_dn") and band_dn) or  # returned to a lower band (absolute score decreased)
+        new_to_time_interval  # new time interval is started like 10 minutes
+    )
+
+    if not notification_is_needed:
+        return  # Nothing important happened: within the same band and same time interval
+
+    #
+    # Build a message with parameters from the current band
+    #
+
+    # Crypto Currency Symbols: https://github.com/yonilevy/crypto-currency-symbols
+    if symbol == "BTCUSDT":
+        symbol_char = "₿"
+    elif symbol == "ETHUSDT":
+        symbol_char = "Ξ"
+    else:
+        symbol_char = symbol
+
+    primary_score_str = f"{trade_score_primary:+.2f}"
+    secondary_score_str = f"{trade_score_secondary:+.2f}" if trade_score_secondary is not None else ''
+
+    message = f"{band.get('sign', '')} {symbol_char} {int(close_price):,} Score: {primary_score_str} {secondary_score_str} {band.get('text', '')}"
+    if band.get("bold"):
+        message = "*" + message + "*"
+
+    message = message.replace("+", "%2B")  # For Telegram to display plus sign
+
+    #
+    # Send notification
+    #
+    bot_token = App.config["telegram_bot_token"]
+    chat_id = App.config["telegram_chat_id"]
+
+    try:
+        url = 'https://api.telegram.org/bot' + bot_token + '/sendMessage?chat_id=' + chat_id + '&parse_mode=markdown&text=' + message
+        response = requests.get(url)
+        response_json = response.json()
+        if not response_json.get('ok'):
+            log.error(f"Error sending notification.")
+    except Exception as e:
+        log.error(f"Error sending notification: {e}")
+
+
+async def send_score_message_OLD():
     symbol = App.config["symbol"]
 
     status = App.status
     signal = App.signal
     signal_side = signal.get("side")
+
     close_price = signal.get('close_price')
     trade_scores = signal.get('trade_score')
     trade_score_primary = trade_scores[0]
@@ -50,10 +134,6 @@ async def send_signal_message():
         symbol_char = symbol
 
     # Message to be sent depends on the availability and direction of signal
-    # Icons:
-    # DOWN: 📉, ⬇ ⬇️↘️🔽 🔴 (red), 🟥, ▼ (red), ↘ (red)
-    # UP:  📈, ⬆,  ⬆️ ↗️🔼 🟢 (green), 🟩, ▲ (green), ↗ (green)
-    # ✅ 🔹 (blue) 📌 🔸 (orange)
     message = ""
     primary_score_str = f"{trade_score_primary:+.2f}"
     secondary_score_str = f"{trade_score_secondary:+.2f}" if trade_score_secondary is not None else ''
@@ -164,8 +244,6 @@ async def simulate_trade():
     signal = App.signal
     signal_side = signal.get("side")
     close_price = signal.get('close_price')
-    buy_score = signal.get('buy_score')
-    sell_score = signal.get('sell_score')
     close_time = signal.get('close_time')
 
     # Previous transaction: BUY (we are currently selling) or SELL (we are currently buying)
@@ -468,4 +546,12 @@ def generate_chart(df, title, buy_signal_column, sell_signal_column, score_colum
 
 
 if __name__ == '__main__':
+    bands = [
+        {"edge": 0.01, "frequency": None},
+        {"edge": 0.02, "frequency": 10, "up_sign": "〉", "dn_sign": "<"},
+        {"edge": 0.03, "frequency": 5, "up_sign": "🟢〉〉", "emphasize": True, "up_text": "buy zone"}
+    ]
+
+    #score = 0.01
+    bi, band = next(((i, x) for i, x in enumerate(bands) if score <= x.get("edge")), (len(bands), None))
     pass
