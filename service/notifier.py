@@ -80,7 +80,14 @@ async def send_score_notification():
     else:
         symbol_char = symbol
 
-    primary_score_str = f"{trade_score_primary:+.2f}"
+    if band_up:
+        band_change_char = "↑"
+    elif band_dn:
+        band_change_char = "↓"
+    else:
+        band_change_char = ""
+
+    primary_score_str = f"{trade_score_primary:+.2f} {band_change_char} "
     secondary_score_str = f"{trade_score_secondary:+.2f}" if trade_score_secondary is not None else ''
 
     message = f"{band.get('sign', '')} {symbol_char} {int(close_price):,} Score: {primary_score_str} {secondary_score_str} {band.get('text', '')}"
