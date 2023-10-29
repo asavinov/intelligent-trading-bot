@@ -252,10 +252,10 @@ async def send_diagram(freq, nrows):
     :param freq: Aggregation interval 'H' - hour.
     :param nrows: Time range (x axis) of the diagram, for example, 1 week 168 hours, 2 weeks 336 hours
     """
-    model = App.config["trade_signal_model"]
+    trade_model = App.config["trade_model"]
 
-    buy_signal_threshold = model.get("parameters", {}).get("buy_signal_threshold", 0)
-    sell_signal_threshold = model.get("parameters", {}).get("sell_signal_threshold", 0)
+    buy_signal_threshold = trade_model.get("parameters", {}).get("buy_signal_threshold", 0)
+    sell_signal_threshold = trade_model.get("parameters", {}).get("sell_signal_threshold", 0)
 
     #
     # Prepare data to be visualized
