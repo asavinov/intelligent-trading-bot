@@ -1,0 +1,147 @@
+{
+    "api_key": "<binance-key>",
+    "api_secret": "<binance-secret>",
+
+    "telegram_bot_token": "<token>",
+    "telegram_chat_id": "<chat-id-to-publish-messages>",
+
+    "data_folder": "C:/DATA_ITB",
+
+    // === DOWNLOAD AND MERGE ===
+
+    "symbol": "BTCUSDT",
+
+    "data_sources": [
+        {"folder": "BTCUSDT", "file": "klines", "column_prefix": ""}
+    ],
+
+    // === GENERATE FEATURES ===
+
+    "feature_sets": [
+        {"column_prefix": "", "generator": "talib", "feature_prefix": "", "config":  {"columns": ["close"], "functions": ["SMA"], "windows": [1, 5, 10, 15, 60]}},
+        {"column_prefix": "", "generator": "talib", "feature_prefix": "", "config":  {"columns": ["close"], "functions": ["LINEARREG_SLOPE"], "windows": [5, 10, 15, 60]}},
+        {"column_prefix": "", "generator": "talib", "feature_prefix": "", "config":  {"columns": ["close"], "functions": ["STDDEV"], "windows": [5, 10, 15, 60]}}
+    ],
+
+    // === LABELS ===
+
+    "label_sets": [
+        {"column_prefix": "", "generator": "highlow2", "feature_prefix": "", "config":  {"columns": ["close", "high", "low"], "function": "high", "thresholds": [2.0], "tolerance": 0.2, "horizon": 120, "names": ["high_20"]}},
+        {"column_prefix": "", "generator": "highlow2", "feature_prefix": "", "config":  {"columns": ["close", "high", "low"], "function": "low", "thresholds": [2.0], "tolerance": 0.2, "horizon": 120, "names": ["low_20"]}}
+    ],
+
+    // === TRAIN ===
+
+    "label_horizon": 120,
+    "train_length": 525600,
+
+    "train_features": [
+        "close_SMA_1", "close_SMA_5", "close_SMA_10", "close_SMA_15", "close_SMA_60",
+        "close_LINEARREG_SLOPE_5", "close_LINEARREG_SLOPE_10", "close_LINEARREG_SLOPE_15", "close_LINEARREG_SLOPE_60",
+        "close_STDDEV_5", "close_STDDEV_10", "close_STDDEV_15", "close_STDDEV_60"
+    ],
+
+    "labels": [
+        "high_20",
+        "low_20"
+    ],
+
+    "algorithms": [
+        {
+            "name": "lc",  // Unique name will be used as a column suffix
+            "algo": "lc",  // Algorithm type is used to choose the train/predict function
+            "params": {"penalty": "l2", "C": 1.0, "class_weight": null, "solver": "sag", "max_iter": 100},
+            "train": {"is_scale": true, "length": 1000000, "shifts": []},
+            "predict": {"length": 1440}
+        }
+    ],
+
+    "features_horizon": 100, // Minimum data length for computing features (in online mode). Take it from feature generator parameters
+
+    // === AGGREGATION AND POST-PROCESSING ===
+
+    "score_aggregation_sets": [
+        {
+            "column": "trade_score", // Output column name: positive values - buy, negative values - sell
+
+            "buy_labels": ["high_20_lc"],
+            "sell_labels": ["low_20_lc"],
+
+            "parameters": {
+                "point_threshold": null, // Produce boolean column (optional)
+                "window": 3, // Aggregate in time
+                "combine": "difference", // "no_combine" (or empty), "relative", "difference"
+                "coefficient": 1.0,
+                "constant": 0.0
+          }
+        }
+    ],
+
+    // === TRADE SIGNAL MODEL ===
+
+    "trade_model": {
+        "rule_name": "",
+
+        "signal_columns": ["buy_signal_column", "sell_signal_column"],
+
+        "parameters": {
+            "buy_signal_threshold": 0.05,
+            "sell_signal_threshold": -0.05
+        },
+
+        "simulate_trade": true // Trade simulation and notifications
+    },
+
+    // === NOTIFICATIONS ===
+
+    "score_notification_model": { // When and what score notifications to send
+        "score_notification": true,
+
+        "notify_band_up": true,
+        "notify_band_dn": true,
+        "positive_bands": [
+            {"edge": 0.03, "frequency": null, "sign": "", "text": ""},
+            {"edge": 0.04, "frequency": 3, "sign": "〉", "text": "weak"},
+            {"edge": 0.05, "frequency": 2, "sign": "〉〉", "bold": false, "text": "strong"},
+            {"edge": 1.0, "frequency": 1, "sign": "〉〉〉📈", "bold": true, "text": "BUY ZONE"}
+        ],
+        "negative_bands": [
+            {"edge": -0.03, "frequency": null, "sign": "", "text": ""},
+            {"edge": -0.04, "frequency": 3, "sign": "〈", "text": "weak"},
+            {"edge": -0.05, "frequency": 2, "sign": "〈〈", "bold": false, "text": "strong"},
+            {"edge": -1.0, "frequency": 1, "sign": "〈〈〈📉", "bold": true, "text": "SELL ZONE"}
+        ],
+
+        "notify_diagram": false
+    },
+
+    // === FINDING BEST TRADE PARAMETERS ===
+
+    "train_signal_model": {
+        "data_start": 0,
+        "data_end": null,
+
+        "buy_sell_equal": false,
+        "direction": "long",
+        "topn_to_store": 10,
+
+        "grid": {
+            "buy_signal_threshold": [0.02, 0.03, 0.04, 0.05, 0.1, 0.15],
+            "sell_signal_threshold": [-0.02, -0.03, -0.04, -0.05, -0.1, -0.15]
+        }
+    },
+
+    "rolling_predict": {
+        // int, null or string with date which will be resolved using time_column and removed from source data
+        "data_start": "2020-02-01 00:00:00",
+        "data_end": null,
+
+        // One of these 3 parameters can be null and will be computed from the other two
+        "prediction_start": null,  // First row for starting predictions, for example, "2022-02-01 00:00:00"
+        "prediction_size": 10080, // How many predictions, for example, 1 week 7*1440
+        "prediction_steps": 4, // How many train-prediction steps
+
+        "use_multiprocessing": false,
+        "max_workers": 8
+    }
+}
