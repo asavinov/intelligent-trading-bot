@@ -246,7 +246,7 @@ def apply_rule_with_slope_thresholds(df, model, buy_score_column, sell_score_col
 # Trade performance calculation
 #
 
-def simulated_trade_performance(df, sell_signal_column, buy_signal_column, price_column):
+def simulated_trade_performance(df, buy_signal_column, sell_signal_column, price_column):
     """
     The function simulates trades over the time by buying and selling the asset
     according to the specified buy/sell signals and price. Essentially, it assumes
@@ -287,7 +287,7 @@ def simulated_trade_performance(df, sell_signal_column, buy_signal_column, price
                 short_transactions += 1
                 if profit > 0:
                     short_profitable += 1
-                longs.append((index, is_buy_mode, price, profit, profit_percent))  # Bought
+                shorts.append((index, previous_price, price, profit, profit_percent))  # Bought
                 is_buy_mode = False
         else:
             # Check if maximum price
@@ -300,7 +300,7 @@ def simulated_trade_performance(df, sell_signal_column, buy_signal_column, price
                 long_transactions += 1
                 if profit > 0:
                     long_profitable += 1
-                shorts.append((index, is_buy_mode, price, profit, profit_percent))  # Sold
+                longs.append((index, previous_price, price, profit, profit_percent))  # Sold
                 is_buy_mode = True
 
     long_performance = dict(  # Performance of buy at low price and sell at high price
@@ -308,14 +308,14 @@ def simulated_trade_performance(df, sell_signal_column, buy_signal_column, price
         profit_percent=long_profit_percent,
         transaction_no=long_transactions,
         profitable=long_profitable / long_transactions if long_transactions else 0.0,
-        transactions=longs,  # Buy signal list
+        transactions=longs,  # Sell transactions
     )
     short_performance = dict(  # Performance of sell at high price and buy at low price
         profit=short_profit,
         profit_percent=short_profit_percent,
         transaction_no=short_transactions,
         profitable=short_profitable / short_transactions if short_transactions else 0.0,
-        transactions=shorts,  # Sell signal list
+        transactions=shorts,  # Buy transactions
     )
 
     profit = long_profit + short_profit
@@ -545,4 +545,15 @@ def generate_signals(df, models: dict):
 
 
 if __name__ == '__main__':
+    from pathlib import Path
+    import numpy as np
+    import pandas as pd
+
+    df = pd.read_csv(r"C:\DATA_ITB\BTCUSDT\signals.csv", parse_dates=["timestamp"], nrows=100_000_000)
+
+    df = df.dropna(subset=["close"])
+
+    performance, long_performance, short_performance = \
+        simulated_trade_performance(df, 'sell_signal_column', 'buy_signal_column', 'close')
+
     pass

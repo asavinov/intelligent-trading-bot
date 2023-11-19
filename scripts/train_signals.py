@@ -183,7 +183,7 @@ def main(config_file):
         # Add a pair of two dicts: performance dict and model parameters dict
         #
         performance, long_performance, short_performance = \
-            simulated_trade_performance(df, 'sell_signal_column', 'buy_signal_column', 'close')
+            simulated_trade_performance(df, 'buy_signal_column', 'sell_signal_column', 'close')
 
         # Remove some items. Remove lists of transactions which are not needed
         long_performance.pop('transactions', None)

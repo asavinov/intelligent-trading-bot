@@ -122,7 +122,7 @@ def main(config_file):
     signal_column_names = trade_model.get("signal_columns")
 
     performance, long_performance, short_performance = \
-        simulated_trade_performance(df, signal_column_names[1], signal_column_names[0], 'close')
+        simulated_trade_performance(df, signal_column_names[0], signal_column_names[1], 'close')
 
     #
     # Convert to columns: longs, shorts, signal, profit (both short and long)
