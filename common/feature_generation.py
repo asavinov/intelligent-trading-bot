@@ -106,7 +106,7 @@ def generate_features_talib(df, config: dict, last_rows: int = 0):
     Apply TA functions from talib according to the specified configuration parameters.
 
     config = {
-        "parameters": {"relative": True, "realtive_to_last": True, "percentage": True},
+        "parameters": {"relative": True, "relative_to_last": True, "percentage": True},
         "columns": ["close"],
         "functions": ["SMA"],
         "windows": [2, 3],  # If numbers, then to argument timeperiod. If dict, then

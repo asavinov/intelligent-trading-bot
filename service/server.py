@@ -10,7 +10,9 @@ from service.App import *
 from common.utils import *
 from service.collector import *
 from service.analyzer import *
-from service.notifier import *
+from service.notifier_trades import *
+from service.notifier_scores import *
+from service.notifier_diagram import *
 from service.trader import *
 
 import logging
@@ -33,21 +35,20 @@ async def main_task():
     #if last_kline_ts + 60_000 != startTime:
     #    log.error(f"Problem during analysis. Last kline end ts {last_kline_ts + 60_000} not equal to start of current interval {startTime}.")
 
-    # Generate signals (derived features, predictions)
+    # Apply all transformations: merge, features, prediction scores, signals
     try:
         analyze_task = await App.loop.run_in_executor(None, App.analyzer.analyze)
     except Exception as e:
         print(f"Error while analyzing data: {e}")
         return
-    # Signal is stored in App.signal
-
-    # Now we have a list of signals and can make trade decisions using trading logic and trade
-    if "trade" in App.config.get("actions", {}):
-        trade_task = App.loop.create_task(main_trader_task())
 
     score_notification_model = App.config["score_notification_model"]
     if score_notification_model.get("score_notification"):
         await send_score_notification()
+
+    diagram_notification_model = App.config["diagram_notification_model"]
+    if diagram_notification_model.get("diagram_notification"):
+        await send_diagram()
 
     trade_model = App.config.get("trade_model", {})
     if trade_model.get("simulate_trade"):
@@ -55,12 +56,9 @@ async def main_task():
         if transaction:
             await send_transaction_message(transaction)
 
-    if score_notification_model.get("notify_diagram"):
-        close_time = App.signal.get('close_time')
-        if close_time.hour == 0 and close_time.minute == 0:  # Every day
-            await send_diagram(freq='H', nrows=2*7*24)  # 2 previous weeks with hourly aggregation
-        elif close_time.minute == 0:  # Every hour
-            pass
+    # Now we have a list of signals and can make trade decisions using trading logic and trade
+    if "trade" in App.config.get("actions", {}):
+        trade_task = App.loop.create_task(main_trader_task())
 
     return
 

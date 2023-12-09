@@ -39,7 +39,7 @@ class App:
     trade_state_status = 0  # Something wrong with our trading logic (wrong use, inconsistent state etc. what we cannot recover)
 
     signal = None  # Latest signal "BUY", "SELL"
-    feature_df = None  # Data from the latest analysis
+    df = None  # Data from the latest analysis
 
     # Trade status
     transaction = None
@@ -140,10 +140,16 @@ class App:
         # Minimum history length required to compute derived features
         "features_horizon": 10,
 
-        # =======================================
-        # === AGGREGATION AND POST-PROCESSING ===
+        # ===============
+        # === SIGNALS ===
 
-        "score_aggregation_sets": [],
+        "signal_sets": [],
+
+        # =====================
+        # === NOTIFICATIONS ===
+
+        "score_notification_model": {},
+        "diagram_notification_model": {},
 
         # ================================
         # === SIGNAL RULES FOR TRADING ===

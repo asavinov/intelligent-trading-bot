@@ -61,10 +61,9 @@ class Analyzer:
             model_path = data_path / model_path
         model_path = model_path.resolve()
 
-        score_aggregation_sets = App.config['score_aggregation_sets']
-        all_labels = list(itertools.chain.from_iterable([x.get("buy_labels") + x.get("sell_labels") for x in score_aggregation_sets]))
-
-        self.models = {label: load_model_pair(model_path, label) for label in all_labels}
+        labels = App.config["labels"]
+        algorithms = App.config["algorithms"]
+        self.models = load_models(model_path, labels, algorithms)
 
         # Load latest transaction and (simulated) trade state
         App.transaction = load_last_transaction()
@@ -304,27 +303,22 @@ class Analyzer:
         # Generate all necessary derived features (NaNs are possible due to short history)
         #
 
-        # We want to generate features only for the last rows (for performance reasons)
-        # Therefore, determine how many last rows we will actually need
-        score_aggregation_sets = App.config['score_aggregation_sets']
-        all_windows = [sa_set.get("parameters", {}).get("window", 0) for sa_set in score_aggregation_sets]
-        last_rows = max(all_windows) + 1
+        # We want to generate features only for a few last rows (for performance reasons)
+        last_rows = App.config["features_last_rows"]
 
         feature_sets = App.config.get("feature_sets", [])
         if not feature_sets:
             log.error(f"ERROR: no feature sets defined. Nothing to process.")
             return
-            # By default, we generate standard kline features
-            #feature_sets = [{"column_prefix": "", "generator": "itblib", "feature_prefix": ""}]
 
         # Apply all feature generators to the data frame which get accordingly new derived columns
-        # The feature parameters will be taken from App.config (depending on generator)
+        feature_columns = []
         for fs in feature_sets:
-            df, _ = generate_feature_set(df, fs, last_rows=last_rows)
+            df, feats = generate_feature_set(df, fs, last_rows=last_rows)
+            feature_columns.extend(feats)
 
-        App.feature_df = df  # These data might be needed later on, for example, visualization
-
-        df = df.iloc[-last_rows:]  # For signal generation, only several last rows
+        # Shorten the data frame. Only several last rows will be needed and not the whole data context
+        df = df.iloc[-last_rows:]
 
         #
         # 3.
@@ -372,87 +366,28 @@ class Analyzer:
 
         #
         # 4.
-        # Aggregate and post-process
+        # Signals
         #
-        score_aggregation_sets = App.config['score_aggregation_sets']
-        # Temporary (post-processed) columns for each aggregation set
-        buy_column = 'aggregated_buy_score'
-        sell_column = 'aggregated_sell_score'
-        score_column_names = []
-        for i, sa_set in enumerate(score_aggregation_sets):
+        signal_sets = App.config.get("signal_sets", [])
+        if not signal_sets:
+            log.error(f"ERROR: no signal sets defined. Nothing to process.")
+            return
 
-            buy_labels = sa_set.get("buy_labels")
-            sell_labels = sa_set.get("sell_labels")
-            if set(buy_labels + sell_labels) - set(df.columns):
-                missing_labels = list(set(buy_labels + sell_labels) - set(df.columns))
-                print(f"ERROR: Some buy/sell labels from config are not present in the input data. Missing labels: {missing_labels}")
-                return
+        # Apply all feature generators to the data frame which get accordingly new derived columns
+        signal_columns = []
+        for fs in signal_sets:
+            df, feats = generate_feature_set(df, fs, last_rows=last_rows)
+            signal_columns.extend(feats)
 
-            parameters = sa_set.get("parameters", {})
-            # Aggregate predictions of different algorithms separately for buy and sell
-            aggregate_scores(df, parameters, buy_column, buy_labels)  # Output is buy column
-            aggregate_scores(df, parameters, sell_column, sell_labels)  # Output is sell column
-
-            score_column = sa_set.get("column")
-            score_column_names.append(score_column)
-
-            # Here we want to take into account relative values of buy and sell scores
-            # Mutually adjust two independent scores with opposite buy/sell semantics
-            combine_scores(df, parameters, buy_column, sell_column, score_column)
-        # Delete temporary columns
-        del df[buy_column]
-        del df[sell_column]
-
-        #
-        # 5.
-        # Apply rule to last row
-        #
-        trade_model = App.config['trade_model']
-        if trade_model.get('rule_name') == 'two_dim_rule':
-            apply_rule_with_score_thresholds_2(df, score_column_names, trade_model)
-        else:  # Default one dim rule
-            apply_rule_with_score_thresholds(df, score_column_names, trade_model)
-
-        #
-        # 6.
-        # Collect results and create signal object
-        #
+        # Log signal values
         row = df.iloc[-1]  # Last row stores the latest values we need
+        scores = ",".join([f"{x}={row[x]:+.3f}" if isinstance(x, float) else str(x) for x in signal_columns])
+        log.info(f"Analyze finished. Close: {int(row['close']):,} Signals: {scores}")
 
-        close_price = row["close"]
-        close_time = row.name+timedelta(minutes=1)  # Add 1 minute because timestamp is start of the interval
+        # It is the main result of this method: all source data, features, scores and signals
+        App.df = df
 
-        trade_scores = [row[col] for col in score_column_names]
-
-        signal_column_names = trade_model.get("signal_columns")
-        buy_signal_column = signal_column_names[0]
-        sell_signal_column = signal_column_names[1]
-        buy_signal = row[buy_signal_column]
-        sell_signal = row[sell_signal_column]
-
-        signal = dict(
-            side="",
-            trade_score=trade_scores,
-            buy_signal=buy_signal, sell_signal=sell_signal,
-            close_price=close_price, close_time=close_time
-        )
-
-        if any(x is None or not np.isfinite(x) for x in trade_scores):
-            log.warning(f"Null or infinite/nan score found: {trade_scores=}. Score ignored. No signal.")
-            pass  # Something is wrong with the computation results
-        elif buy_signal and sell_signal:  # Both signals are true - should not happen
-            signal["side"] = "BOTH"
-        elif buy_signal:
-            signal["side"] = "BUY"
-        elif sell_signal:
-            signal["side"] = "SELL"
-        else:
-            signal["side"] = ""
-
-        App.signal = signal
-
-        scores = [f"{x:+.3f}" for x in trade_scores]
-        log.info(f"Analyze finished. Signal: {signal['side']}. Trade scores: {scores}. Price: {int(close_price):,}")
+        return df
 
 
 if __name__ == "__main__":

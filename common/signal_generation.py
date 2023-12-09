@@ -1,6 +1,6 @@
 import os
 from datetime import datetime, timezone, timedelta
-from typing import Union, List
+from typing import Union, List, Tuple
 import json
 
 import numpy as np
@@ -17,6 +17,54 @@ given parameters, and 2) finding optimal parameters of rules (currently via grid
 """
 
 
+def generate_smoothen_scores(df, config: dict):
+    """
+    Smoothen several columns and rows. Used for smoothing scores.
+
+    The following operations are applied:
+        - find average of the specified input columns (row-wise)
+        - find moving average with the specified window
+        - apply threshold to source buy/sell column(s) according to threshold parameter(s) by producing a boolean column
+
+    Notes:
+        - Input point-wise scores in buy and sell columns are always positive
+    """
+
+    columns = config.get('columns')
+    if not columns:
+        raise ValueError(f"The 'columns' parameter must be a non-empty string. {type(columns)}")
+    elif isinstance(columns, str):
+        columns = [columns]
+
+    # TODO: check that all columns exist
+    #if columns not in df.columns:
+    #    raise ValueError(f"{columns} do not exist  in the input data. Existing columns: {df.columns.to_list()}")
+
+    # Average all buy and sell columns
+    out_column = df[columns].mean(skipna=True, axis=1)
+
+    # Apply thresholds (if specified) and binarize the score
+    point_threshold = config.get("point_threshold")
+    if point_threshold:
+        out_column = out_column >= point_threshold
+
+    # Moving average
+    window = config.get("window")
+    if isinstance(window, int):
+        out_column = out_column.rolling(window, min_periods=window // 2).mean()
+    elif isinstance(window, float):
+        out_column = out_column.ewm(span=window, min_periods=window // 2, adjust=False).mean()
+
+    names = config.get('names')
+    if not isinstance(names, str):
+        raise ValueError(f"'names' parameter must be a non-empty string. {type(names)}")
+
+    df[names] = out_column
+
+    return df, [names]
+
+
+# TODO: DEPRECATED, REMOVE, REPLACE BY generator_smoothen_signals
 def aggregate_scores(df, model, score_column_out: str, score_columns: Union[List[str], str]):
     """
     Add two signal numeric (buy and sell) columns by processing a list of buy and sell point-wise predictions.
@@ -62,6 +110,43 @@ def aggregate_scores(df, model, score_column_out: str, score_columns: Union[List
     return score_column
 
 
+def generate_combine_scores(df, config: dict):
+    """
+    ML algorithms predict score which is always positive and typically within [0,1].
+    One score for price growth and one score for price fall. This function combines pairs
+    of such scores and produce one score within [-1,+1]. Positive values mean growth
+    and negative values mean fall of price.
+    """
+    columns = config.get('columns')
+    if not columns:
+        raise ValueError(f"The 'columns' parameter must be a non-empty string. {type(columns)}")
+    elif not isinstance(columns, list) or len(columns) != 2:
+        raise ValueError(f"'columns' parameter must be a list with buy column name and sell column name. {type(columns)}")
+
+    up_column = columns[0]
+    down_column = columns[1]
+
+    out_column = config.get('names')
+
+    if config.get("combine") == "relative":
+        combine_scores_relative(df, up_column, down_column, out_column)
+    elif config.get("combine") == "difference":
+        combine_scores_difference(df, up_column, down_column, out_column)
+    else:
+        # If buy score is greater than sell score then positive buy, otherwise negative sell
+        df[out_column] = df[[up_column, down_column]].apply(lambda x: x[0] if x[0] >= x[1] else -x[1], raw=True, axis=1)
+
+    # Scale the score distribution to make it symmetric or normalize
+    # Always apply the transformation to buy score. It might be in [0,1] or [-1,+1] depending on combine parameter
+    if config.get("coefficient"):
+        df[out_column] = df[out_column] * config.get("coefficient")
+    if config.get("constant"):
+        df[out_column] = df[out_column] + config.get("constant")
+
+    return df, [out_column]
+
+
+# TODO: DEPRECATED, REMOVE, REPLACE BY generator_smoothen_signals
 def combine_scores(df, model, buy_score_column, sell_score_column, trade_score_column):
     """
     Mutually adjust two independent scores with opposite semantics.
@@ -159,6 +244,32 @@ def compute_score_slope(df, model, buy_score_columns_in, sell_score_columns_in):
 # Signal rules
 #
 
+def generate_threshold_rule(df, config):
+    """
+    Apply rules based on thresholds and generate trade signal buy, sell or do nothing.
+
+    Returns signals in two pre-defined columns: 'buy_signal_column' and 'sell_signal_column'
+    """
+    parameters = config.get("parameters", {})
+
+    columns = config.get("columns")
+    if not columns:
+        raise ValueError(f"The 'columns' parameter must be a non-empty string. {type(columns)}")
+    elif isinstance(columns, list):
+        columns = [columns]
+
+    buy_signal_column = config.get("names")[0]
+    sell_signal_column = config.get("names")[1]
+
+    df[buy_signal_column] = \
+        (df[columns] >= parameters.get("buy_signal_threshold"))
+    df[sell_signal_column] = \
+        (df[columns] <= parameters.get("sell_signal_threshold"))
+
+    return df, [buy_signal_column, sell_signal_column]
+
+
+# TODO: DEPRECATED TO BE REMOVED
 def apply_rule_with_score_thresholds(df, score_column_names, model):
     """
     Apply rules based on thresholds and generate trade signal buy, sell or do nothing.
@@ -178,6 +289,38 @@ def apply_rule_with_score_thresholds(df, score_column_names, model):
         (df[score_column] <= parameters.get("sell_signal_threshold"))
 
 
+def generate_threshold_rule2(df, config):
+    """
+    Assume using difference combination with negative sell scores
+    """
+    parameters = config.get("parameters", {})
+
+    columns = config.get("columns")
+    if not columns:
+        raise ValueError(f"The 'columns' parameter must be a non-empty string. {type(columns)}")
+    elif not isinstance(columns, list) or len(columns) != 2:
+        raise ValueError(f"'columns' parameter must be a list with two column names. {type(columns)}")
+
+    score_column = columns[0]
+    score_column_2 = columns[1]
+
+    buy_signal_column = config.get("names")[0]
+    sell_signal_column = config.get("names")[1]
+
+    # Both buy scores are greater than the corresponding thresholds
+    df[buy_signal_column] = \
+        (df[score_column] >= parameters.get("buy_signal_threshold")) & \
+        (df[score_column_2] >= parameters.get("buy_signal_threshold_2"))
+
+    # Both sell scores are smaller than the corresponding thresholds
+    df[sell_signal_column] = \
+        (df[score_column] <= parameters.get("sell_signal_threshold")) & \
+        (df[score_column_2] <= parameters.get("sell_signal_threshold_2"))
+
+    return df, [buy_signal_column, sell_signal_column]
+
+
+# TODO: DEPRECATED TO BE REMOVED
 def apply_rule_with_score_thresholds_2(df, score_column_names, model):
     """
     Assume using difference combination with negative sell scores

@@ -70,11 +70,11 @@ def load_model_pair(model_path, score_column_name: str):
     return (model, scaler)
 
 
-def load_models(model_path, labels: list, train_features: list, algorithms: list):
-    """Load all model pairs for all combinations of the model parameters and return as a dict."""
+def load_models(model_path, labels: list, algorithms: list):
+    """Load all model pairs for all combinations of labels and algorithms and return as a dict."""
     models = {}
-    for predicted_label in itertools.product(labels, train_features, algorithms):
-        score_column_name = predicted_label[0] + label_algo_separator + predicted_label[1][0] + label_algo_separator + predicted_label[2]
+    for label_algorithm in itertools.product(labels, algorithms):
+        score_column_name = label_algorithm[0] + label_algo_separator + label_algorithm[1]["name"]
         model_pair = load_model_pair(model_path, score_column_name)
         models[score_column_name] = model_pair
     return models

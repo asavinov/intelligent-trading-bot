@@ -7,10 +7,12 @@ import pandas as pd
 
 from service.App import *
 from common.feature_generation import *
-from common.label_generation_highlow import generate_labels_highlow
-from common.label_generation_highlow import generate_labels_highlow2
-from common.label_generation_topbot import generate_labels_topbot
-from common.label_generation_topbot import generate_labels_topbot2
+from common.label_generation_highlow import generate_labels_highlow, generate_labels_highlow2
+from common.label_generation_topbot import generate_labels_topbot, generate_labels_topbot2
+from common.signal_generation import (
+    generate_smoothen_scores, generate_combine_scores,
+    generate_threshold_rule, generate_threshold_rule2
+)
 
 #
 # Parameters
@@ -157,6 +159,17 @@ def generate_feature_set(df: pd.DataFrame, fs: dict, last_rows: int) -> Tuple[pd
         f_df, features = generate_labels_topbot(f_df, column_name, top_level_fracs, bot_level_fracs)
     elif generator == "topbot2":
         f_df, features = generate_labels_topbot2(f_df, gen_config)
+
+    # Signals
+    elif generator == "smoothen":
+        f_df, features = generate_smoothen_scores(f_df, gen_config)
+    elif generator == "combine":
+        f_df, features = generate_combine_scores(f_df, gen_config)
+    elif generator == "threshold_rule":
+        f_df, features = generate_threshold_rule(f_df, gen_config)
+    elif generator == "threshold_rule2":
+        f_df, features = generate_threshold_rule2(f_df, gen_config)
+
     else:
         print(f"Unknown feature generator {generator}")
         return

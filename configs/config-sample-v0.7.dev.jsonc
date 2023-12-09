@@ -56,9 +56,33 @@
         }
     ],
 
-    "features_horizon": 100, // Minimum data length for computing features (in online mode). Take it from feature generator parameters
+    "features_horizon": 100, // Online/stream: Minimum data length for computing features. Take it from feature generator parameters
+    "features_last_rows": 5, // Online/stream: Last values which are really needed and have to be computed. All older values are not needed
 
-    // === AGGREGATION AND POST-PROCESSING ===
+    // === SIGNALS ===
+    "signal_sets": [
+        {
+            // Combine two unsigned scores into one signed score
+            "generator": "combine", "config": {
+            "columns": ["high_20_lc", "low_20_lc"],  // 2 columns: with grow score and fall score
+            "names": "trade_score",  // Output column name: positive values - buy, negative values - sell
+            "parameters": {
+                "point_threshold": null, // Produce boolean column (optional)
+                "window": 3, // Aggregate in time
+                "combine": "difference", // "no_combine" (or empty), "relative", "difference"
+                "coefficient": 1.0, "constant": 0.0  // Normalize
+            }
+        }},
+        {
+            // Decide whether to buy or sell depending on the score value
+            "generator": "threshold_rule", "config": {
+            "columns": "trade_score",
+            "names": ["buy_signal_column", "sell_signal_column"],  // Output boolean columns
+            "parameters": {"buy_signal_threshold": 0.05, "sell_signal_threshold": -0.05}
+        }}
+    ],
+
+    // === (DEPRECATED) AGGREGATION AND POST-PROCESSING ===
 
     "score_aggregation_sets": [
         {
@@ -77,25 +101,12 @@
         }
     ],
 
-    // === TRADE SIGNAL MODEL ===
-
-    "trade_model": {
-        "rule_name": "",
-
-        "signal_columns": ["buy_signal_column", "sell_signal_column"],
-
-        "parameters": {
-            "buy_signal_threshold": 0.05,
-            "sell_signal_threshold": -0.05
-        },
-
-        "simulate_trade": true // Trade simulation and notifications
-    },
-
     // === NOTIFICATIONS ===
 
     "score_notification_model": { // When and what score notifications to send
         "score_notification": true,
+
+        "score_column_names": ["trade_score"],
 
         "notify_band_up": true,
         "notify_band_dn": true,
@@ -110,9 +121,25 @@
             {"edge": -0.04, "frequency": 3, "sign": "〈", "text": "weak"},
             {"edge": -0.05, "frequency": 2, "sign": "〈〈", "bold": false, "text": "strong"},
             {"edge": -1.0, "frequency": 1, "sign": "〈〈〈📉", "bold": true, "text": "SELL ZONE"}
-        ],
+        ]
+    },
 
-        "notify_diagram": false
+    "diagram_notification_model": {
+        // Regularly sending historic data with prices, scores and buy-sell trade decisions
+        "diagram_notification": true,
+
+        // # 1 previous week with hourly aggregation
+        "freq": "H",
+        "nrows": 168
+    },
+
+    // === TRADE MODEL ===
+
+    "trade_model": {
+        "simulate_trade": true, // Trade simulation with notifications
+
+        "buy_signal_column":"buy_signal_column",
+        "sell_signal_column": "sell_signal_column"
     },
 
     // === FINDING BEST TRADE PARAMETERS ===
