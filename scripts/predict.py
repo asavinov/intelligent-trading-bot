@@ -91,11 +91,9 @@ def main(config_file):
         model_path = data_path / model_path
     model_path = model_path.resolve()
 
-    score_aggregation_sets = App.config['score_aggregation_sets']
-    all_labels = list(
-        itertools.chain.from_iterable([x.get("buy_labels") + x.get("sell_labels") for x in score_aggregation_sets]))
-
-    models = {label: load_model_pair(model_path, label) for label in all_labels}
+    labels = App.config["labels"]
+    algorithms = App.config["algorithms"]
+    models = load_models(model_path, labels, algorithms)
 
     #
     # Loop over score columns with models and apply them to features

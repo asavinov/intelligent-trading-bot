@@ -64,52 +64,6 @@ def generate_smoothen_scores(df, config: dict):
     return df, [names]
 
 
-# TODO: DEPRECATED, REMOVE, REPLACE BY generator_smoothen_signals
-def aggregate_scores(df, model, score_column_out: str, score_columns: Union[List[str], str]):
-    """
-    Add two signal numeric (buy and sell) columns by processing a list of buy and sell point-wise predictions.
-
-    The following operations are applied:
-        - find average among all buy and sell columns, respectively
-        - find moving average along each individual buy/sell column or/and the two final columns according to window(s)
-        - apply threshold to source buy/sell column(s) according to threshold parameter(s) by producing a boolean column
-
-    Notes:
-        - Input point-wise scores in buy and sell columns are always positive
-    """
-    if not model:
-        raise ValueError(f"Configuration must specify 'score_aggregation' parameters")
-
-    point_threshold = model.get("point_threshold")
-    window = model.get("window")
-
-    if isinstance(score_columns, str):
-        score_columns = [score_columns]
-
-    #
-    # Average all buy and sell columns
-    #
-    score_column = df[score_columns].mean(skipna=True, axis=1)
-
-    #
-    # Apply thresholds (if specified) and binarize the score
-    #
-    if point_threshold:
-        score_column = score_column >= point_threshold
-
-    #
-    # Moving average
-    #
-    if isinstance(window, int):
-        score_column = score_column.rolling(window, min_periods=window // 2).mean()
-    elif isinstance(window, float):
-        score_column = score_column.ewm(span=window, min_periods=window // 2, adjust=False).mean()
-
-    df[score_column_out] = score_column
-
-    return score_column
-
-
 def generate_combine_scores(df, config: dict):
     """
     ML algorithms predict score which is always positive and typically within [0,1].
@@ -144,32 +98,6 @@ def generate_combine_scores(df, config: dict):
         df[out_column] = df[out_column] + config.get("constant")
 
     return df, [out_column]
-
-
-# TODO: DEPRECATED, REMOVE, REPLACE BY generator_smoothen_signals
-def combine_scores(df, model, buy_score_column, sell_score_column, trade_score_column):
-    """
-    Mutually adjust two independent scores with opposite semantics.
-    The both input scores are in [0,1] range as expected from ML classification algorithms.
-    But they have opposite semantics. This function combines them with the goal
-    to produce only one score in [-1,+1] where negative values mean sell and
-    positive values mean buy. The result is stored in the same input buy column
-    while the sell column is redundant (and should be removed in future as unnecessary).
-    """
-    if model.get("combine") == "relative":
-        combine_scores_relative(df, buy_score_column, sell_score_column, trade_score_column)
-    elif model.get("combine") == "difference":
-        combine_scores_difference(df, buy_score_column, sell_score_column, trade_score_column)
-    else:
-        # If buy score is greater than sell score then positive buy, otherwise negative sell
-        df[trade_score_column] = df[[buy_score_column, sell_score_column]].apply(lambda x: x[0] if x[0] >= x[1] else -x[1], raw=True, axis=1)
-
-    # Scale the score distribution to make it symmetric or normalize
-    # Always apply the transformation to buy score. It might be in [0,1] or [-1,+1] depending on combine parameter
-    if model.get("coefficient"):
-        df[trade_score_column] = df[trade_score_column] * model.get("coefficient")
-    if model.get("constant"):
-        df[trade_score_column] = df[trade_score_column] + model.get("constant")
 
 
 def combine_scores_relative(df, buy_column, sell_column, trade_column_out):
