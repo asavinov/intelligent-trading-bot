@@ -3,7 +3,7 @@ import numpy.testing as npt
 
 from common.utils import *
 from common.utils import add_area_ratio
-from common.signal_generation import *
+from common.gen_signals import *
 
 
 def test_decimal():

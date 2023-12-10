@@ -10,9 +10,8 @@ import pandas as pd
 
 from service.App import *
 from common.utils import *
+from common.generators import generate_feature_set
 from common.classifiers import *
-from common.feature_generation import *
-from common.signal_generation import *
 from common.model_store import *
 
 from scripts.merge import *

@@ -5,8 +5,6 @@ import click
 
 from service.App import *
 from scripts.features import generate_feature_set
-from common.label_generation_highlow import *
-from common.label_generation_topbot import *
 
 """
 This script will load a feature file (or any file with close price), and add

@@ -7,8 +7,8 @@ import numpy as np
 import pandas as pd
 
 from service.App import *
+from common.gen_features import *
 from common.classifiers import *
-from common.feature_generation import *
 from common.model_store import *
 
 """

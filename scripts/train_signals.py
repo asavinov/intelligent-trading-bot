@@ -10,9 +10,8 @@ from sklearn.model_selection import ParameterGrid
 
 from service.App import *
 from common.utils import *
+from common.gen_signals import *
 from common.classifiers import *
-from common.label_generation_topbot import *
-from common.signal_generation import *
 
 """
 Input data:

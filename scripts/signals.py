@@ -9,13 +9,11 @@ from sklearn.metrics import (precision_recall_curve, PrecisionRecallDisplay, Roc
 from sklearn.model_selection import ParameterGrid
 
 from service.App import *
-from common.label_generation_topbot import *
-from common.signal_generation import *
+from common.gen_signals import *
 
 """
-Use predictions to process scores, generate signals and simulate trades over the whole period.
-The results of the trade simulation with signals and performances is stored in the output file.
-The results can be used to further analyze (also visually) the selected signal and trade strategy.
+Generate new derived columns according to the signal definitions.
+The transformations are applied to the results of ML predictions.
 """
 
 class P:
@@ -74,6 +72,11 @@ def main(config_file):
     # Maximum possible on labels themselves
     #performance_long, performance_short, long_count, short_count, long_profitable, short_profitable, longs, shorts = performance_score(df, 'top10_2', 'bot10_2', 'close')
 
+
+
+
+
+
     #
     # Aggregate and post-process
     #
@@ -114,6 +117,12 @@ def main(config_file):
         apply_rule_with_score_thresholds_2(df, score_column_names, trade_model)
     else:  # Default one dim rule
         apply_rule_with_score_thresholds(df, score_column_names, trade_model)
+
+
+
+
+
+
 
     #
     # Simulate trade and compute performance using close price and two boolean signals

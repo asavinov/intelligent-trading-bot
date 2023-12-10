@@ -10,7 +10,7 @@ import pandas as pd
 
 from binance.helpers import date_to_milliseconds, interval_to_milliseconds
 
-from common.feature_generation import *
+from common.gen_features import *
 
 #
 # Decimals

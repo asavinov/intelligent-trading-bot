@@ -2,8 +2,8 @@ import pytest
 import numpy.testing as npt
 
 from common.utils import *
-from common.signal_generation import *
-from common.label_generation_topbot import *
+from common.gen_signals import *
+from common.gen_labels_topbot import *
 
 
 def test_extremum_labels():

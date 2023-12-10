@@ -11,7 +11,7 @@ from tqdm import tqdm_notebook #(Optional, used for progress-bars)
 import numpy as np
 
 from common.utils import *
-from common.feature_generation import *
+from common.gen_features import *
 from common.depth_processing import *
 
 """
