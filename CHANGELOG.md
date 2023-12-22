@@ -1,5 +1,10 @@
 # Change Log
 
+* v0.7.dev
+  * refactor and improve train signals based on the new structure
+  * introduce a section with signal generators
+  * refactoring: implement aggregations and trade logic to conventional column generators
+
 * v0.6.0 (2023-10-05)
   * add visualization of previous transactions
   * move algorithm configurations from source code to configuration file algorithms section

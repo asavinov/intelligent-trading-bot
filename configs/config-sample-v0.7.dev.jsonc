@@ -32,8 +32,8 @@
 
     // === TRAIN ===
 
-    "label_horizon": 120,
-    "train_length": 525600,
+    "label_horizon": 120,  // Batch/offline: do not use these last rows because their labels might not be correct
+    "train_length": 525600,  // Batch/offline: Uses this number of rows for training (if not additionally limited by the algorithm)
 
     "train_features": [
         "close_SMA_1", "close_SMA_5", "close_SMA_10", "close_SMA_15", "close_SMA_60",
@@ -59,46 +59,28 @@
     "features_horizon": 100, // Online/stream: Minimum data length for computing features. Take it from feature generator parameters
     "features_last_rows": 5, // Online/stream: Last values which are really needed and have to be computed. All older values are not needed
 
-    // === SIGNALS ===
+    // === GENERATE SIGNALS ===
+
     "signal_sets": [
         {
             // Combine two unsigned scores into one signed score
             "generator": "combine", "config": {
-            "columns": ["high_20_lc", "low_20_lc"],  // 2 columns: with grow score and fall score
-            "names": "trade_score",  // Output column name: positive values - buy, negative values - sell
-            "parameters": {
-                "point_threshold": null, // Produce boolean column (optional)
-                "window": 3, // Aggregate in time
-                "combine": "difference", // "no_combine" (or empty), "relative", "difference"
-                "coefficient": 1.0, "constant": 0.0  // Normalize
-            }
+                "columns": ["high_20_lc", "low_20_lc"],  // 2 columns: with grow score and fall score
+                "names": "trade_score",  // Output column name: positive values - buy, negative values - sell
+                "parameters": {
+                    "point_threshold": null, // Produce boolean column (optional)
+                    "window": 3, // Aggregate in time
+                    "combine": "difference", // "no_combine" (or empty), "relative", "difference"
+                    "coefficient": 1.0, "constant": 0.0  // Normalize
+                }
         }},
         {
-            // Decide whether to buy or sell depending on the score value
+            // Generate boolean buy-sell column depending on thresholds
             "generator": "threshold_rule", "config": {
-            "columns": "trade_score",
-            "names": ["buy_signal_column", "sell_signal_column"],  // Output boolean columns
-            "parameters": {"buy_signal_threshold": 0.05, "sell_signal_threshold": -0.05}
+                "columns": "trade_score",
+                "names": ["buy_signal_column", "sell_signal_column"],  // Output boolean columns
+                "parameters": {"buy_signal_threshold": 0.05, "sell_signal_threshold": -0.05}
         }}
-    ],
-
-    // === (DEPRECATED) AGGREGATION AND POST-PROCESSING ===
-
-    "score_aggregation_sets": [
-        {
-            "column": "trade_score", // Output column name: positive values - buy, negative values - sell
-
-            "buy_labels": ["high_20_lc"],
-            "sell_labels": ["low_20_lc"],
-
-            "parameters": {
-                "point_threshold": null, // Produce boolean column (optional)
-                "window": 3, // Aggregate in time
-                "combine": "difference", // "no_combine" (or empty), "relative", "difference"
-                "coefficient": 1.0,
-                "constant": 0.0
-          }
-        }
     ],
 
     // === NOTIFICATIONS ===
@@ -148,10 +130,11 @@
         "data_start": 0,
         "data_end": null,
 
-        "buy_sell_equal": false,
         "direction": "long",
         "topn_to_store": 10,
 
+        "signal_generator": "threshold_rule",  // generator in the signal_sets section
+        "buy_sell_equal": false,
         "grid": {
             "buy_signal_threshold": [0.02, 0.03, 0.04, 0.05, 0.1, 0.15],
             "sell_signal_threshold": [-0.02, -0.03, -0.04, -0.05, -0.1, -0.15]

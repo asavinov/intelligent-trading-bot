@@ -93,6 +93,9 @@ def generate_feature_set(df: pd.DataFrame, fs: dict, last_rows: int) -> Tuple[pd
 
     new_features = f_df.columns.to_list()
 
+    # Delete new columns if they already exist
+    df.drop(list(set(df.columns) & set(new_features)), axis=1, inplace=True)
+
     df = df.join(f_df)  # Attach all derived features to the main frame
 
     return df, new_features

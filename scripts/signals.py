@@ -61,7 +61,6 @@ def main(config_file):
     print(f"Input data size {len(df)} records. Range: [{df.iloc[0][time_column]}, {df.iloc[-1][time_column]}]")
 
     #
-    # 4.
     # Signals
     #
     feature_sets = App.config.get("signal_sets", [])

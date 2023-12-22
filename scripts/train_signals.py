@@ -12,32 +12,25 @@ from service.App import *
 from common.utils import *
 from common.gen_signals import *
 from common.classifiers import *
+from common.generators import generate_feature_set
 
 """
-Input data:
-This script assumes the existence of label prediction scores for a list of labels 
-which is computed by some other script (train predict models or (better) rolling predictions).
-It also uses the real prices in order to determine if the orders are executed or not 
-(currently close prices but it is better to use high and low prices).
-
-Purpose:
-The script uses some signal parameters which determine whether to sell or buy based on the current 
-label prediction scores. It simulates trade for such signal parameters by running through 
-the whole data set. For each such signal parameters, it determines the trade performance 
-(overall profit or loss). It then does such simulations for all defined signal parameters
-and finally chooses the best performing parameters. These parameters can be then used for real trades.
+The script is intended for finding best trade parameters for a certain trade algorithm
+by executing trade simulation (backtesting) for all specified parameters.
+It performs exhaustive search in the space of all specified parameters by computing 
+trade performance and then choosing the parameters with the highest profit (or maybe
+using other selection criteria like stability of the results or minimum allowed losses etc.)
 
 Notes:
-- The simulation is based on some aggregation function which computes the final signal from
-multiple label prediction scores. There could be different aggregation logics for example 
-finding average value or using pre-defined thresholds or even training some kind of model 
-like decision trees
-- The signal (aggregation) function assumes that there two kinds of labels: positive (indicating that
-the price will go up) and negative (indicating that the price will go down). The are accordingly
-stored in two lists in the configuration 
-- Tthe script should work with both batch predictions and (better) rolling predictions by
-assuming only the necessary columns for predicted label scores and trade columns (close price)
+- The optimization is based on certain trade algorithm. This means that a trade algorithm
+is a parameter for this script. Different trade algorithms have different trade logics and 
+also have different parameters. Currently, the script works with a very simple threshold-based
+trade algorithm: if some score is higher than the threshold (parameter) then buy, if it is lower
+than another threshold then sell. There is also a version with two thresholds for two scores.
+- The script consumes the results of signal script but it then varies parameters of one entry
+responsible for generation of trade signals. It then measures performance.
 """
+
 
 class P:
     in_nrows = 100_000_000
@@ -46,31 +39,11 @@ class P:
 @click.command()
 @click.option('--config_file', '-c', type=click.Path(), default='', help='Configuration file name')
 def main(config_file):
-    """
-    The goal is to find how good interval scores can be by performing grid search through
-    all aggregation/patience hyper-parameters which generate buy-sell signals on interval level.
-
-    Here we measure performance of trade using top-bottom scores generated using specified aggregation
-    parameters (which are searched through a grid). Here lables with true records are not needed.
-    In contrast, in another (above) function we do the same search but measure interval-score,
-    that is, how many intervals are true and false (either bot or bottom) by comparing with true label.
-
-    General purpose and assumptions. Load any file with two groups of point-wise prediction scores:
-    buy score and sell columns. The file must also have columns for trade simulation like close price.
-    It can be batch prediction file (one train model and one prediction result) or rolling predictions
-    (multiple sequential trains and predictions).
-    The script will convert these two buy-sell column groups to boolean buy-sell signals by using
-    signal generation hyper-parameters, and then apply trade simulation by computing its overall
-    performance. This is done for all simulation parameters from the grid. The results for all
-    simulation parameters and their performance are stored in the output file.
-    """
     load_config(config_file)
 
     time_column = App.config["time_column"]
 
     now = datetime.now()
-
-    train_signal_config = App.config["train_signal_model"]
 
     symbol = App.config["symbol"]
     data_path = Path(App.config["data_folder"]) / symbol
@@ -95,6 +68,7 @@ def main(config_file):
     #
     # Limit the source data
     #
+    train_signal_config = App.config["train_signal_model"]
 
     data_start = train_signal_config.get("data_start", 0)
     if isinstance(data_start, str):
@@ -108,19 +82,7 @@ def main(config_file):
 
     print(f"Input data size {len(df)} records. Range: [{df.iloc[0][time_column]}, {df.iloc[-1][time_column]}]")
 
-    #
-    # Find maximum performance possible based on true labels only
-    #
-    # Best parameters (just to compute for known parameters)
-    #df['buy_signal_column'] = score_to_signal(df[bot_score_column], None, 5, 0.09)
-    #df['sell_signal_column'] = score_to_signal(df[top_score_column], None, 10, 0.064)
-    #performance_long, performance_short, long_count, short_count, long_profitable, short_profitable, longs, shorts = performance_score(df, 'sell_signal_column', 'buy_signal_column', 'close')
-    # TODO: Save maximum performance in output file or print it (use as a reference)
-
-    # Maximum possible on labels themselves
-    #performance_long, performance_short, long_count, short_count, long_profitable, short_profitable, longs, shorts = performance_score(df, 'top10_2', 'bot10_2', 'close')
-
-    months_in_simulation = (df[time_column].iloc[-1] - df[time_column].iloc[0]) / timedelta(days=30.5)
+    months_in_simulation = (df[time_column].iloc[-1] - df[time_column].iloc[0]) / timedelta(days=365/12)
 
     #
     # Load signal train parameters
@@ -131,7 +93,7 @@ def main(config_file):
         raise ValueError(f"Unknown value of {direction} in signal train model. Only 'long', 'short' and 'both' are possible.")
     topn_to_store = train_signal_config.get("topn_to_store", 10)
 
-    # Evaluate strings to produce lists
+    # Evaluate strings to produce lists with ranges of parameters
     if isinstance(parameter_grid.get("buy_signal_threshold"), str):
         parameter_grid["buy_signal_threshold"] = eval(parameter_grid.get("buy_signal_threshold"))
     if isinstance(parameter_grid.get("buy_signal_threshold_2"), str):
@@ -141,10 +103,18 @@ def main(config_file):
     if isinstance(parameter_grid.get("sell_signal_threshold_2"), str):
         parameter_grid["sell_signal_threshold_2"] = eval(parameter_grid.get("sell_signal_threshold_2"))
 
-    # Disable sell parameters in grid search - they will be set from the buy parameters
+    # If necessary, disable sell parameters in grid search - they will be set from the buy parameters
     if train_signal_config.get("buy_sell_equal"):
         parameter_grid["sell_signal_threshold"] = [None]
         parameter_grid["sell_signal_threshold_2"] = [None]
+
+    #
+    # Find the generator, the parameters of which will be varied
+    #
+    generator_name = train_signal_config.get("signal_generator")
+    signal_generator = next((ss for ss in App.config.get("signal_sets", []) if ss.get('generator') == generator_name), None)
+    if not signal_generator:
+        raise ValueError(f"Signal generator '{generator_name}' not found among all 'signal_sets'")
 
     performances = list()
     for parameters in tqdm(ParameterGrid([parameter_grid]), desc="MODELS"):
@@ -158,31 +128,31 @@ def main(config_file):
             if parameters.get("buy_signal_threshold_2") is not None:
                 parameters["sell_signal_threshold_2"] = -parameters["buy_signal_threshold_2"]
 
-        trade_model = App.config["trade_model"].copy()
-        trade_model["parameters"] = parameters
+        #
+        # Set new parameters of the signal generator
+        #
+        signal_generator["config"]["parameters"].update(parameters)
 
         #
-        # Do not aggregate but assume that we have already the aggregation results in the data
+        # Execute the signal generator with new parameters by producing new signal columns
         #
-        pass
-        # We need only to get the column names for the scores to be used for rules
-        score_aggregation_sets = App.config['score_aggregation_sets']
-        score_column_names = [sa_set.get("column") for sa_set in score_aggregation_sets]
-
-        #
-        # Apply signal rule and generate binary buy_signal_column/sell_signal_column
-        #
-        if parameters.get('rule_name') == 'two_dim_rule':
-            apply_rule_with_score_thresholds_2(df, score_column_names, trade_model)
-        else:  # Default one dim rule
-            apply_rule_with_score_thresholds(df, score_column_names, trade_model)
+        df, new_features = generate_feature_set(df, signal_generator, last_rows=0)
 
         #
         # Simulate trade and compute performance using close price and two boolean signals
         # Add a pair of two dicts: performance dict and model parameters dict
         #
-        performance, long_performance, short_performance = \
-            simulated_trade_performance(df, 'buy_signal_column', 'sell_signal_column', 'close')
+
+        # These boolean columns are used for performance measurement. Alternatively, they are in trade_signal_model
+        buy_signal_column = signal_generator["config"]["names"][0]
+        sell_signal_column = signal_generator["config"]["names"][1]
+
+        # Perform backtesting
+        performance, long_performance, short_performance = simulated_trade_performance(
+            df,
+            buy_signal_column, sell_signal_column,
+            'close'
+        )
 
         # Remove some items. Remove lists of transactions which are not needed
         long_performance.pop('transactions', None)
