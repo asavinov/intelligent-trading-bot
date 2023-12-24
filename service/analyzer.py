@@ -390,20 +390,28 @@ class Analyzer:
 
         if App.df is None or len(App.df) == 0:
             App.df = df
+            return
 
         # Test if newly retrieved and computed values are equal to the previous ones
-        for idx in df.index:  # Loop over all newly computed data rows
+        check_row_count = 3  # These last rows must be correctly computed (particularly, have enough history in case of aggregation)
+        num_cols = df.select_dtypes((float, int)).columns.tolist()
+        # Loop over several last newly computed data rows
+        # Skip last row because it should not exist, and before the last row because its kline is frequently updated after retrieval
+        for r in range(2, check_row_count):
+            idx = df.index[-r-1]
+
             if idx not in App.df.index:
                 continue
-            # Do not compare last element because its kline is frequently updated since last retrieval
-            if idx == App.df.index[-1]:
-                continue
+
             # Compare all numeric values of the previously retrieved and newly retrieved rows for the same time
-            if not np.allclose(App.df.select_dtypes((float, int)).loc[idx], df.select_dtypes((float, int)).loc[idx]):
-                log.warning(f"Newly computed row is not equal to the previously computed row for '{idx}'. NEW: {df.loc[idx]}. OLD: {App.df.loc[idx]}")
+            old_row = App.df[num_cols].loc[idx]
+            new_row = df[num_cols].loc[idx]
+            comp_idx = np.isclose(old_row, new_row)
+            if not np.all(comp_idx):
+                log.warning(f"Newly computed row is not equal to the previously computed row for '{idx}'. NEW: {new_row[~comp_idx].to_dict()}. OLD: {old_row[~comp_idx].to_dict()}")
 
         # Append new rows to the main data frame
-        App.df = df.combine_first(App.df)
+        App.df = df.tail(check_row_count).combine_first(App.df)
 
         # Remove too old rows
         features_horizon = App.config["features_horizon"]

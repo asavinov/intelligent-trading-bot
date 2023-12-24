@@ -67,19 +67,18 @@
             "generator": "combine", "config": {
                 "columns": ["high_20_lc", "low_20_lc"],  // 2 columns: with grow score and fall score
                 "names": "trade_score",  // Output column name: positive values - buy, negative values - sell
-                "parameters": {
-                    "point_threshold": null, // Produce boolean column (optional)
-                    "window": 3, // Aggregate in time
-                    "combine": "difference", // "no_combine" (or empty), "relative", "difference"
-                    "coefficient": 1.0, "constant": 0.0  // Normalize
-                }
+                "combine": "difference", // "no_combine" (or empty), "relative", "difference"
+                "coefficient": 1.0, "constant": 0.0  // Normalize
         }},
         {
             // Generate boolean buy-sell column depending on thresholds
             "generator": "threshold_rule", "config": {
                 "columns": "trade_score",
                 "names": ["buy_signal_column", "sell_signal_column"],  // Output boolean columns
-                "parameters": {"buy_signal_threshold": 0.05, "sell_signal_threshold": -0.05}
+                "parameters": {
+                    "buy_signal_threshold": 0.05,
+                    "sell_signal_threshold": -0.05
+                }
         }}
     ],
 
