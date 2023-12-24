@@ -259,14 +259,16 @@ class Analyzer:
         """
         symbol = App.config["symbol"]
 
+        # Features, predictions, signals etc. have to be computed only for these last rows (for performance reasons)
+        last_rows = App.config["features_last_rows"]
+
         last_kline_ts = self.get_last_kline_ts(symbol)
         last_kline_ts_str = str(pd.to_datetime(last_kline_ts, unit='ms'))
 
         log.info(f"Analyze {symbol}. Last kline timestamp: {last_kline_ts_str}")
 
         #
-        # 1.
-        # MERGE: Produce a single data frame with înput data from all sources
+        # Convert source data (klines) into data frames for each source
         #
         data_sources = App.config.get("data_sources", [])
         if not data_sources:
@@ -294,17 +296,16 @@ class Analyzer:
                 return
             ds["df"] = df
 
-        # Merge in one df with prefixes and common regular time index
+        #
+        # 1.
+        # MERGE multiple dfs in one df with prefixes and common regular time index
+        #
         df = merge_data_sources(data_sources)
 
         #
         # 2.
-        # Generate all necessary derived features (NaNs are possible due to short history)
+        # Generate all necessary derived features (NaNs are possible due to limited history)
         #
-
-        # We want to generate features only for a few last rows (for performance reasons)
-        last_rows = App.config["features_last_rows"]
-
         feature_sets = App.config.get("feature_sets", [])
         if not feature_sets:
             log.error(f"ERROR: no feature sets defined. Nothing to process.")
@@ -380,13 +381,34 @@ class Analyzer:
 
         # Log signal values
         row = df.iloc[-1]  # Last row stores the latest values we need
-        scores = ",".join([f"{x}={row[x]:+.3f}" if isinstance(x, float) else str(x) for x in signal_columns])
+        scores = ", ".join([f"{x}={row[x]:+.3f}" if isinstance(row[x], float) else f"{x}={str(row[x])}" for x in signal_columns])
         log.info(f"Analyze finished. Close: {int(row['close']):,} Signals: {scores}")
 
-        # It is the main result of this method: all source data, features, scores and signals
-        App.df = df
+        #
+        # Append the new rows to the main data frame with all previously computed data
+        #
 
-        return df
+        if App.df is None or len(App.df) == 0:
+            App.df = df
+
+        # Test if newly retrieved and computed values are equal to the previous ones
+        for idx in df.index:  # Loop over all newly computed data rows
+            if idx not in App.df.index:
+                continue
+            # Do not compare last element because its kline is frequently updated since last retrieval
+            if idx == App.df.index[-1]:
+                continue
+            # Compare all numeric values of the previously retrieved and newly retrieved rows for the same time
+            if not np.allclose(App.df.select_dtypes((float, int)).loc[idx], df.select_dtypes((float, int)).loc[idx]):
+                log.warning(f"Newly computed row is not equal to the previously computed row for '{idx}'. NEW: {df.loc[idx]}. OLD: {App.df.loc[idx]}")
+
+        # Append new rows to the main data frame
+        App.df = df.combine_first(App.df)
+
+        # Remove too old rows
+        features_horizon = App.config["features_horizon"]
+        if len(App.df) > features_horizon + 15:
+            App.df = App.df.tail(features_horizon)
 
 
 if __name__ == "__main__":
