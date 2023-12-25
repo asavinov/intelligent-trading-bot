@@ -250,7 +250,7 @@ class Analyzer:
     # Analysis (features, predictions, signals etc.)
     #
 
-    def analyze(self):
+    def analyze(self, ignore_last_rows=False):
         """
         1. Convert klines to df
         2. Derive (compute) features (use same function as for model training)
@@ -314,19 +314,24 @@ class Analyzer:
         # Apply all feature generators to the data frame which get accordingly new derived columns
         feature_columns = []
         for fs in feature_sets:
-            df, feats = generate_feature_set(df, fs, last_rows=last_rows)
+            df, feats = generate_feature_set(df, fs, last_rows=last_rows if not ignore_last_rows else 0)
             feature_columns.extend(feats)
 
         # Shorten the data frame. Only several last rows will be needed and not the whole data context
-        df = df.iloc[-last_rows:]
+        if not ignore_last_rows:
+            df = df.iloc[-last_rows:]
+
+        features = App.config["train_features"]
+        # Exclude rows with at least one NaN
+        tail_rows = notnull_tail_rows(df[features])
+        df = df.tail(tail_rows)
 
         #
         # 3.
         # Apply ML models and generate score columns
         #
 
-        # kline feature set
-        features = App.config["train_features"]
+        # Select row for which to do predictions
         predict_df = df[features]
         if predict_df.isnull().any().any():
             null_columns = {k: v for k, v in predict_df.isnull().any().to_dict().items() if v}
@@ -376,17 +381,17 @@ class Analyzer:
         # Apply all feature generators to the data frame which get accordingly new derived columns
         signal_columns = []
         for fs in signal_sets:
-            df, feats = generate_feature_set(df, fs, last_rows=last_rows)
+            df, feats = generate_feature_set(df, fs, last_rows=last_rows if not ignore_last_rows else 0)
             signal_columns.extend(feats)
+
+        #
+        # Append the new rows to the main data frame with all previously computed data
+        #
 
         # Log signal values
         row = df.iloc[-1]  # Last row stores the latest values we need
         scores = ", ".join([f"{x}={row[x]:+.3f}" if isinstance(row[x], float) else f"{x}={str(row[x])}" for x in signal_columns])
         log.info(f"Analyze finished. Close: {int(row['close']):,} Signals: {scores}")
-
-        #
-        # Append the new rows to the main data frame with all previously computed data
-        #
 
         if App.df is None or len(App.df) == 0:
             App.df = df

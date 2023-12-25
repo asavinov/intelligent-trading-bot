@@ -100,11 +100,14 @@ def start_server(config_file):
 
     print(f"Finished health check (connection, server status etc.)")
 
-    # Do one time data load (cold start)
+    # Cold start: load initial data, do complete analysis
     try:
         App.loop.run_until_complete(sync_data_collector_task())
-        # First call may take a while because of big batch and hence we make second call into to get the (possible) newest klines not received by the first call
+        # First call may take some time because of big initial size and hence we make the second call to get the (possible) newest klines
         App.loop.run_until_complete(sync_data_collector_task())
+
+        # Analyze all received data (and not only last few rows) so that we have full history
+        App.analyzer.analyze(ignore_last_rows=True)
     except Exception as e:
         print(f"Problems during initial data collection. {e}")
 

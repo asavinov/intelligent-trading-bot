@@ -138,3 +138,18 @@ def find_index(df: pd.DataFrame, date_str: str, column_name: str = "timestamp"):
     id = res.index[0]
 
     return id
+
+
+def notnull_tail_rows(df):
+    """Maximum number of tail rows without nulls."""
+
+    nan_df = df.isnull()
+    nan_cols = nan_df.any()  # Series with columns having at least one NaN
+    nan_cols = nan_cols[nan_cols].index.to_list()
+    if len(nan_cols) == 0:
+        return len(df)
+
+    # Indexes of last NaN for all columns and then their minimum
+    tail_rows = nan_df[nan_cols].values[::-1].argmax(axis=0).min()
+
+    return tail_rows
