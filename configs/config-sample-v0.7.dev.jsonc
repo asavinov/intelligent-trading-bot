@@ -56,7 +56,7 @@
         }
     ],
 
-    "features_horizon": 100, // Online/stream: Minimum data length for computing features. Take it from feature generator parameters
+    "features_horizon": 2880, // Online/stream: Minimum data length for computing features. Take it from feature generator parameters
     "features_last_rows": 5, // Online/stream: Last values which are really needed and have to be computed. All older values are not needed
 
     // === GENERATE SIGNALS ===
@@ -109,9 +109,11 @@
         // Regularly sending historic data with prices, scores and buy-sell trade decisions
         "diagram_notification": true,
 
-        // # 1 previous week with hourly aggregation
-        "freq": "H",
-        "nrows": 168
+        "score_column_names": "trade_score",
+        "score_thresholds":[-0.05, 0.05],
+
+        // 1 previous day with 5 minutes aggregation
+        "freq": "5min", "nrows": 288
     },
 
     // === TRADE MODEL ===

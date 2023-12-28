@@ -25,6 +25,13 @@ async def send_diagram():
     Produce a line chart based on latest data and send it to the channel.
     """
     model = App.config["diagram_notification_model"]
+
+    score_column_names = model.get("score_column_names")
+    if isinstance(score_column_names, list) and len(score_column_names) > 0:
+        score_column_names = score_column_names[0]
+
+    score_thresholds = model.get("score_thresholds")
+
     freq = model.get("freq")  # Aggregation interval 'H' - hour.
     nrows = model.get("nrows")  # Time range (x axis) of the diagram, for example, 1 week 168 hours, 2 weeks 336 hours
 
@@ -41,10 +48,13 @@ async def send_diagram():
     # Prepare data to be visualized
     #
     # Get main df with high, low, close for the symbol.
-    df_ohlc = App.df[['open', 'high', 'low', 'close']]
-    df_ohlc = resample_ohlc_data(df_ohlc.reset_index(), freq, nrows, buy_signal_column=None, sell_signal_column=None)
+    vis_columns = ['open', 'high', 'low', 'close']
+    if score_column_names:
+        vis_columns.append(score_column_names)
+    df_ohlc = App.df[vis_columns]
+    df_ohlc = resample_ohlc_data(df_ohlc.reset_index(), freq, nrows, score_column=score_column_names, buy_signal_column=None, sell_signal_column=None)
 
-    # Get transaction data.
+    # Get transaction data
     df_t = load_all_transactions()  # timestamp,price,profit,status
     df_t['buy_long'] = df_t['status'].apply(lambda x: True if isinstance(x, str) and x == 'BUY' else False)
     df_t['sell_long'] = df_t['status'].apply(lambda x: True if isinstance(x, str) and x == 'SELL' else False)
@@ -62,9 +72,6 @@ async def send_diagram():
     else:
         df = df_ohlc
 
-    # Load score
-    score_exists = False
-
     symbol = App.config["symbol"]
     title = f"$\\bf{{{symbol}}}$"
 
@@ -76,8 +83,8 @@ async def send_diagram():
         df, title,
         buy_signal_column="buy_long" if transactions_exist else None,
         sell_signal_column="sell_long" if transactions_exist else None,
-        score_column="score" if score_exists else None,
-        thresholds=[]
+        score_column=score_column_names if score_column_names else None,
+        thresholds=score_thresholds
     )
 
     with io.BytesIO() as buf:
@@ -106,7 +113,7 @@ async def send_diagram():
         log.error(f"Error sending notification: {e}")
 
 
-def resample_ohlc_data(df, freq, nrows, buy_signal_column, sell_signal_column):
+def resample_ohlc_data(df, freq, nrows, score_column, buy_signal_column, sell_signal_column):
     """
     Resample ohlc data to lower frequency. Assumption: time in 'timestamp' column.
     """
@@ -119,14 +126,17 @@ def resample_ohlc_data(df, freq, nrows, buy_signal_column, sell_signal_column):
         'close': 'last',
     }
 
-    # These score columns are optional
+    # Optional columns
+    if score_column:
+        ohlc[score_column] = lambda x: max(x) if all(x > 0.0) else min(x) if all(x < 0.0) else np.mean(x)
+
     if buy_signal_column:
         # Buy signal if at least one buy signal was during this time interval
-        ohlc[buy_signal_column]: lambda x: True if not all(x == False) else False
+        ohlc[buy_signal_column] = lambda x: True if not all(x == False) else False
         # Alternatively, 0 if no buy signals, 1 if only 1 buy signal, 2 or -1 if more than 1 any signals (mixed interval)
     if sell_signal_column:
         # Sell signal if at least one sell signal was during this time interval
-        ohlc[sell_signal_column]: lambda x: True if not all(x == False) else False
+        ohlc[sell_signal_column] = lambda x: True if not all(x == False) else False
 
     df_out = df.resample(freq, on='timestamp').apply(ohlc)
     del df_out['timestamp']
@@ -215,9 +225,9 @@ def generate_chart(df, title, buy_signal_column, sell_signal_column, score_colum
     # g2.set(ylabel=None)  # remove the y-axis label
     ax1.set_ylabel('Close price', color='darkblue')
     # g2.tick_params(left=False)  # remove the ticks
-    min = df['low'].min()
-    max = df['high'].max()
-    ax1.set(ylim=(min - (max - min) * 0.05, max + (max - min) * 0.005))
+    ymin = df['low'].min()
+    ymax = df['high'].max()
+    ax1.set(ylim=(ymin - (ymax - ymin) * 0.05, ymax + (ymax - ymin) * 0.005))
 
     ax1.xaxis.set_major_locator(mdates.DayLocator())
     ax1.xaxis.set_major_formatter(mdates.DateFormatter("%d"))  # "%H:%M:%S" "%d %b"
@@ -232,7 +242,9 @@ def generate_chart(df, title, buy_signal_column, sell_signal_column, score_colum
         sns.lineplot(data=df, x="timestamp", y=score_column, drawstyle='steps-mid', lw=.2, color="red", ax=ax2)  # marker="v" "^" , markersize=12
         ax2.set_ylabel('Score', color='r')
         ax2.set_ylabel('Score', color='b')
-        ax2.set(ylim=(-0.5, +3.0))
+
+        ymax = max(df[score_column].abs().max(), max(thresholds) if thresholds else 0.0)
+        ax2.set(ylim=(-ymax*2.0, +ymax*2.0))
 
         ax2.axhline(0.0, lw=.1, color="black")
 
