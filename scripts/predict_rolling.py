@@ -131,7 +131,7 @@ def main(config_file):
         # "category" NN does not work without this (note that we assume a classification task here)
         df[label] = df[label].astype(int)
 
-    pd.set_option('use_inf_as_na', True)
+    df.replace([np.inf, -np.inf], np.nan, inplace=True)
     #in_df = in_df.dropna(subset=labels)
     df = df.reset_index(drop=True)  # We must reset index after removing rows to remove gaps
 

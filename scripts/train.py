@@ -80,7 +80,7 @@ def main(config_file):
     if label_horizon:
         df = df.head(-label_horizon)
 
-    pd.set_option('use_inf_as_na', True)
+    df.replace([np.inf, -np.inf], np.nan, inplace=True)
     #df = df.dropna(subset=labels)
     df = df.dropna(subset=train_features)
     if len(df) == 0:

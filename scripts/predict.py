@@ -70,7 +70,7 @@ def main(config_file):
         all_features = train_features
     df = df[out_columns + [x for x in all_features if x not in out_columns]]
 
-    pd.set_option('use_inf_as_na', True)
+    df.replace([np.inf, -np.inf], np.nan, inplace=True)
     #df = df.dropna(subset=labels)
     df = df.dropna(subset=train_features)
     #in_df = in_df.dropna(subset=labels)
