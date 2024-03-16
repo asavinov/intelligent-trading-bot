@@ -32,7 +32,7 @@ def main(config_file):
     symbol = App.config["symbol"]
     data_path = Path(App.config["data_folder"]) / symbol
 
-    file_path = (data_path / App.config.get("merge_file_name"))
+    file_path = data_path / App.config.get("merge_file_name")
     if not file_path.is_file():
         print(f"Data file does not exist: {file_path}")
         return
@@ -84,24 +84,29 @@ def main(config_file):
     # Store feature matrix in output file
     #
     out_file_name = App.config.get("feature_file_name")
-    out_path = (data_path / out_file_name).with_suffix(".csv").resolve()
+    out_path = (data_path / out_file_name).resolve()
 
-    print(f"Storing feature matrix with {len(df)} records and {len(df.columns)} columns in output file...")
-    df.to_csv(out_path, index=False, float_format="%.4f")
-    #df.to_parquet(out_path.with_suffix('.parquet'), engine='auto', compression=None, index=None, partition_cols=None)
+    print(f"Storing features with {len(df)} records and {len(df.columns)} columns in output file {out_path}...")
+    if out_path.suffix == ".parquet":
+        df.to_parquet(out_path, index=False)
+    elif out_path.suffix == ".csv":
+        df.to_csv(out_path, index=False, float_format="%.6f")
+    else:
+        print(f"ERROR: Unknown extension of the 'feature_file_name' file '{out_path.suffix}'. Only 'csv' and 'parquet' are supported")
+        return
+
+    print(f"Stored output file {out_path} with {len(df)} records")
 
     #
-    # Store features
+    # Store feature list
     #
     with open(out_path.with_suffix('.txt'), "a+") as f:
         f.write(", ".join([f'"{f}"' for f in all_features] ) + "\n\n")
 
-    print(f"Stored {len(all_features)} features in output file {out_path}")
+    print(f"Stored {len(all_features)} features in output file {out_path.with_suffix('.txt')}")
 
     elapsed = datetime.now() - now
     print(f"Finished generating {len(all_features)} features in {str(elapsed).split('.')[0]}. Time per feature: {str(elapsed/len(all_features)).split('.')[0]}")
-
-    print(f"Output file location: {out_path}")
 
 
 if __name__ == '__main__':

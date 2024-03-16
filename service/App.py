@@ -77,7 +77,7 @@ class App:
         # Conventions for the file and column names
         #
         "merge_file_name": "data.csv",
-        "feature_file_name": "features",
+        "feature_file_name": "features.csv",
         "matrix_file_name": "matrix",
         "predict_file_name": "predictions",  # predict, predict-rolling
         "signal_file_name": "signals",

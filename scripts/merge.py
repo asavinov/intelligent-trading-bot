@@ -145,7 +145,7 @@ def main(config_file):
     if out_path.suffix == ".parquet":
         df_out.to_parquet(out_path, index=False)
     elif out_path.suffix == ".csv":
-        df_out.to_csv(out_path.with_suffix(".csv"), index=False)  # float_format="%.6f"
+        df_out.to_csv(out_path, index=False)  # float_format="%.6f"
     else:
         print(f"ERROR: Unknown extension of the 'merge_file_name' file '{out_path.suffix}'. Only 'csv' and 'parquet' are supported")
         return
