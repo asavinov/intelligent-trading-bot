@@ -78,7 +78,7 @@ class App:
         #
         "merge_file_name": "data.csv",
         "feature_file_name": "features.csv",
-        "matrix_file_name": "matrix",
+        "matrix_file_name": "matrix.csv",
         "predict_file_name": "predictions",  # predict, predict-rolling
         "signal_file_name": "signals",
         "signal_models_file_name": "signal_models",

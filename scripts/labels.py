@@ -92,10 +92,18 @@ def main(config_file):
     # Store feature matrix in output file
     #
     out_file_name = App.config.get("matrix_file_name")
-    out_path = (data_path / out_file_name).with_suffix(".csv").resolve()
+    out_path = (data_path / out_file_name).resolve()
 
-    print(f"Storing file with labels. {len(df)} records and {len(df.columns)} columns in output file...")
-    df.to_csv(out_path, index=False, float_format="%.4f")
+    print(f"Storing file with labels. {len(df)} records and {len(df.columns)} columns in output file {out_path}...")
+    if out_path.suffix == ".parquet":
+        df.to_parquet(out_path, index=False)
+    elif out_path.suffix == ".csv":
+        df.to_csv(out_path, index=False, float_format="%.6f")
+    else:
+        print(f"ERROR: Unknown extension of the 'matrix_file_name' file '{out_path.suffix}'. Only 'csv' and 'parquet' are supported")
+        return
+
+    print(f"Stored output file {out_path} with {len(df)} records")
 
     #
     # Store labels
@@ -103,12 +111,10 @@ def main(config_file):
     with open(out_path.with_suffix('.txt'), "a+") as f:
         f.write(", ".join([f'"{f}"' for f in all_features] ) + "\n\n")
 
-    print(f"Stored {len(all_features)} labels in output file {out_path}")
+    print(f"Stored {len(all_features)} labels in output file {out_path.with_suffix('.txt')}")
 
     elapsed = datetime.now() - now
     print(f"Finished generating {len(all_features)} labels in {str(elapsed).split('.')[0]}. Time per label: {str(elapsed/len(all_features)).split('.')[0]}")
-
-    print(f"Output file location: {out_path}")
 
 
 if __name__ == '__main__':

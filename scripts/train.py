@@ -42,13 +42,19 @@ def main(config_file):
     symbol = App.config["symbol"]
     data_path = Path(App.config["data_folder"]) / symbol
 
-    file_path = (data_path / App.config.get("matrix_file_name")).with_suffix(".csv")
+    file_path = data_path / App.config.get("matrix_file_name")
     if not file_path.is_file():
         print(f"ERROR: Input file does not exist: {file_path}")
         return
 
     print(f"Loading data from source data file {file_path}...")
-    df = pd.read_csv(file_path, parse_dates=[time_column], date_format="ISO8601", nrows=P.in_nrows)
+    if file_path.suffix == ".parquet":
+        df = pd.read_parquet(file_path)
+    elif file_path.suffix == ".csv":
+        df = pd.read_csv(file_path, parse_dates=[time_column], date_format="ISO8601", nrows=P.in_nrows)
+    else:
+        print(f"ERROR: Unknown extension of the 'matrix_file_name' file '{file_path.suffix}'. Only 'csv' and 'parquet' are supported")
+        return
     print(f"Finished loading {len(df)} records with {len(df.columns)} columns.")
 
     df = df.iloc[-P.tail_rows:]
