@@ -56,13 +56,20 @@ def main(config_file):
     #
     # Load data with (rolling) label point-wise predictions and signals generated
     #
-    file_path = (data_path / App.config.get("signal_file_name")).with_suffix(".csv")
+    file_path = data_path / App.config.get("signal_file_name")
     if not file_path.exists():
         print(f"ERROR: Input file does not exist: {file_path}")
         return
 
     print(f"Loading signals from input file: {file_path}")
-    df = pd.read_csv(file_path, parse_dates=[time_column], date_format="ISO8601", nrows=P.in_nrows)
+    if file_path.suffix == ".parquet":
+        df = pd.read_parquet(file_path)
+    elif file_path.suffix == ".csv":
+        df = pd.read_csv(file_path, parse_dates=[time_column], date_format="ISO8601", nrows=P.in_nrows)
+    else:
+        print(f"ERROR: Unknown extension of the 'signal_file_name' file '{file_path.suffix}'. Only 'csv' and 'parquet' are supported")
+        return
+
     print(f"Signals loaded. Length: {len(df)}. Width: {len(df.columns)}")
 
     #

@@ -104,8 +104,15 @@ def main(config_file):
     #
     out_path = data_path / App.config.get("signal_file_name")
 
-    print(f"Storing output file...")
-    out_df.to_csv(out_path.with_suffix(".csv"), index=False, float_format='%.4f')
+    print(f"Storing signals with {len(out_df)} records and {len(out_df.columns)} columns in output file {out_path}...")
+    if out_path.suffix == ".parquet":
+        out_df.to_parquet(out_path, index=False)
+    elif out_path.suffix == ".csv":
+        out_df.to_csv(out_path, index=False, float_format='%.6f')
+    else:
+        print(f"ERROR: Unknown extension of the 'signal_file_name' file '{out_path.suffix}'. Only 'csv' and 'parquet' are supported")
+        return
+
     print(f"Signals stored in file: {out_path}. Length: {len(out_df)}. Columns: {len(out_df.columns)}")
 
     elapsed = datetime.now() - now

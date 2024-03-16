@@ -80,7 +80,7 @@ class App:
         "feature_file_name": "features.csv",
         "matrix_file_name": "matrix.csv",
         "predict_file_name": "predictions.csv",  # predict, predict-rolling
-        "signal_file_name": "signals",
+        "signal_file_name": "signals.csv",
         "signal_models_file_name": "signal_models",
 
         "model_folder": "MODELS",

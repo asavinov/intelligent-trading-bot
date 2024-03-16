@@ -174,7 +174,7 @@ def _first_location_of_crossing_threshold(df, horizon, threshold, close_column_n
     If the location (index) is 0 then it is the next point. If location (index) is NaN,
     then the price does not cross the specified threshold during the horizon
     (or there is not enough data, e.g., at the end of the series). Therefore, this
-    function can be used find whether the price will cross the threshold at all
+    function can be used to find whether the price will cross the threshold at all
     during the specified horizon.
 
     The function is somewhat similar to the tsfresh function first_location_of_maximum
@@ -192,7 +192,7 @@ def _first_location_of_crossing_threshold(df, horizon, threshold, close_column_n
             return np.nan
         p = x[0, 0]  # Reference price
         p_threshold = p*(1+(threshold/100.0))  # Cross line
-        idx = np.argmax(x[1:, 1] > p_threshold)  # First index where price crossed the threshold
+        idx = np.argmax(x[1:, 1] > p_threshold)  # First index where price crosses the threshold
 
         # If all False, then index is 0 (first element of constant series) and we are not able to distinguish it from first element being True
         # If index is 0 and first element False (under threshold) then NaN (not exceeds)
@@ -205,7 +205,7 @@ def _first_location_of_crossing_threshold(df, horizon, threshold, close_column_n
             return np.nan
         p = x[0, 0]  # Reference price
         p_threshold = p*(1+(threshold/100.0))  # Cross line
-        idx = np.argmax(x[1:, 1] < p_threshold)  # First index where price crossed the threshold
+        idx = np.argmax(x[1:, 1] < p_threshold)  # First index where price crosses the threshold
 
         # If all False, then index is 0 (first element of constant series) and we are not able to distinguish it from first element being True
         # If index is 0 and first element False (under threshold) then NaN (not exceeds)
@@ -257,7 +257,7 @@ def first_cross_labels(df, horizon, thresholds, close_column, price_columns, out
         elif np.isnan(x[1]):
             return True
         else:
-            return x[0] < x[1]  # If the first cross point is closer to this point than the second one
+            return x[0] <= x[1]  # If the first cross point is closer to this point than the second one
 
     df[out_column] = df[["first_idx_column", "second_idx_column"]].apply(is_high_true, raw=True, axis=1)
 

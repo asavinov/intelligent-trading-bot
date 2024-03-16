@@ -357,7 +357,7 @@ def train_lc(df_X, df_y, model_config: dict):
     #
     args = model_config.get("params").copy()
     args["n_jobs"] = -1
-    args["verbose"] = 1
+    args["verbose"] = 0
     model = LogisticRegression(**args)
 
     #
