@@ -1,6 +1,7 @@
 numpy>=1.24.*  # version is limited by numba 0.57.1 and tensorflow 2.13
 pandas>=2.*  # The version might be important for parsing timestamps
 numba  # For highlow label generator. numba 0.57.1 requires numpy<1.25,>=1.21,
+#pyarrow  # If parquet is used. Alternatively fastparquet
 
 apscheduler==3.10.*
 click

@@ -141,14 +141,21 @@ def main(config_file):
     out_path = data_path / App.config["symbol"] / App.config.get("merge_file_name")
 
     print(f"Storing output file...")
-    df_out.to_csv(out_path.with_suffix(".csv"), index=True)  # float_format="%.6f"
+    df_out = df_out.reset_index()
+    if out_path.suffix == ".parquet":
+        df_out.to_parquet(out_path, index=False)
+    elif out_path.suffix == ".csv":
+        df_out.to_csv(out_path.with_suffix(".csv"), index=False)  # float_format="%.6f"
+    else:
+        print(f"ERROR: Unknown extension of the 'merge_file_name' file '{out_path.suffix}'. Only 'csv' and 'parquet' are supported")
+        return
+
     range_start = df_out.index[0]
     range_end = df_out.index[-1]
-    print(f"Stored output merged file with {len(df_out)} records. Range: ({range_start}, {range_end})")
+    print(f"Stored output file {out_path} with {len(df_out)} records. Range: ({range_start}, {range_end})")
 
     elapsed = datetime.now() - now
     print(f"Finished merging data in {str(elapsed).split('.')[0]}")
-    print(f"Output file location: {out_path.with_suffix('.csv')}")
 
 
 def merge_data_sources(data_sources: list):
