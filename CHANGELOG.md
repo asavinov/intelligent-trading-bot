@@ -1,6 +1,7 @@
 # Change Log
 
 * v0.7.dev
+  * possibility to reference arbitrary external functions as generators  
   * support for parquet storage format for intermediate files
   * all data including features, predicted scores and signals are stored in the context and available for further processing
     * Improved visualization of historic data in on-line mode by using this common data context
