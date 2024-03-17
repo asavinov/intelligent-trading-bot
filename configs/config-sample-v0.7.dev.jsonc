@@ -20,7 +20,8 @@
     "feature_sets": [
         {"column_prefix": "", "generator": "talib", "feature_prefix": "", "config":  {"columns": ["close"], "functions": ["SMA"], "windows": [1, 5, 10, 15, 60]}},
         {"column_prefix": "", "generator": "talib", "feature_prefix": "", "config":  {"columns": ["close"], "functions": ["LINEARREG_SLOPE"], "windows": [5, 10, 15, 60]}},
-        {"column_prefix": "", "generator": "talib", "feature_prefix": "", "config":  {"columns": ["close"], "functions": ["STDDEV"], "windows": [5, 10, 15, 60]}}
+        {"column_prefix": "", "generator": "talib", "feature_prefix": "", "config":  {"columns": ["close"], "functions": ["STDDEV"], "windows": [5, 10, 15, 60]}},
+        {"column_prefix": "", "generator": "common.my_feature_example:my_feature_example", "feature_prefix": "", "config":  {"columns": "close", "function": "add", "parameter": 2.0, "names": "close_add"}}
     ],
 
     // === LABELS ===

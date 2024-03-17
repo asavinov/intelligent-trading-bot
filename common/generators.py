@@ -80,8 +80,13 @@ def generate_feature_set(df: pd.DataFrame, fs: dict, last_rows: int) -> Tuple[pd
         f_df, features = generate_threshold_rule2(f_df, gen_config)
 
     else:
-        print(f"Unknown feature generator {generator}")
-        return
+        # Resolve generator name to a function reference
+        generator_fn = resolve_generator_name(generator)
+        if generator_fn is None:
+            raise ValueError(f"Unknown feature generator name or name cannot be resolved: {generator}")
+
+        # Call this function
+        f_df, features = generator_fn(f_df, gen_config)
 
     #
     # Add generated features to the main data frame with all other columns and features
@@ -99,3 +104,38 @@ def generate_feature_set(df: pd.DataFrame, fs: dict, last_rows: int) -> Tuple[pd
     df = df.join(f_df)  # Attach all derived features to the main frame
 
     return df, new_features
+
+
+def resolve_generator_name(gen_name: str):
+    """
+    Resolve the specified name to a function reference.
+    Fully qualified name consists of module name and function name separated by a colon,
+    for example:  'mod1.mod2.mod3:my_func'.
+    """
+
+    mod_and_func = gen_name.split(':', 1)
+    mod_name = mod_and_func[0] if len(mod_and_func) > 1 else None
+    func_name = mod_and_func[-1]
+
+    if not mod_name:
+        return None
+
+    try:
+        mod = importlib.import_module(mod_name)
+    except Exception as e:
+        return None
+    if mod is None:
+        return None
+
+    try:
+        func = getattr(mod, func_name)
+    except AttributeError as e:
+        return None
+
+    return func
+
+
+if __name__ == '__main__':
+    fn = resolve_generator_name("common.gen_features_topbot:generate_labels_topbot3")
+
+    pass
