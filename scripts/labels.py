@@ -67,8 +67,6 @@ def main(config_file):
     if not label_sets:
         print(f"ERROR: no label sets defined. Nothing to process.")
         return
-        # By default, we generate standard labels
-        #label_sets = [{"column_prefix": "", "generator": "highlow", "feature_prefix": ""}]
 
     # Apply all feature generators to the data frame which get accordingly new derived columns
     # The feature parameters will be taken from App.config (depending on generator)

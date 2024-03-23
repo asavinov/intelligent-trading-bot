@@ -36,16 +36,20 @@
     "label_horizon": 120,  // Batch/offline: do not use these last rows because their labels might not be correct
     "train_length": 525600,  // Batch/offline: Uses this number of rows for training (if not additionally limited by the algorithm)
 
+    "train_feature_sets": [
+    {
+        "generator": "train_features", "config": {
+        // Use values from the attributes: train_features, labels, algorithms
+    }}
+    ],
+
     "train_features": [
         "close_SMA_1", "close_SMA_5", "close_SMA_10", "close_SMA_15", "close_SMA_60",
         "close_LINEARREG_SLOPE_5", "close_LINEARREG_SLOPE_10", "close_LINEARREG_SLOPE_15", "close_LINEARREG_SLOPE_60",
         "close_STDDEV_5", "close_STDDEV_10", "close_STDDEV_15", "close_STDDEV_60"
     ],
 
-    "labels": [
-        "high_20",
-        "low_20"
-    ],
+    "labels": ["high_20", "low_20"],
 
     "algorithms": [
         {

@@ -15,7 +15,6 @@ from common.model_store import *
 Train models for all target labels and all algorithms declared in the configuration using the specified features.
 """
 
-
 #
 # Parameters
 #
@@ -65,13 +64,15 @@ def main(config_file):
     #
     # Prepare data by selecting columns and rows
     #
+
+    # Default (common) values for all trained features
     label_horizon = App.config["label_horizon"]  # Labels are generated from future data and hence we might want to explicitly remove some tail rows
     train_length = App.config.get("train_length")
     train_features = App.config.get("train_features")
     labels = App.config["labels"]
     algorithms = App.config.get("algorithms")
 
-    # Select necessary features and label
+    # Select necessary features and labels
     out_columns = ['timestamp', 'open', 'high', 'low', 'close', 'volume', 'close_time']
     out_columns = [x for x in out_columns if x in df.columns]
     all_features = train_features + labels
@@ -100,49 +101,34 @@ def main(config_file):
 
     df = df.reset_index(drop=True)  # To remove gaps in index before use
 
+    #
+    # Generate derived features
+    #
+    train_feature_sets = App.config.get("train_feature_sets", [])
+    if not train_feature_sets:
+        print(f"ERROR: no train feature sets defined. Nothing to process.")
+        return
+
+    print(f"Start training models for {len(df)} input records.")
+
     models = dict()
     scores = dict()
     out_df = pd.DataFrame()  # Collect predictions
 
-    for label in tqdm(labels, desc="LABELS", colour='red', position=0):
+    for i, fs in enumerate(train_feature_sets):
+        fs_now = datetime.now()
+        print(f"Start train feature set {i}/{len(train_feature_sets)}. Generator {fs.get('generator')}...")
 
-        for model_config in tqdm(algorithms, desc="ALGORITHMS", colour='red', leave=False, position=1):
-            algo_name = model_config.get("name")
-            algo_type = model_config.get("algo")
-            algo_train_length = model_config.get("train", {}).get("length")
-            score_column_name = label + label_algo_separator + algo_name
+        fs_models, fs_scores, fs_out_df = train_feature_set(df, fs, App.config)
 
-            # Limit length according to the algorith parameters
-            if algo_train_length:
-                train_df = df.tail(algo_train_length)
-            else:
-                train_df = df
-            df_X = train_df[train_features]
-            df_y = train_df[label]
+        models.update(fs_models)
+        scores.update(fs_scores)
+        out_df = pd.concat([out_df, fs_out_df], axis=1)
 
-            print(f"Train '{score_column_name}'. Train length {len(df_X)}. Train columns {len(df_X.columns)}. Algorithm {algo_name}")
-            if algo_type == "gb":
-                model_pair = train_gb(df_X, df_y, model_config)
-                models[score_column_name] = model_pair
-                df_y_hat = predict_gb(model_pair, df_X, model_config)
-            elif algo_type == "nn":
-                model_pair = train_nn(df_X, df_y, model_config)
-                models[score_column_name] = model_pair
-                df_y_hat = predict_nn(model_pair, df_X, model_config)
-            elif algo_type == "lc":
-                model_pair = train_lc(df_X, df_y, model_config)
-                models[score_column_name] = model_pair
-                df_y_hat = predict_lc(model_pair, df_X, model_config)
-            elif algo_type == "svc":
-                model_pair = train_svc(df_X, df_y, model_config)
-                models[score_column_name] = model_pair
-                df_y_hat = predict_svc(model_pair, df_X, model_config)
-            else:
-                print(f"ERROR: Unknown algorithm type {algo_type}. Check algorithm list.")
-                return
+        fs_elapsed = datetime.now() - fs_now
+        print(f"Finished train feature set {i}/{len(train_feature_sets)}. Generator {fs.get('generator')}. Time: {str(fs_elapsed).split('.')[0]}")
 
-            scores[score_column_name] = compute_scores(df_y, df_y_hat)
-            out_df[score_column_name] = df_y_hat
+    print(f"Finished training models.")
 
     #
     # Store all collected models in files
@@ -199,6 +185,72 @@ def main(config_file):
     #
     elapsed = datetime.now() - now
     print(f"Finished training models in {str(elapsed).split('.')[0]}")
+
+
+def train_feature_set(df, fs, config):
+
+    labels = fs.get("config").get("labels")
+    if not labels:
+        labels = config.get("labels")
+
+    algorithms = fs.get("config").get("functions")
+    if not algorithms:
+        algorithms = fs.get("config").get("algorithms")
+    if not algorithms:
+        algorithms = config.get("algorithms")
+
+    train_features = fs.get("config").get("columns")
+    if not train_features:
+        train_features = fs.get("config").get("features")
+    if not train_features:
+        train_features = config.get("train_features")
+
+    models = dict()
+    scores = dict()
+    out_df = pd.DataFrame()  # Collect predictions
+
+    for label in labels:
+
+        for model_config in algorithms:
+            algo_name = model_config.get("name")
+            algo_type = model_config.get("algo")
+            algo_train_length = model_config.get("train", {}).get("length")
+            score_column_name = label + label_algo_separator + algo_name
+
+            # Limit length according to the algorith parameters
+            if algo_train_length:
+                train_df = df.tail(algo_train_length)
+            else:
+                train_df = df
+            df_X = train_df[train_features]
+            df_y = train_df[label]
+
+            print(f"Train '{score_column_name}'. Train length {len(df_X)}. Train columns {len(df_X.columns)}. Algorithm {algo_name}")
+
+            if algo_type == "gb":
+                model_pair = train_gb(df_X, df_y, model_config)
+                models[score_column_name] = model_pair
+                df_y_hat = predict_gb(model_pair, df_X, model_config)
+            elif algo_type == "nn":
+                model_pair = train_nn(df_X, df_y, model_config)
+                models[score_column_name] = model_pair
+                df_y_hat = predict_nn(model_pair, df_X, model_config)
+            elif algo_type == "lc":
+                model_pair = train_lc(df_X, df_y, model_config)
+                models[score_column_name] = model_pair
+                df_y_hat = predict_lc(model_pair, df_X, model_config)
+            elif algo_type == "svc":
+                model_pair = train_svc(df_X, df_y, model_config)
+                models[score_column_name] = model_pair
+                df_y_hat = predict_svc(model_pair, df_X, model_config)
+            else:
+                print(f"ERROR: Unknown algorithm type {algo_type}. Check algorithm list.")
+                return
+
+            scores[score_column_name] = compute_scores(df_y, df_y_hat)
+            out_df[score_column_name] = df_y_hat
+
+    return models, scores, out_df
 
 
 if __name__ == '__main__':
