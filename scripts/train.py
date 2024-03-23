@@ -102,7 +102,7 @@ def main(config_file):
     df = df.reset_index(drop=True)  # To remove gaps in index before use
 
     #
-    # Generate derived features
+    # Train feature models
     #
     train_feature_sets = App.config.get("train_feature_sets", [])
     if not train_feature_sets:
@@ -210,12 +210,12 @@ def train_feature_set(df, fs, config):
     out_df = pd.DataFrame()  # Collect predictions
 
     for label in labels:
-
         for model_config in algorithms:
+
             algo_name = model_config.get("name")
             algo_type = model_config.get("algo")
-            algo_train_length = model_config.get("train", {}).get("length")
             score_column_name = label + label_algo_separator + algo_name
+            algo_train_length = model_config.get("train", {}).get("length")
 
             # Limit length according to the algorith parameters
             if algo_train_length:
