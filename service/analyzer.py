@@ -338,36 +338,22 @@ class Analyzer:
             log.error(f"Null in predict_df found. Columns with Null: {null_columns}")
             return
 
-        # Do prediction by applying all models (for the score columns declared in config) to the data
-        algorithms = App.config.get("algorithms")
-        score_df = pd.DataFrame(index=predict_df.index)
-        try:
-            for score_column_name, model_pair in self.models.items():
-
-                label, algo_name = score_to_label_algo_pair(score_column_name)
-                model_config = get_algorithm(algorithms, algo_name)  # Get algorithm description from the algo store
-                algo_type = model_config.get("algo")
-
-                if algo_type == "gb":
-                    df_y_hat = predict_gb(model_pair, predict_df, model_config)
-                elif algo_type == "nn":
-                    df_y_hat = predict_nn(model_pair, predict_df, model_config)
-                elif algo_type == "lc":
-                    df_y_hat = predict_lc(model_pair, predict_df, model_config)
-                elif algo_type == "svc":
-                    df_y_hat = predict_svc(model_pair, predict_df, model_config)
-                else:
-                    raise ValueError(f"Unknown algorithm type '{algo_type}'")
-
-                score_df[score_column_name] = df_y_hat
-
-        except Exception as e:
-            log.error(f"Error in predict: {e}: '{score_column_name=}', '{algo_name=}")
+        train_feature_sets = App.config.get("train_feature_sets", [])
+        if not train_feature_sets:
+            log.error(f"ERROR: no train feature sets defined. Nothing to process.")
             return
 
-        # This df contains only one (last) record
-        df = df.join(score_df)
-        #df = pd.concat([predict_df, score_df], axis=1)
+        # Apply all train feature generators to the data frame by generating predicted columns
+        train_feature_columns = []
+        score_df = pd.DataFrame(index=predict_df.index)
+        for fs in train_feature_sets:
+            from scripts.predict import predict_feature_set
+            fs_df, _, feats = predict_feature_set(predict_df, fs, App.config, self.models)
+            train_feature_columns.extend(feats)
+            score_df = pd.concat([score_df, fs_df], axis=1)
+
+        # Attach all predicted features to the main data frame
+        df = pd.concat([df, score_df], axis=1)
 
         #
         # 4.

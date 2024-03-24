@@ -111,6 +111,8 @@ def resolve_generator_name(gen_name: str):
     Resolve the specified name to a function reference.
     Fully qualified name consists of module name and function name separated by a colon,
     for example:  'mod1.mod2.mod3:my_func'.
+
+    Example: fn = resolve_generator_name("common.gen_features_topbot:generate_labels_topbot3")
     """
 
     mod_and_func = gen_name.split(':', 1)
@@ -133,9 +135,3 @@ def resolve_generator_name(gen_name: str):
         return None
 
     return func
-
-
-if __name__ == '__main__':
-    fn = resolve_generator_name("common.gen_features_topbot:generate_labels_topbot3")
-
-    pass
