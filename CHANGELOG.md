@@ -1,6 +1,7 @@
 # Change Log
 
 * v0.7.dev
+  * restructure config for ML-features making their configuration closer to normal features and normal generators
   * possibility to reference arbitrary external functions as generators  
   * support for parquet storage format for intermediate files
   * all data including features, predicted scores and signals are stored in the context and available for further processing

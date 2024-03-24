@@ -7,9 +7,8 @@ import numpy as np
 import pandas as pd
 
 from service.App import *
-from common.gen_features import *
-from common.classifiers import *
 from common.model_store import *
+from common.generators import predict_feature_set
 
 """
 Apply models to (previously generated) features and compute prediction scores.
@@ -106,19 +105,19 @@ def main(config_file):
 
     print(f"Start generating trained features for {len(df)} input records.")
 
+    out_df = pd.DataFrame()  # Collect predictions
     features = []
     scores = dict()
-    out_df = pd.DataFrame()  # Collect predictions
 
     for i, fs in enumerate(train_feature_sets):
         fs_now = datetime.now()
         print(f"Start train feature set {i}/{len(train_feature_sets)}. Generator {fs.get('generator')}...")
 
-        fs_out_df, fs_scores, fs_features = predict_feature_set(df, fs, App.config, models)
+        fs_out_df, fs_features, fs_scores = predict_feature_set(df, fs, App.config, models)
 
+        out_df = pd.concat([out_df, fs_out_df], axis=1)
         features.extend(fs_features)
         scores.update(fs_scores)
-        out_df = pd.concat([out_df, fs_out_df], axis=1)
 
         fs_elapsed = datetime.now() - fs_now
         print(f"Finished train feature set {i}/{len(train_feature_sets)}. Generator {fs.get('generator')}. Time: {str(fs_elapsed).split('.')[0]}")
@@ -165,64 +164,6 @@ def main(config_file):
     #
     elapsed = datetime.now() - now
     print(f"Finished training models in {str(elapsed).split('.')[0]}")
-
-
-def predict_feature_set(df, fs, config, models: dict):
-
-    labels = fs.get("config").get("labels")
-    if not labels:
-        labels = config.get("labels")
-
-    algorithms = fs.get("config").get("functions")
-    if not algorithms:
-        algorithms = fs.get("config").get("algorithms")
-    if not algorithms:
-        algorithms = config.get("algorithms")
-
-    train_features = fs.get("config").get("columns")
-    if not train_features:
-        train_features = fs.get("config").get("features")
-    if not train_features:
-        train_features = config.get("train_features")
-
-    train_df = df[train_features]
-
-    features = []
-    scores = dict()
-    out_df = pd.DataFrame(index=train_df.index)  # Collect predictions
-
-    for label in labels:
-        for model_config in algorithms:
-
-            algo_name = model_config.get("name")
-            algo_type = model_config.get("algo")
-            score_column_name = label + label_algo_separator + algo_name
-            algo_train_length = model_config.get("train", {}).get("length")
-
-            # It is an entry from loaded model dict
-            model_pair = models.get(score_column_name)  # Trained model from model registry
-
-            print(f"Predict '{score_column_name}'. Length {len(train_df)}. Columns {len(train_df.columns)}. Algorithm {algo_name}")
-
-            if algo_type == "gb":
-                df_y_hat = predict_gb(model_pair, train_df, model_config)
-            elif algo_type == "nn":
-                df_y_hat = predict_nn(model_pair, train_df, model_config)
-            elif algo_type == "lc":
-                df_y_hat = predict_lc(model_pair, train_df, model_config)
-            elif algo_type == "svc":
-                df_y_hat = predict_svc(model_pair, train_df, model_config)
-            else:
-                raise ValueError(f"Unknown algorithm type '{algo_type}'")
-
-            out_df[score_column_name] = df_y_hat
-            features.append(score_column_name)
-
-            # For each new score, compare it with the label true values
-            if label in df:
-                scores[score_column_name] = compute_scores(df[label], df_y_hat)
-
-    return out_df, scores, features
 
 
 if __name__ == '__main__':

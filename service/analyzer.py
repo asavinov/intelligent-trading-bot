@@ -10,9 +10,10 @@ import pandas as pd
 
 from service.App import *
 from common.utils import *
-from common.generators import generate_feature_set
 from common.classifiers import *
 from common.model_store import *
+from common.generators import generate_feature_set
+from common.generators import predict_feature_set
 
 from scripts.merge import *
 from scripts.features import *
@@ -344,13 +345,12 @@ class Analyzer:
             return
 
         # Apply all train feature generators to the data frame by generating predicted columns
-        train_feature_columns = []
         score_df = pd.DataFrame(index=predict_df.index)
+        train_feature_columns = []
         for fs in train_feature_sets:
-            from scripts.predict import predict_feature_set
-            fs_df, _, feats = predict_feature_set(predict_df, fs, App.config, self.models)
-            train_feature_columns.extend(feats)
+            fs_df, feats, _ = predict_feature_set(predict_df, fs, App.config, self.models)
             score_df = pd.concat([score_df, fs_df], axis=1)
+            train_feature_columns.extend(feats)
 
         # Attach all predicted features to the main data frame
         df = pd.concat([df, score_df], axis=1)
