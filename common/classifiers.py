@@ -102,7 +102,7 @@ def train_gb(df_X, df_y, model_config: dict):
 
         'boosting_type': 'gbdt',  # dart (slow but best, worse than gbdt), goss, gbdt
 
-        'objective': objective, # binary cross_entropy cross_entropy_lambda
+        'objective': objective,  # binary cross_entropy cross_entropy_lambda
 
         'metric': {'cross_entropy'},  # auc auc_mu map (mean_average_precision) cross_entropy binary_logloss cross_entropy_lambda binary_error
 
@@ -244,8 +244,8 @@ def train_nn(df_X, df_y, model_config: dict):
 
     es = EarlyStopping(
         monitor="loss",  # val_loss loss
-        min_delta=0.001,  # Minimum change qualified as improvement
-        patience=1,  # Number of epochs with no improvements
+        min_delta=0.0001,  # Minimum change qualified as improvement
+        patience=3,  # Number of epochs with no improvements
         verbose=0,
         mode='auto',
     )

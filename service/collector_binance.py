@@ -33,7 +33,7 @@ async def main_collector_task():
     It is a highest level task which is added to the event loop and executed normally every 1 minute and then it calls other tasks.
     """
     symbol = App.config["symbol"]
-    startTime, endTime = get_interval("1m")
+    startTime, endTime = binance_get_interval("1m")
     now_ts = now_timestamp()
 
     log.info(f"===> Start collector task. Timestamp {now_ts}. Interval [{startTime},{endTime}].")
@@ -59,10 +59,10 @@ async def main_collector_task():
     log.info(f"<=== End collector task.")
     return 0
 
+
 #
 # Request/update market data
 #
-
 
 async def sync_data_collector_task():
     """
@@ -134,7 +134,7 @@ async def request_klines(symbol, freq, limit):
 
     now_ts = now_timestamp()
 
-    startTime, endTime = get_interval(freq)
+    startTime, endTime = binance_get_interval(freq)
 
     klines = []
     try:

@@ -1,7 +1,7 @@
-numpy>=1.24.*  # version is limited by numba 0.57.1 and tensorflow 2.13
-pandas>=2.*  # The version might be important for parsing timestamps
+numpy>=1.26.*  # version might be limited by numba and tensorflow
+pandas>=2.*  # version might be important for parsing timestamps
 numba  # For highlow label generator. numba 0.57.1 requires numpy<1.25,>=1.21,
-#pyarrow  # If parquet is used. Alternatively fastparquet
+pyarrow  # If parquet is used. Alternatively fastparquet
 
 apscheduler==3.10.*
 click
@@ -15,8 +15,8 @@ python-binance>=1.0.*  # pip install python-binance
 ta-lib  # Python wrapper for TA-lib (native) library
 
 # Algorithms
-scikit-learn==1.3.*
+scikit-learn==1.4.*
 lightgbm>=4.*
-tensorflow>=2.13.*
+tensorflow>=2.15.*
 
 # seaborn  # if diagrams are turned on
