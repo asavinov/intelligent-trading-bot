@@ -280,7 +280,7 @@ class Analyzer:
             if ds.get("file") == "klines":
                 try:
                     klines = self.klines.get(ds.get("folder"))
-                    df = klines_to_df(klines)
+                    df = binance_klines_to_df(klines)
 
                     # Validate
                     source_columns = ['open', 'high', 'low', 'close', 'volume', 'close_time', 'quote_av', 'trades', 'tb_base_av', 'tb_quote_av']

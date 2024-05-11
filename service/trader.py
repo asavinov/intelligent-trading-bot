@@ -33,7 +33,7 @@ async def main_trader_task():
     It is a highest level task which is added to the event loop and executed normally every 1 minute and then it calls other tasks.
     """
     symbol = App.config["symbol"]
-    startTime, endTime = get_interval("1m")
+    startTime, endTime = binance_get_interval("1m")
     now_ts = now_timestamp()
 
     log.info(f"===> Start trade task. Timestamp {now_ts}. Interval [{startTime},{endTime}].")

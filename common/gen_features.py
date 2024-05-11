@@ -696,39 +696,5 @@ def add_threshold_feature(df, column_name: str, thresholds: list, out_names: lis
     return out_names
 
 
-def klines_to_df(klines: list):
-    """
-    Convert a list of klines to a data frame.
-    """
-    columns = [
-        'timestamp',
-        'open', 'high', 'low', 'close', 'volume',
-        'close_time',
-        'quote_av', 'trades', 'tb_base_av', 'tb_quote_av',
-        'ignore'
-    ]
-
-    df = pd.DataFrame(klines, columns=columns)
-
-    df['timestamp'] = pd.to_datetime(df['timestamp'], unit='ms')
-    df['close_time'] = pd.to_datetime(df['close_time'], unit='ms')
-
-    df["open"] = pd.to_numeric(df["open"])
-    df["high"] = pd.to_numeric(df["high"])
-    df["low"] = pd.to_numeric(df["low"])
-    df["close"] = pd.to_numeric(df["close"])
-    df["volume"] = pd.to_numeric(df["volume"])
-
-    df["quote_av"] = pd.to_numeric(df["quote_av"])
-    df["trades"] = pd.to_numeric(df["trades"])
-    df["tb_base_av"] = pd.to_numeric(df["tb_base_av"])
-    df["tb_quote_av"] = pd.to_numeric(df["tb_quote_av"])
-
-    if "timestamp" in df.columns:
-        df.set_index('timestamp', inplace=True)
-
-    return df
-
-
 if __name__ == "__main__":
     pass

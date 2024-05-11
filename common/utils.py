@@ -41,10 +41,98 @@ def round_down_str(value, digits):
 
 
 #
-# Date and time
+# Binance specific
 #
 
-def get_interval(freq: str, timestamp: int=None):
+def klines_to_df(klines, df):
+
+    data = pd.DataFrame(klines, columns=['timestamp', 'open', 'high', 'low', 'close', 'volume', 'close_time', 'quote_av', 'trades', 'tb_base_av', 'tb_quote_av', 'ignore'])
+    data['timestamp'] = pd.to_datetime(data['timestamp'], unit='ms')
+    dtypes = {
+        'open': 'float64', 'high': 'float64', 'low': 'float64', 'close': 'float64', 'volume': 'float64',
+        'close_time': 'int64',
+        'quote_av': 'float64',
+        'trades': 'int64',
+        'tb_base_av': 'float64',
+        'tb_quote_av': 'float64',
+        'ignore': 'float64',
+    }
+    data = data.astype(dtypes)
+
+    if df is None or len(df) == 0:
+        df = data
+    else:
+        df = pd.concat([df, data])
+
+    # Drop duplicates
+    df = df.drop_duplicates(subset=["timestamp"], keep="last")
+    #df = df[~df.index.duplicated(keep='last')]  # alternatively, drop duplicates in index
+
+    df.set_index('timestamp', inplace=True)
+
+    return df
+
+
+def binance_klines_to_df(klines: list):
+    """
+    Convert a list of klines to a data frame.
+    """
+    columns = [
+        'timestamp',
+        'open', 'high', 'low', 'close', 'volume',
+        'close_time',
+        'quote_av', 'trades', 'tb_base_av', 'tb_quote_av',
+        'ignore'
+    ]
+
+    df = pd.DataFrame(klines, columns=columns)
+
+    df['timestamp'] = pd.to_datetime(df['timestamp'], unit='ms')
+    df['close_time'] = pd.to_datetime(df['close_time'], unit='ms')
+
+    df["open"] = pd.to_numeric(df["open"])
+    df["high"] = pd.to_numeric(df["high"])
+    df["low"] = pd.to_numeric(df["low"])
+    df["close"] = pd.to_numeric(df["close"])
+    df["volume"] = pd.to_numeric(df["volume"])
+
+    df["quote_av"] = pd.to_numeric(df["quote_av"])
+    df["trades"] = pd.to_numeric(df["trades"])
+    df["tb_base_av"] = pd.to_numeric(df["tb_base_av"])
+    df["tb_quote_av"] = pd.to_numeric(df["tb_quote_av"])
+
+    if "timestamp" in df.columns:
+        df.set_index('timestamp', inplace=True)
+
+    return df
+
+
+def binance_freq_from_pandas(freq: str) -> str:
+    """
+    Map pandas frequency to binance API frequency
+
+    :param freq: pandas frequency https://pandas.pydata.org/docs/user_guide/timeseries.html#timeseries-offset-aliases
+    :return: binance frequency https://developers.binance.com/docs/derivatives/coin-margined-futures/market-data/Kline-Candlestick-Data
+    """
+    if freq.endswith("min"):  # Binance: 1m, 3m, 5m, 15m, 30m
+        freq = freq.replace("min", "m")
+    elif freq.endswith("D"):
+        freq = freq.replace("D", "d")  # Binance: 1d, 3d
+    elif freq.endswith("W"):
+        freq = freq.replace("W", "w")
+    elif freq == "BMS":
+        freq = freq.replace("BMS", "M")
+
+    if len(freq) == 1:
+        freq = "1" + freq
+
+    if not (2 <= len(freq) <= 3) or not freq[:-1].isdigit() or freq[-1] not in ["m", "h", "d", "w", "M"]:
+        raise ValueError(f"Not supported Binance frequency {freq}. It should be one or two digits followed by a character.")
+
+    return freq
+
+
+def binance_get_interval(freq: str, timestamp: int=None):
     """
     Return a triple of interval start (including), end (excluding) in milliseconds for the specified timestamp or now
 
@@ -52,6 +140,7 @@ def get_interval(freq: str, timestamp: int=None):
     https://github.com/sammchardy/python-binance/blob/master/binance/helpers.py
         interval_to_milliseconds(interval) - binance freq string (like 1m) to millis
 
+    :param freq: binance frequency https://developers.binance.com/docs/derivatives/coin-margined-futures/market-data/Kline-Candlestick-Data
     :return: tuple of start (inclusive) and end (exclusive) of the interval in millis
     :rtype: (int, int)
     """
@@ -99,6 +188,10 @@ def get_interval(freq: str, timestamp: int=None):
 
     return int(start * 1000), int(end * 1000)
 
+
+#
+# Date and time
+#
 
 def now_timestamp():
     """

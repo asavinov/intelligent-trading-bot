@@ -8,7 +8,7 @@ from apscheduler.schedulers.asyncio import AsyncIOScheduler
 
 from service.App import *
 from common.utils import *
-from service.collector import *
+from service.collector_binance import main_collector_task, data_provider_health_check, sync_data_collector_task
 from service.analyzer import *
 from service.notifier_trades import *
 from service.notifier_scores import *
