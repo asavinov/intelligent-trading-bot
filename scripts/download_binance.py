@@ -16,8 +16,7 @@ from binance.client import Client
 from binance.streams import BinanceSocketManager
 from binance.enums import *
 
-# DO NOT INCLUDE because it has function klines_to_df with the same name but different implementation (name conflict)
-#from common.utils import *
+from common.utils import klines_to_df, binance_freq_from_pandas
 from service.App import *
 
 """
@@ -27,15 +26,6 @@ Links:
 https://sammchardy.github.io/binance/2018/01/08/historical-data-download-binance.html
 https://sammchardy.github.io/kucoin/2018/01/14/historical-data-download-kucoin.html
 """
-
-### CONSTANTS
-binsizes = {"1m": 1, "5m": 5, "1h": 60, "1d": 1440}
-batch_size = 750
-
-symbols = ["XBTUSD", "ETHUSD", "XRPZ18", "LTCZ18", "EOSZ18", "BCHZ18", "ADAZ18", "TRXZ18"]
-
-App.client = Client(api_key=App.config["api_key"], api_secret=App.config["api_secret"])
-
 
 #
 # Historic data
@@ -57,8 +47,15 @@ def main(config_file):
 
     now = datetime.now()
 
-    freq = "1m"
+    freq = App.config["freq"]  # Pandas frequency
+    print(f"Pandas frequency: {freq}")
+
+    freq = binance_freq_from_pandas(freq)
+    print(f"Binance frequency: {freq}")
+
     save = True
+
+    App.client = Client(api_key=App.config["api_key"], api_secret=App.config["api_secret"])
 
     futures = False
     if futures:
@@ -81,46 +78,53 @@ def main(config_file):
 
         file_name = (file_path / ("futures" if futures else "klines")).with_suffix(".csv")
 
+        # Get a few latest klines to determine the latest available timestamp
+        latest_klines = App.client.get_klines(symbol=quote, interval=freq, limit=5)
+        latest_ts = pd.to_datetime(latest_klines[-1][0], unit='ms')
+
         if file_name.is_file():
             # Load the existing data in order to append newly downloaded data
-            data_df = pd.read_csv(file_name)
-            data_df[time_column] = pd.to_datetime(data_df[time_column], format='ISO8601')
-            print(f"File found. Downloaded data will be appended to the existing file {file_name}")
+            df = pd.read_csv(file_name)
+            df[time_column] = pd.to_datetime(df[time_column], format='ISO8601')
+
+            # oldest_point = parser.parse(data["timestamp"].iloc[-1])
+            oldest_point = df["timestamp"].iloc[-5]  # Use an older point so that new data will overwrite old data
+
+            print(f"File found. Downloaded data for {quote} and {freq} since {str(latest_ts)} will be appended to the existing file {file_name}")
         else:
             # No existing data so we will download all available data and store as a new file
-            data_df = pd.DataFrame()
-            print(f"File not found. All data will be downloaded and stored in newly created file.")
+            df = pd.DataFrame()
 
-        oldest_point, newest_point = minutes_of_new_data(quote, freq, data_df)
+            oldest_point = datetime(2017, 1, 1)
 
-        delta_min = (newest_point - oldest_point).total_seconds() / 60
+            print(f"File not found. All data will be downloaded and stored in newly created file for {quote} and {freq}.")
 
-        available_data = math.ceil(delta_min / binsizes[freq])
-
-        if oldest_point == datetime.strptime('1 Jan 2017', '%d %b %Y'):
-            print('Downloading all available %s data for %s. Be patient..!' % (freq, quote))
-        else:
-            print('Downloading %d minutes of new data available for %s, i.e. %d instances of %s data.' % (delta_min, quote, available_data, freq))
+        #delta_minutes = (latest_ts - oldest_point).total_seconds() / 60
+        #binsizes = {"1m": 1, "5m": 5, "1h": 60, "1d": 1440}
+        #delta_lines = math.ceil(delta_minutes / binsizes[freq])
 
         # === Download from the remote server using binance client
         klines = App.client.get_historical_klines(
-            quote,
-            freq,
-            oldest_point.strftime("%d %b %Y %H:%M:%S"),
-            newest_point.strftime("%d %b %Y %H:%M:%S")
+            symbol=quote,
+            interval=freq,
+            start_str=oldest_point.isoformat(),
+            #end_str=latest_ts.isoformat()  # fetch everything up to now
         )
 
-        data_df = klines_to_df(klines, data_df)
+        df = klines_to_df(klines, df)
+
+        # Remove last row because it represents a non-complete kline (the interval not finished yet)
+        df = df.iloc[:-1]
 
         if save:
-            data_df.to_csv(file_name)
+            df.to_csv(file_name)
 
         print(f"Finished downloading '{quote}'. Stored in '{file_name}'")
 
     elapsed = datetime.now() - now
     print(f"Finished downloading data in {str(elapsed).split('.')[0]}")
 
-    return data_df
+    return df
 
 
 #
@@ -164,41 +168,12 @@ def minutes_of_new_data(symbol, freq, data):
         #old = datetime.strptime('1 Aug 2019', '%d %b %Y')
         old = datetime.strptime('1 Jan 2017', '%d %b %Y')
 
+    # Get a few latest klines in order to determine timestamp of the latest entry. Size of the return array is limited by default parameters of the server
     # List of tuples like this: [1569728580000, '8156.65000000', '8156.66000000', '8154.75000000', '8155.32000000', '4.63288700', 1569728639999, '37786.23994297', 74, '3.18695100', '25993.68396886', '0']
     new_info = App.client.get_klines(symbol=symbol, interval=freq)
     new = pd.to_datetime(new_info[-1][0], unit='ms')
     
     return old, new
-
-
-# NOTE: this function is different from same in trade.utils
-def klines_to_df(klines, df):
-
-    data = pd.DataFrame(klines, columns = ['timestamp', 'open', 'high', 'low', 'close', 'volume', 'close_time', 'quote_av', 'trades', 'tb_base_av', 'tb_quote_av', 'ignore' ])
-    data['timestamp'] = pd.to_datetime(data['timestamp'], unit='ms')
-    dtypes = {
-        'open': 'float64', 'high': 'float64', 'low': 'float64', 'close': 'float64', 'volume': 'float64',
-        'close_time': 'int64',
-        'quote_av': 'float64',
-        'trades': 'int64',
-        'tb_base_av': 'float64',
-        'tb_quote_av': 'float64',
-        'ignore': 'float64',
-    }
-    data = data.astype(dtypes)
-
-    if df is None or len(df) == 0:
-        df = data
-    else: 
-        df = pd.concat([df, data])
-
-    # Drop duplicates
-    df = df.drop_duplicates(subset=["timestamp"])
-    #df = df[~df.index.duplicated(keep='last')]  # alternatively, drop duplicates in index
-
-    df.set_index('timestamp', inplace=True)
-
-    return df
 
 
 #
@@ -282,8 +257,6 @@ async def get_futures_klines_all(symbol, freq, save = False):
 
     if save: 
         data_df.to_csv(filename)
-
-    pass
 
 
 def check_market_stream():

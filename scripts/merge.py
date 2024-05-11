@@ -188,20 +188,13 @@ def merge_data_sources(data_sources: list):
         ds["df"] = df
 
     #
-    # Create 1m common (main) index and empty data frame
+    # Create common (main) index and empty data frame
     #
     range_start = min([ds["start"] for ds in data_sources])
     range_end = min([ds["end"] for ds in data_sources])
 
-    # Regular time raster according to the parameter
-    if freq == "1m":
-        index = pd.date_range(range_start, range_end, freq="T")
-    elif freq == "1d":
-        index = pd.date_range(range_start, range_end, freq="B")  # D - daily, B - business days (no weekends)
-        #index = pd.bdate_range(start=range_start, end=range_end)  # tz='UTC'
-    else:
-        print(f"ERROR: Frequency parameter 'freq' is unknown or not specified: {freq}")
-        return
+    # Generate a discrete time raster according to the (pandas) frequency parameter
+    index = pd.date_range(range_start, range_end, freq=freq)
 
     df_out = pd.DataFrame(index=index)
     df_out.index.name = time_column

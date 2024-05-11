@@ -96,9 +96,9 @@ class App:
         # Symbol determines sub-folder and used in other identifiers
         "symbol": "BTCUSDT",  # BTCUSDT ETHUSDT ^gspc
 
-        # This parameter determines the time raster (granularity) for the data
-        # Currently 1m for binance, and 1d for yahoo are supported (only workdays)
-        "freq": "1m",
+        # This parameter determines time raster (granularity) for the data
+        # It pandas frequency
+        "freq": "1min",
 
         # This list is used for downloading and then merging data
         # "folder" is symbol name for downloading. prefix will be added column names during merge
@@ -185,7 +185,7 @@ class App:
                 "folder": "DEPTH",
                 "symbols": ["BTCUSDT", "ETHBTC", "ETHUSDT", "IOTAUSDT", "IOTABTC", "IOTAETH"],
                 "limit": 100,  # Legal values (depth): '5, 10, 20, 50, 100, 500, 1000, 5000' <100 weight=1
-                "freq": "1m",  # Binance standard frequency: 5s, 1m etc.
+                "freq": "1min",  # Pandas frequency
             },
             "stream": {
                 "folder": "STREAM",
