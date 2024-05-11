@@ -50,12 +50,14 @@ def main(config_file):
             last_date = df.iloc[-1][time_column]
 
             # === Download from the remote server
-            new_df = yf.download(quote, last_date - timedelta(days=5))  # Download somewhat more than we need
+            # Download more data than we need and then overwrite the older data
+            new_df = yf.download(quote, period="5d", auto_adjust=True)
 
             new_df = new_df.reset_index()
             new_df['Date'] = pd.to_datetime(new_df['Date'], format="ISO8601").dt.date
-            del new_df['Close']
-            new_df.rename({'Adj Close': 'Close', 'Date': time_column}, axis=1, inplace=True)
+            #del new_df['Close']
+            #new_df.rename({'Adj Close': 'Close'}, axis=1, inplace=True)
+            new_df.rename({'Date': time_column}, axis=1, inplace=True)
             new_df.columns = new_df.columns.str.lower()
 
             df = pd.concat([df, new_df])
@@ -65,12 +67,14 @@ def main(config_file):
             print(f"File not found. Full fetch...")
 
             # === Download from the remote server
-            df = yf.download(quote, date(1990, 1, 1))
+            #df = yf.download(quote, date(1990, 1, 1), auto_adjust=True)
+            df = yf.download(quote, period="max", auto_adjust=True)
 
             df = df.reset_index()
             df['Date'] = pd.to_datetime(df['Date'], format="ISO8601").dt.date
-            del df['Close']
-            df.rename({'Adj Close': 'Close', 'Date': time_column}, axis=1, inplace=True)
+            #del df['Close']
+            #df.rename({'Adj Close': 'Close'}, axis=1, inplace=True)
+            df.rename({'Date': time_column}, axis=1, inplace=True)
             df.columns = df.columns.str.lower()
 
             print(f"Full fetch finished.")
