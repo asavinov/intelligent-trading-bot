@@ -77,7 +77,7 @@ def depth_to_df(depth: list):
     # Create DatetimeIndex
     # NOTE: if tz is not specified then the index is tz-naive
     #   closed can be specified (which side to include/exclude: left, right or both). it influences if we want ot include/exclude start or end of the interval
-    index = pd.date_range(start, end, freq="T")
+    index = pd.date_range(start, end, freq="min")
     df_out = pd.DataFrame(index=index)
 
     #

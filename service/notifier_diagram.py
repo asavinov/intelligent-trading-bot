@@ -204,8 +204,9 @@ def generate_chart(df, title, buy_signal_column, sell_signal_column, score_colum
 
     # Draw close price
     sns.lineplot(data=df, x="timestamp", y="close", drawstyle='steps-mid', lw=.5, color='darkblue', ax=ax1)
+    #sns.pointplot(data=df, x="timestamp", y="close", color='darkblue', ax=ax1)
 
-    # Buy/sell markters (list of timestamps)
+    # Buy/sell markers (list of timestamps)
     # buy_df = df[df.buy_transaction]
     # sell_df = df[df.sell_transaction]
 
@@ -216,8 +217,10 @@ def generate_chart(df, title, buy_signal_column, sell_signal_column, score_colum
     df["close_sell_adj"] = df["close"] + triangle_adj
 
     # markersize=6, markerfacecolor='blue'
-    sns.lineplot(data=df[df[buy_signal_column] == True], x="timestamp", y="close_buy_adj", lw=0, markerfacecolor="green", markersize=10, marker="^", alpha=0.6, ax=ax1)
-    sns.lineplot(data=df[df[sell_signal_column] == True], x="timestamp", y="close_sell_adj", lw=0, markerfacecolor="red", markersize=10, marker="v", alpha=0.6, ax=ax1)
+    if buy_signal_column:
+        sns.lineplot(data=df[df[buy_signal_column] is True], x="timestamp", y="close_buy_adj", lw=0, markerfacecolor="green", markersize=10, marker="^", alpha=0.6, ax=ax1)
+    if sell_signal_column:
+        sns.lineplot(data=df[df[sell_signal_column] is True], x="timestamp", y="close_sell_adj", lw=0, markerfacecolor="red", markersize=10, marker="v", alpha=0.6, ax=ax1)
 
     # g2.set(yticklabels=[])
     # g2.set(title='Penguins: Body Mass by Species for Gender')
@@ -239,7 +242,7 @@ def generate_chart(df, title, buy_signal_column, sell_signal_column, score_colum
     if score_column and score_column in df.columns:
         ax2 = ax1.twinx()
         # ax2.plot(x, y1, 'o-', color="red" )
-        sns.lineplot(data=df, x="timestamp", y=score_column, drawstyle='steps-mid', lw=.2, color="red", ax=ax2)  # marker="v" "^" , markersize=12
+        sns.lineplot(data=df, x="timestamp", y=score_column, drawstyle='steps-mid', lw=.3, color="darkred", ax=ax2)  # marker="v" "^" , markersize=12
         ax2.set_ylabel('Score', color='r')
         ax2.set_ylabel('Score', color='b')
 
