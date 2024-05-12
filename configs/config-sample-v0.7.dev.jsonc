@@ -11,6 +11,8 @@
 
     "symbol": "BTCUSDT",
 
+    "freq": "1min", // pandas frequency
+
     "data_sources": [
         {"folder": "BTCUSDT", "file": "klines", "column_prefix": ""}
     ],

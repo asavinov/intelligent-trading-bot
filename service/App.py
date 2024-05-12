@@ -97,7 +97,7 @@ class App:
         "symbol": "BTCUSDT",  # BTCUSDT ETHUSDT ^gspc
 
         # This parameter determines time raster (granularity) for the data
-        # It pandas frequency
+        # It is pandas frequency
         "freq": "1min",
 
         # This list is used for downloading and then merging data

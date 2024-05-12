@@ -8,6 +8,8 @@ from decimal import *
 import numpy as np
 import pandas as pd
 
+from apscheduler.triggers.cron import CronTrigger
+
 from binance.helpers import date_to_milliseconds, interval_to_milliseconds
 
 from common.gen_features import *
@@ -192,6 +194,39 @@ def binance_get_interval(freq: str, timestamp: int=None):
 #
 # Date and time
 #
+
+def freq_to_CronTrigger(freq: str):
+    # Add small time after interval end to get a complete interval from the server
+    if freq.endswith("min"):
+        if freq[:-3] == "1":
+            trigger = CronTrigger(minute="*", second="1", timezone="UTC")
+        else:
+            trigger = CronTrigger(minute="*/" + freq[:-3], second="1", timezone="UTC")
+    elif freq.endswith("h"):
+        if freq[:-1] == "1":
+            trigger = CronTrigger(hour="*", second="2", timezone="UTC")
+        else:
+            trigger = CronTrigger(hour="*/" + freq[:-1], second="2", timezone="UTC")
+    elif freq.endswith("D"):
+        if freq[:-1] == "1":
+            trigger = CronTrigger(day="*", second="5", timezone="UTC")
+        else:
+            trigger = CronTrigger(day="*/" + freq[:-1], second="5", timezone="UTC")
+    elif freq.endswith("W"):
+        if freq[:-1] == "1":
+            trigger = CronTrigger(week="*", second="10", timezone="UTC")
+        else:
+            trigger = CronTrigger(day="*/" + freq[:-1], second="10", timezone="UTC")
+    elif freq.endswith("MS"):
+        if freq[:-2] == "1":
+            trigger = CronTrigger(month="*", second="30", timezone="UTC")
+        else:
+            trigger = CronTrigger(month="*/" + freq[:-1], second="30", timezone="UTC")
+    else:
+        raise ValueError(f"Cannot convert frequency '{freq}' to cron.")
+
+    return trigger
+
 
 def now_timestamp():
     """

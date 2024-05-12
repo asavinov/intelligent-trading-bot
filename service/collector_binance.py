@@ -77,6 +77,8 @@ async def sync_data_collector_task():
 
     data_sources = App.config.get("data_sources", [])
     symbols = [x.get("folder") for x in data_sources]
+    freq = App.config["freq"]
+    binance_freq = binance_freq_from_pandas(freq)
 
     if not symbols:
         symbols = [App.config["symbol"]]
@@ -86,7 +88,7 @@ async def sync_data_collector_task():
 
     # Create a list of tasks for retrieving data
     #coros = [request_klines(sym, "1m", 5) for sym in symbols]
-    tasks = [asyncio.create_task(request_klines(s, "1m", c)) for c, s in zip(missing_klines_counts, symbols)]
+    tasks = [asyncio.create_task(request_klines(s, binance_freq, c)) for c, s in zip(missing_klines_counts, symbols)]
 
     results = {}
     timeout = 10  # Seconds to wait for the result

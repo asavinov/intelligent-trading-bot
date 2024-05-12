@@ -90,15 +90,22 @@ class Analyzer:
         return last_kline_ts
 
     def get_missing_klines_count(self, symbol):
-        now_ts = now_timestamp()
+        """
+        The number of complete discrete intervals between the last available kline and current timestamp.
+        The interval length is determined by the frequency parameter.
+        """
         last_kline_ts = self.get_last_kline_ts(symbol)
         if not last_kline_ts:
             return App.config["features_horizon"]
-        end_of_last_kline = last_kline_ts + 60_000  # Plus 1m because kline timestamp is
 
-        minutes = (now_ts - end_of_last_kline) / 60_000
-        minutes += 2
-        return int(minutes)
+        freq = App.config["freq"]
+        now = datetime.utcnow()
+        last_kline = datetime.utcfromtimestamp(last_kline_ts // 1000)
+        interval_length = pd.Timedelta(freq).to_pytimedelta()
+        intervals_count = (now-last_kline) // interval_length
+
+        intervals_count += 2
+        return intervals_count
 
     def store_klines(self, data: dict):
         """

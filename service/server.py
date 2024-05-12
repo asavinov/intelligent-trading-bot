@@ -70,6 +70,7 @@ def start_server(config_file):
     load_config(config_file)
 
     symbol = App.config["symbol"]
+    freq = App.config["freq"]
 
     print(f"Initializing server. Trade pair: {symbol}. ")
 
@@ -140,11 +141,11 @@ def start_server(config_file):
     # logging.getLogger('apscheduler.executors.default').setLevel(logging.WARNING)
     logging.getLogger('apscheduler').setLevel(logging.WARNING)
 
+    trigger = freq_to_CronTrigger(freq)
+
     App.sched.add_job(
         main_task,
-        trigger='cron',
-        # second='*/30',
-        minute='*',
+        trigger=trigger,
         id='main_task'
     )
 
