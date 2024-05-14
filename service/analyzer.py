@@ -117,6 +117,8 @@ class Analyzer:
         :type dict:
         """
         now_ts = now_timestamp()
+        freq = App.config["freq"]
+        interval_length_ms = pandas_interval_length_ms(freq)
 
         for symbol, klines in data.items():
             # If symbol does not exist then create
@@ -153,12 +155,12 @@ class Analyzer:
             for i, kline in enumerate(self.klines.get(symbol)):
                 ts = kline[0]
                 if i > 0:
-                    if ts - prev_ts != 60_000:
+                    if ts - prev_ts != interval_length_ms:
                         log.error("Wrong sequence of klines. They are expected to be a regular time series with 1m frequency.")
                 prev_ts = kline[0]
 
             # Debug message about the last received kline end and current ts (which must be less than 1m - rather small delay)
-            log.debug(f"Stored klines. Total {len(klines_data)} in db. Last kline end: {self.get_last_kline_ts(symbol)+60_000}. Current time: {now_ts}")
+            log.debug(f"Stored klines. Total {len(klines_data)} in db. Last kline end: {self.get_last_kline_ts(symbol)+interval_length_ms}. Current time: {now_ts}")
 
     def store_depth(self, depths: list, freq):
         """

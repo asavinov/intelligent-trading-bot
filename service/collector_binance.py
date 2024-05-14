@@ -33,10 +33,11 @@ async def main_collector_task():
     It is a highest level task which is added to the event loop and executed normally every 1 minute and then it calls other tasks.
     """
     symbol = App.config["symbol"]
-    startTime, endTime = binance_get_interval("1m")
+    freq = App.config["freq"]
+    start_ts, end_ts = pandas_get_interval(freq)
     now_ts = now_timestamp()
 
-    log.info(f"===> Start collector task. Timestamp {now_ts}. Interval [{startTime},{endTime}].")
+    log.info(f"===> Start collector task. Timestamp {now_ts}. Interval [{start_ts},{end_ts}].")
 
     #
     # 0. Check server state (if necessary)
@@ -88,7 +89,7 @@ async def sync_data_collector_task():
 
     # Create a list of tasks for retrieving data
     #coros = [request_klines(sym, "1m", 5) for sym in symbols]
-    tasks = [asyncio.create_task(request_klines(s, binance_freq, c)) for c, s in zip(missing_klines_counts, symbols)]
+    tasks = [asyncio.create_task(request_klines(s, freq, c)) for c, s in zip(missing_klines_counts, symbols)]
 
     results = {}
     timeout = 10  # Seconds to wait for the result
@@ -128,30 +129,36 @@ async def sync_data_collector_task():
 
 async def request_klines(symbol, freq, limit):
     """
-    Request klines data from the service for one symbol. Maximum the specified number of klines will be returned.
+    Request klines data from the service for one symbol.
+    Maximum the specified number of klines will be returned.
 
+    :param symbol:
+    :param freq: pandas frequency like '1min' which is supported by Binance API
+    :param limit: desired and maximum number of klines
     :return: Dict with the symbol as a key and a list of klines as a value. One kline is also a list.
     """
-    klines_per_request = 400
+    klines_per_request = 400  # Limitation of API
 
     now_ts = now_timestamp()
+    start_ts, end_ts = pandas_get_interval(freq)
 
-    startTime, endTime = binance_get_interval(freq)
+    binance_freq = binance_freq_from_pandas(freq)
+    interval_length_ms = pandas_interval_length_ms(freq)
 
-    klines = []
     try:
         if limit <= klines_per_request:  # Server will return these number of klines in one request
             # INFO:
             # - startTime: include all intervals (ids) with same or greater id: if within interval then excluding this interval; if is equal to open time then include this interval
             # - endTime: include all intervals (ids) with same or smaller id: if equal to left border then return this interval, if within interval then return this interval
             # - It will return also incomplete current interval (in particular, we could collect approximate klines for higher frequencies by requesting incomplete intervals)
-            klines = App.client.get_klines(symbol=symbol, interval=freq, limit=limit, endTime=now_ts)
+            klines = App.client.get_klines(symbol=symbol, interval=binance_freq, limit=limit, endTime=now_ts)
             # Return: list of lists, that is, one kline is a list (not dict) with items ordered: timestamp, open, high, low, close etc.
         else:
             # https://sammchardy.github.io/binance/2018/01/08/historical-data-download-binance.html
             # get_historical_klines(symbol, interval, start_str, end_str=None, limit=500)
-            start_ts = now_ts - (limit+1) * 60_000  # Subtract the number of minutes from now ts
-            klines = App.client.get_historical_klines(symbol=symbol, interval=freq, start_str=start_ts, end_str=now_ts)
+            # Find start from the number of records and frequency (interval length in milliseconds)
+            request_start_ts = now_ts - interval_length_ms * (limit+1)
+            klines = App.client.get_historical_klines(symbol=symbol, interval=binance_freq, start_str=request_start_ts, end_str=now_ts)
     except BinanceRequestException as bre:
         # {"code": 1103, "msg": "An unknown parameter was sent"}
         log.error(f"BinanceRequestException while requesting klines: {bre}")
@@ -168,15 +175,14 @@ async def request_klines(symbol, freq, limit):
     # Post-process
     #
 
-    # Find latest *full* (completed) interval in the result list.
+    # Find last complete interval in the result list
     # The problem is that the result also contains the current (still running) interval which we want to exclude
-    klines_full = [kl for kl in klines if kl[0] < startTime]
+    # Exclude last kline if it corresponds to the current interval
+    klines_full = [kl for kl in klines if kl[0] < start_ts]
+    last_full_kline_ts = klines_full[-1][0]
 
-    last_full_kline = klines_full[-1]
-    last_full_kline_ts = last_full_kline[0]
-
-    if last_full_kline_ts != startTime - 60_000:
-        log.error(f"UNEXPECTED RESULT: Last full kline timestamp {last_full_kline_ts} is not equal to previous full interval start {startTime - 60_000}. Maybe some results are missing and there are gaps.")
+    if last_full_kline_ts != start_ts - interval_length_ms:
+        log.error(f"UNEXPECTED RESULT: Last full kline timestamp {last_full_kline_ts} is not equal to previous full interval start {start_ts - interval_length_ms}. Maybe some results are missing and there are gaps.")
 
     # Return all received klines with the symbol as a key
     return {symbol: klines_full}
