@@ -191,6 +191,36 @@ def binance_get_interval(freq: str, timestamp: int=None):
     return int(start * 1000), int(end * 1000)
 
 
+def pandas_get_interval(freq: str, timestamp: int=None):
+    """
+    Find a discrete interval for the given timestamp and return its start and end.
+
+    :param freq: pandas frequency
+    :param timestamp: milliseconds (13 digits)
+    :return: triple (start, end)
+    """
+    if not timestamp:
+        timestamp = int(datetime.now(pytz.utc).timestamp())  # seconds (10 digits)
+        # Alternatively: timestamp = int(datetime.utcnow().replace(tzinfo=pytz.utc).timestamp())
+    elif isinstance(timestamp, datetime):
+        timestamp = int(timestamp.replace(tzinfo=pytz.utc).timestamp())
+    elif isinstance(timestamp, int):
+        pass
+    else:
+        ValueError(f"Error converting timestamp {timestamp} to millis. Unknown type {type(timestamp)} ")
+
+    # Interval length for the given frequency
+    interval_length_sec = pandas_interval_length_ms(freq) / 1000
+
+    start = (timestamp // interval_length_sec) * interval_length_sec
+    end = start + interval_length_sec
+
+    return int(start*1000), int(end*1000)
+
+
+def pandas_interval_length_ms(freq: str):
+    return int(pd.Timedelta(freq).to_pytimedelta().total_seconds() * 1000)
+
 #
 # Date and time
 #
