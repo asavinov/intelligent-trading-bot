@@ -115,7 +115,7 @@ async def request_depth(symbol, freq, limit):
     # Post-process
     #
 
-    depth['timestamp'] = binance_get_interval(freq=freq, timestamp=requestTime)[0]
+    depth['timestamp'] = pandas_get_interval(freq=freq, timestamp=requestTime)[0]
     depth['requestTime'] = requestTime
     depth['responseTime'] = responseTime
     depth['symbol'] = symbol
