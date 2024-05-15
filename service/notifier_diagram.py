@@ -32,17 +32,11 @@ async def send_diagram():
 
     score_thresholds = model.get("score_thresholds")
 
-    freq = model.get("freq")  # Aggregation interval 'H' - hour.
+    resampling_freq = model.get("resampling_freq")  # Resampling (aggregation) frequency
     nrows = model.get("nrows")  # Time range (x axis) of the diagram, for example, 1 week 168 hours, 2 weeks 336 hours
 
     df = App.df
     row = df.iloc[-1]  # Last row stores the latest values we need
-
-    # Decide whether to send it or not. Currently daily frequency hard-coded
-    close_time = row.name + timedelta(minutes=1)  # Add 1 minute because timestamp is start of the interval
-    if not (close_time.hour == 0 and close_time.minute == 0):  # Every day
-        return
-    # Use (close_time.minute == 0) for hourly frequency
 
     #
     # Prepare data to be visualized
@@ -52,7 +46,7 @@ async def send_diagram():
     if score_column_names:
         vis_columns.append(score_column_names)
     df_ohlc = App.df[vis_columns]
-    df_ohlc = resample_ohlc_data(df_ohlc.reset_index(), freq, nrows, score_column=score_column_names, buy_signal_column=None, sell_signal_column=None)
+    df_ohlc = resample_ohlc_data(df_ohlc.reset_index(), resampling_freq, nrows, score_column=score_column_names, buy_signal_column=None, sell_signal_column=None)
 
     # Get transaction data
     df_t = load_all_transactions()  # timestamp,price,profit,status
@@ -62,7 +56,7 @@ async def send_diagram():
     transactions_exist = len(df_t) > 0
 
     if transactions_exist:
-        df_t = resample_transaction_data(df_t, freq, 0, 'buy_long', 'sell_long')
+        df_t = resample_transaction_data(df_t, resampling_freq, 0, 'buy_long', 'sell_long')
     else:
         df_t = None
 
@@ -218,9 +212,9 @@ def generate_chart(df, title, buy_signal_column, sell_signal_column, score_colum
 
     # markersize=6, markerfacecolor='blue'
     if buy_signal_column:
-        sns.lineplot(data=df[df[buy_signal_column] is True], x="timestamp", y="close_buy_adj", lw=0, markerfacecolor="green", markersize=10, marker="^", alpha=0.6, ax=ax1)
+        sns.lineplot(data=df[df[buy_signal_column] == True], x="timestamp", y="close_buy_adj", lw=0, markerfacecolor="green", markersize=10, marker="^", alpha=0.6, ax=ax1)
     if sell_signal_column:
-        sns.lineplot(data=df[df[sell_signal_column] is True], x="timestamp", y="close_sell_adj", lw=0, markerfacecolor="red", markersize=10, marker="v", alpha=0.6, ax=ax1)
+        sns.lineplot(data=df[df[sell_signal_column] == True], x="timestamp", y="close_sell_adj", lw=0, markerfacecolor="red", markersize=10, marker="v", alpha=0.6, ax=ax1)
 
     # g2.set(yticklabels=[])
     # g2.set(title='Penguins: Body Mass by Species for Gender')
@@ -252,7 +246,6 @@ def generate_chart(df, title, buy_signal_column, sell_signal_column, score_colum
         ax2.axhline(0.0, lw=.1, color="black")
 
         for threshold in thresholds:
-            ax2.axhline(threshold, lw=.1, color="red")
             ax2.axhline(threshold, lw=.1, color="red")
 
     # fig.suptitle("My figtitle", fontsize=14)  # Positioned higher

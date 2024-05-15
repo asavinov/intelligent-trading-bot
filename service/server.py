@@ -47,8 +47,12 @@ async def main_task():
         await send_score_notification()
 
     diagram_notification_model = App.config["diagram_notification_model"]
-    if diagram_notification_model.get("diagram_notification"):
-        await send_diagram()
+    notification_freq = diagram_notification_model.get("notification_freq")
+    freq = App.config.get("freq")
+    if notification_freq:
+        # If system interval start is equal to the (longer) diagram interval start
+        if pandas_get_interval(notification_freq)[0] == pandas_get_interval(freq)[0]:
+            await send_diagram()
 
     trade_model = App.config.get("trade_model", {})
     if trade_model.get("simulate_trade"):

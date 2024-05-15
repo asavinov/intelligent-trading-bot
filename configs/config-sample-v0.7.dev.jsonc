@@ -115,12 +115,13 @@
     "diagram_notification_model": {
         // Regularly sending historic data with prices, scores and buy-sell trade decisions
         "diagram_notification": true,
+        "notification_freq": "1D",
 
         "score_column_names": "trade_score",
         "score_thresholds":[-0.05, 0.05],
 
-        // 1 previous day with 5 minutes aggregation
-        "freq": "5min", "nrows": 288
+        // 5 minutes aggregation and this number of 5 minute intervals
+        "resampling_freq": "5min", "nrows": 288
     },
 
     // === TRADE MODEL ===
