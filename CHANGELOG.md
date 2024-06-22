@@ -1,6 +1,7 @@
 # Change Log
 
 * v0.7.dev
+  * make server and the scripts work with different frequencies rather than only 1 minute
   * restructure config for ML-features making their configuration closer to normal features and normal generators
   * possibility to reference arbitrary external functions as generators  
   * support for parquet storage format for intermediate files

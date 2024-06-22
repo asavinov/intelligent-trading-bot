@@ -15,8 +15,8 @@ python-binance>=1.0.*  # pip install python-binance
 ta-lib  # Python wrapper for TA-lib (native) library
 
 # Algorithms
-scikit-learn==1.4.*
+scikit-learn==1.5.*
 lightgbm>=4.*
-tensorflow>=2.15.*
+tensorflow>=2.16.*
 
 # seaborn  # if diagrams are turned on
