@@ -127,10 +127,17 @@
     // === TRADE MODEL ===
 
     "trade_model": {
-        "simulate_trade": true, // Trade simulation with notifications
-
         "buy_signal_column":"buy_signal_column",
-        "sell_signal_column": "sell_signal_column"
+        "sell_signal_column": "sell_signal_column",
+
+        "trader_simulation": true, // Simulate trading with transaction logging and notifications
+
+        "trader_binance": false // Trade using Binance. Uncomment also parameters below
+        //"no_trades_only_data_processing": false,
+        //"test_order_before_submit": false,
+        //"simulate_order_execution": false,
+        //"percentage_used_for_trade": 99.0, // How much should be used in orders
+        //"limit_price_adjustment": 0.001, // Limit order price relative to the latest close price
     },
 
     // === FINDING BEST TRADE PARAMETERS ===
