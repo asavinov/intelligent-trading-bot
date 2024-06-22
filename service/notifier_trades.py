@@ -19,32 +19,16 @@ logging.getLogger('matplotlib').setLevel(logging.WARNING)
 transaction_file = Path("transactions.txt")
 
 
-async def simulate_trade():
+async def trader_simulation():
     """
     Very simple trade strategy where we only buy and sell using the whole available amount
     """
     symbol = App.config["symbol"]
 
-    df = App.df
-    row = df.iloc[-1]  # Last row stores the latest values we need
-
-    close_time = row.name + timedelta(minutes=1)  # Add 1 minute because timestamp is start of the interval
-    close_price = row["close"]
-
-    model = App.config["trade_model"]
-    buy_signal_column = model.get("buy_signal_column")
-    sell_signal_column = model.get("sell_signal_column")
-    buy_signal = row[buy_signal_column]
-    sell_signal = row[sell_signal_column]
-
-    if buy_signal and sell_signal:  # Both signals are true - should not happen
-        signal_side = "BOTH"
-    elif buy_signal:
-        signal_side = "BUY"
-    elif sell_signal:
-        signal_side = "SELL"
-    else:
-        signal_side = ""
+    signal = get_signal()
+    signal_side = signal.get("side")
+    close_price = signal.get("close_price")
+    close_time = signal.get("close_time")
 
     # Previous transaction: BUY (we are currently selling) or SELL (we are currently buying)
     t_status = App.transaction.get("status")
@@ -167,6 +151,34 @@ async def generate_transaction_stats():
     profit_percent_descr = df2["profit_percent"].describe()  # count, mean, std, min, 50% max
 
     return profit, profit_percent, profit_descr, profit_percent_descr
+
+
+def get_signal():
+    """From the last row, produce and return an object with parameters important for trading."""
+    df = App.df
+    row = df.iloc[-1]  # Last row stores the latest values we need
+
+    close_time = row.name + timedelta(minutes=1)  # Add 1 minute because timestamp is start of the interval
+    close_price = row["close"]
+
+    model = App.config["trade_model"]
+    buy_signal_column = model.get("buy_signal_column")
+    sell_signal_column = model.get("sell_signal_column")
+    buy_signal = row[buy_signal_column]
+    sell_signal = row[sell_signal_column]
+
+    if buy_signal and sell_signal:  # Both signals are true - should not happen
+        signal_side = "BOTH"
+    elif buy_signal:
+        signal_side = "BUY"
+    elif sell_signal:
+        signal_side = "SELL"
+    else:
+        signal_side = ""
+
+    signal = {"side": signal_side, "close_price": close_price, "close_time": close_time}
+
+    return signal
 
 
 if __name__ == '__main__':

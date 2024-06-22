@@ -16,8 +16,11 @@ from binance.enums import *
 from service.App import *
 from common.utils import *
 from service.analyzer import *
+from service.notifier_trades import get_signal
 
 import logging
+
+
 log = logging.getLogger('trader')
 logging.basicConfig(
     filename="trader.log",  # parameter in App
@@ -37,12 +40,18 @@ async def main_trader_task():
     startTime, endTime = pandas_get_interval(freq)
     now_ts = now_timestamp()
 
+    trade_model = App.config.get("trade_model", {})
+
+    signal = get_signal()
+    signal_side = signal.get("side")
+    close_price = signal.get("close_price")
+    close_time = signal.get("close_time")
+
     log.info(f"===> Start trade task. Timestamp {now_ts}. Interval [{startTime},{endTime}].")
 
     #
     # Sync trade status, check running orders (orders, account etc.)
     #
-
     status = App.status
 
     if status == "BUYING" or status == "SELLING":
@@ -94,10 +103,7 @@ async def main_trader_task():
     #
     # Prepare. Kill or update existing orders (if necessary)
     #
-
     status = App.status
-    signal = App.signal
-    signal_side = signal.get("side")
 
     # If not sold for 1 minute, then kill and then a new order will be created below if there is signal
     # Essentially, this will mean price adjustment (if a new order of the same direction will be created)
@@ -118,14 +124,14 @@ async def main_trader_task():
     #
     # Trade by creating orders
     #
-
     status = App.status
+
     if signal_side == "BUY":
         print(f"===> BUY SIGNAL {signal}: ")
     elif signal_side == "SELL":
         print(f"<=== SELL SIGNAL: {signal}")
     else:
-        print(f"SCORE: {signal.get('score'):+.3f}. PRICE: {signal.get('close_price'):.2f}")
+        print(f"PRICE: {close_price:.2f}")
 
     # Update account balance etc. what is needed for trade
     # -----
@@ -135,7 +141,7 @@ async def main_trader_task():
         # -----
         await new_limit_order(side=SIDE_BUY)
 
-        if App.config["trader"]["no_trades_only_data_processing"]:
+        if trade_model.get("no_trades_only_data_processing"):
             print("SKIP TRADING due to 'no_trades_only_data_processing' parameter True")
             # Never change status if orders not executed
         else:
@@ -144,7 +150,7 @@ async def main_trader_task():
         # -----
         await new_limit_order(side=SIDE_SELL)
 
-        if App.config["trader"]["no_trades_only_data_processing"]:
+        if trade_model.get("no_trades_only_data_processing"):
             print("SKIP TRADING due to 'no_trades_only_data_processing' parameter True")
             # Never change status if orders not executed
         else:
@@ -316,6 +322,8 @@ async def new_limit_order(side):
     symbol = App.config["symbol"]
     now_ts = now_timestamp()
 
+    trade_model = App.config.get("trade_model", {})
+
     #
     # Find limit price (from signal, last kline and adjustment parameters)
     #
@@ -325,7 +333,7 @@ async def new_limit_order(side):
         log.error(f"Cannot determine last close price in order to create a market buy order.")
         return None
 
-    price_adjustment = App.config["trader"]["limit_price_adjustment"]
+    price_adjustment = trade_model.get("limit_price_adjustment")
     if side == SIDE_BUY:
         price = last_close_price * Decimal(1.0 - price_adjustment)  # Adjust price slightly lower
     elif side == SIDE_SELL:
@@ -340,7 +348,7 @@ async def new_limit_order(side):
     if side == SIDE_BUY:
         # Find how much quantity we can buy for all available USD using the computed price
         quantity = App.quote_quantity  # USD
-        percentage_used_for_trade = App.config["trader"]["percentage_used_for_trade"]
+        percentage_used_for_trade = trade_model.get("percentage_used_for_trade")
         quantity = (quantity * percentage_used_for_trade) / Decimal(100.0)  # Available for trade
         quantity = quantity / price  # BTC to buy
         # Alternatively, we can pass quoteOrderQty in USDT (how much I want to spend)
@@ -362,7 +370,7 @@ async def new_limit_order(side):
         price=price_str,
     )
 
-    if App.config["trader"]["no_trades_only_data_processing"]:
+    if trade_model.get("no_trades_only_data_processing"):
         print(f"NOT executed order spec: {order_spec}")
     else:
         order = execute_order(order_spec)
@@ -379,9 +387,11 @@ async def new_limit_order(side):
 def execute_order(order: dict):
     """Validate and submit order"""
 
+    trade_model = App.config.get("trade_model", {})
+
     # TODO: Check validity, e.g., against filters (min, max) and our own limits
 
-    if App.config["trader"]["test_order_before_submit"]:
+    if trade_model.get("test_order_before_submit"):
         try:
             log.info(f"Submitting test order: {order}")
             test_response = App.client.create_test_order(**order)  # Returns {} if ok. Does not check available balances - only trade rules
@@ -390,10 +400,9 @@ def execute_order(order: dict):
             # TODO: Reset/resync whole account
             return
 
-    if App.config["trader"]["simulate_order_execution"]:
+    if trade_model.get("simulate_order_execution"):
         # TODO: Simply store order so that later we can check conditions of its execution
         print(order)
-        print(App.signal)
         pass
     else:
         # -----

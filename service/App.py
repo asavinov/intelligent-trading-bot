@@ -38,11 +38,11 @@ class App:
     account_status = 0  # If account allows us to trade (funds, suspended etc.)
     trade_state_status = 0  # Something wrong with our trading logic (wrong use, inconsistent state etc. what we cannot recover)
 
-    signal = None  # Latest signal "BUY", "SELL"
     df = None  # Data from the latest analysis
 
-    # Trade status
+    # Trade simulator
     transaction = None
+    # Trade binance
     status = None  # BOUGHT, SOLD, BUYING, SELLING
     order = None  # Latest or current order
     order_time = None  # Order submission time
@@ -63,8 +63,6 @@ class App:
     # Constant configuration parameters
     #
     config = {
-        "actions": [],  # Values: trade
-
         # Binance
         "api_key": "",
         "api_secret": "",
@@ -151,30 +149,23 @@ class App:
         "score_notification_model": {},
         "diagram_notification_model": {},
 
-        # ================================
-        # === SIGNAL RULES FOR TRADING ===
-        "trade_model": {},
-
-        "train_signal_model": {},
-
-        # =====================
-        # === TRADER SERVER ===
-        "base_asset": "",  # BTC ETH
-        "quote_asset": "",
-
-        "trader": {
-            # For debugging: determine what parts of code will be executed
+        # ===============
+        # === TRADING ===
+        "trade_model": {
             "no_trades_only_data_processing": False,  # in market or out of market processing is excluded (all below parameters ignored)
             "test_order_before_submit": False,  # Send test submit to the server as part of validation
             "simulate_order_execution": False,  # Instead of real orders, simulate their execution (immediate buy/sell market orders and use high price of klines for limit orders)
 
             "percentage_used_for_trade": 99,  # in % to the available USDT quantity, that is, we will derive how much BTC to buy using this percentage
-            "limit_price_adjustment": -0.0001,  # Limit price of orders will be better than the latest close price (0 means no change, positive - better for us, negative - worse for us)
-
-            # Signal model (trade strategy) - currently NOT USED
-            "sell_timeout": 70,  # Seconds
-            "percentage_sell_price": 1.018,  # our planned profit per trade via limit sell order (part of the model)
+            "limit_price_adjustment": 0.005,  # Limit price of orders will be better than the latest close price (0 means no change, positive - better for us, negative - worse for us)
         },
+
+        "train_signal_model": {},
+
+        # =====================
+        # === BINANCE TRADER ===
+        "base_asset": "",  # BTC ETH
+        "quote_asset": "",
 
         # ==================
         # === COLLECTORS ===

@@ -6,14 +6,16 @@ import asyncio
 
 from apscheduler.schedulers.asyncio import AsyncIOScheduler
 
+from binance.client import Client
+
 from service.App import *
 from common.utils import *
-from service.collector_binance import main_collector_task, data_provider_health_check, sync_data_collector_task
 from service.analyzer import *
 from service.notifier_trades import *
 from service.notifier_scores import *
 from service.notifier_diagram import *
-from service.trader import *
+from service.collector_binance import main_collector_task, data_provider_health_check, sync_data_collector_task
+from service.trader_binance import main_trader_task, update_trade_status
 
 import logging
 
@@ -55,13 +57,11 @@ async def main_task():
             await send_diagram()
 
     trade_model = App.config.get("trade_model", {})
-    if trade_model.get("simulate_trade"):
-        transaction = await simulate_trade()
+    if trade_model.get("trader_simulation"):
+        transaction = await trader_simulation()
         if transaction:
             await send_transaction_message(transaction)
-
-    # Now we have a list of signals and can make trade decisions using trading logic and trade
-    if "trade" in App.config.get("actions", {}):
+    if trade_model.get("trader_binance"):
         trade_task = App.loop.create_task(main_trader_task())
 
     return
@@ -122,8 +122,8 @@ def start_server(config_file):
 
     print(f"Finished initial data collection.")
 
-    # Initialize trade status (account, balances, orders etc.)
-    if "trade" in App.config["actions"]:
+    # Initialize trade status (account, balances, orders etc.) in case we are going to really execute orders
+    if App.config.get("trade_model", {}).get("trader_binance"):
         try:
             App.loop.run_until_complete(update_trade_status())
         except Exception as e:
