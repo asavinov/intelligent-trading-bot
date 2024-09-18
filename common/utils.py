@@ -234,9 +234,9 @@ def freq_to_CronTrigger(freq: str):
             trigger = CronTrigger(minute="*/" + freq[:-3], second="1", timezone="UTC")
     elif freq.endswith("h"):
         if freq[:-1] == "1":
-            trigger = CronTrigger(hour="*", second="2", timezone="UTC")
+            trigger = CronTrigger(hour="*", minute="0", second="2", timezone="UTC")
         else:
-            trigger = CronTrigger(hour="*/" + freq[:-1], second="2", timezone="UTC")
+            trigger = CronTrigger(hour="*/" + freq[:-1], minute="0", second="2", timezone="UTC")
     elif freq.endswith("D"):
         if freq[:-1] == "1":
             trigger = CronTrigger(day="*", second="5", timezone="UTC")
