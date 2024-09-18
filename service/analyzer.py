@@ -278,13 +278,9 @@ class Analyzer:
         log.info(f"Analyze {symbol}. Last kline timestamp: {last_kline_ts_str}")
 
         #
-        # Convert source data (klines) into data frames for each source
+        # Convert source data (klines) into data frames for each data source
         #
         data_sources = App.config.get("data_sources", [])
-        if not data_sources:
-            data_sources = [{"folder": App.config["symbol"], "file": "klines", "column_prefix": ""}]
-
-        # Read data from online sources into data frames
         for ds in data_sources:
             if ds.get("file") == "klines":
                 try:
@@ -317,11 +313,6 @@ class Analyzer:
         # Generate all necessary derived features (NaNs are possible due to limited history)
         #
         feature_sets = App.config.get("feature_sets", [])
-        if not feature_sets:
-            log.error(f"ERROR: no feature sets defined. Nothing to process.")
-            return
-
-        # Apply all feature generators to the data frame which get accordingly new derived columns
         feature_columns = []
         for fs in feature_sets:
             df, feats = generate_feature_set(df, fs, last_rows=last_rows if not ignore_last_rows else 0)

@@ -200,6 +200,7 @@ The trader is working but not thoroughly debugged, particularly, not tested for 
 - https://github.com/smileinnovation/cryptocurrency-trading How to make profits in cryptocurrency trading with machine learning
 
 Backtesting
+- https://github.com/nautechsystems/nautilus_trader
 - https://github.com/mementum/backtrader
 - https://github.com/kernc/backtesting.py
 
