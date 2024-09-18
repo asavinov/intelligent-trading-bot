@@ -16,6 +16,7 @@ log = logging.getLogger('notifier')
 
 async def send_score_notification():
     symbol = App.config["symbol"]
+    freq = App.config["freq"]
     model = App.config["score_notification_model"]
 
     score_column_names = model.get("score_column_names")
@@ -26,7 +27,8 @@ async def send_score_notification():
     df = App.df
     row = df.iloc[-1]  # Last row stores the latest values we need
 
-    close_time = row.name + timedelta(minutes=1)  # Add 1 minute because timestamp is start of the interval
+    interval_length = pd.Timedelta(freq).to_pytimedelta()
+    close_time = row.name + interval_length  # Add interval length because timestamp is start of the interval
     close_price = row["close"]
     trade_scores = [row[col] for col in score_column_names]
     trade_score_primary = trade_scores[0]

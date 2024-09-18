@@ -155,10 +155,13 @@ async def generate_transaction_stats():
 
 def get_signal():
     """From the last row, produce and return an object with parameters important for trading."""
+    freq = App.config["freq"]
+
     df = App.df
     row = df.iloc[-1]  # Last row stores the latest values we need
 
-    close_time = row.name + timedelta(minutes=1)  # Add 1 minute because timestamp is start of the interval
+    interval_length = pd.Timedelta(freq).to_pytimedelta()
+    close_time = row.name + interval_length  # Add interval length because timestamp is start of the interval
     close_price = row["close"]
 
     model = App.config["trade_model"]
