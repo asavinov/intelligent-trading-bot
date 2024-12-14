@@ -81,7 +81,7 @@ def generate_labels_highlow2(df, config: dict):
     Generate multiple increase/decrease labels which are typically used for training.
 
     :param df:
-    :param horizon:
+    :param config:
     :return:
     """
     column_names = config.get('columns')
@@ -124,44 +124,6 @@ def generate_labels_highlow2(df, config: dict):
     print(f"Highlow2 labels computed: {labels}")
 
     return df, labels
-
-
-def generate_labels_sim(df, horizon):
-    """Currently not used."""
-    labels = []
-
-    # Max high
-    add_future_aggregations(df, "high", np.max, horizon, suffix='_max', rel_column_name="close", rel_factor=100.0)
-
-    # Max high crosses (is over) the threshold
-    labels += add_threshold_feature(df, "high_max_180", thresholds=[2.0], out_names=["high_20"])
-    # Max high does not cross (is under) the threshold
-    labels += add_threshold_feature(df, "high_max_180", thresholds=[0.2], out_names=["high_02"])
-
-    # Min low
-    add_future_aggregations(df, "low", np.min, horizon, suffix='_min', rel_column_name="close", rel_factor=100.0)
-
-    # Min low does not cross (is over) the negative threshold
-    labels += add_threshold_feature(df, "low_min_180", thresholds=[-0.2], out_names=["low_02"])
-    # Min low crosses (is under) the negative threshold
-    labels += add_threshold_feature(df, "low_min_180", thresholds=[-2.0], out_names=["low_20"])
-
-    return labels
-
-
-def generate_labels_regressor(df, horizon):
-    """Labels for regression. Currently not used."""
-    labels = []
-
-    # Max high relative to close in percent
-    labels += add_future_aggregations(df, "high", np.max, horizon, suffix='_max', rel_column_name="close", rel_factor=100.0)
-    # "high_max"
-
-    # Min low relative to close in percent (negative values)
-    labels += add_future_aggregations(df, "low", np.min, horizon, suffix='_min', rel_column_name="close", rel_factor=100.0)
-    # "low_min"
-
-    return labels
 
 
 def _first_location_of_crossing_threshold(df, horizon, threshold, close_column_name, price_column_name):
