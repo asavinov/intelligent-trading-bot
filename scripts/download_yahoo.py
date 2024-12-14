@@ -51,7 +51,7 @@ def main(config_file):
 
             # === Download from the remote server
             # Download more data than we need and then overwrite the older data
-            new_df = yf.download(quote, period="5d", auto_adjust=True)
+            new_df = yf.download(quote, period="5d", auto_adjust=True, multi_level_index=False)
 
             new_df = new_df.reset_index()
             new_df['Date'] = pd.to_datetime(new_df['Date'], format="ISO8601").dt.date
@@ -67,8 +67,8 @@ def main(config_file):
             print(f"File not found. Full fetch...")
 
             # === Download from the remote server
-            #df = yf.download(quote, date(1990, 1, 1), auto_adjust=True)
-            df = yf.download(quote, period="max", auto_adjust=True)
+            #df = yf.download(quote, date(1990, 1, 1), auto_adjust=True, multi_level_index=False)
+            df = yf.download(quote, period="max", auto_adjust=True, multi_level_index=False)
 
             df = df.reset_index()
             df['Date'] = pd.to_datetime(df['Date'], format="ISO8601").dt.date
