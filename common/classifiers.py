@@ -244,8 +244,8 @@ def train_nn(df_X, df_y, model_config: dict):
 
     es = EarlyStopping(
         monitor="loss",  # val_loss loss
-        min_delta=0.0001,  # Minimum change qualified as improvement
-        patience=3,  # Number of epochs with no improvements
+        min_delta=0.00001,  # Minimum change qualified as improvement
+        patience=5,  # Number of epochs with no improvements
         verbose=0,
         mode='auto',
     )
