@@ -80,8 +80,8 @@ def main(config_file):
     df = df[out_columns + [x for x in all_features if x not in out_columns]]
 
     for label in labels:
-        # "category" NN does not work without this (note that we assume a classification task here)
-        df[label] = df[label].astype(int)
+        if np.issubdtype(df[label].dtype, bool):
+            df[label] = df[label].astype(int)  # For classification tasks we want to use integers
 
     # Remove the tail data for which no (correct) labels are available
     # The reason is that these labels are computed from future values which are not available and hence labels might be wrong

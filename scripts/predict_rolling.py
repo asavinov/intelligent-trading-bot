@@ -134,8 +134,8 @@ def main(config_file):
     df = df[out_columns + [x for x in all_features if x not in out_columns]]
 
     for label in labels:
-        # "category" NN does not work without this (note that we assume a classification task here)
-        df[label] = df[label].astype(int)
+        if np.issubdtype(df[label].dtype, bool):
+            df[label] = df[label].astype(int)  # For classification tasks we want to use integers
 
     df.replace([np.inf, -np.inf], np.nan, inplace=True)
     #in_df = in_df.dropna(subset=labels)
@@ -306,7 +306,11 @@ def main(config_file):
 
         print(f"Using {len(df_scores)} non-nan rows for scoring.")
 
-        score = compute_scores(y_true, y_predicted)
+        if y_true.dtype == "float64" and y_predicted.dtype == "float64":
+            # TODO Regression scores
+            score = dict(rmse=0.0, mae=0.0, mse=0.0, mape=0.0, r2=0.0)
+        else:
+            score = compute_scores(y_true, y_predicted)  # Classification stores
 
         score_lines.append(f"{score_column_name}, {score.get('auc'):.3f}, {score.get('ap'):.3f}, {score.get('f1'):.3f}, {score.get('precision'):.3f}, {score.get('recall'):.3f}")
 

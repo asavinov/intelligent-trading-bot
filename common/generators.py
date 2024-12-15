@@ -161,7 +161,12 @@ def predict_feature_set(df, fs, config, models: dict):
 
             # For each new score, compare it with the label true values
             if label in df:
-                scores[score_column_name] = compute_scores(df[label], df_y_hat)
+                df_y = df[label]
+                if df_y.dtype == "float64" and df_y_hat.dtype == "float64":
+                    # TODO Regression scores
+                    scores[score_column_name] = dict(rmse=0.0, mae=0.0, mse=0.0, mape=0.0, r2=0.0)
+                else:
+                    scores[score_column_name] = compute_scores(df_y, df_y_hat)  # Classification stores
 
     return out_df, features, scores
 
@@ -226,8 +231,13 @@ def train_feature_set(df, fs, config):
                 print(f"ERROR: Unknown algorithm type {algo_type}. Check algorithm list.")
                 return
 
-            scores[score_column_name] = compute_scores(df_y, df_y_hat)
             out_df[score_column_name] = df_y_hat
+
+            if df_y.dtype == "float64" and df_y_hat.dtype == "float64":
+                # TODO Regression scores
+                scores[score_column_name] = dict(rmse=0.0, mae=0.0, mse=0.0, mape=0.0, r2=0.0)
+            else:
+                scores[score_column_name] = compute_scores(df_y, df_y_hat)  # Classification stores
 
     return out_df, models, scores
 

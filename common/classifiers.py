@@ -12,7 +12,7 @@ from sklearn.metrics import recall_score
 from sklearn.metrics import f1_score
 
 from sklearn.linear_model import LogisticRegression, SGDClassifier
-from sklearn.svm import SVC
+from sklearn.svm import SVC, SVR
 
 import lightgbm as lgbm
 
@@ -425,6 +425,7 @@ def train_svc(df_X, df_y, model_config: dict):
     Train model with the specified hyper-parameters and return this model (and scaler if any).
     """
     is_scale = model_config.get("train", {}).get("is_scale", True)
+    is_regression = model_config.get("train", {}).get("is_regression", False)
 
     #
     # Prepare data
@@ -443,8 +444,11 @@ def train_svc(df_X, df_y, model_config: dict):
     # Create model
     #
     args = model_config.get("params").copy()
-    args['probability'] = True  # Required if we are going to use predict_proba()
-    model = SVC(**args)
+    if is_regression:
+        model = SVR(**args)
+    else:
+        args['probability'] = True  # Required if we are going to use predict_proba()
+        model = SVC(**args)
 
     #
     # Train
@@ -459,6 +463,8 @@ def predict_svc(models: tuple, df_X_test, model_config: dict):
     Use the model(s) to make predictions for the test data.
     The first model is a prediction model and the second model (optional) is a scaler.
     """
+    is_regression = model_config.get("train", {}).get("is_regression", False)
+
     #
     # Double column set if required
     #
@@ -482,8 +488,11 @@ def predict_svc(models: tuple, df_X_test, model_config: dict):
     df_X_test_nonans = df_X_test.dropna()  # Drop nans, possibly create gaps in index
     nonans_index = df_X_test_nonans.index
 
-    y_test_hat_nonans = models[0].predict_proba(df_X_test_nonans.values)  # It returns pairs or probas for 0 and 1
-    y_test_hat_nonans = y_test_hat_nonans[:, 1]  # Or y_test_hat.flatten()
+    if is_regression:
+        y_test_hat_nonans = models[0].predict(df_X_test_nonans.values)
+    else:
+        y_test_hat_nonans = models[0].predict_proba(df_X_test_nonans.values)  # It returns pairs or probas for 0 and 1
+        y_test_hat_nonans = y_test_hat_nonans[:, 1]  # Or y_test_hat.flatten()
     y_test_hat_nonans = pd.Series(data=y_test_hat_nonans, index=nonans_index)  # Attach indexes with gaps
 
     df_ret = pd.DataFrame(index=input_index)  # Create empty dataframe with original index
