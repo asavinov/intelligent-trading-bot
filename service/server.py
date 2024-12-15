@@ -18,9 +18,15 @@ from service.collector_binance import main_collector_task, data_provider_health_
 from service.trader_binance import main_trader_task, update_trade_status
 
 import logging
-
 log = logging.getLogger('server')
 
+logging.basicConfig(
+    filename="server.log",
+    level=logging.DEBUG,
+    #format = "%(asctime)s.%(msecs)03d %(levelname)s %(module)s - %(funcName)s: %(message)s",
+    format = "%(asctime)s %(levelname)s %(message)s",
+    #datefmt = '%Y-%m-%d %H:%M:%S',
+)
 
 #
 # Main procedure

@@ -8,7 +8,7 @@ from decimal import *
 import pandas as pd
 import asyncio
 
-from binance.client import Client
+from binance import Client
 from binance.exceptions import *
 from binance.helpers import date_to_milliseconds, interval_to_milliseconds
 from binance.enums import *
@@ -19,13 +19,6 @@ from service.analyzer import *
 
 import logging
 log = logging.getLogger('collector')
-logging.basicConfig(
-    filename="collector.log",  # parameter in App
-    level=logging.DEBUG,
-    #format = "%(asctime)s.%(msecs)03d %(levelname)s %(module)s - %(funcName)s: %(message)s",
-    format = "%(asctime)s %(levelname)s %(message)s",
-    #datefmt = '%Y-%m-%d %H:%M:%S',
-)
 
 
 async def main_collector_task():
