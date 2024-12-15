@@ -19,16 +19,7 @@ from service.analyzer import *
 from service.notifier_trades import get_signal
 
 import logging
-
-
 log = logging.getLogger('trader')
-logging.basicConfig(
-    filename="trader.log",  # parameter in App
-    level=logging.DEBUG,
-    #format = "%(asctime)s.%(msecs)03d %(levelname)s %(module)s - %(funcName)s: %(message)s",
-    format = "%(asctime)s %(levelname)s %(message)s",
-    #datefmt = '%Y-%m-%d %H:%M:%S',
-)
 
 
 async def main_trader_task():
