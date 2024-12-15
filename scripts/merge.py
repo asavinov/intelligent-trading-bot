@@ -9,88 +9,8 @@ import click
 from service.App import *
 
 """
-This script is intended for creating one output file from multiple input data files. 
-It is needed when we want to use additional data source in order to predict the main parameter.
-For example, in order to predict BTC price, we might want to add ETH prices. 
-This script solves the following problems:
-- Input files might have the same column names (e.g., open, high, low, close) and therefore it adds prefixes to the columns of the output file
-- Input data may have gaps and therefore the script generates a regular time raster for the output file. The granularity of the time raster is determined by the parameter
+Create one output file from multiple input data files. 
 """
-
-
-depth_file_names = [  # Leave empty to skip
-    #r"C:\DATA2\BITCOIN\GENERATED\depth-BTCUSDT-batch1.csv",
-    #r"C:\DATA2\BITCOIN\GENERATED\depth-BTCUSDT-batch2.csv",
-    #r"C:\DATA2\BITCOIN\GENERATED\depth-BTCUSDT-batch3.csv",
-    #r"C:\DATA2\BITCOIN\GENERATED\depth-BTCUSDT-batch4.csv",
-    #r"C:\DATA2\BITCOIN\GENERATED\depth-BTCUSDT-batch5.csv",
-]
-
-
-#
-# Readers from inputs files (DEPRECATED)
-#
-
-def load_futur_files(futur_file_path):
-    """Return a data frame with future features."""
-
-    df = pd.read_csv(futur_file_path, parse_dates=['timestamp'], date_format="ISO8601")
-    start = df["timestamp"].iloc[0]
-    end = df["timestamp"].iloc[-1]
-
-    df = df.set_index("timestamp")
-
-    print(f"Loaded futur file with {len(df)} records in total. Range: ({start}, {end})")
-
-    return df, start, end
-
-
-def load_kline_files(kline_file_path):
-    """Return a data frame with kline features."""
-
-    df = pd.read_csv(kline_file_path, parse_dates=['timestamp'], date_format="ISO8601")
-    start = df["timestamp"].iloc[0]
-    end = df["timestamp"].iloc[-1]
-
-    df = df.set_index("timestamp")
-
-    print(f"Loaded kline file with {len(df)} records in total. Range: ({start}, {end})")
-
-    return df, start, end
-
-
-def load_depth_files():
-    """Return a list of data frames with depth features."""
-
-    dfs = []
-    start = None
-    end = None
-    for depth_file_name in depth_file_names:
-        df = pd.read_csv(depth_file_name, parse_dates=['timestamp'], date_format="ISO8601")
-        # Start
-        if start is None:
-            start = df["timestamp"].iloc[0]
-        elif df["timestamp"].iloc[0] < start:
-            start = df["timestamp"].iloc[0]
-        # End
-        if end is None:
-            end = df["timestamp"].iloc[-1]
-        elif df["timestamp"].iloc[-1] > end:
-            end = df["timestamp"].iloc[-1]
-
-        df = df.set_index("timestamp")
-
-        dfs.append(df)
-
-    length = np.sum([len(df) for df in dfs])
-    print(f"Loaded {len(depth_file_names)} depth files with {length} records in total. Range: ({start}, {end})")
-
-    return dfs, start, end
-
-#
-# Merger
-#
-
 
 @click.command()
 @click.option('--config_file', '-c', type=click.Path(), default='', help='Configuration file name')
@@ -203,6 +123,13 @@ def merge_data_sources(data_sources: list):
         # Note that timestamps must have the same semantics, for example, start of kline (and not end of kline)
         # If different data sets have different semantics for timestamps, then data must be shifted accordingly
         df_out = df_out.join(ds["df"])
+
+    # Interpolate numeric columns
+    merge_interpolate = App.config.get("merge_interpolate", False)
+    if merge_interpolate:
+        num_columns = df_out.select_dtypes((float, int)).columns.tolist()
+        for col in num_columns:
+            df_out[col] = df_out[col].interpolate()
 
     return df_out
 
