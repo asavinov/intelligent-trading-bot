@@ -1,12 +1,12 @@
 from datetime import datetime
 from decimal import *
-import click
-
 import asyncio
+
+import click
 
 from apscheduler.schedulers.asyncio import AsyncIOScheduler
 
-from binance.client import Client
+from binance import Client
 
 from service.App import *
 from common.utils import *
@@ -28,8 +28,13 @@ log = logging.getLogger('server')
 
 async def main_task():
     """This task will be executed regularly according to the schedule"""
-    res = await main_collector_task()
+    try:
+        res = await main_collector_task()
+    except Exception as e:
+        log.error(f"Error in main_collector_task function: {e}")
+        return
     if res:
+        log.error(f"Error in main_collector_task function: {res}")
         return res
 
     # TODO: Validation
@@ -41,12 +46,16 @@ async def main_task():
     try:
         analyze_task = await App.loop.run_in_executor(None, App.analyzer.analyze)
     except Exception as e:
-        print(f"Error while analyzing data: {e}")
+        log.error(f"Error in analyze function: {e}")
         return
 
     score_notification_model = App.config["score_notification_model"]
     if score_notification_model.get("score_notification"):
-        await send_score_notification()
+        try:
+            await send_score_notification()
+        except Exception as e:
+            log.error(f"Error in send_score_notification function: {e}")
+            return
 
     diagram_notification_model = App.config["diagram_notification_model"]
     notification_freq = diagram_notification_model.get("notification_freq")
@@ -54,15 +63,32 @@ async def main_task():
     if notification_freq:
         # If system interval start is equal to the (longer) diagram interval start
         if pandas_get_interval(notification_freq)[0] == pandas_get_interval(freq)[0]:
-            await send_diagram()
+            try:
+                await send_diagram()
+            except Exception as e:
+                log.error(f"Error in send_diagram function: {e}")
+                return
 
     trade_model = App.config.get("trade_model", {})
     if trade_model.get("trader_simulation"):
-        transaction = await trader_simulation()
+        try:
+            transaction = await trader_simulation()
+        except Exception as e:
+            log.error(f"Error in trader_simulation function: {e}")
+            return
         if transaction:
-            await send_transaction_message(transaction)
+            try:
+                await send_transaction_message(transaction)
+            except Exception as e:
+                log.error(f"Error in send_transaction_message function: {e}")
+                return
+
     if trade_model.get("trader_binance"):
-        trade_task = App.loop.create_task(main_trader_task())
+        try:
+            trade_task = App.loop.create_task(main_trader_task())
+        except Exception as e:
+            log.error(f"Error in main_trader_task function: {e}")
+            return
 
     return
 
@@ -76,7 +102,7 @@ def start_server(config_file):
     symbol = App.config["symbol"]
     freq = App.config["freq"]
 
-    print(f"Initializing server. Trade pair: {symbol}. ")
+    log.info(f"Initializing server. Trade pair: {symbol}. ")
 
     #getcontext().prec = 8
 
@@ -97,13 +123,13 @@ def start_server(config_file):
     try:
         App.loop.run_until_complete(data_provider_health_check())
     except Exception as e:
-        print(f"Problems during health check (connectivity, server etc.) {e}")
+        log.error(f"Problems during health check (connectivity, server etc.) {e}")
 
     if data_provider_problems_exist():
-        print(f"Problems during health check (connectivity, server etc.)")
+        log.error(f"Problems during health check (connectivity, server etc.)")
         return
 
-    print(f"Finished health check (connection, server status etc.)")
+    log.info(f"Finished health check (connection, server status etc.)")
 
     # Cold start: load initial data, do complete analysis
     try:
@@ -114,28 +140,28 @@ def start_server(config_file):
         # Analyze all received data (and not only last few rows) so that we have full history
         App.analyzer.analyze(ignore_last_rows=True)
     except Exception as e:
-        print(f"Problems during initial data collection. {e}")
+        log.error(f"Problems during initial data collection. {e}")
 
     if data_provider_problems_exist():
-        print(f"Problems during initial data collection.")
+        log.error(f"Problems during initial data collection.")
         return
 
-    print(f"Finished initial data collection.")
+    log.info(f"Finished initial data collection.")
 
     # Initialize trade status (account, balances, orders etc.) in case we are going to really execute orders
     if App.config.get("trade_model", {}).get("trader_binance"):
         try:
             App.loop.run_until_complete(update_trade_status())
         except Exception as e:
-            print(f"Problems trade status sync. {e}")
+            log.error(f"Problems trade status sync. {e}")
 
         if data_provider_problems_exist():
-            print(f"Problems trade status sync.")
+            log.error(f"Problems trade status sync.")
             return
 
-        print(f"Finished trade status sync (account, balances etc.)")
-        print(f"Balance: {App.config['base_asset']} = {str(App.base_quantity)}")
-        print(f"Balance: {App.config['quote_asset']} = {str(App.quote_quantity)}")
+        log.info(f"Finished trade status sync (account, balances etc.)")
+        log.info(f"Balance: {App.config['base_asset']} = {str(App.base_quantity)}")
+        log.info(f"Balance: {App.config['quote_asset']} = {str(App.quote_quantity)}")
 
     #
     # Register scheduler
@@ -155,7 +181,7 @@ def start_server(config_file):
 
     App.sched.start()  # Start scheduler (essentially, start the thread)
 
-    print(f"Scheduler started.")
+    log.info(f"Scheduler started.")
 
     #
     # Start event loop
@@ -163,12 +189,12 @@ def start_server(config_file):
     try:
         App.loop.run_forever()  # Blocking. Run until stop() is called
     except KeyboardInterrupt:
-        print(f"KeyboardInterrupt.")
+        log.info(f"KeyboardInterrupt.")
     finally:
         App.loop.close()
-        print(f"Event loop closed.")
+        log.info(f"Event loop closed.")
         App.sched.shutdown()
-        print(f"Scheduler shutdown.")
+        log.info(f"Scheduler shutdown.")
 
     return 0
 
