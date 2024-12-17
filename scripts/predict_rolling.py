@@ -5,6 +5,7 @@ import click
 
 import numpy as np
 import pandas as pd
+from pandas.api.types import is_float_dtype, is_numeric_dtype, is_integer_dtype, is_string_dtype
 
 from service.App import *
 from common.utils import *
@@ -306,9 +307,8 @@ def main(config_file):
 
         print(f"Using {len(df_scores)} non-nan rows for scoring.")
 
-        if y_true.dtype == "float64" and y_predicted.dtype == "float64":
-            # TODO Regression scores
-            score = dict(rmse=0.0, mae=0.0, mse=0.0, mape=0.0, r2=0.0)
+        if is_float_dtype(y_true) and is_float_dtype(y_predicted):
+            score = compute_scores_regression(y_true, y_predicted)  # Regression stores
         else:
             score = compute_scores(y_true, y_predicted)  # Classification stores
 

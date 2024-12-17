@@ -7,9 +7,6 @@ from sklearn.model_selection import train_test_split
 from sklearn import metrics
 from sklearn.model_selection import ParameterGrid
 from sklearn.preprocessing import StandardScaler
-from sklearn.metrics import precision_score
-from sklearn.metrics import recall_score
-from sklearn.metrics import f1_score
 
 from sklearn.linear_model import LogisticRegression, SGDClassifier
 from sklearn.svm import SVC, SVR
@@ -41,6 +38,9 @@ def train_gb(df_X, df_y, model_config: dict):
     """
     Train model with the specified hyper-parameters and return this model (and scaler if any).
     """
+    is_scale = model_config.get("train", {}).get("is_scale", False)
+    is_regression = model_config.get("train", {}).get("is_regression", False)
+
     #
     # Double column set if required
     #
@@ -54,7 +54,6 @@ def train_gb(df_X, df_y, model_config: dict):
     #
     # Scale
     #
-    is_scale = model_config.get("train", {}).get("is_scale", False)
     if is_scale:
         scaler = StandardScaler()
         scaler.fit(df_X)
@@ -176,6 +175,9 @@ def train_nn(df_X, df_y, model_config: dict):
     """
     Train model with the specified hyper-parameters and return this model (and scaler if any).
     """
+    is_scale = model_config.get("train", {}).get("is_scale", True)
+    is_regression = model_config.get("train", {}).get("is_regression", False)
+
     #
     # Double column set if required
     #
@@ -189,7 +191,6 @@ def train_nn(df_X, df_y, model_config: dict):
     #
     # Scale
     #
-    is_scale = model_config.get("train", {}).get("is_scale", True)
     if is_scale:
         scaler = StandardScaler()
         scaler.fit(df_X)
@@ -227,19 +228,31 @@ def train_nn(df_X, df_y, model_config: dict):
         model.add(Dense(out_features, activation='sigmoid', input_dim=in_features))  # , kernel_regularizer=l2(reg_l2)
         #model.add(Dropout(rate=0.5))
 
-    model.add(Dense(1, activation='sigmoid'))
+    if is_regression:
+        model.add(Dense(units=1))
 
-    # Compile model
-    optimizer = Adam(learning_rate=learning_rate)
-    model.compile(
-        loss='binary_crossentropy',
-        optimizer=optimizer,
-        metrics=[
-            tf.keras.metrics.AUC(name="auc"),
-            tf.keras.metrics.Precision(name="precision"),
-            tf.keras.metrics.Recall(name="recall"),
-        ],
-    )
+        model.compile(
+            loss='mse',
+            optimizer=Adam(learning_rate=learning_rate),
+            metrics=[
+                tf.keras.metrics.MeanAbsoluteError(name="mean_absolute_error"),
+                tf.keras.metrics.MeanAbsolutePercentageError(name="mean_absolute_percentage_error"),
+                tf.keras.metrics.R2Score(name="r2_score"),
+            ],
+        )
+    else:
+        model.add(Dense(units=1, activation='sigmoid'))
+
+        model.compile(
+            loss='binary_crossentropy',
+            optimizer=Adam(learning_rate=learning_rate),
+            metrics=[
+                tf.keras.metrics.AUC(name="auc"),
+                tf.keras.metrics.Precision(name="precision"),
+                tf.keras.metrics.Recall(name="recall"),
+            ],
+        )
+
     #model.summary()
 
     es = EarlyStopping(
@@ -328,6 +341,9 @@ def train_lc(df_X, df_y, model_config: dict):
     """
     Train model with the specified hyper-parameters and return this model (and scaler if any).
     """
+    is_scale = model_config.get("train", {}).get("is_scale", True)
+    is_regression = model_config.get("train", {}).get("is_regression", False)
+
     #
     # Double column set if required
     #
@@ -341,7 +357,6 @@ def train_lc(df_X, df_y, model_config: dict):
     #
     # Scale
     #
-    is_scale = model_config.get("train", {}).get("is_scale", True)
     if is_scale:
         scaler = StandardScaler()
         scaler.fit(df_X)
@@ -526,11 +541,65 @@ def compute_scores(y_true, y_hat):
     recall = metrics.recall_score(y_true, y_hat_class)
 
     scores = dict(
-        auc=auc,
-        ap=ap,  # it summarizes precision-recall curve, should be equivalent to auc
-        f1=f1,
-        precision=precision,
-        recall=recall,
+        auc=round(auc, 3),
+        ap=round(ap, 3),
+        f1=round(f1, 3),
+        precision=round(precision, 3),
+        recall=round(recall, 3),
+    )
+
+    return scores
+
+
+def compute_scores_regression(y_true, y_hat):
+    """Compute regression scores. Input columns must have numeric data type."""
+
+    try:
+        mae = metrics.mean_absolute_error(y_true, y_hat)
+    except ValueError:
+        mae = np.nan
+
+    try:
+        mape = metrics.mean_absolute_percentage_error(y_true, y_hat)
+    except ValueError:
+        mape = np.nan
+
+    try:
+        r2 = metrics.r2_score(y_true, y_hat)
+    except ValueError:
+        r2 = np.nan
+
+    #
+    # How good it is in predicting the sign (increase of decrease)
+    #
+
+    y_true_class = np.where(y_true.values > 0.0, +1, -1)
+    y_hat_class = np.where(y_hat.values > 0.0, +1, -1)
+
+    try:
+        auc = metrics.roc_auc_score(y_true_class, y_hat_class)
+    except ValueError:
+        auc = 0.0  # Only one class is present (if dataset is too small, e.g,. when debugging) or Nulls in predictions
+
+    try:
+        ap = metrics.average_precision_score(y_true_class, y_hat_class)
+    except ValueError:
+        ap = 0.0  # Only one class is present (if dataset is too small, e.g,. when debugging) or Nulls in predictions
+
+    f1 = metrics.f1_score(y_true_class, y_hat_class)
+    precision = metrics.precision_score(y_true_class, y_hat_class)
+    recall = metrics.recall_score(y_true_class, y_hat_class)
+
+    scores = dict(
+        mae=round(mae, 3),
+        mape=round(mape, 3),
+        r2=round(r2, 3),
+
+        auc=round(auc, 3),
+        ap=round(ap, 3),
+        f1=round(f1, 3),
+        precision=round(precision, 3),
+        recall=round(recall, 3),
     )
 
     return scores

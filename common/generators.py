@@ -2,6 +2,7 @@ from typing import Tuple
 
 import numpy as np
 import pandas as pd
+from pandas.api.types import is_float_dtype, is_numeric_dtype, is_integer_dtype, is_string_dtype
 
 from common.classifiers import *
 from common.model_store import *
@@ -162,9 +163,8 @@ def predict_feature_set(df, fs, config, models: dict):
             # For each new score, compare it with the label true values
             if label in df:
                 df_y = df[label]
-                if df_y.dtype == "float64" and df_y_hat.dtype == "float64":
-                    # TODO Regression scores
-                    scores[score_column_name] = dict(rmse=0.0, mae=0.0, mse=0.0, mape=0.0, r2=0.0)
+                if is_float_dtype(df_y) and is_float_dtype(df_y_hat):
+                    scores[score_column_name] = compute_scores_regression(df_y, df_y_hat)  # Regression stores
                 else:
                     scores[score_column_name] = compute_scores(df_y, df_y_hat)  # Classification stores
 
@@ -233,9 +233,8 @@ def train_feature_set(df, fs, config):
 
             out_df[score_column_name] = df_y_hat
 
-            if df_y.dtype == "float64" and df_y_hat.dtype == "float64":
-                # TODO Regression scores
-                scores[score_column_name] = dict(rmse=0.0, mae=0.0, mse=0.0, mape=0.0, r2=0.0)
+            if is_float_dtype(df_y) and is_float_dtype(df_y_hat):
+                scores[score_column_name] = compute_scores_regression(df_y, df_y_hat)  # Regression stores
             else:
                 scores[score_column_name] = compute_scores(df_y, df_y_hat)  # Classification stores
 
