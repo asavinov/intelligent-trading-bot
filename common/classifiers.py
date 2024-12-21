@@ -232,7 +232,7 @@ def train_nn(df_X, df_y, model_config: dict):
         model.add(Dense(units=1))
 
         model.compile(
-            loss='mse',
+            loss='mean_squared_error',
             optimizer=Adam(learning_rate=learning_rate),
             metrics=[
                 tf.keras.metrics.MeanAbsoluteError(name="mean_absolute_error"),
