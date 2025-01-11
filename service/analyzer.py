@@ -61,9 +61,7 @@ class Analyzer:
             model_path = data_path / model_path
         model_path = model_path.resolve()
 
-        labels = App.config["labels"]
-        algorithms = App.config["algorithms"]
-        self.models = load_models(model_path, labels, algorithms)
+        self.models = load_models_for_generators(App.config, model_path)
 
         # Load latest transaction and (simulated) trade state
         App.transaction = load_last_transaction()
