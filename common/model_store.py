@@ -12,16 +12,6 @@ label_algo_separator = "_"
 It is a model stored implemented as a Python module.
 """
 
-def get_model(name: str):
-    """Given model name, return its JSON object"""
-    return next(x for x in models if x.get("name") == name)
-
-
-def get_algorithm(algorithms: list, name: str):
-    """Given a list of algorithms (from config), find an entry for the algorithm with the specified model name"""
-    return next(x for x in algorithms if x.get("name") == name)
-
-
 def load_models_from_file(file):
     """Load model store from file to memory"""
     pass
@@ -120,7 +110,7 @@ def resolve_algorithms_for_generator(algorithm_names: list, algorithms_default: 
     algorithms = []
     for alg in algorithm_names:
         if isinstance(alg, str):  # Find in the list of algorithms
-            alg = next(a for a in algorithms_default if a['name'] == alg)
+            alg = find_algorithm_by_name(algorithms_default, alg)
         elif not isinstance(alg, dict):
             raise ValueError(f"Algorithm has to be either dict or name")
         algorithms.append(alg)
@@ -138,95 +128,7 @@ def score_to_label_algo_pair(score_column_name: str):
     label_name, algo_name = score_column_name.rsplit(label_algo_separator, 1)
     return label_name, algo_name
 
-# Deprecated. Use them for reference and include in "algorithms" in config instead.
-models = [
-    {
-        "name": "nn",
-        "algo": "nn",
-        "params": {
-            "layers": [29], # It is equal to the number of input features (different for spot and futur). Currently not used
-            "learning_rate": 0.001,
-            "n_epochs": 50,  # 5 for quick analysis, 20 or 30 for production
-            "bs": 1024,
-        },
-        "train": {"is_scale": True, "length": int(3.0 * 525_600), "shifts": []},
-        "predict": {"length": "1w"}
-    },
-    {
-        "name": "lc",
-        "algo": "lc",
-        "params": {
-            "penalty": "l2",
-            "C": 1.0,
-            "class_weight": None,
-            "solver": "sag", # liblinear, lbfgs, sag/saga (stochastic gradient descent for large datasets, should be scaled)
-            "max_iter": 200,
-            # "tol": 0.1,  # Tolerance for performance (check how it influences precision)
-        },
-        "train": {"is_scale": True, "length": int(3.0 * 525_600), "shifts": []},
-        "predict": {"length": 1440}
-    },
-    {
-        "name": "gb",
-        "algo": "gb",
-        "params": {
-            "objective": "cross_entropy",
-            "max_depth": 1,
-            "learning_rate": 0.01,
-            "num_boost_round": 1_500,
 
-            "lambda_l1": 1.0,
-            "lambda_l2": 1.0,
-        },
-        "train": {"is_scale": False, "length": int(3.0 * 525_600), "shifts": []},
-        "predict": {"length": 1440}
-    },
-
-    {
-        "name": "gb-y",
-        "algo": "gb",
-        "params": {
-            #"boosting_type": 'gbdt',
-            "objective": "cross_entropy",  # binary cross_entropy cross_entropy_lambda
-            "max_depth": 1,
-            "learning_rate": 0.05,
-            "num_boost_round": 1_500,  # 10_000
-
-            #"is_unbalance": True,
-            #"metric": 'auc',  # auc binary_logloss cross_entropy cross_entropy_lambda binary_error
-            "lambda_l1": 1.0,
-            "lambda_l2": 1.0,
-        },
-        "train": {"is_scale": True, "length": None, "shifts": []},
-        "predict": {"length": 1440}
-    },
-    {
-        "name": "svc-y",
-        "algo": "svc",
-        "params": {"C": 10.0},  # , "gamma": 0.02
-        "train": {"is_scale": True, "length": None, "shifts": []},
-        "predict": {"length": 1440}
-    },
-
-    {
-        "name": "nn_long",
-        "algo": "nn",
-        "params": {"layers": [29], "learning_rate": 0.001, "n_epochs": 20, "bs": 128, },
-        "train": {"is_scale": True, "length": int(2.0 * 525_600), "shifts": []},
-        "predict": {"length": 0}
-    },
-    {
-        "name": "nn_middle",
-        "algo": "nn",
-        "params": {"layers": [29], "learning_rate": 0.001, "n_epochs": 20, "bs": 128, },
-        "train": {"is_scale": True, "length": int(1.5 * 525_600), "shifts": []},
-        "predict": {"length": 0}
-    },
-    {
-        "name": "nn_short",
-        "algo": "nn",
-        "params": {"layers": [29], "learning_rate": 0.001, "n_epochs": 20, "bs": 128, },
-        "train": {"is_scale": True, "length": int(1.0 * 525_600), "shifts": []},
-        "predict": {"length": 0}
-    },
-]
+def find_algorithm_by_name(algorithms: list, name: str):
+    """Given a list of algorithms (from config), find an entry for the algorithm with the specified model name"""
+    return next(x for x in algorithms if x.get("name") == name)

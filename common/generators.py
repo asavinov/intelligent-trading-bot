@@ -124,7 +124,7 @@ def predict_feature_set(df, fs, config, models: dict):
     algorithms = []
     for alg in algorithms_str:
         if isinstance(alg, str):  # Find in the list of algorithms
-            alg = next(a for a in algorithms_default if a['name'] == alg)
+            alg = find_algorithm_by_name(algorithms_default, alg)
         elif not isinstance(alg, dict):
             raise ValueError(f"Algorithm has to be either dict or name")
         algorithms.append(alg)
