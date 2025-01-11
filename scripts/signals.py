@@ -80,8 +80,11 @@ def main(config_file):
     for i, fs in enumerate(feature_sets):
         fs_now = datetime.now()
         print(f"Start feature set {i}/{len(feature_sets)}. Generator {fs.get('generator')}...")
+
         df, new_features = generate_feature_set(df, fs, last_rows=0)
+
         all_features.extend(new_features)
+
         fs_elapsed = datetime.now() - fs_now
         print(f"Finished feature set {i}/{len(feature_sets)}. Generator {fs.get('generator')}. Features: {len(new_features)}. Time: {str(fs_elapsed).split('.')[0]}")
 

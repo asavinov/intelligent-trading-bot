@@ -3,7 +3,7 @@ from pathlib import Path
 
 from joblib import dump, load
 
-from keras.models import Sequential, save_model, load_model
+from keras.models import save_model, load_model
 
 label_algo_separator = "_"
 
@@ -75,9 +75,59 @@ def load_models(model_path, labels: list, algorithms: list):
     models = {}
     for label_algorithm in itertools.product(labels, algorithms):
         score_column_name = label_algorithm[0] + label_algo_separator + label_algorithm[1]["name"]
-        model_pair = load_model_pair(model_path, score_column_name)
+        try:
+            model_pair = load_model_pair(model_path, score_column_name)
+        except Exception as e:
+            print(f"ERROR: Cannot load model {score_column_name} from path {model_path}. Skip.")
+            continue
         models[score_column_name] = model_pair
     return models
+
+
+def load_models_for_generators(config: dict, model_path):
+    """Load all model pairs which are really used according to the algorithm section."""
+
+    labels_default = config.get("labels", [])
+    algorithms_default = config.get("algorithms")
+
+    # For each entry, a list of labels and a list of algorithms is retrieved, and then all their models are loaded
+    train_feature_sets = config.get("train_feature_sets", [])
+    models = {}
+    for i, fs in enumerate(train_feature_sets):
+
+        labels = fs.get("config").get("labels", [])
+        if not labels:
+            labels = labels_default
+
+        algorithms_default = config.get("algorithms")
+        algorithm_names = fs.get("config").get("functions", [])
+        if not algorithm_names:
+            algorithm_names = fs.get("config").get("algorithms", [])
+        algorithms = resolve_algorithms_for_generator(algorithm_names, algorithms_default)
+
+        # Load models for all combinations of labels and algorithms
+        fs_models = load_models(model_path, labels, algorithms)
+
+        models.update(fs_models)
+
+    return models
+
+
+def resolve_algorithms_for_generator(algorithm_names: list, algorithms_default: list):
+    """Get all algorithm configs for a list of algorithm names."""
+
+    # The algorithms can be either strings (names) or dicts (definitions) so we resolve the names
+    algorithms = []
+    for alg in algorithm_names:
+        if isinstance(alg, str):  # Find in the list of algorithms
+            alg = next(a for a in algorithms_default if a['name'] == alg)
+        elif not isinstance(alg, dict):
+            raise ValueError(f"Algorithm has to be either dict or name")
+        algorithms.append(alg)
+    if not algorithms:
+        algorithms = algorithms_default
+
+    return algorithms
 
 
 def score_to_label_algo_pair(score_column_name: str):

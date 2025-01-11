@@ -89,8 +89,6 @@ def main(config_file):
         df = df.head(-label_horizon)
 
     df.replace([np.inf, -np.inf], np.nan, inplace=True)
-    df = df.dropna(subset=labels)
-    df = df.dropna(subset=train_features)
     if len(df) == 0:
         print(f"ERROR: Empty data set after removing NULLs in feature columns. Some features might have all NULL values.")
         #print(df.isnull().sum().sort_values(ascending=False))

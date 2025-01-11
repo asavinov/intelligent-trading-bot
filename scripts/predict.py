@@ -76,14 +76,12 @@ def main(config_file):
     df = df[out_columns + [x for x in all_features if x not in out_columns]]
 
     df.replace([np.inf, -np.inf], np.nan, inplace=True)
-    #df = df.dropna(subset=labels)
-    df = df.dropna(subset=train_features)
-    #in_df = in_df.dropna(subset=labels)
-    df = df.reset_index(drop=True)  # We must reset index after removing rows to remove gaps
-
     if len(df) == 0:
         print(f"ERROR: Empty data set after removing NULLs in feature columns. Some features might all have NULL values.")
         # print(train_df.isnull().sum().sort_values(ascending=False))
+
+    df = df.dropna(subset=train_features)
+    df = df.reset_index(drop=True)  # We must reset index after removing rows to remove gaps
 
     #
     # Load models for all score columns
@@ -93,7 +91,7 @@ def main(config_file):
         model_path = data_path / model_path
     model_path = model_path.resolve()
 
-    models = load_models(model_path, labels, algorithms)
+    models = load_models_for_generators(App.config, model_path)
 
     #
     # Generate/predict train features

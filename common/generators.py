@@ -111,21 +111,32 @@ def generate_feature_set(df: pd.DataFrame, fs: dict, last_rows: int) -> Tuple[pd
 
 def predict_feature_set(df, fs, config, models: dict):
 
-    labels = fs.get("config").get("labels")
+    labels_default = config.get("labels", [])
+    labels = fs.get("config").get("labels", [])
     if not labels:
-        labels = config.get("labels")
+        labels = labels_default
 
-    algorithms = fs.get("config").get("functions")
+    algorithms_default = config.get("algorithms")
+    algorithms_str = fs.get("config").get("functions", [])
+    if not algorithms_str:
+        algorithms_str = fs.get("config").get("algorithms", [])
+    # The algorithms can be either strings (names) or dicts (definitions) so we resolve the names
+    algorithms = []
+    for alg in algorithms_str:
+        if isinstance(alg, str):  # Find in the list of algorithms
+            alg = next(a for a in algorithms_default if a['name'] == alg)
+        elif not isinstance(alg, dict):
+            raise ValueError(f"Algorithm has to be either dict or name")
+        algorithms.append(alg)
     if not algorithms:
-        algorithms = fs.get("config").get("algorithms")
-    if not algorithms:
-        algorithms = config.get("algorithms")
+        algorithms = algorithms_default
 
-    train_features = fs.get("config").get("columns")
+    train_features_default = config.get("train_features", [])
+    train_features = fs.get("config").get("columns", [])
     if not train_features:
-        train_features = fs.get("config").get("features")
+        train_features = fs.get("config").get("features", [])
     if not train_features:
-        train_features = config.get("train_features")
+        train_features = train_features_default
 
     train_df = df[train_features]
 
@@ -173,21 +184,25 @@ def predict_feature_set(df, fs, config, models: dict):
 
 def train_feature_set(df, fs, config):
 
-    labels = fs.get("config").get("labels")
+    labels_default = config.get("labels", [])
+    labels = fs.get("config").get("labels", [])
     if not labels:
-        labels = config.get("labels")
+        labels = labels_default
 
-    algorithms = fs.get("config").get("functions")
-    if not algorithms:
-        algorithms = fs.get("config").get("algorithms")
-    if not algorithms:
-        algorithms = config.get("algorithms")
+    algorithms_default = config.get("algorithms")
+    algorithm_names = fs.get("config").get("functions", [])
+    if not algorithm_names:
+        algorithms_str = fs.get("config").get("algorithms", [])
+    algorithms = resolve_algorithms_for_generator(algorithm_names, algorithms_default)
 
-    train_features = fs.get("config").get("columns")
+    train_features_default = config.get("train_features", [])
+    train_features = fs.get("config").get("columns", [])
     if not train_features:
-        train_features = fs.get("config").get("features")
+        train_features = fs.get("config").get("features", [])
     if not train_features:
-        train_features = config.get("train_features")
+        train_features = train_features_default
+
+    df = df.dropna(subset=train_features).reset_index(drop=True)
 
     models = dict()
     scores = dict()
@@ -202,6 +217,7 @@ def train_feature_set(df, fs, config):
             algo_train_length = model_config.get("train", {}).get("length")
 
             # Limit length according to the algorith parameters
+            df = df.dropna(subset=labels).reset_index(drop=True)
             if algo_train_length:
                 train_df = df.tail(algo_train_length)
             else:
