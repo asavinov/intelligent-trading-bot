@@ -34,6 +34,11 @@ logging.basicConfig(
 
 async def main_task():
     """This task will be executed regularly according to the schedule"""
+
+    #
+    # 1. Execute input adapters to receive new data from data source(s)
+    #
+
     try:
         res = await main_collector_task()
     except Exception as e:
@@ -48,12 +53,19 @@ async def main_task():
     #if last_kline_ts + 60_000 != startTime:
     #    log.error(f"Problem during analysis. Last kline end ts {last_kline_ts + 60_000} not equal to start of current interval {startTime}.")
 
-    # Apply all transformations: merge, features, prediction scores, signals
+    #
+    # 2. Apply transformations (merge, features, prediction scores, signals) and generate new data columns
+    #
+
     try:
         analyze_task = await App.loop.run_in_executor(None, App.analyzer.analyze)
     except Exception as e:
         log.error(f"Error in analyze function: {e}")
         return
+
+    #
+    # 3. Execute output adapter which send the results of analysis to consumers
+    #
 
     score_notification_model = App.config["score_notification_model"]
     if score_notification_model.get("score_notification"):

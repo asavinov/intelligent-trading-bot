@@ -338,11 +338,6 @@ class Analyzer:
             return
 
         train_feature_sets = App.config.get("train_feature_sets", [])
-        if not train_feature_sets:
-            log.error(f"ERROR: no train feature sets defined. Nothing to process.")
-            return
-
-        # Apply all train feature generators to the data frame by generating predicted columns
         score_df = pd.DataFrame(index=predict_df.index)
         train_feature_columns = []
         for fs in train_feature_sets:
@@ -358,11 +353,6 @@ class Analyzer:
         # Signals
         #
         signal_sets = App.config.get("signal_sets", [])
-        if not signal_sets:
-            log.error(f"ERROR: no signal sets defined. Nothing to process.")
-            return
-
-        # Apply all feature generators to the data frame which get accordingly new derived columns
         signal_columns = []
         for fs in signal_sets:
             df, feats = generate_feature_set(df, fs, last_rows=last_rows if not ignore_last_rows else 0)
