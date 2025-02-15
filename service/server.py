@@ -14,7 +14,7 @@ from service.analyzer import *
 from service.notifier_trades import *
 from service.notifier_scores import *
 from service.notifier_diagram import *
-from service.collector_binance import main_collector_task, data_provider_health_check, sync_data_collector_task
+from inputs.collector_binance import main_collector_task, data_provider_health_check, sync_data_collector_task
 from service.trader_binance import main_trader_task, update_trade_status
 
 import logging
