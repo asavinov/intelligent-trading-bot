@@ -19,7 +19,23 @@ logging.getLogger('matplotlib').setLevel(logging.WARNING)
 transaction_file = Path("transactions.txt")
 
 
-async def trader_simulation():
+async def trader_simulation(model: dict):
+    try:
+        transaction = await generate_trader_transaction()
+    except Exception as e:
+        log.error(f"Error in trader_simulation function: {e}")
+        return
+    if not transaction:
+        return
+
+    try:
+        await send_transaction_message(transaction)
+    except Exception as e:
+        log.error(f"Error in send_transaction_message function: {e}")
+        return
+
+
+async def generate_trader_transaction():
     """
     Very simple trade strategy where we only buy and sell using the whole available amount
     """

@@ -20,11 +20,17 @@ logging.getLogger('matplotlib').setLevel(logging.WARNING)
 transaction_file = Path("transactions.txt")
 
 
-async def send_diagram():
+async def send_diagram(model: dict):
     """
     Produce a line chart based on latest data and send it to the channel.
     """
-    model = App.config["diagram_notification_model"]
+
+    notification_freq = model.get("notification_freq")
+    freq = App.config.get("freq")
+    if notification_freq:
+        # Continue only if system interval start is equal to the (longer) diagram interval start
+        if pandas_get_interval(notification_freq)[0] != pandas_get_interval(freq)[0]:
+            return
 
     score_column_names = model.get("score_column_names")
     if isinstance(score_column_names, list) and len(score_column_names) > 0:

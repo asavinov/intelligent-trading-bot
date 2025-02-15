@@ -14,10 +14,9 @@ import logging
 log = logging.getLogger('notifier')
 
 
-async def send_score_notification():
+async def send_score_notification(model: dict):
     symbol = App.config["symbol"]
     freq = App.config["freq"]
-    model = App.config["score_notification_model"]
 
     score_column_names = model.get("score_column_names")
     if not score_column_names:

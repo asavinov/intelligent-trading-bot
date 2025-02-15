@@ -21,7 +21,7 @@ import logging
 log = logging.getLogger('trader')
 
 
-async def main_trader_task():
+async def main_trader_task(model: dict):
     """
     It is a highest level task which is added to the event loop and executed normally every 1 minute and then it calls other tasks.
     """
