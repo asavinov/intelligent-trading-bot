@@ -15,8 +15,7 @@ from binance.enums import *
 
 from service.App import *
 from common.utils import *
-from service.analyzer import *
-from service.notifier_trades import get_signal
+from outputs.notifier_trades import get_signal
 
 import logging
 log = logging.getLogger('trader')
