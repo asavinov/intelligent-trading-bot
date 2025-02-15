@@ -311,3 +311,37 @@ def notnull_tail_rows(df):
     tail_rows = nan_df[nan_cols].values[::-1].argmax(axis=0).min()
 
     return tail_rows
+
+#
+# System etc.
+#
+
+def resolve_generator_name(gen_name: str):
+    """
+    Resolve the specified name to a function reference.
+    Fully qualified name consists of module name and function name separated by a colon,
+    for example:  'mod1.mod2.mod3:my_func'.
+
+    Example: fn = resolve_generator_name("common.gen_features_topbot:generate_labels_topbot3")
+    """
+
+    mod_and_func = gen_name.split(':', 1)
+    mod_name = mod_and_func[0] if len(mod_and_func) > 1 else None
+    func_name = mod_and_func[-1]
+
+    if not mod_name:
+        return None
+
+    try:
+        mod = importlib.import_module(mod_name)
+    except Exception as e:
+        return None
+    if mod is None:
+        return None
+
+    try:
+        func = getattr(mod, func_name)
+    except AttributeError as e:
+        return None
+
+    return func
