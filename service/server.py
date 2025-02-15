@@ -10,11 +10,14 @@ from binance import Client
 
 from service.App import *
 from common.utils import *
+from common.generators import output_feature_set
 from service.analyzer import *
+
+from inputs.collector_binance import main_collector_task, data_provider_health_check, sync_data_collector_task
+
 from outputs.notifier_trades import *
 from outputs.notifier_scores import *
 from outputs.notifier_diagram import *
-from inputs.collector_binance import main_collector_task, data_provider_health_check, sync_data_collector_task
 from outputs.trader_binance import main_trader_task, update_trade_status
 
 import logging
@@ -67,45 +70,13 @@ async def main_task():
     # 3. Execute output adapter which send the results of analysis to consumers
     #
 
-    score_notification_model = App.config["score_notification_model"]
-    if score_notification_model.get("score_notification"):
+    # Execute all output set entries
+    output_sets = App.config.get("output_sets", [])
+    for os in output_sets:
         try:
-            await send_score_notification()
+            output_feature_set(os)
         except Exception as e:
-            log.error(f"Error in send_score_notification function: {e}")
-            return
-
-    diagram_notification_model = App.config["diagram_notification_model"]
-    notification_freq = diagram_notification_model.get("notification_freq")
-    freq = App.config.get("freq")
-    if notification_freq:
-        # If system interval start is equal to the (longer) diagram interval start
-        if pandas_get_interval(notification_freq)[0] == pandas_get_interval(freq)[0]:
-            try:
-                await send_diagram()
-            except Exception as e:
-                log.error(f"Error in send_diagram function: {e}")
-                return
-
-    trade_model = App.config.get("trade_model", {})
-    if trade_model.get("trader_simulation"):
-        try:
-            transaction = await trader_simulation()
-        except Exception as e:
-            log.error(f"Error in trader_simulation function: {e}")
-            return
-        if transaction:
-            try:
-                await send_transaction_message(transaction)
-            except Exception as e:
-                log.error(f"Error in send_transaction_message function: {e}")
-                return
-
-    if trade_model.get("trader_binance"):
-        try:
-            trade_task = App.loop.create_task(main_trader_task())
-        except Exception as e:
-            log.error(f"Error in main_trader_task function: {e}")
+            log.error(f"Error in output function: {e}")
             return
 
     return

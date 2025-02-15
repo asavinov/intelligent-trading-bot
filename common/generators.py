@@ -14,6 +14,11 @@ from common.gen_signals import (
     generate_threshold_rule, generate_threshold_rule2
 )
 
+from outputs.notifier_scores import *
+from outputs.notifier_diagram import *
+from outputs.notifier_trades import *
+from outputs.trader_binance import *
+
 
 def generate_feature_set(df: pd.DataFrame, fs: dict, last_rows: int) -> Tuple[pd.DataFrame, list]:
     """
@@ -255,3 +260,30 @@ def train_feature_set(df, fs, config):
                 scores[score_column_name] = compute_scores(df_y, df_y_hat)  # Classification stores
 
     return out_df, models, scores
+
+
+def output_feature_set(fs: dict):
+    #
+    # Resolve and apply feature generator functions from the configuration
+    #
+    generator = fs.get("generator")
+    gen_config = fs.get('config', {})
+
+    loop = asyncio.get_event_loop()  # Alternatively App.loop
+    if generator == "send_score_notification":
+        loop.run_until_complete(send_score_notification(gen_config))
+    elif generator == "send_diagram":
+        loop.run_until_complete(send_diagram(gen_config))
+    elif generator == "trader_simulation":
+        loop.run_until_complete(trader_simulation(gen_config))
+    elif generator == "main_trader_task":
+        loop.run_until_complete(main_trader_task(gen_config))
+
+    else:
+        # Resolve generator name to a function reference
+        generator_fn = resolve_generator_name(generator)
+        if generator_fn is None:
+            raise ValueError(f"Unknown feature generator name or name cannot be resolved: {generator}")
+
+        # Call this function
+        generator_fn(gen_config)
