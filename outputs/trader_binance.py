@@ -21,7 +21,7 @@ import logging
 log = logging.getLogger('trader')
 
 
-async def main_trader_task(model: dict):
+async def trader_binance(model: dict):
     """
     It is a highest level task which is added to the event loop and executed normally every 1 minute and then it calls other tasks.
     """
@@ -30,9 +30,10 @@ async def main_trader_task(model: dict):
     startTime, endTime = pandas_get_interval(freq)
     now_ts = now_timestamp()
 
-    trade_model = App.config.get("trade_model", {})
+    buy_signal_column = model.get("buy_signal_column")
+    sell_signal_column = model.get("sell_signal_column")
 
-    signal = get_signal()
+    signal = get_signal(buy_signal_column, sell_signal_column)
     signal_side = signal.get("side")
     close_price = signal.get("close_price")
     close_time = signal.get("close_time")
@@ -131,7 +132,7 @@ async def main_trader_task(model: dict):
         # -----
         await new_limit_order(side=SIDE_BUY)
 
-        if trade_model.get("no_trades_only_data_processing"):
+        if model.get("no_trades_only_data_processing"):
             print("SKIP TRADING due to 'no_trades_only_data_processing' parameter True")
             # Never change status if orders not executed
         else:
@@ -140,7 +141,7 @@ async def main_trader_task(model: dict):
         # -----
         await new_limit_order(side=SIDE_SELL)
 
-        if trade_model.get("no_trades_only_data_processing"):
+        if model.get("no_trades_only_data_processing"):
             print("SKIP TRADING due to 'no_trades_only_data_processing' parameter True")
             # Never change status if orders not executed
         else:

@@ -21,7 +21,7 @@ transaction_file = Path("transactions.txt")
 
 async def trader_simulation(model: dict):
     try:
-        transaction = await generate_trader_transaction()
+        transaction = await generate_trader_transaction(model)
     except Exception as e:
         log.error(f"Error in trader_simulation function: {e}")
         return
@@ -35,13 +35,16 @@ async def trader_simulation(model: dict):
         return
 
 
-async def generate_trader_transaction():
+async def generate_trader_transaction(model: dict):
     """
     Very simple trade strategy where we only buy and sell using the whole available amount
     """
     symbol = App.config["symbol"]
 
-    signal = get_signal()
+    buy_signal_column = model.get("buy_signal_column")
+    sell_signal_column = model.get("sell_signal_column")
+
+    signal = get_signal(buy_signal_column, sell_signal_column)
     signal_side = signal.get("side")
     close_price = signal.get("close_price")
     close_time = signal.get("close_time")
@@ -169,7 +172,7 @@ async def generate_transaction_stats():
     return profit, profit_percent, profit_descr, profit_percent_descr
 
 
-def get_signal():
+def get_signal(buy_signal_column, sell_signal_column):
     """From the last row, produce and return an object with parameters important for trading."""
     freq = App.config["freq"]
 
@@ -180,9 +183,6 @@ def get_signal():
     close_time = row.name + interval_length  # Add interval length because timestamp is start of the interval
     close_price = row["close"]
 
-    model = App.config["trade_model"]
-    buy_signal_column = model.get("buy_signal_column")
-    sell_signal_column = model.get("sell_signal_column")
     buy_signal = row[buy_signal_column]
     sell_signal = row[sell_signal_column]
 
