@@ -226,32 +226,5 @@ def load_config(config_file):
             App.config.update(conf_json)
 
 
-def load_last_transaction():
-    transaction_file = Path("transactions.txt")
-    t_dict = dict(timestamp=str(datetime.now()), price=0.0, profit=0.0, status="")
-    if transaction_file.is_file():
-        with open(transaction_file, "r") as f:
-            line = ""
-            for line in f:
-                pass
-        if line:
-            t_dict = dict(zip("timestamp,price,profit,status".split(","), line.strip().split(",")))
-            t_dict["price"] = float(t_dict["price"])
-            t_dict["profit"] = float(t_dict["profit"])
-            #t_dict = json.loads(line)
-    else:  # Create file with header
-        pass
-        #with open(transaction_file, 'a+') as f:
-        #    f.write("timestamp,price,profit,status\n")
-    return t_dict
-
-
-def load_all_transactions():
-    transaction_file = Path("transactions.txt")
-    df = pd.read_csv(transaction_file, names="timestamp,price,profit,status".split(","), header=None)
-    df['timestamp'] = pd.to_datetime(df['timestamp'], format='ISO8601')
-    return df
-
-
 if __name__ == "__main__":
     pass

@@ -16,7 +16,7 @@ log = logging.getLogger('notifier')
 logging.getLogger('PIL').setLevel(logging.WARNING)
 logging.getLogger('matplotlib').setLevel(logging.WARNING)
 
-transaction_file = Path("transactions.txt")
+transaction_path = Path(App.config["data_folder"]) / App.config["symbol"] / "transactions.txt"
 
 
 async def trader_simulation(model: dict):
@@ -63,7 +63,7 @@ async def generate_trader_transaction(model: dict):
 
     # Save this transaction
     App.transaction = t_dict
-    with open(transaction_file, 'a+') as f:
+    with open(transaction_path, 'a+') as f:
         f.write(",".join([f"{v:.2f}" if isinstance(v, float) else str(v) for v in t_dict.values()]) + "\n")
 
     log.info(f"Trade simulator transaction: {t_dict}")
@@ -122,7 +122,7 @@ async def send_transaction_message(transaction):
 async def generate_transaction_stats():
     """Here we assume that the latest transaction is saved in the file and this function computes various properties."""
 
-    df = pd.read_csv(transaction_file, parse_dates=[0], header=None, names=["timestamp", "close", "profit", "status"], date_format="ISO8601")
+    df = pd.read_csv(transaction_path, parse_dates=[0], header=None, names=["timestamp", "close", "profit", "status"], date_format="ISO8601")
 
     mask = (df['timestamp'] >= (datetime.now() - timedelta(weeks=4)))
     df = df[max(mask.idxmax()-1, 0):]  # We add one previous row to use the previous close
@@ -198,6 +198,31 @@ def get_signal(buy_signal_column, sell_signal_column):
     signal = {"side": signal_side, "close_price": close_price, "close_time": close_time}
 
     return signal
+
+
+def load_last_transaction():
+    t_dict = dict(timestamp=str(datetime.now()), price=0.0, profit=0.0, status="")
+    if transaction_path.is_file():
+        with open(transaction_path, "r") as f:
+            line = ""
+            for line in f:
+                pass
+        if line:
+            t_dict = dict(zip("timestamp,price,profit,status".split(","), line.strip().split(",")))
+            t_dict["price"] = float(t_dict["price"])
+            t_dict["profit"] = float(t_dict["profit"])
+            #t_dict = json.loads(line)
+    else:  # Create file with header
+        with open(transaction_path, 'a+') as f:
+            f.write("timestamp,price,profit,status\n")
+            f.write("2020-01-01 00:00:00,0.0,0.0,SELL\n")
+    return t_dict
+
+
+def load_all_transactions():
+    df = pd.read_csv(transaction_path, names="timestamp,price,profit,status".split(","), header=None)
+    df['timestamp'] = pd.to_datetime(df['timestamp'], format='ISO8601')
+    return df
 
 
 if __name__ == '__main__':

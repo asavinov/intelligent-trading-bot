@@ -10,14 +10,13 @@ import requests
 
 from service.App import *
 from common.utils import *
+from outputs.notifier_trades import load_all_transactions
 
 import logging
 log = logging.getLogger('notifier')
 
 logging.getLogger('PIL').setLevel(logging.WARNING)
 logging.getLogger('matplotlib').setLevel(logging.WARNING)
-
-transaction_file = Path("transactions.txt")
 
 
 async def send_diagram(model: dict):
