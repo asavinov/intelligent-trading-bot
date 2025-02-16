@@ -262,22 +262,24 @@ def train_feature_set(df, fs, config):
     return out_df, models, scores
 
 
-def output_feature_set(fs: dict):
+async def output_feature_set(fs: dict):
     #
     # Resolve and apply feature generator functions from the configuration
     #
     generator = fs.get("generator")
     gen_config = fs.get('config', {})
 
-    loop = asyncio.get_event_loop()  # Alternatively App.loop
-    if generator == "send_score_notification":
-        loop.run_until_complete(send_score_notification(gen_config))
-    elif generator == "send_diagram":
-        loop.run_until_complete(send_diagram(gen_config))
+    if generator == "score_notification_model":
+        generator_fn = send_score_notification
+    elif generator == "diagram_notification_model":
+        generator_fn = send_diagram
+        #loop.run_until_complete(send_diagram(gen_config))
     elif generator == "trader_simulation":
-        loop.run_until_complete(trader_simulation(gen_config))
-    elif generator == "main_trader_task":
-        loop.run_until_complete(main_trader_task(gen_config))
+        generator_fn = trader_simulation
+        #loop.run_until_complete(trader_simulation(gen_config))
+    elif generator == "trader_binance":
+        generator_fn = trader_binance
+        #loop.run_until_complete(trader_simulation(gen_config))
 
     else:
         # Resolve generator name to a function reference
@@ -285,5 +287,8 @@ def output_feature_set(fs: dict):
         if generator_fn is None:
             raise ValueError(f"Unknown feature generator name or name cannot be resolved: {generator}")
 
-        # Call this function
-        generator_fn(gen_config)
+    # Call the resolved function
+    if asyncio.iscoroutinefunction(generator_fn):
+        await generator_fn(gen_config)
+    else:
+        await App.loop.run_in_executor(None, lambda: generator_fn(gen_config))

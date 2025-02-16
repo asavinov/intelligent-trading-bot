@@ -18,7 +18,7 @@ from inputs.collector_binance import main_collector_task, data_provider_health_c
 from outputs.notifier_trades import *
 from outputs.notifier_scores import *
 from outputs.notifier_diagram import *
-from outputs.trader_binance import main_trader_task, update_trade_status
+from outputs.trader_binance import trader_binance, update_trade_status
 
 import logging
 log = logging.getLogger('server')
@@ -74,7 +74,7 @@ async def main_task():
     output_sets = App.config.get("output_sets", [])
     for os in output_sets:
         try:
-            output_feature_set(os)
+            await output_feature_set(os)
         except Exception as e:
             log.error(f"Error in output function: {e}")
             return
@@ -137,6 +137,7 @@ def start_server(config_file):
 
     log.info(f"Finished initial data collection.")
 
+    # TODO: Only for binance output and if it has been defined
     # Initialize trade status (account, balances, orders etc.) in case we are going to really execute orders
     if App.config.get("trade_model", {}).get("trader_binance"):
         try:
