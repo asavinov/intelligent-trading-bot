@@ -89,56 +89,52 @@
         }}
     ],
 
-    // === NOTIFICATIONS ===
+    // === OUTPUTS ===
 
-    "score_notification_model": { // When and what score notifications to send
-        "score_notification": true,
+    "output_sets": [
+        {"generator": "score_notification_model", "config": {
+            "score_notification": true,
+            "score_column_names": ["trade_score"],
+            "notify_band_up": true,
+            "notify_band_dn": true,
+            "positive_bands": [
+                {"edge": 0.03, "frequency": null, "sign": "", "text": ""},
+                {"edge": 0.04, "frequency": 3, "sign": "〉", "text": "weak"},
+                {"edge": 0.05, "frequency": 2, "sign": "〉〉", "bold": false, "text": "strong"},
+                {"edge": 1.0, "frequency": 1, "sign": "〉〉〉📈", "bold": true, "text": "BUY ZONE"}
+            ],
+            "negative_bands": [
+                {"edge": -0.03, "frequency": null, "sign": "", "text": ""},
+                {"edge": -0.04, "frequency": 3, "sign": "〈", "text": "weak"},
+                {"edge": -0.05, "frequency": 2, "sign": "〈〈", "bold": false, "text": "strong"},
+                {"edge": -1.0, "frequency": 1, "sign": "〈〈〈📉", "bold": true, "text": "SELL ZONE"}
+            ]
+        }},
+        {"generator": "diagram_notification_model", "config": {
+            // Regularly sending historic data with prices, scores and buy-sell trade decisions
+            "diagram_notification": true,
+            "notification_freq": "1D",
 
-        "score_column_names": ["trade_score"],
+            "score_column_names": "trade_score",
+            "score_thresholds":[-0.05, 0.05],
 
-        "notify_band_up": true,
-        "notify_band_dn": true,
-        "positive_bands": [
-            {"edge": 0.03, "frequency": null, "sign": "", "text": ""},
-            {"edge": 0.04, "frequency": 3, "sign": "〉", "text": "weak"},
-            {"edge": 0.05, "frequency": 2, "sign": "〉〉", "bold": false, "text": "strong"},
-            {"edge": 1.0, "frequency": 1, "sign": "〉〉〉📈", "bold": true, "text": "BUY ZONE"}
-        ],
-        "negative_bands": [
-            {"edge": -0.03, "frequency": null, "sign": "", "text": ""},
-            {"edge": -0.04, "frequency": 3, "sign": "〈", "text": "weak"},
-            {"edge": -0.05, "frequency": 2, "sign": "〈〈", "bold": false, "text": "strong"},
-            {"edge": -1.0, "frequency": 1, "sign": "〈〈〈📉", "bold": true, "text": "SELL ZONE"}
-        ]
-    },
-
-    "diagram_notification_model": {
-        // Regularly sending historic data with prices, scores and buy-sell trade decisions
-        "diagram_notification": true,
-        "notification_freq": "1D",
-
-        "score_column_names": "trade_score",
-        "score_thresholds":[-0.05, 0.05],
-
-        // 5 minutes aggregation and this number of 5 minute intervals
-        "resampling_freq": "5min", "nrows": 288
-    },
-
-    // === TRADE MODEL ===
-
-    "trade_model": {
-        "buy_signal_column":"buy_signal_column",
-        "sell_signal_column": "sell_signal_column",
-
-        "trader_simulation": true, // Simulate trading with transaction logging and notifications
-
-        "trader_binance": false // Trade using Binance. Uncomment also parameters below
-        //"no_trades_only_data_processing": false,
-        //"test_order_before_submit": false,
-        //"simulate_order_execution": false,
-        //"percentage_used_for_trade": 99.0, // How much should be used in orders
-        //"limit_price_adjustment": 0.001, // Limit order price relative to the latest close price
-    },
+            // 5 minutes aggregation and this number of 5 minute intervals
+            "resampling_freq": "5min", "nrows": 288
+        }},
+        {"generator": "trader_simulation", "config": {
+            "buy_signal_column":"buy_signal_column",
+            "sell_signal_column": "sell_signal_column"
+        }}
+        //{"generator": "trader_binance", "config": {
+        //    "buy_signal_column":"buy_signal_column",
+        //    "sell_signal_column": "sell_signal_column"
+            //"no_trades_only_data_processing": false,
+            //"test_order_before_submit": false,
+            //"simulate_order_execution": false,
+            //"percentage_used_for_trade": 99.0, // How much should be used in orders
+            //"limit_price_adjustment": 0.001, // Limit order price relative to the latest close price
+        //}}
+    ],
 
     // === FINDING BEST TRADE PARAMETERS ===
 
