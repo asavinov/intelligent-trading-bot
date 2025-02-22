@@ -273,13 +273,10 @@ async def output_feature_set(fs: dict):
         generator_fn = send_score_notification
     elif generator == "diagram_notification_model":
         generator_fn = send_diagram
-        #loop.run_until_complete(send_diagram(gen_config))
     elif generator == "trader_simulation":
         generator_fn = trader_simulation
-        #loop.run_until_complete(trader_simulation(gen_config))
     elif generator == "trader_binance":
         generator_fn = trader_binance
-        #loop.run_until_complete(trader_simulation(gen_config))
 
     else:
         # Resolve generator name to a function reference

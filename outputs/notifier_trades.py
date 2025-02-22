@@ -16,8 +16,6 @@ log = logging.getLogger('notifier')
 logging.getLogger('PIL').setLevel(logging.WARNING)
 logging.getLogger('matplotlib').setLevel(logging.WARNING)
 
-transaction_path = Path(App.config["data_folder"]) / App.config["symbol"] / "transactions.txt"
-
 
 async def trader_simulation(model: dict):
     try:
@@ -40,6 +38,7 @@ async def generate_trader_transaction(model: dict):
     Very simple trade strategy where we only buy and sell using the whole available amount
     """
     symbol = App.config["symbol"]
+    transaction_path = get_transaction_path()
 
     buy_signal_column = model.get("buy_signal_column")
     sell_signal_column = model.get("sell_signal_column")
@@ -121,6 +120,7 @@ async def send_transaction_message(transaction):
 
 async def generate_transaction_stats():
     """Here we assume that the latest transaction is saved in the file and this function computes various properties."""
+    transaction_path = get_transaction_path()
 
     df = pd.read_csv(transaction_path, parse_dates=[0], header=None, names=["timestamp", "close", "profit", "status"], date_format="ISO8601")
 
@@ -201,6 +201,8 @@ def get_signal(buy_signal_column, sell_signal_column):
 
 
 def load_last_transaction():
+    transaction_path = get_transaction_path()
+
     t_dict = dict(timestamp=str(datetime.now()), price=0.0, profit=0.0, status="")
     if transaction_path.is_file():
         with open(transaction_path, "r") as f:
@@ -220,9 +222,14 @@ def load_last_transaction():
 
 
 def load_all_transactions():
+    transaction_path = get_transaction_path()
     df = pd.read_csv(transaction_path, names="timestamp,price,profit,status".split(","), header=None)
     df['timestamp'] = pd.to_datetime(df['timestamp'], format='ISO8601')
     return df
+
+
+def get_transaction_path():
+    return Path(App.config["data_folder"]) / App.config["symbol"] / "transactions.txt"
 
 
 if __name__ == '__main__':
