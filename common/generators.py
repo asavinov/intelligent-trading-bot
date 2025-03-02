@@ -116,12 +116,12 @@ def generate_feature_set(df: pd.DataFrame, fs: dict, last_rows: int) -> Tuple[pd
 
 def predict_feature_set(df, fs, config, models: dict):
 
-    labels_default = config.get("labels", [])
+    labels_all = config.get("labels", [])
     labels = fs.get("config").get("labels", [])
     if not labels:
-        labels = labels_default
+        labels = labels_all
 
-    algorithms_default = config.get("algorithms")
+    algorithms_all = config.get("algorithms")
     algorithms_str = fs.get("config").get("functions", [])
     if not algorithms_str:
         algorithms_str = fs.get("config").get("algorithms", [])
@@ -129,19 +129,19 @@ def predict_feature_set(df, fs, config, models: dict):
     algorithms = []
     for alg in algorithms_str:
         if isinstance(alg, str):  # Find in the list of algorithms
-            alg = find_algorithm_by_name(algorithms_default, alg)
+            alg = find_algorithm_by_name(algorithms_all, alg)
         elif not isinstance(alg, dict):
             raise ValueError(f"Algorithm has to be either dict or name")
         algorithms.append(alg)
     if not algorithms:
-        algorithms = algorithms_default
+        algorithms = algorithms_all
 
-    train_features_default = config.get("train_features", [])
+    train_features_all = config.get("train_features", [])
     train_features = fs.get("config").get("columns", [])
     if not train_features:
         train_features = fs.get("config").get("features", [])
     if not train_features:
-        train_features = train_features_default
+        train_features = train_features_all
 
     train_df = df[train_features]
 
@@ -189,25 +189,36 @@ def predict_feature_set(df, fs, config, models: dict):
 
 def train_feature_set(df, fs, config):
 
-    labels_default = config.get("labels", [])
+    labels_all = config.get("labels", [])
     labels = fs.get("config").get("labels", [])
     if not labels:
-        labels = labels_default
+        labels = labels_all
 
-    algorithms_default = config.get("algorithms")
-    algorithm_names = fs.get("config").get("functions", [])
-    if not algorithm_names:
+    algorithms_all = config.get("algorithms")
+    algorithms_str = fs.get("config").get("functions", [])
+    if not algorithms_str:
         algorithms_str = fs.get("config").get("algorithms", [])
-    algorithms = resolve_algorithms_for_generator(algorithm_names, algorithms_default)
+    # The algorithms can be either strings (names) or dicts (definitions) so we resolve the names
+    algorithms = []
+    for alg in algorithms_str:
+        if isinstance(alg, str):  # Find in the list of algorithms
+            alg = find_algorithm_by_name(algorithms_all, alg)
+        elif not isinstance(alg, dict):
+            raise ValueError(f"Algorithm has to be either dict or name")
+        algorithms.append(alg)
+    if not algorithms:
+        algorithms = algorithms_all
 
-    train_features_default = config.get("train_features", [])
+    train_features_all = config.get("train_features", [])
     train_features = fs.get("config").get("columns", [])
     if not train_features:
         train_features = fs.get("config").get("features", [])
     if not train_features:
-        train_features = train_features_default
+        train_features = train_features_all
 
+    # Only for train mode
     df = df.dropna(subset=train_features).reset_index(drop=True)
+    df = df.dropna(subset=labels).reset_index(drop=True)
 
     models = dict()
     scores = dict()
@@ -221,12 +232,12 @@ def train_feature_set(df, fs, config):
             score_column_name = label + label_algo_separator + algo_name
             algo_train_length = model_config.get("train", {}).get("length")
 
-            # Limit length according to the algorith parameters
-            df = df.dropna(subset=labels).reset_index(drop=True)
+            # Limit length according to the algorith train parameters
             if algo_train_length:
                 train_df = df.tail(algo_train_length)
             else:
                 train_df = df
+
             df_X = train_df[train_features]
             df_y = train_df[label]
 
