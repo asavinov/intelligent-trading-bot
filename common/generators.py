@@ -155,7 +155,6 @@ def predict_feature_set(df, fs, config, models: dict):
             algo_name = model_config.get("name")
             algo_type = model_config.get("algo")
             score_column_name = label + label_algo_separator + algo_name
-            algo_train_length = model_config.get("train", {}).get("length")
 
             # It is an entry from loaded model dict
             model_pair = models.get(score_column_name)  # Trained model from model registry
@@ -230,13 +229,16 @@ def train_feature_set(df, fs, config):
             algo_name = model_config.get("name")
             algo_type = model_config.get("algo")
             score_column_name = label + label_algo_separator + algo_name
-            algo_train_length = model_config.get("train", {}).get("length")
 
             # Limit length according to the algorith train parameters
-            if algo_train_length:
-                train_df = df.tail(algo_train_length)
+            algo_every_nth_row = model_config.get("train", {}).get("every_nth_row")
+            if algo_every_nth_row:
+                train_df = df.iloc[::algo_every_nth_row, :]
             else:
                 train_df = df
+            algo_train_length = model_config.get("train", {}).get("length")
+            if algo_train_length:
+                train_df = train_df.tail(algo_train_length)
 
             df_X = train_df[train_features]
             df_y = train_df[label]
