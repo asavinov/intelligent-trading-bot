@@ -44,16 +44,6 @@ def train_gb(df_X, df_y, model_config: dict):
     is_regression = params.get("is_regression", False)
 
     #
-    # Double column set if required
-    #
-    shifts = params.get("shifts", None)
-    if shifts:
-        max_shift = max(shifts)
-        df_X = double_columns(df_X, shifts)
-        df_X = df_X.iloc[max_shift:]
-        df_y = df_y.iloc[max_shift:]
-
-    #
     # Scale
     #
     if is_scale:
@@ -128,13 +118,6 @@ def predict_gb(models: tuple, df_X_test, model_config: dict):
     The first model is a prediction model and the second model (optional) is a scaler.
     """
     #
-    # Double column set if required
-    #
-    shifts = model_config.get("params", {}).get("shifts", None)
-    if shifts:
-        df_X_test = double_columns(df_X_test, shifts)
-
-    #
     # Scale
     #
     scaler = models[1]
@@ -181,16 +164,6 @@ def train_nn(df_X, df_y, model_config: dict):
 
     is_scale = params.get("is_scale", True)
     is_regression = params.get("is_regression", False)
-
-    #
-    # Double column set if required
-    #
-    shifts = params.get("shifts", None)
-    if shifts:
-        max_shift = max(shifts)
-        df_X = double_columns(df_X, shifts)
-        df_X = df_X.iloc[max_shift:]
-        df_y = df_y.iloc[max_shift:]
 
     #
     # Scale
@@ -291,13 +264,6 @@ def predict_nn(models: tuple, df_X_test, model_config: dict):
     The first model is a prediction model and the second model (optional) is a scaler.
     """
     #
-    # Double column set if required
-    #
-    shifts = model_config.get("params", {}).get("shifts", None)
-    if shifts:
-        df_X_test = double_columns(df_X_test, shifts)
-
-    #
     # Scale
     #
     scaler = models[1]
@@ -351,16 +317,6 @@ def train_lc(df_X, df_y, model_config: dict):
     is_regression = params.get("is_regression", False)
 
     #
-    # Double column set if required
-    #
-    shifts = params.get("shifts", None)
-    if shifts:
-        max_shift = max(shifts)
-        df_X = double_columns(df_X, shifts)
-        df_X = df_X.iloc[max_shift:]
-        df_y = df_y.iloc[max_shift:]
-
-    #
     # Scale
     #
     if is_scale:
@@ -396,13 +352,6 @@ def predict_lc(models: tuple, df_X_test, model_config: dict):
     Use the model(s) to make predictions for the test data.
     The first model is a prediction model and the second model (optional) is a scaler.
     """
-    #
-    # Double column set if required
-    #
-    shifts = model_config.get("params", {}).get("shifts", None)
-    if shifts:
-        df_X_test = double_columns(df_X_test, shifts)
-
     #
     # Scale
     #
@@ -491,13 +440,6 @@ def predict_svc(models: tuple, df_X_test, model_config: dict):
     The first model is a prediction model and the second model (optional) is a scaler.
     """
     is_regression = model_config.get("params", {}).get("is_regression", False)
-
-    #
-    # Double column set if required
-    #
-    shifts = model_config.get("params", {}).get("shifts", None)
-    if shifts:
-        df_X_test = double_columns(df_X_test, shifts)
 
     #
     # Scale
@@ -615,19 +557,6 @@ def compute_scores_regression(y_true, y_hat):
     )
 
     return scores
-
-
-def double_columns(df, shifts: List[int]):
-    if not shifts:
-        return df
-    df_list = [df.shift(shift) for shift in shifts]
-    df_list.insert(0, df)
-    max_shift = max(shifts)
-
-    # Shift and add same columns
-    df_out = pd.concat(df_list, axis=1)  # keys=('A', 'B')
-
-    return df_out
 
 
 if __name__ == '__main__':

@@ -57,9 +57,8 @@
         {
             "name": "lc",  // Unique name will be used as a column suffix
             "algo": "lc",  // Algorithm type is used to choose the train/predict function
-            "params": {"is_scale": true, "length": 1000000, "shifts": []},
-            "train": {"penalty": "l2", "C": 1.0, "class_weight": null, "solver": "sag", "max_iter": 100},
-            "predict": {"length": 1440}
+            "params": {"is_scale": true, "length": 1000000},
+            "train": {"penalty": "l2", "C": 1.0, "class_weight": null, "solver": "sag", "max_iter": 100}
         }
     ],
 
