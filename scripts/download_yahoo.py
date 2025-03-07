@@ -18,8 +18,8 @@ def main(config_file):
     load_config(config_file)
 
     time_column = App.config["time_column"]
-
     data_path = Path(App.config["data_folder"])
+    download_max_rows = App.config.get("download_max_rows", 0)
 
     now = datetime.now()
 
@@ -81,8 +81,12 @@ def main(config_file):
 
         df = df.sort_values(by=time_column)
 
+        # Limit the saved size by only the latest rows
+        if download_max_rows:
+            df = df.tail(download_max_rows)
+
         df.to_csv(file_name, index=False)
-        print(f"Stored in '{file_name}'")
+        print(f"Finished downloading '{quote}'. Stored {len(df)} rows in '{file_name}'")
 
     elapsed = datetime.now() - now
     print(f"Finished downloading data in {str(elapsed).split('.')[0]}")
