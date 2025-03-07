@@ -231,12 +231,12 @@ def train_feature_set(df, fs, config):
             score_column_name = label + label_algo_separator + algo_name
 
             # Limit length according to the algorith train parameters
-            algo_every_nth_row = model_config.get("train", {}).get("every_nth_row")
+            algo_every_nth_row = model_config.get("params", {}).get("every_nth_row")
             if algo_every_nth_row:
                 train_df = df.iloc[::algo_every_nth_row, :]
             else:
                 train_df = df
-            algo_train_length = model_config.get("train", {}).get("length")
+            algo_train_length = model_config.get("params", {}).get("length")
             if algo_train_length:
                 train_df = train_df.tail(algo_train_length)
 

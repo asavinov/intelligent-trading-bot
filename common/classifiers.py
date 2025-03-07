@@ -38,13 +38,15 @@ def train_gb(df_X, df_y, model_config: dict):
     """
     Train model with the specified hyper-parameters and return this model (and scaler if any).
     """
-    is_scale = model_config.get("train", {}).get("is_scale", False)
-    is_regression = model_config.get("train", {}).get("is_regression", False)
+    params = model_config.get("params", {})
+
+    is_scale = params.get("is_scale", False)
+    is_regression = params.get("is_regression", False)
 
     #
     # Double column set if required
     #
-    shifts = model_config.get("train", {}).get("shifts", None)
+    shifts = params.get("shifts", None)
     if shifts:
         max_shift = max(shifts)
         df_X = double_columns(df_X, shifts)
@@ -67,16 +69,16 @@ def train_gb(df_X, df_y, model_config: dict):
     #
     # Create model
     #
-    params = model_config.get("params")
+    train_conf = model_config.get("train", {})
 
-    objective = params.get("objective")
+    objective = train_conf.get("objective")
 
-    max_depth = params.get("max_depth")
-    learning_rate = params.get("learning_rate")
-    num_boost_round = params.get("num_boost_round")
+    max_depth = train_conf.get("max_depth")
+    learning_rate = train_conf.get("learning_rate")
+    num_boost_round = train_conf.get("num_boost_round")
 
-    lambda_l1 = params.get("lambda_l1")
-    lambda_l2 = params.get("lambda_l2")
+    lambda_l1 = train_conf.get("lambda_l1")
+    lambda_l2 = train_conf.get("lambda_l2")
 
     lgbm_params = {
         'learning_rate': learning_rate,
@@ -128,7 +130,7 @@ def predict_gb(models: tuple, df_X_test, model_config: dict):
     #
     # Double column set if required
     #
-    shifts = model_config.get("train", {}).get("shifts", None)
+    shifts = model_config.get("params", {}).get("shifts", None)
     if shifts:
         df_X_test = double_columns(df_X_test, shifts)
 
@@ -175,13 +177,15 @@ def train_nn(df_X, df_y, model_config: dict):
     """
     Train model with the specified hyper-parameters and return this model (and scaler if any).
     """
-    is_scale = model_config.get("train", {}).get("is_scale", True)
-    is_regression = model_config.get("train", {}).get("is_regression", False)
+    params = model_config.get("params", {})
+
+    is_scale = params.get("is_scale", True)
+    is_regression = params.get("is_regression", False)
 
     #
     # Double column set if required
     #
-    shifts = model_config.get("train", {}).get("shifts", None)
+    shifts = params.get("shifts", None)
     if shifts:
         max_shift = max(shifts)
         df_X = double_columns(df_X, shifts)
@@ -204,17 +208,12 @@ def train_nn(df_X, df_y, model_config: dict):
     #
     # Create model
     #
-    params = model_config.get("params")
-
     n_features = X_train.shape[1]
     layers = params.get("layers")  # List of ints
     if not layers:
         layers = [n_features // 4]  # Default
     if not isinstance(layers, list):
         layers = [layers]
-    learning_rate = params.get("learning_rate")
-    n_epochs = params.get("n_epochs")
-    batch_size = params.get("bs")
 
     # Topology
     model = Sequential()
@@ -222,6 +221,11 @@ def train_nn(df_X, df_y, model_config: dict):
     # kernel_regularizer=l2(0.001)
 
     reg_l2 = 0.001
+
+    train_conf = model_config.get("train", {})
+    learning_rate = train_conf.get("learning_rate")
+    n_epochs = train_conf.get("n_epochs")
+    batch_size = train_conf.get("bs")
 
     for i, out_features in enumerate(layers):
         in_features = n_features if i == 0 else layers[i-1]
@@ -289,7 +293,7 @@ def predict_nn(models: tuple, df_X_test, model_config: dict):
     #
     # Double column set if required
     #
-    shifts = model_config.get("train", {}).get("shifts", None)
+    shifts = model_config.get("params", {}).get("shifts", None)
     if shifts:
         df_X_test = double_columns(df_X_test, shifts)
 
@@ -341,13 +345,15 @@ def train_lc(df_X, df_y, model_config: dict):
     """
     Train model with the specified hyper-parameters and return this model (and scaler if any).
     """
-    is_scale = model_config.get("train", {}).get("is_scale", True)
-    is_regression = model_config.get("train", {}).get("is_regression", False)
+    params = model_config.get("params", {})
+
+    is_scale = params.get("is_scale", True)
+    is_regression = params.get("is_regression", False)
 
     #
     # Double column set if required
     #
-    shifts = model_config.get("train", {}).get("shifts", None)
+    shifts = params.get("shifts", None)
     if shifts:
         max_shift = max(shifts)
         df_X = double_columns(df_X, shifts)
@@ -370,7 +376,9 @@ def train_lc(df_X, df_y, model_config: dict):
     #
     # Create model
     #
-    args = model_config.get("params").copy()
+    train_conf = model_config.get("train", {})
+
+    args = train_conf.copy()
     args["n_jobs"] = -1
     args["verbose"] = 0
     model = LogisticRegression(**args)
@@ -391,7 +399,7 @@ def predict_lc(models: tuple, df_X_test, model_config: dict):
     #
     # Double column set if required
     #
-    shifts = model_config.get("train", {}).get("shifts", None)
+    shifts = model_config.get("params", {}).get("shifts", None)
     if shifts:
         df_X_test = double_columns(df_X_test, shifts)
 
@@ -439,8 +447,11 @@ def train_svc(df_X, df_y, model_config: dict):
     """
     Train model with the specified hyper-parameters and return this model (and scaler if any).
     """
-    is_scale = model_config.get("train", {}).get("is_scale", True)
-    is_regression = model_config.get("train", {}).get("is_regression", False)
+    params = model_config.get("params", {})
+
+    is_scale = params.get("is_scale", True)
+
+    is_regression = params.get("is_regression", False)
 
     #
     # Prepare data
@@ -458,7 +469,8 @@ def train_svc(df_X, df_y, model_config: dict):
     #
     # Create model
     #
-    args = model_config.get("params").copy()
+    train_conf = model_config.get("train", {})
+    args = train_conf.copy()
     if is_regression:
         model = SVR(**args)
     else:
@@ -478,12 +490,12 @@ def predict_svc(models: tuple, df_X_test, model_config: dict):
     Use the model(s) to make predictions for the test data.
     The first model is a prediction model and the second model (optional) is a scaler.
     """
-    is_regression = model_config.get("train", {}).get("is_regression", False)
+    is_regression = model_config.get("params", {}).get("is_regression", False)
 
     #
     # Double column set if required
     #
-    shifts = model_config.get("train", {}).get("shifts", None)
+    shifts = model_config.get("params", {}).get("shifts", None)
     if shifts:
         df_X_test = double_columns(df_X_test, shifts)
 
