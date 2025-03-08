@@ -29,14 +29,9 @@ def save_model_pair(model_path, score_column_name: str, model_pair: tuple):
     scaler_file_name = (model_path / score_column_name).with_suffix(".scaler")
     dump(scaler, scaler_file_name)
     # Save prediction model
-    if score_column_name.endswith("_nn"):
-        model_extension = ".h5"
-        model_file_name = (model_path / score_column_name).with_suffix(model_extension)
-        save_model(model, model_file_name)
-    else:
-        model_extension = ".pickle"
-        model_file_name = (model_path / score_column_name).with_suffix(model_extension)
-        dump(model, model_file_name)
+    model_extension = ".pickle"
+    model_file_name = (model_path / score_column_name).with_suffix(model_extension)
+    dump(model, model_file_name)
 
 
 def load_model_pair(model_path, score_column_name: str):
@@ -48,14 +43,9 @@ def load_model_pair(model_path, score_column_name: str):
     scaler_file_name = (model_path / score_column_name).with_suffix(".scaler")
     scaler = load(scaler_file_name)
     # Load prediction model
-    if score_column_name.endswith("_nn"):
-        model_extension = ".h5"
-        model_file_name = (model_path / score_column_name).with_suffix(model_extension)
-        model = load_model(model_file_name)
-    else:
-        model_extension = ".pickle"
-        model_file_name = (model_path / score_column_name).with_suffix(model_extension)
-        model = load(model_file_name)
+    model_extension = ".pickle"
+    model_file_name = (model_path / score_column_name).with_suffix(model_extension)
+    model = load(model_file_name)
 
     return (model, scaler)
 
