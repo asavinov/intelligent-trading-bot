@@ -232,13 +232,17 @@ def train_nn(df_X, df_y, model_config: dict):
 
     #model.summary()
 
-    es = EarlyStopping(
-        monitor="loss",  # val_loss loss
-        min_delta=0.00001,  # Minimum change qualified as improvement
-        patience=5,  # Number of epochs with no improvements
-        verbose=0,
-        mode='auto',
+    # Default arguments for early stopping
+    es_args = dict(
+        monitor = "loss",  # val_loss loss
+        min_delta = 0.00001,  # Minimum change qualified as improvement
+        patience = 5,  # Number of epochs with no improvements
+        verbose = 0,
+        mode = 'auto',
     )
+    es_args.update(train_conf.get("es", {}))  # Overwrite default values with those explicitly specified in config
+
+    es = EarlyStopping(**es_args)
 
     #
     # Train
