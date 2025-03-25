@@ -275,7 +275,7 @@ def train_feature_set(df, fs, config):
     return out_df, models, scores
 
 
-async def output_feature_set(fs: dict):
+async def output_feature_set(df, fs: dict, config: dict):
     #
     # Resolve and apply feature generator functions from the configuration
     #
@@ -299,6 +299,9 @@ async def output_feature_set(fs: dict):
 
     # Call the resolved function
     if asyncio.iscoroutinefunction(generator_fn):
-        await generator_fn(gen_config)
+        if asyncio.get_running_loop():
+            await generator_fn(df, gen_config, config)
+        else:
+            asyncio.run(generator_fn(df, gen_config, config))
     else:
-        await App.loop.run_in_executor(None, lambda: generator_fn(gen_config))
+        generator_fn(df, gen_config, config)
