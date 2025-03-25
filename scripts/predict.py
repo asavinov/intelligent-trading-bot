@@ -66,7 +66,7 @@ def main(config_file):
     algorithms = App.config.get("algorithms")
 
     # Select necessary features and label
-    out_columns = ['timestamp', 'open', 'high', 'low', 'close', 'volume', 'close_time']
+    out_columns = [time_column, 'open', 'high', 'low', 'close', 'volume', 'close_time']
     out_columns = [x for x in out_columns if x in df.columns]
     labels_present = set(labels).issubset(df.columns)
     if labels_present:

@@ -96,7 +96,8 @@ def main(config_file):
     #
     # Choose columns to stored
     #
-    out_columns = ["timestamp", "open", "high", "low", "close"]  # Source data
+    out_columns = [time_column, "open", "high", "low", "close"]  # Source data
+    out_columns = [x for x in out_columns if x in df.columns]
     out_columns.extend(App.config.get('labels'))  # True labels
     out_columns.extend(all_features)
 

@@ -74,7 +74,7 @@ def main(config_file):
     algorithms = App.config.get("algorithms")
 
     # Select necessary features and labels
-    out_columns = ['timestamp', 'open', 'high', 'low', 'close', 'volume', 'close_time']
+    out_columns = [time_column, 'open', 'high', 'low', 'close', 'volume', 'close_time']
     out_columns = [x for x in out_columns if x in df.columns]
     all_features = train_features + labels
     df = df[out_columns + [x for x in all_features if x not in out_columns]]
