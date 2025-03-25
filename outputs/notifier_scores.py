@@ -14,16 +14,15 @@ import logging
 log = logging.getLogger('notifier')
 
 
-async def send_score_notification(model: dict):
-    symbol = App.config["symbol"]
-    freq = App.config["freq"]
+async def send_score_notification(df, model: dict, config: dict):
+    symbol = config["symbol"]
+    freq = config["freq"]
 
     score_column_names = model.get("score_column_names")
     if not score_column_names:
         log.error(f"Empty list of score columns in score notifier. At least one column name with a score has to be provided in config. Ignore")
         return
 
-    df = App.df
     row = df.iloc[-1]  # Last row stores the latest values we need
 
     interval_length = pd.Timedelta(freq).to_pytimedelta()
@@ -101,8 +100,8 @@ async def send_score_notification(model: dict):
     #
     # Send notification
     #
-    bot_token = App.config["telegram_bot_token"]
-    chat_id = App.config["telegram_chat_id"]
+    bot_token = config["telegram_bot_token"]
+    chat_id = config["telegram_chat_id"]
 
     try:
         url = 'https://api.telegram.org/bot' + bot_token + '/sendMessage?chat_id=' + chat_id + '&parse_mode=markdown&text=' + message

@@ -74,7 +74,7 @@ async def main_task():
     output_sets = App.config.get("output_sets", [])
     for os in output_sets:
         try:
-            await output_feature_set(os)
+            await output_feature_set(App.df, os, App.config)
         except Exception as e:
             log.error(f"Error in output function: {e}")
             return

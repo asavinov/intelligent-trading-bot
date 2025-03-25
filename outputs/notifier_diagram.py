@@ -19,13 +19,13 @@ logging.getLogger('PIL').setLevel(logging.WARNING)
 logging.getLogger('matplotlib').setLevel(logging.WARNING)
 
 
-async def send_diagram(model: dict):
+async def send_diagram(df, model: dict, config: dict):
     """
     Produce a line chart based on latest data and send it to the channel.
     """
 
     notification_freq = model.get("notification_freq")
-    freq = App.config.get("freq")
+    freq = config.get("freq")
     if notification_freq:
         # Continue only if system interval start is equal to the (longer) diagram interval start
         if pandas_get_interval(notification_freq)[0] != pandas_get_interval(freq)[0]:
@@ -40,7 +40,6 @@ async def send_diagram(model: dict):
     resampling_freq = model.get("resampling_freq")  # Resampling (aggregation) frequency
     nrows = model.get("nrows")  # Time range (x axis) of the diagram, for example, 1 week 168 hours, 2 weeks 336 hours
 
-    df = App.df
     row = df.iloc[-1]  # Last row stores the latest values we need
 
     #
@@ -50,7 +49,7 @@ async def send_diagram(model: dict):
     vis_columns = ['open', 'high', 'low', 'close']
     if score_column_names:
         vis_columns.append(score_column_names)
-    df_ohlc = App.df[vis_columns]
+    df_ohlc = df[vis_columns]
     df_ohlc = resample_ohlc_data(df_ohlc.reset_index(), resampling_freq, nrows, score_column=score_column_names, buy_signal_column=None, sell_signal_column=None)
 
     # Get transaction data
@@ -71,10 +70,10 @@ async def send_diagram(model: dict):
     else:
         df = df_ohlc
 
-    symbol = App.config["symbol"]
+    symbol = config["symbol"]
     title = f"$\\bf{{{symbol}}}$"
 
-    description = App.config.get("description", "")
+    description = config.get("description", "")
     if description:
         title += ": " + description
 
@@ -94,8 +93,8 @@ async def send_diagram(model: dict):
     #
     # Send image
     #
-    bot_token = App.config["telegram_bot_token"]
-    chat_id = App.config["telegram_chat_id"]
+    bot_token = config["telegram_bot_token"]
+    chat_id = config["telegram_chat_id"]
 
     files = {'photo': img_data}
     payload = {
@@ -127,7 +126,7 @@ def resample_ohlc_data(df, freq, nrows, score_column, buy_signal_column, sell_si
 
     # Optional columns
     if score_column:
-        ohlc[score_column] = lambda x: max(x) if all(x > 0.0) else min(x) if all(x < 0.0) else np.mean(x)
+        ohlc[score_column] = lambda x: max(x) if len(x) > 0 and all(x > 0.0) else min(x) if len(x) > 0 and all(x < 0.0) else np.mean(x)
 
     if buy_signal_column:
         # Buy signal if at least one buy signal was during this time interval

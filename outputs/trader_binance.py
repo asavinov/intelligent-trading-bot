@@ -21,12 +21,12 @@ import logging
 log = logging.getLogger('trader')
 
 
-async def trader_binance(model: dict):
+async def trader_binance(df, model: dict, config: dict):
     """
     It is a highest level task which is added to the event loop and executed normally every 1 minute and then it calls other tasks.
     """
-    symbol = App.config["symbol"]
-    freq = App.config["freq"]
+    symbol = config["symbol"]
+    freq = config["freq"]
     startTime, endTime = pandas_get_interval(freq)
     now_ts = now_timestamp()
 

@@ -17,9 +17,9 @@ logging.getLogger('PIL').setLevel(logging.WARNING)
 logging.getLogger('matplotlib').setLevel(logging.WARNING)
 
 
-async def trader_simulation(model: dict):
+async def trader_simulation(df, model: dict, config: dict):
     try:
-        transaction = await generate_trader_transaction(model)
+        transaction = await generate_trader_transaction(df, model, config)
     except Exception as e:
         log.error(f"Error in trader_simulation function: {e}")
         return
@@ -27,17 +27,17 @@ async def trader_simulation(model: dict):
         return
 
     try:
-        await send_transaction_message(transaction)
+        await send_transaction_message(transaction, config)
     except Exception as e:
         log.error(f"Error in send_transaction_message function: {e}")
         return
 
 
-async def generate_trader_transaction(model: dict):
+async def generate_trader_transaction(df, model: dict, config: dict):
     """
     Very simple trade strategy where we only buy and sell using the whole available amount
     """
-    symbol = App.config["symbol"]
+    symbol = config["symbol"]
     transaction_path = get_transaction_path()
 
     buy_signal_column = model.get("buy_signal_column")
@@ -70,7 +70,7 @@ async def generate_trader_transaction(model: dict):
     return t_dict
 
 
-async def send_transaction_message(transaction):
+async def send_transaction_message(transaction, config):
 
     profit, profit_percent, profit_descr, profit_percent_descr = await generate_transaction_stats()
 
@@ -83,8 +83,8 @@ async def send_transaction_message(transaction):
 
     message += f" Profit: {profit_percent:.2f}% {profit:.2f}₮*"
 
-    bot_token = App.config["telegram_bot_token"]
-    chat_id = App.config["telegram_chat_id"]
+    bot_token = config["telegram_bot_token"]
+    chat_id = config["telegram_chat_id"]
     try:
         url = 'https://api.telegram.org/bot' + bot_token + '/sendMessage?chat_id=' + chat_id + '&parse_mode=markdown&text=' + message
         response = requests.get(url)
