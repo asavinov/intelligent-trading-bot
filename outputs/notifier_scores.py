@@ -32,39 +32,38 @@ async def send_score_notification(df, model: dict, config: dict):
     trade_score_primary = trade_scores[0]
     trade_score_secondary = trade_scores[1] if len(trade_scores) > 1 else None
 
+    #
     # Determine the band for the current score
-    if trade_score_primary > 0:
-        bands = model.get("positive_bands", [])
-        band_no, band = next(((i, x) for i, x in enumerate(bands) if trade_score_primary <= x.get("edge")), (len(bands), None))
-    else:
-        bands = model.get("negative_bands", [])
-        band_no, band = next(((i, x) for i, x in enumerate(bands) if trade_score_primary >= x.get("edge")), (len(bands), None))
-
-    if not band:
-        log.error(f"Notification band for the score {trade_score_primary} not found. Check the list of bands in config. Ignore")
-        return
+    #
+    band_no, band = _find_score_band(trade_score_primary, model)
 
     #
     # To message or not to message depending on score value and time
     #
 
-    # Determine if the band was changed since the last time
+    # Determine if the band was changed since the last time. Essentially, this means absolute signal strength increased
+    # We store the previous band no as the model attribute
     prev_band_no = model.get("prev_band_no")
-    band_up = prev_band_no is not None and prev_band_no < band_no
-    band_dn = prev_band_no is not None and prev_band_no > band_no
-    model["prev_band_no"] = band_no  # Store for the next time in the config section
+    if prev_band_no:
+        band_up = abs(band_no) > abs(prev_band_no)  # Examples: 0 -> 1, 1 -> 2, -1 -> 2
+        band_dn = abs(band_no) < abs(prev_band_no)  # Examples: -2 -> 0, 2 -> -1, -2 -> -1
+    else:
+        band_up = False
+        band_dn = False
+    model["prev_band_no"] = band_no  # Store for the next time as an additional run-time attribute
 
     if band.get("frequency"):
         new_to_time_interval = close_time.minute % band.get("frequency") == 0
     else:
         new_to_time_interval = False
 
-    # Send only if one of these conditions is true  or entered new time interval (current time)
+    # Send only if one of these conditions is true or entered new time interval (current time)
     notification_is_needed = (
-        (model.get("notify_band_up") and band_up) or  # entered a higher band (absolute score increased)
-        (model.get("notify_band_dn") and band_dn) or  # returned to a lower band (absolute score decreased)
-        new_to_time_interval  # new time interval is started like 10 minutes
+        (model.get("notify_band_up") and band_up) or  # entered a higher band (absolute score increased). always notify when band changed
+        (model.get("notify_band_dn") and band_dn) or  # returned to a lower band (absolute score decreased). always notify when band changed
+        new_to_time_interval  # new time interval is started like 10 minutes (minimum frequency independent of the band changes)
     )
+    # We might also exclude any notifications in case of no band (neutral zone)
 
     if not notification_is_needed:
         return  # Nothing important happened: within the same band and same time interval
@@ -91,9 +90,13 @@ async def send_score_notification(df, model: dict, config: dict):
     primary_score_str = f"{trade_score_primary:+.2f} {band_change_char} "
     secondary_score_str = f"{trade_score_secondary:+.2f}" if trade_score_secondary is not None else ''
 
-    message = f"{band.get('sign', '')} {symbol_char} {int(close_price):,} Score: {primary_score_str} {secondary_score_str} {band.get('text', '')}"
-    if band.get("bold"):
-        message = "*" + message + "*"
+    if band:
+        message = f"{band.get('sign', '')} {symbol_char} {int(close_price):,} Score: {primary_score_str} {secondary_score_str} {band.get('text', '')}"
+        if band.get("bold"):
+            message = "*" + message + "*"
+    else:
+        # Default message if the score in the neutral (very weak) zone which is not covered by the config bands
+        message = f"{symbol_char} {int(close_price):,} Score: {primary_score_str} {secondary_score_str}"
 
     message = message.replace("+", "%2B")  # For Telegram to display plus sign
 
@@ -111,6 +114,34 @@ async def send_score_notification(df, model: dict, config: dict):
             log.error(f"Error sending notification.")
     except Exception as e:
         log.error(f"Error sending notification: {e}")
+
+
+def _find_score_band(score_value, model):
+    """
+    Find band number and the band object given two lists with thresholds.
+
+    The first list specifies lower bounds for the score and the function returns the first largest band which is less
+    than or equal to the score. Band number is positive: 1, 2,...
+
+    The second list specifies upper bounds for the score and the function returns the first smallest band which greater
+    than the score. Band number is negative: -1, -2,---
+
+    If the score does not fit into any band, then band number is 0 and None for the band object are returned.
+    """
+
+    # First, check if the score falls within some positive thresholds (with greater than condition)
+    bands = model.get("positive_bands", [])
+    bands = sorted(bands, key=lambda x: x.get("edge"), reverse=True)  # Large thresholds first
+    # Find first entry with the edge equal or less than the score
+    band_no, band = next(((i, x) for i, x in enumerate(bands) if score_value >= x.get("edge")), (len(bands), None))
+    band_no = len(bands) - band_no
+    if not band:  # Score is too small - smaller than all thresholds
+        bands = model.get("negative_bands", [])
+        bands = sorted(bands, key=lambda x: x.get("edge"), reverse=False)  # Small thresholds first
+        band_no, band = next(((i, x) for i, x in enumerate(bands) if score_value < x.get("edge")), (len(bands), None))
+        band_no = -(len(bands) - band_no)
+
+    return band_no, band
 
 
 if __name__ == '__main__':
