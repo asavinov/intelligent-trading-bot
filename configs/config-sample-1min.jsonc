@@ -11,6 +11,8 @@
 
     "symbol": "BTCUSDT",
 
+    "description": "BTCUSDT 1min",
+
     "freq": "1min", // pandas frequency
 
     "data_sources": [
@@ -57,7 +59,7 @@
         {
             "name": "lc",  // Unique name will be used as a column suffix
             "algo": "lc",  // Algorithm type is used to choose the train/predict function
-            "params": {"is_scale": true, "length": 1000000},
+            "params": {"is_scale": true, "length": 0},
             "train": {"penalty": "l2", "C": 1.0, "class_weight": null, "solver": "sag", "max_iter": 100}
         }
     ],
@@ -82,8 +84,8 @@
                 "columns": "trade_score",
                 "names": ["buy_signal_column", "sell_signal_column"],  // Output boolean columns
                 "parameters": {
-                    "buy_signal_threshold": 0.05,
-                    "sell_signal_threshold": -0.05
+                    "buy_signal_threshold": 0.015,
+                    "sell_signal_threshold": -0.015
                 }
         }}
     ],
@@ -97,14 +99,14 @@
             "notify_band_up": true,
             "notify_band_dn": true,
             "positive_bands": [
-                {"edge": 0.05, "frequency": 1, "sign": "〉〉〉📈", "bold": true, "text": "BUY ZONE"},
-                {"edge": 0.04, "frequency": 2, "sign": "〉〉", "bold": false, "text": "strong"},
-                {"edge": 0.03, "frequency": 3, "sign": "〉", "text": "weak"}
+                {"edge": 0.015, "frequency": 2, "sign": "〉〉〉📈", "bold": true, "text": "BUY ZONE"},
+                {"edge": 0.01, "frequency": 5, "sign": "〉〉", "bold": false, "text": "strong"},
+                {"edge": 0.005, "frequency": 10, "sign": "〉", "text": "weak"}
             ],
             "negative_bands": [
-                {"edge": -0.03, "frequency": 3, "sign": "〈", "text": "weak"},
-                {"edge": -0.04, "frequency": 2, "sign": "〈〈", "bold": false, "text": "strong"},
-                {"edge": -0.05, "frequency": 1, "sign": "〈〈〈📉", "bold": true, "text": "SELL ZONE"}
+                {"edge": -0.005, "frequency": 10, "sign": "〈", "text": "weak"},
+                {"edge": -0.01, "frequency": 5, "sign": "〈〈", "bold": false, "text": "strong"},
+                {"edge": -0.015, "frequency": 2, "sign": "〈〈〈📉", "bold": true, "text": "SELL ZONE"}
             ]
         }},
         {"generator": "diagram_notification_model", "config": {
@@ -113,7 +115,7 @@
             "notification_freq": "1D",
 
             "score_column_names": "trade_score",
-            "score_thresholds":[-0.05, 0.05],
+            "score_thresholds":[-0.015, 0.015],
 
             // 5 minutes aggregation and this number of 5 minute intervals
             "resampling_freq": "5min", "nrows": 288
