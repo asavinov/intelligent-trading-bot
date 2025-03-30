@@ -52,7 +52,7 @@ async def send_score_notification(df, model: dict, config: dict):
         band_dn = False
     model["prev_band_no"] = band_no  # Store for the next time as an additional run-time attribute
 
-    if band.get("frequency"):
+    if band and band.get("frequency"):
         new_to_time_interval = close_time.minute % band.get("frequency") == 0
     else:
         new_to_time_interval = False
