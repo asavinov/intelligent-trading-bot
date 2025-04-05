@@ -86,7 +86,7 @@ async def send_diagram(df, model: dict, config: dict):
     )
 
     with io.BytesIO() as buf:
-        fig.savefig(buf, format='png')  # Convert and save in buffer
+        fig.savefig(buf, format='png', bbox_inches='tight', pad_inches=0.1)  # Convert and save in buffer
         im_bytes = buf.getvalue()  # Get complete content (while read returns from current position)
     img_data = im_bytes
 
