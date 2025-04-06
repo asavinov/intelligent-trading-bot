@@ -44,12 +44,12 @@ async def send_score_notification(df, model: dict, config: dict):
     # Determine if the band was changed since the last time. Essentially, this means absolute signal strength increased
     # We store the previous band no as the model attribute
     prev_band_no = model.get("prev_band_no")
-    if prev_band_no:
+    if prev_band_no is not None:
         band_up = abs(band_no) > abs(prev_band_no)  # Examples: 0 -> 1, 1 -> 2, -1 -> 2
         band_dn = abs(band_no) < abs(prev_band_no)  # Examples: -2 -> 0, 2 -> -1, -2 -> -1
     else:
-        band_up = False
-        band_dn = False
+        band_up = True
+        band_dn = True
     model["prev_band_no"] = band_no  # Store for the next time as an additional run-time attribute
 
     if band and band.get("frequency"):
@@ -91,12 +91,12 @@ async def send_score_notification(df, model: dict, config: dict):
     secondary_score_str = f"{trade_score_secondary:+.2f}" if trade_score_secondary is not None else ''
 
     if band:
-        message = f"{band.get('sign', '')} {symbol_char} {int(close_price):,} Score: {primary_score_str} {secondary_score_str} {band.get('text', '')}"
+        message = f"{band.get('sign', '')} {symbol_char} {int(close_price):,} Indicator: {primary_score_str} {secondary_score_str} {band.get('text', '')} {freq}"
         if band.get("bold"):
             message = "*" + message + "*"
     else:
         # Default message if the score in the neutral (very weak) zone which is not covered by the config bands
-        message = f"{symbol_char} {int(close_price):,} Score: {primary_score_str} {secondary_score_str}"
+        message = f"{symbol_char} {int(close_price):,} Indicator: {primary_score_str} {secondary_score_str} {freq}"
 
     message = message.replace("+", "%2B")  # For Telegram to display plus sign
 

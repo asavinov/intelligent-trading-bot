@@ -187,34 +187,42 @@ def generate_chart(df, title, buy_signal_column, sell_signal_column, score_colum
     import seaborn as sns
 
     # List of colors: https://matplotlib.org/stable/gallery/color/named_colors.html
-    sns.set_style('white')  # darkgrid, whitegrid, dark, white, ticks
-    #sns.color_palette("rocket")
-    #sns.set(rc={'axes.facecolor': 'gold', 'figure.facecolor': 'white'})
-    #sns.set(rc={'figure.facecolor': 'gold'})
+    sns.set_style('white', {'axes.grid': False, 'axes.spines.top': True, 'axes.edgecolor': 'lightgrey'})  # white, darkgrid, whitegrid, dark, ticks
+    # sns.set_style('white', {'axes.facecolor':'yellow', 'grid.color': '.8', 'font.family':'Times New Roman'})
+    sns.set_context("notebook")  # notebook (default), talk, paper, poster
+
+    # sns.despine(left=True, offset=10, trim=True)
+    # sns.despine(fig=None, ax=None, top=False, right=False, left=False, bottom=False, offset=None, trim=False)
+    # sns.despine(bottom = True, left = False)
+
+    # sns.color_palette("rocket")
+    # sns.set(rc={'axes.facecolor': 'gold', 'figure.facecolor': 'white'})
+    # sns.set(rc={'figure.facecolor': 'gold'})
 
     fig, ax1 = plt.subplots(figsize=(12, 6))
     # plt.tight_layout()
 
-    # === High, Low, Close
+    # plt.grid(axis="x")
+
+    #
+    # Price: High, Low, Close
+    #
 
     # Fill area between high and low
     plt.fill_between(df.timestamp, df.low, df.high, step="mid", lw=0.0, facecolor='skyblue', alpha=.4)  # edgecolor='red',
 
-    # Draw close price
-    sns.lineplot(data=df, x="timestamp", y="close", drawstyle='steps-mid', lw=.5, color='darkblue', ax=ax1)
-    #sns.pointplot(data=df, x="timestamp", y="close", color='darkblue', ax=ax1)
+    # Close price
+    sns.lineplot(data=df, x="timestamp", y="close", drawstyle='steps-mid', lw=.5, color='blue', ax=ax1)
+    # sns.pointplot(data=df, x="timestamp", y="close", color='darkblue', ax=ax1)
 
-    # Buy/sell markers (list of timestamps)
-    # buy_df = df[df.buy_transaction]
-    # sell_df = df[df.sell_transaction]
-
-    # === Transactions
+    #
+    # Transactions (optional): buy or sell triangles over price curve
+    #
 
     triangle_adj = 15
     df["close_buy_adj"] = df["close"] - triangle_adj
     df["close_sell_adj"] = df["close"] + triangle_adj
 
-    # markersize=6, markerfacecolor='blue'
     if buy_signal_column:
         sns.lineplot(data=df[df[buy_signal_column] == True], x="timestamp", y="close_buy_adj", lw=0, markerfacecolor="green", markersize=10, marker="^", alpha=0.6, ax=ax1)
     if sell_signal_column:
@@ -224,33 +232,41 @@ def generate_chart(df, title, buy_signal_column, sell_signal_column, score_colum
     # g2.set(title='Penguins: Body Mass by Species for Gender')
     ax1.set(xlabel=None)  # remove the x-axis label
     # g2.set(ylabel=None)  # remove the y-axis label
-    ax1.set_ylabel('Close price', color='darkblue')
+    ax1.set_ylabel('Close price', color='blue', fontsize=16)
     # g2.tick_params(left=False)  # remove the ticks
     ymin = df['low'].min()
     ymax = df['high'].max()
     ax1.set(ylim=(ymin - (ymax - ymin) * 0.05, ymax + (ymax - ymin) * 0.005))
 
-    ax1.xaxis.set_major_locator(mdates.DayLocator())
-    ax1.xaxis.set_major_formatter(mdates.DateFormatter("%d"))  # "%H:%M:%S" "%d %b"
-    ax1.tick_params(axis="x", rotation=0)
-    #ax1.xaxis.grid(True)
+    # ax1.set_frame_on(False)
 
-    # === Score
+    # ax1.xaxis.set_major_locator(mdates.DayLocator())
+    ax1.xaxis.set_major_formatter(mdates.DateFormatter("%H:%M"))  # "%H:%M:%S" "%d %b"
+    ax1.tick_params(axis="x", rotation=90)
+    ax1.xaxis.grid(True)
+
+    #
+    # Indicator line
+    #
 
     if score_column and score_column in df.columns:
         ax2 = ax1.twinx()
-        # ax2.plot(x, y1, 'o-', color="red" )
-        sns.lineplot(data=df, x="timestamp", y=score_column, drawstyle='steps-mid', lw=.3, color="darkred", ax=ax2)  # marker="v" "^" , markersize=12
-        ax2.set_ylabel('Score', color='r')
-        ax2.set_ylabel('Score', color='b')
 
         ymax = max(df[score_column].abs().max(), max(thresholds) if thresholds else 0.0)
-        ax2.set(ylim=(-ymax*2.0, +ymax*2.0))
+        ax2.set(ylim=(-ymax * 1.2, +ymax * 1.2))
 
-        ax2.axhline(0.0, lw=.1, color="black")
+        # ax2.set_frame_on(False)
+        ax2.xaxis.grid(True)
+
+        # ax2.axhline(0.0, lw=.1, color="black")
 
         for threshold in thresholds:
-            ax2.axhline(threshold, lw=.1, color="red")
+            ax2.axhline(threshold, lw=3.0, color="lightgray")
+
+        # ax2.plot(x, y1, 'o-', color="red" )
+        sns.lineplot(data=df, x="timestamp", y=score_column, drawstyle='steps-mid', lw=1.0, color="red", ax=ax2)  # marker="v" "^" , markersize=12
+        ax2.set_ylabel('Intelligent Indicator', color='r', fontsize=16)
+        # ax2.set_ylabel('Score', color='b')
 
     # fig.suptitle("My figtitle", fontsize=14)  # Positioned higher
     # plt.title('Weekly: $\\bf{S&P 500}$', fontsize=16)  # , weight='bold' or MathText
