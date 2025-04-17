@@ -87,7 +87,7 @@ def main(config_file):
     processed_symbols = []
 
     for ds in data_sources:
-        quote = str(ds.get("folder")).upper()
+        quote = str(ds.get("folder"))
         file_type = str(ds.get("file")).lower()
 
         if not quote:
