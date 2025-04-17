@@ -1,6 +1,7 @@
 import time
 from datetime import datetime, timedelta
 from pathlib import Path
+import os
 
 import pandas as pd
 import click
@@ -9,14 +10,18 @@ import pytz
 
 from common.utils import mt5_freq_from_pandas, get_timedelta_for_mt5_timeframe
 from service.App import App, load_config
+from service.mt5 import connect_mt5
+
 
 print("MetaTrader5 package author: ", mt5.__author__)
 print("MetaTrader5 package version: ", mt5.__version__)
 
 # --- Configuration ---
-CHUNK_SIZE = 10000  # How many bars worth of duration to request in each chunk
+DEFAULT_BAR_CHUNK_SIZE = 10000  # How many bars worth of duration to request in each chunk
+DEFAULT_TICK_CHUNK_SIZE = 5 # How many ticks worth of duration to request in each chunk
 RATE_LIMIT_DELAY = 0.1 # Small delay between requests (seconds)
 # ---------------------
+
 
 # -------------------------------------------------
 
@@ -30,6 +35,7 @@ def main(config_file):
     """
     load_config(config_file)
 
+    data_sources = App.config["data_sources"]
     time_column = App.config["time_column"]
     data_path = Path(App.config["data_folder"])
     download_max_rows = App.config.get("download_max_rows", 0)
@@ -53,19 +59,12 @@ def main(config_file):
 
     # Define the timezone for MT5 (usually UTC)
     timezone = pytz.timezone("Etc/UTC")
-    # Define a default historical start if no file exists | 2017 | 2024
-    historical_start_date = datetime(2014, 1, 1, tzinfo=timezone) # Or get from config if needed
+    # Define a default historical start if no file exists => 2014 | 2017 | 2024
+    historical_start_date = datetime(2017, 1, 1, tzinfo=timezone) # Or get from config if needed
 
-    # Initialize MetaTrader 5 connection
-    if not mt5.initialize():
-        print(f"initialize() failed, error code = {mt5.last_error()}")
-        return
-
-    print(f"MT5 Initialized. Version: {mt5.version()}")
-
-    # Connect to trading account (same as before)
+    # Connect to trading account 
     if mt5_account_id and mt5_password and mt5_server:
-        authorized = mt5.login(int(mt5_account_id), password=str(mt5_password), server=str(mt5_server))
+        authorized = connect_mt5(mt5_account_id, password=str(mt5_password), server=str(mt5_server))
         if authorized:
             print("MT5 Login successful.")
             account_info = mt5.account_info()
@@ -84,25 +83,36 @@ def main(config_file):
 
 
     # --- Loop through data sources ---
-    data_sources = App.config["data_sources"]
+
     processed_symbols = []
 
     for ds in data_sources:
         quote = str(ds.get("folder")).upper()
+        file_type = str(ds.get("file")).lower()
+
         if not quote:
             print("ERROR: Folder (symbol) is not specified in data_sources.")
             continue
+
 
         print(f"\n--- Processing symbol: {quote} ---")
 
         file_path = data_path / quote
         file_path.mkdir(parents=True, exist_ok=True)
         file_name = (file_path / "klines").with_suffix(".csv")
+        chunk_size = int(ds.get("chunk_size", DEFAULT_BAR_CHUNK_SIZE))
+
+
+        if file_type == "ticks":
+            file_name = (file_path / "ticks").with_suffix(".csv")
+            chunk_size = int(ds.get("chunk_size", DEFAULT_TICK_CHUNK_SIZE))
+
 
         existing_df = pd.DataFrame()
         start_dt = historical_start_date
 
-        # Check if file exists and load data (same as before)
+
+        # Check if file exists and load data
         if file_name.is_file():
             try:
                 print(f"Loading existing data from: {file_name}")
@@ -139,10 +149,14 @@ def main(config_file):
         # Define end point for download (now)
         end_dt = datetime.now(timezone)
 
-        # Check if symbol is available (same as before)
+        # Check if symbol is available
         symbol_info = mt5.symbol_info(quote)
         if not symbol_info:
             print(f"Symbol {quote} not found or not available in MT5 terminal. Skipping. Error: {mt5.last_error()}")
+            continue
+        if file_type == "ticks" and not symbol_info.trade_tick_size:
+            print(f"Ticks data is not available for {quote}. Skipping. Error: {mt5.last_error()}")
+            os.remove(file_name)
             continue
         print(f"Symbol {quote} found in MT5.")
 
@@ -152,11 +166,13 @@ def main(config_file):
 
         print(f"Starting download loop for {quote} from {current_start_dt.strftime('%Y-%m-%d %H:%M:%S %Z')} to {end_dt.strftime('%Y-%m-%d %H:%M:%S %Z')}...")
 
-        # --- Download Loop using copy_rates_range with calculated duration ---
+        # --- Download Loop using copy_rates_range or copy_ticks_range with calculated duration ---
         while current_start_dt < end_dt:
             try:
-                # Calculate the duration for CHUNK_SIZE bars
-                chunk_duration = get_timedelta_for_mt5_timeframe(mt5_timeframe, CHUNK_SIZE)
+                # Calculate the duration for chunk_size bars or ticks
+
+
+                chunk_duration = get_timedelta_for_mt5_timeframe(mt5_timeframe, chunk_size)
             except ValueError as e:
                  print(f"Error calculating duration: {e}. Stopping download for {quote}.")
                  break
@@ -178,12 +194,18 @@ def main(config_file):
 
             print(f"  Fetching range from {request_start_dt.strftime('%Y-%m-%d %H:%M:%S %Z')} to {temp_end_dt.strftime('%Y-%m-%d %H:%M:%S %Z')}...")
 
-            # Use copy_rates_range, since copy_rates_from seems to fetch data using backward lookback(present to past)
-            rates = mt5.copy_rates_range(quote, mt5_timeframe, request_start_dt, temp_end_dt)
+            # Use copy_rates_range or copy_ticks_range
+            if file_type == "ticks":
+                rates = mt5.copy_ticks_range(quote, request_start_dt, temp_end_dt, mt5.COPY_TICKS_ALL)
+                if rates is None:
+                    print(f"  mt5.copy_ticks_range returned None. Error: {mt5.last_error()}. Stopping download for {quote}.")
+                    break
+            else:
+                rates = mt5.copy_rates_range(quote, mt5_timeframe, request_start_dt, temp_end_dt)
+                if rates is None:
+                    print(f"  mt5.copy_rates_range returned None. Error: {mt5.last_error()}. Stopping download for {quote}.")
+                    break
 
-            if rates is None:
-                print(f"  mt5.copy_rates_range returned None. Error: {mt5.last_error()}. Stopping download for {quote}.")
-                break
             if len(rates) == 0:
                 print("  No data returned in this range. Download may be complete or data gap.")
                 # If no data, advance start time past this chunk's end to avoid getting stuck
@@ -197,8 +219,12 @@ def main(config_file):
                     continue # Try the next chunk
 
             chunk_df = pd.DataFrame(rates)
-            # Convert 'time' (Unix seconds) to datetime objects (UTC)
-            chunk_df[time_column] = pd.to_datetime(chunk_df['time'], unit='s', utc=True)
+            if file_type == "ticks":
+                # Convert 'time_msc' (Unix milliseconds) to datetime objects (UTC)
+                chunk_df[time_column] = pd.to_datetime(chunk_df['time_msc'], unit='ms', utc=True)
+            else:
+                # Convert 'time' (Unix seconds) to datetime objects (UTC)
+                chunk_df[time_column] = pd.to_datetime(chunk_df['time'], unit='s', utc=True)
 
             # --- IMPORTANT: Filtering is no longer needed here ---
             # Since we requested data *starting after* current_start_dt using request_start_dt,
@@ -224,7 +250,7 @@ def main(config_file):
             # Small delay before next request
             time.sleep(RATE_LIMIT_DELAY)
 
-        # --- Combine and Process Data (Remains the same as your previous version) ---
+        # --- Combine and Process Data ---
         if not all_klines_list:
             print(f"No new data downloaded for {quote}.")
             if existing_df.empty:
@@ -244,16 +270,23 @@ def main(config_file):
                 final_df = new_df
 
             print("Processing combined data (duplicates, sorting, columns)...")
-            # Standardize columns (assuming MT5 names)
-            final_df.rename(columns={
-                'open': 'open',
-                'high': 'high',
-                'low': 'low',
-                'close': 'close',
-                'tick_volume': 'volume', # Use tick_volume as 'volume'
-            }, inplace=True, errors='ignore') # Added errors='ignore'
+            if file_type == "ticks":
+                # Standardize columns (assuming MT5 names)
+                final_df.rename(columns={
+                    'time_msc': 'time',
+                    'flags': 'flags',
+                    'bid': 'bid',
+                    'ask': 'ask',
+                    'last': 'last',
+                    'volume': 'volume',
+                }, inplace=True, errors='ignore') # Added errors='ignore'
+            else:
+                final_df.rename(columns={
+                    'tick_volume': 'volume', # Use tick_volume as 'volume'
+                }, inplace=True, errors='ignore') # Added errors='ignore'
 
-            # Ensure time column is the primary datetime column
+
+            # Ensure time column is the primary datetime column and drop time column if exist
             if 'time' in final_df.columns and time_column != 'time':
                  final_df = final_df.drop('time', axis=1)
 
@@ -294,7 +327,11 @@ def main(config_file):
         final_df = final_df.reset_index(drop=True)
 
         # --- Save Data (same as before) ---
+
         try:
+            if file_type == "ticks":
+                final_df = final_df.drop(['time'], axis=1)
+
             print(f"Saving {len(final_df)} rows to {file_name}...")
             final_df.to_csv(file_name, index=False, date_format='%Y-%m-%dT%H:%M:%SZ')
             print(f"Finished saving '{quote}'.")
