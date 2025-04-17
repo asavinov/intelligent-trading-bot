@@ -209,27 +209,27 @@ def get_timedelta_for_mt5_timeframe(mt5_timeframe: int, count: int) -> timedelta
     :raises ValueError: If the timeframe is unknown or unsupported
     """
     # Initialize static attributes on the function for cache and pattern
-    if not hasattr(get_timedelta_for_timeframe, "_pattern"):
+    if not hasattr(get_timedelta_for_mt5_timeframe, "_pattern"):
         # Compile regex once
-        get_timedelta_for_timeframe._pattern = re.compile(r"TIMEFRAME_([A-Z]+)(\d+)$")
+        get_timedelta_for_mt5_timeframe._pattern = re.compile(r"TIMEFRAME_([A-Z]+)(\d+)$")
         # Build cache mapping MT5 timeframe constants to (name, unit, number)
         cache: dict[int, tuple[str, str, int]] = {}
         for attr_name, attr_value in mt5.__dict__.items():
             if not attr_name.startswith("TIMEFRAME_") or not isinstance(attr_value, int):
                 continue
-            match = get_timedelta_for_timeframe._pattern.match(attr_name)
+            match = get_timedelta_for_mt5_timeframe._pattern.match(attr_name)
             if match:
                 unit_prefix, number_str = match.groups()
                 cache[attr_value] = (attr_name, unit_prefix, int(number_str))
             elif attr_name == "TIMEFRAME_MN1":
                 # Special case for monthly timeframe without explicit number
                 cache[attr_value] = (attr_name, "MN", 1)
-        get_timedelta_for_timeframe._cache = cache
+        get_timedelta_for_mt5_timeframe._cache = cache
         logger.debug("Initialized MT5 timeframe pattern and cache")
 
     # Retrieve static attributes
-    pattern = get_timedelta_for_timeframe._pattern
-    cache = get_timedelta_for_timeframe._cache
+    pattern = get_timedelta_for_mt5_timeframe._pattern
+    cache = get_timedelta_for_mt5_timeframe._cache
 
     details = cache.get(mt5_timeframe)
     if details is None:
