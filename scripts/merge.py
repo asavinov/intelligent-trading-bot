@@ -67,7 +67,7 @@ def main(config_file):
     elif out_path.suffix == ".csv":
         df_out.to_csv(out_path, index=False)  # float_format="%.6f"
     else:
-        print(f"ERROR: Unknown extension of the 'merge_file_name' file '{out_path.suffix}'. Only 'csv' and 'parquet' are supported")
+        print(f"ERROR: Unknown extension of the output file '{out_path.suffix}'. Only 'csv' and 'parquet' are supported")
         return
 
     range_start = df_out.index[0]

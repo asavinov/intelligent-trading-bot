@@ -67,7 +67,7 @@ def main(config_file):
     elif file_path.suffix == ".csv":
         df = pd.read_csv(file_path, parse_dates=[time_column], date_format="ISO8601", nrows=P.in_nrows)
     else:
-        print(f"ERROR: Unknown extension of the 'signal_file_name' file '{file_path.suffix}'. Only 'csv' and 'parquet' are supported")
+        print(f"ERROR: Unknown extension of the input file '{file_path.suffix}'. Only 'csv' and 'parquet' are supported")
         return
 
     print(f"Signals loaded. Length: {len(df)}. Width: {len(df.columns)}")

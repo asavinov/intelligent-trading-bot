@@ -53,7 +53,7 @@ def main(config_file):
     elif file_path.suffix == ".csv":
         df = pd.read_csv(file_path, parse_dates=[time_column], date_format="ISO8601", nrows=P.in_nrows)
     else:
-        print(f"ERROR: Unknown extension of the 'matrix_file_name' file '{file_path.suffix}'. Only 'csv' and 'parquet' are supported")
+        print(f"ERROR: Unknown extension of the input file '{file_path.suffix}'. Only 'csv' and 'parquet' are supported")
         return
     print(f"Finished loading {len(df)} records with {len(df.columns)} columns.")
 
@@ -174,7 +174,7 @@ def main(config_file):
         elif out_path.suffix == ".csv":
             out_df.to_csv(out_path, index=False, float_format='%.6f')
         else:
-            print(f"ERROR: Unknown extension of the 'predict_file_name' file '{out_path.suffix}'. Only 'csv' and 'parquet' are supported")
+            print(f"ERROR: Unknown extension of the output file '{out_path.suffix}'. Only 'csv' and 'parquet' are supported")
             return
 
         print(f"Predictions stored in file: {out_path}. Length: {len(out_df)}. Columns: {len(out_df.columns)}")

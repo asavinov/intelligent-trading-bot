@@ -19,7 +19,7 @@ The transformations are applied to the results of ML predictions.
 class P:
     in_nrows = 100_000_000
 
-    start_index = 0  # 200_000 for 1m btc
+    start_index = 0
     end_index = None
 
 
@@ -56,7 +56,7 @@ def main(config_file):
     elif file_path.suffix == ".csv":
         df = pd.read_csv(file_path, parse_dates=[time_column], date_format="ISO8601", nrows=P.in_nrows)
     else:
-        print(f"ERROR: Unknown extension of the 'predict_file_name' file '{file_path.suffix}'. Only 'csv' and 'parquet' are supported")
+        print(f"ERROR: Unknown extension of the input file '{file_path.suffix}'. Only 'csv' and 'parquet' are supported")
         return
     print(f"Predictions loaded. Length: {len(df)}. Width: {len(df.columns)}")
 
@@ -114,7 +114,7 @@ def main(config_file):
     elif out_path.suffix == ".csv":
         out_df.to_csv(out_path, index=False, float_format='%.6f')
     else:
-        print(f"ERROR: Unknown extension of the 'signal_file_name' file '{out_path.suffix}'. Only 'csv' and 'parquet' are supported")
+        print(f"ERROR: Unknown extension of the output file '{out_path.suffix}'. Only 'csv' and 'parquet' are supported")
         return
 
     print(f"Signals stored in file: {out_path}. Length: {len(out_df)}. Columns: {len(out_df.columns)}")
