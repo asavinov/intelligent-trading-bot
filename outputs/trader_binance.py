@@ -178,10 +178,10 @@ async def update_trade_status():
         last_kline = App.analyzer.get_last_kline(symbol)
         last_close_price = to_decimal(last_kline[4])  # Close price of kline has index 4 in the list
 
-        base_quantity = App.base_quantity  # BTC
+        base_quantity = App.account_info.base_quantity  # BTC
         btc_assets_in_usd = base_quantity * last_close_price  # Cost of available BTC in USD
 
-        usd_assets = App.quote_quantity  # USD
+        usd_assets = App.account_info.quote_quantity  # USD
 
         if usd_assets >= btc_assets_in_usd:
             App.status = "SOLD"
@@ -248,7 +248,7 @@ async def update_account_balance():
         log.error(f"Binance exception in 'get_asset_balance' {e}")
         return
 
-    App.base_quantity = Decimal(balance.get("free", "0.00000000"))  # BTC
+    App.account_info.base_quantity = Decimal(balance.get("free", "0.00000000"))  # BTC
 
     try:
         balance = App.client.get_asset_balance(asset=App.config["quote_asset"])
@@ -256,7 +256,7 @@ async def update_account_balance():
         log.error(f"Binance exception in 'get_asset_balance' {e}")
         return
 
-    App.quote_quantity = Decimal(balance.get("free", "0.00000000"))  # USD
+    App.account_info.quote_quantity = Decimal(balance.get("free", "0.00000000"))  # USD
 
     pass
 
@@ -338,14 +338,14 @@ async def new_limit_order(side):
     #
     if side == SIDE_BUY:
         # Find how much quantity we can buy for all available USD using the computed price
-        quantity = App.quote_quantity  # USD
+        quantity = App.account_info.quote_quantity  # USD
         percentage_used_for_trade = trade_model.get("percentage_used_for_trade")
         quantity = (quantity * percentage_used_for_trade) / Decimal(100.0)  # Available for trade
         quantity = quantity / price  # BTC to buy
         # Alternatively, we can pass quoteOrderQty in USDT (how much I want to spend)
     elif side == SIDE_SELL:
         # All available BTCs
-        quantity = App.base_quantity  # BTC
+        quantity = App.account_info.base_quantity  # BTC
 
     quantity_str = round_down_str(quantity, 6)
 

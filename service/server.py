@@ -150,8 +150,8 @@ def start_server(config_file):
             return
 
         log.info(f"Finished trade status sync (account, balances etc.)")
-        log.info(f"Balance: {App.config['base_asset']} = {str(App.base_quantity)}")
-        log.info(f"Balance: {App.config['quote_asset']} = {str(App.quote_quantity)}")
+        log.info(f"Balance: {App.config['base_asset']} = {str(App.account_info.base_quantity)}")
+        log.info(f"Balance: {App.config['quote_asset']} = {str(App.account_info.quote_quantity)}")
 
     #
     # Register scheduler
