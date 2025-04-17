@@ -2,6 +2,10 @@ from decimal import Decimal
 from enum import Enum
 import MetaTrader5 as mt5
 
+class Venue(Enum):
+    BINANCE = "binance"
+    MT5 = "mt5"
+    
 class AccountBalances:
     """
     Available assets for trade
@@ -12,8 +16,18 @@ class AccountBalances:
 
 
 # mt5.AccountInfo
-class MT5AccountInfo():
+class MT5AccountInfo:
     balance: Decimal = "10000"
+    equity: Decimal = "10000"
+    margin: Decimal = "0"
+    margin_free: Decimal = "10000"
+    margin_level: Decimal = "10000"
+    profit: Decimal = "0"
+    login: int = 0
+    currency: str = "USD"
+    name: str = ""
+    server: str = ""
+    leverage: int = 1
 
 
 class MT5OrderStatus(Enum):
@@ -24,3 +38,4 @@ class MT5OrderStatus(Enum):
     PENDING_CANCEL = mt5.ORDER_STATE_REQUEST_CANCEL
     REJECTED = mt5.ORDER_STATE_REJECTED
     EXPIRED = mt5.ORDER_STATE_EXPIRED
+    

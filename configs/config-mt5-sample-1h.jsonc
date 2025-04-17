@@ -1,4 +1,6 @@
 {
+    "venue": "mt5",
+    
     "mt5_account_id": "<mt5-account-id>",
     "mt5_password": "<mt5-password>",
     "mt5_server": "<mt5-server>",
