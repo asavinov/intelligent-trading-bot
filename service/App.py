@@ -48,14 +48,12 @@ class App:
     order = None  # Latest or current order
     order_time = None  # Order submission time
 
+    # Account Info
     # Available assets for trade
     # Can be set by the sync/recover function or updated by the trading algorithm
     # base_quantity = "0.04108219"  # BTC owned (on account, already bought, available for trade)
     # quote_quantity = "1000.0"  # USDT owned (on account, available for trade)
-    
-    # Account Info
-    # Can be set by the sync/recover function or updated by the trading algorithm
-    account_info: Union[AccountBalances, MT5AccountInfo, None] = AccountBalances()
+    account_info: Union[AccountBalances, MT5AccountInfo] = AccountBalances()
 
     #
     # Trader. Status data retrieved from the server. Below are examples only.
