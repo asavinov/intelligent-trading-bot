@@ -1,4 +1,4 @@
-from datetime import datetime
+
 from decimal import *
 import asyncio
 
@@ -8,19 +8,23 @@ from apscheduler.schedulers.asyncio import AsyncIOScheduler
 
 from binance import Client
 
+from common.types import Venue
 from service.App import *
 from common.utils import *
 from common.generators import output_feature_set
 from service.analyzer import *
 
-from inputs.collector_binance import main_collector_task, data_provider_health_check, sync_data_collector_task
+from inputs import get_collector_functions
 
 from outputs.notifier_trades import *
 from outputs.notifier_scores import *
 from outputs.notifier_diagram import *
-from outputs.trader_binance import trader_binance, update_trade_status
+from outputs import get_trader_functions
+
 
 import logging
+
+from service.mt5 import connect_mt5
 log = logging.getLogger('server')
 
 logging.basicConfig(
@@ -31,16 +35,19 @@ logging.basicConfig(
     #datefmt = '%Y-%m-%d %H:%M:%S',
 )
 
+# Get the collector functions based on the collector type
+
 #
 # Main procedure
 #
-
 async def main_task():
     """This task will be executed regularly according to the schedule"""
 
     #
     # 1. Execute input adapters to receive new data from data source(s)
     #
+    venue = App.config.get("venue")
+    main_collector_task, _, _ = get_collector_functions(venue)
 
     try:
         res = await main_collector_task()
@@ -90,10 +97,21 @@ def start_server(config_file):
 
     symbol = App.config["symbol"]
     freq = App.config["freq"]
-
+    venue = App.config.get("venue")
+    try:
+        if venue is not None:
+            venue = Venue(venue)
+    except ValueError as e:
+        log.error(f"Invalid venue specified in config: {venue}. Error: {e}")
+        return
+    
+    _, data_provider_health_check, sync_data_collector_task = get_collector_functions(venue)
+    trader_funcs = get_trader_functions(venue)
+    
     log.info(f"Initializing server. Trade pair: {symbol}. ")
-
+    
     #getcontext().prec = 8
+
 
     #
     # Validation
@@ -102,10 +120,18 @@ def start_server(config_file):
     #
     # Connect to the server and update/initialize the system state
     #
-    App.client = Client(api_key=App.config["api_key"], api_secret=App.config["api_secret"])
+    if venue == Venue.BINANCE:
+        App.client = Client(api_key=App.config["api_key"], api_secret=App.config["api_secret"])
+    
+    if venue == Venue.MT5:
+        authorized = connect_mt5(mt5_account_id=int(App.config.get("mt5_account_id")), mt5_password=str(App.config.get("mt5_password")), mt5_server=str(App.config.get("mt5_server")))
+        if not authorized:
+            log.error(f"Failed to connect to MT5. Check credentials and server details.")
+            return
+        App.client = mt5  
 
     App.analyzer = Analyzer(App.config)
-
+    
     App.loop = asyncio.get_event_loop()
 
     # Do one time server check and state update
@@ -141,7 +167,7 @@ def start_server(config_file):
     # Initialize trade status (account, balances, orders etc.) in case we are going to really execute orders
     if App.config.get("trade_model", {}).get("trader_binance"):
         try:
-            App.loop.run_until_complete(update_trade_status())
+            App.loop.run_until_complete(trader_funcs['update_trade_status']())
         except Exception as e:
             log.error(f"Problems trade status sync. {e}")
 
@@ -164,7 +190,7 @@ def start_server(config_file):
     trigger = freq_to_CronTrigger(freq)
 
     App.sched.add_job(
-        main_task,
+        main_task, 
         trigger=trigger,
         id='main_task'
     )

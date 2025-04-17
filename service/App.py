@@ -5,7 +5,7 @@ from datetime import datetime, date, timedelta
 import re
 
 import pandas as pd
-from .types import AccountBalances, MT5AccountInfo
+from common.types import AccountBalances, MT5AccountInfo
 
 PACKAGE_ROOT = Path(__file__).parent.parent
 #PACKAGE_PARENT = '..'
