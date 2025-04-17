@@ -1,4 +1,5 @@
 from decimal import Decimal
+from enum import Enum
 import MetaTrader5 as mt5
 
 class AccountBalances:
@@ -13,3 +14,13 @@ class AccountBalances:
 # mt5.AccountInfo
 class MT5AccountInfo():
     balance: Decimal = "10000"
+
+
+class MT5OrderStatus(Enum):
+    NEW = mt5.ORDER_STATE_PLACED
+    PARTIALLY_FILLED = mt5.ORDER_STATE_PARTIAL
+    FILLED = mt5.ORDER_STATE_FILLED
+    CANCELED = mt5.ORDER_STATE_CANCELED
+    PENDING_CANCEL = mt5.ORDER_STATE_REQUEST_CANCEL
+    REJECTED = mt5.ORDER_STATE_REJECTED
+    EXPIRED = mt5.ORDER_STATE_EXPIRED
