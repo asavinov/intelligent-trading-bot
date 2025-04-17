@@ -17,7 +17,8 @@
     "freq": "1h", // pandas frequency
 
     "data_sources": [
-        {"folder": "BTCUSD", "file": "klines", "column_prefix": ""}
+        {"folder": "BTCUSD", "file": "klines", "column_prefix": ""},
+        {"folder": "BTCUSD", "file": "ticks", "column_prefix": "", "chunk_size": 10} // you can also specify the chunk size, tick data not working yet, maybe it has something to do with the CHUNK SIZE
     ],
 
     // === GENERATE FEATURES ===
