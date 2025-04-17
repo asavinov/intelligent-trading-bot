@@ -102,7 +102,7 @@ Notes:
 
 ## Train signal models
 
-Execute: `python -m scripts.train_signals -c config.json`
+Execute: `python -m scripts.simulate -c config.json`
 
 Parameters:
 * `symbol` pair to load

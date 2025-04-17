@@ -75,12 +75,12 @@ def main(config_file):
     #
     # Limit the source data
     #
-    train_signal_config = App.config["train_signal_model"]
+    simulate_config = App.config["simulate_model"]
 
-    data_start = train_signal_config.get("data_start", 0)
+    data_start = simulate_config.get("data_start", 0)
     if isinstance(data_start, str):
         data_start = find_index(df, data_start)
-    data_end = train_signal_config.get("data_end", None)
+    data_end = simulate_config.get("data_end", None)
     if isinstance(data_end, str):
         data_end = find_index(df, data_end)
 
@@ -94,11 +94,11 @@ def main(config_file):
     #
     # Load signal train parameters
     #
-    parameter_grid = train_signal_config.get("grid")
-    direction = train_signal_config.get("direction", "")
+    parameter_grid = simulate_config.get("grid")
+    direction = simulate_config.get("direction", "")
     if direction not in ['long', 'short', 'both', '']:
         raise ValueError(f"Unknown value of {direction} in signal train model. Only 'long', 'short' and 'both' are possible.")
-    topn_to_store = train_signal_config.get("topn_to_store", 10)
+    topn_to_store = simulate_config.get("topn_to_store", 10)
 
     # Evaluate strings to produce lists with ranges of parameters
     if isinstance(parameter_grid.get("buy_signal_threshold"), str):
@@ -111,14 +111,14 @@ def main(config_file):
         parameter_grid["sell_signal_threshold_2"] = eval(parameter_grid.get("sell_signal_threshold_2"))
 
     # If necessary, disable sell parameters in grid search - they will be set from the buy parameters
-    if train_signal_config.get("buy_sell_equal"):
+    if simulate_config.get("buy_sell_equal"):
         parameter_grid["sell_signal_threshold"] = [None]
         parameter_grid["sell_signal_threshold_2"] = [None]
 
     #
     # Find the generator, the parameters of which will be varied
     #
-    generator_name = train_signal_config.get("signal_generator")
+    generator_name = simulate_config.get("signal_generator")
     signal_generator = next((ss for ss in App.config.get("signal_sets", []) if ss.get('generator') == generator_name), None)
     if not signal_generator:
         raise ValueError(f"Signal generator '{generator_name}' not found among all 'signal_sets'")
@@ -129,7 +129,7 @@ def main(config_file):
         #
         # If equal parameters, then derive the sell parameter from the buy parameter
         #
-        if train_signal_config.get("buy_sell_equal"):
+        if simulate_config.get("buy_sell_equal"):
             parameters["sell_signal_threshold"] = -parameters["buy_signal_threshold"]
             #signal_model["sell_slope_threshold"] = -signal_model["buy_slope_threshold"]
             if parameters.get("buy_signal_threshold_2") is not None:

@@ -160,7 +160,7 @@ class App:
             "limit_price_adjustment": 0.005,  # Limit price of orders will be better than the latest close price (0 means no change, positive - better for us, negative - worse for us)
         },
 
-        "train_signal_model": {},
+        "simulate_model": {},
 
         # =====================
         # === BINANCE TRADER ===

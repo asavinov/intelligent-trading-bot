@@ -127,7 +127,7 @@
 
     // === FINDING BEST TRADE PARAMETERS ===
 
-    "train_signal_model": {
+    "simulate_model": {
         "data_start": 0,
         "data_end": null,
 
