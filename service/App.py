@@ -60,12 +60,15 @@ class App:
     #
     system_status = {"status": 0, "msg": "normal"}  # 0: normal，1：system maintenance
     symbol_info = {}
-    account_info = {}
+    # account_info = {}
 
     #
     # Constant configuration parameters
     #
     config = {
+        # Venue 
+        "venue": "",
+        
         # Binance
         "api_key": "",
         "api_secret": "",
