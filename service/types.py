@@ -1,3 +1,4 @@
+from decimal import Decimal
 import MetaTrader5 as mt5
 
 class AccountBalances:
@@ -9,5 +10,6 @@ class AccountBalances:
     quote_quantity = "1000.0"  # USDT owned (on account, available for trade)
 
 
-class MT5AccountInfo(mt5.AccountInfo):
-    pass
+# mt5.AccountInfo
+class MT5AccountInfo():
+    balance: Decimal = "10000"
