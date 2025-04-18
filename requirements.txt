@@ -9,6 +9,7 @@ tqdm
 
 # Downloaders
 python-binance==1.0.*  # pip install python-binance
+MetaTrader5>=5.0.4874; sys_platform == 'win32'
 
 # Features/label generation
 # tsfresh  # if tsfresh feature generator is used. It depends on matrixprofile with binary (in pip) only for Python 3.8

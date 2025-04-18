@@ -1,4 +1,6 @@
 {
+    "venue": "binance",
+    
     "api_key": "<binance-key>",
     "api_secret": "<binance-secret>",
 
