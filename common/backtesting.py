@@ -62,38 +62,56 @@ def simulated_trade_performance(df, buy_signal_column, sell_signal_column, price
                 longs.append((index, previous_price, price, profit, profit_percent))  # Sold
                 is_buy_mode = True
 
-    long_performance = dict(  # Performance of buy at low price and sell at high price
-        profit=long_profit,
-        profit_percent=long_profit_percent,
-        transaction_no=long_transactions,
-        profitable=long_profitable / long_transactions if long_transactions else 0.0,
-        transactions=longs,  # Sell transactions
-    )
-    short_performance = dict(  # Performance of sell at high price and buy at low price
-        profit=short_profit,
-        profit_percent=short_profit_percent,
-        transaction_no=short_transactions,
-        profitable=short_profitable / short_transactions if short_transactions else 0.0,
-        transactions=shorts,  # Buy transactions
-    )
+    # Performance of buy at low price and sell at high price
+    long_performance = {
+        "#transactions": long_transactions,
+        "profit": round(long_profit, 2),
+        "%profit": round(long_profit_percent, 1),
+
+        "#profitable": long_profitable,
+        "%profitable": round(100.0 * long_profitable / long_transactions, 1) if long_transactions else 0.0,
+
+        "profit/T": round(long_profit / long_transactions, 2),
+        "%profit/T": round(long_profit_percent / long_transactions, 1),
+
+        #"transactions": longs,  # Sell transactions
+    }
+
+    # Performance of sell at high price and buy at low price
+    short_performance = {
+        "#transactions": short_transactions,
+        "profit": round(short_profit, 2),
+        "%profit": round(short_profit_percent, 1),
+
+        "#profitable": short_profitable,
+        "%profitable": round(100.0 * short_profitable / short_transactions, 1) if short_transactions else 0.0,
+
+        "profit/T": round(short_profit / short_transactions, 2),
+        "%profit/T": round(short_profit_percent / short_transactions, 1),
+
+        #"transactions": shorts,  # Buy transactions
+    }
 
     profit = long_profit + short_profit
     profit_percent = long_profit_percent + short_profit_percent
     transaction_no = long_transactions + short_transactions
     profitable = (long_profitable + short_profitable) / transaction_no if transaction_no else 0.0
     #minutes_in_month = 1440 * 30.5
-    performance = dict(
-        profit=profit,
-        profit_percent=profit_percent,
-        transaction_no=transaction_no,
-        profitable=profitable,
+    performance = {
+        "#transactions": transaction_no,
+        "profit": profit,
+        "%profit": profit_percent,
 
-        profit_per_transaction=profit / transaction_no if transaction_no else 0.0,
-        profitable_percent=100.0 * profitable / transaction_no if transaction_no else 0.0,
-        #transactions=transactions,
-        #profit=profit,
-        #profit_per_month=profit / (len(df) / minutes_in_month),
-        #transactions_per_month=transaction_no / (len(df) / minutes_in_month),
-    )
+        "profitable": profitable,
+        "profitable_percent": round(100.0 * profitable / transaction_no, 1) if transaction_no else 0.0,
+
+        "profit/T": round(profit / transaction_no, 2) if transaction_no else 0.0,
+        "%profit/T": profit_percent / transaction_no if transaction_no else 0.0,
+
+        #"transactions": transactions,
+
+        #"profit_per_month": profit / (len(df) / minutes_in_month),
+        #"transactions_per_month": transaction_no / (len(df) / minutes_in_month),
+    }
 
     return performance, long_performance, short_performance

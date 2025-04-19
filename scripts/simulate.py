@@ -77,14 +77,21 @@ def main(config_file):
     #
     simulate_config = App.config["simulate_model"]
 
-    data_start = simulate_config.get("data_start", 0)
-    if isinstance(data_start, str):
-        data_start = find_index(df, data_start)
+    data_start = simulate_config.get("data_start", None)
     data_end = simulate_config.get("data_end", None)
-    if isinstance(data_end, str):
-        data_end = find_index(df, data_end)
 
-    df = df.iloc[data_start:data_end]
+    if data_start:
+        if isinstance(data_start, str):
+            df = df[ df[time_column] >= data_start ]
+        elif isinstance(data_start, int):
+            df = df.iloc[data_start:]
+
+    if data_end:
+        if isinstance(data_end, str):
+            df = df[ df[time_column] < data_end ]
+        elif isinstance(data_end, int):
+            df = df.iloc[:-data_end]
+
     df = df.reset_index(drop=True)
 
     print(f"Input data size {len(df)} records. Range: [{df.iloc[0][time_column]}, {df.iloc[-1][time_column]}]")
@@ -96,8 +103,8 @@ def main(config_file):
     #
     parameter_grid = simulate_config.get("grid")
     direction = simulate_config.get("direction", "")
-    if direction not in ['long', 'short', 'both', '']:
-        raise ValueError(f"Unknown value of {direction} in signal train model. Only 'long', 'short' and 'both' are possible.")
+    if direction not in ['long', 'short']:
+        raise ValueError(f"Unknown value of {direction} in signal train model. Only 'long' or 'short' are possible.")
     topn_to_store = simulate_config.get("topn_to_store", 10)
 
     # Evaluate strings to produce lists with ranges of parameters
@@ -161,29 +168,20 @@ def main(config_file):
             'close'
         )
 
-        # Remove some items. Remove lists of transactions which are not needed
-        long_performance.pop('transactions', None)
-        short_performance.pop('transactions', None)
-
         if direction == "long":
             performance = long_performance
         elif direction == "short":
             performance = short_performance
 
-        # Add some metrics. Add per month metrics
-        performance["profit_percent_per_month"] = performance["profit_percent"] / months_in_simulation
-        performance["transaction_no_per_month"] = performance["transaction_no"] / months_in_simulation
-        performance["profit_percent_per_transaction"] = performance["profit_percent"] / performance["transaction_no"] if performance["transaction_no"] else 0.0
-        performance["profit_per_month"] = performance["profit"] / months_in_simulation
-
-        #long_performance["profit_percent_per_month"] = long_performance["profit_percent"] / months_in_simulation
-        #short_performance["profit_percent_per_month"] = short_performance["profit_percent"] / months_in_simulation
+        # Add monthly numbers
+        performance["#transactions/M"] = round(performance["#transactions"] / months_in_simulation, 2)
+        performance["profit/M"] = round(performance["profit"] / months_in_simulation, 2)
+        performance["%profit/M"] = round(performance["%profit"] / months_in_simulation, 2)
 
         performances.append(dict(
             model=parameters,
-            performance={k: performance[k] for k in ['profit_percent_per_month', 'profitable', 'profit_percent_per_transaction', 'transaction_no_per_month']},
-            #long_performance={k: long_performance[k] for k in ['profit_percent_per_month', 'profitable']},
-            #short_performance={k: short_performance[k] for k in ['profit_percent_per_month', 'profitable']}
+            performance=performance,
+            #performance={k: performance[k] for k in ['profit_percent_per_month', 'profitable', 'profit_percent_per_transaction', 'transaction_no_per_month']},
         ))
 
     #
@@ -191,14 +189,12 @@ def main(config_file):
     #
 
     # Sort
-    performances = sorted(performances, key=lambda x: x['performance']['profit_percent_per_month'], reverse=True)
+    performances = sorted(performances, key=lambda x: x['performance']['%profit/M'], reverse=True)
     performances = performances[:topn_to_store]
 
     # Column names (from one record)
     keys = list(performances[0]['model'].keys()) + \
            list(performances[0]['performance'].keys())
-           #list(performances[0]['long_performance'].keys()) + \
-           #list(performances[0]['short_performance'].keys())
 
     lines = []
     for p in performances:
@@ -206,8 +202,8 @@ def main(config_file):
                  list(p['performance'].values())
                  #list(p['long_performance'].values()) + \
                  #list(p['short_performance'].values())
-        record = [f"{v:.3f}" if isinstance(v, float) else str(v) for v in record]
-        record_str = ",".join(record)
+        #record = [f"{v:.2f}" if isinstance(v, float) else str(v) for v in record]
+        record_str = ",".join(str(v) for v in record)
         lines.append(record_str)
 
     #
