@@ -13,6 +13,7 @@ from service.App import *
 from common.utils import *
 from common.generators import output_feature_set
 from service.analyzer import *
+from service.mt5 import connect_mt5
 
 from inputs import get_collector_functions
 
@@ -24,7 +25,6 @@ from outputs import get_trader_functions
 
 import logging
 
-from service.mt5 import connect_mt5
 log = logging.getLogger('server')
 
 logging.basicConfig(
@@ -198,19 +198,37 @@ def start_server(config_file):
     App.sched.start()  # Start scheduler (essentially, start the thread)
 
     log.info(f"Scheduler started.")
-
+    
     #
-    # Start event loop
+    # Start event loop and scheduler
     #
     try:
+        # Start the scheduler *INSIDE* the try block, right before running the loop
+        App.sched.start()
+        log.info(f"Scheduler started.")
         App.loop.run_forever()  # Blocking. Run until stop() is called
     except KeyboardInterrupt:
         log.info(f"KeyboardInterrupt.")
     finally:
+        log.info("Shutting down...")
+        # Graceful shutdown
+        if App.sched and App.sched.running:
+             App.sched.shutdown()
+             log.info(f"Scheduler shutdown.")
+        # Stop the loop if it's still running (e.g., if shutdown initiated by signal other than KeyboardInterrupt)
+        if App.loop.is_running():
+             App.loop.stop()
+             log.info("Event loop stop requested.")
+        # Close the loop
+        # Allow pending tasks to complete before closing (optional but good practice)
+        # You might need to run loop.run_until_complete(asyncio.sleep(0.1)) or similar
+        # if loop.stop() doesn't immediately halt everything.
         App.loop.close()
         log.info(f"Event loop closed.")
-        App.sched.shutdown()
-        log.info(f"Scheduler shutdown.")
+        # Shutdown MT5 connection if it was initialized
+        if venue == Venue.MT5:
+            mt5.shutdown()
+            log.info("MT5 connection shutdown.")
 
     return 0
 
