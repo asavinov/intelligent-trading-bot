@@ -12,39 +12,39 @@
 
 # Intelligent trading bot
 
-The project is aimed at developing an intelligent trading bot for automated trading cryptocurrencies using state-of-the-art machine learning (ML) algorithms and feature engineering. The project provides the following major functionalities:
-* Defining derived features using custom (Python) functions including technical indicators
-* Analyzing historic data and training machine learning models in batch off-line mode
-* Analyzing the predicted scores and choosing best signal parameters
-* Signaling service which is regularly requests new data from the exchange and generates buy-sell signals by applying the previously trained models in on-line mode
-* Trading service which does real trading by buying or selling the assets according to the generated signals
+The aim of the project is to develop an intelligent trading bot for automated trading including cryptocurrencies using state-of-the-art machine learning (ML) algorithms and feature engineering. The project provides the following major functionalities:
+* Clear and consistent separation between *offline* (batch) mode for training ML models and *online* (stream) mode for predicting based on the trained models. One of the main challenges here is to guarantee that the same (derived) features are used in both modes
+* Extensible approach to defining *derived features* using (Python) functions including standard technical indicators as well as arbitrary custom features
+* Providing possibility to work with different *trade frequencies* (time rasters), for example, 1 minute, 1 hour or 1 day
+* Customizable functions for sending signals or predictions in online mode, for example, sending to Telegram channels, API end-point, storing in a database or executing real transactions
+* Functions for *backtesting* and measuring trade performance on historic data which is more difficult because requires periodic re-train of the used ML models
+* *Trading service* for online mode which uses a configuration file to regtularly retrieve data updates, do analysis and send signals or execute trade transactions
 
-# Intelligent trading channel
+# Intelligent trading signals
 
 The signaling service is running in cloud and sends its signals to this Telegram channel:
 
 📈 **[Intelligent Trading Signals](https://t.me/intelligent_trading_signals)** 📉 **<https://t.me/intelligent_trading_signals>**
 
-Everybody can subscribe to the channel to get the impression about the signals this bot generates.
+Everybody can subscribe to the channel to get the impression about the signals this bot can generate.
 
 Currently, the bot is configured using the following parameters:
 * Exchange: Binance
-* Cryptocurrency: ₿ Bitcoin
-* Analysis frequency: 1 minute (currently the only option)
-* Score between -1 and +1. <0 means likely to decrease, and >0 means likely to increase
-* Filter: notifications are sent only if score is greater than ±0.20 (may change)
-* One increase/decrease sign is added for each step of 0.05 (exceeding the filter threshold) 
+* Cryptocurrency: ₿ Bitcoin (BTCUSDT)
+* Analysis frequency: 1 minute
+* Intelligent indicator between -1 and +1. Negative values mean decrease, and positive values mean increase of the price
 
-There are silent periods when the score in lower than the threshold and no notifications are sent to the channel. If the score is greater than the threshold, then every minute a notification is sent which looks like 
+Example notification: 
 
 > ₿ 24.518 📉📉📉 Score: -0.26
 
 The first number is the latest close price. The score -0.26 means that it is very likely to see the price lower than the current close price. 
 
-If the score exceeds some threshold specified in the model then buy or sell signal is generated which means that it is a good time to do a trade. Such notifications look as follows:
+If the intelligent indicator exceeds some threshold specified in the model then buy or sell signal is generated:
 
-> 🟢 BUY: ₿ 24,033 Score: +0.34
+> 〉〉〉📈 ₿ 74,896 Indicator: +0.12 ↑ BUY ZONE 1min
 
+Here three arrows mean buy signal for bitcoin at the current price 74,896 and the indicator value 0.12. `1min` frequence (analysis every minute). Such messages can be customized using Python functions including diagrams.  
 
 # Training machine learning models (offline)
 
@@ -52,141 +52,88 @@ If the score exceeds some threshold specified in the model then buy or sell sign
 
 For the signaler service to work, a number of ML models must be trained and the model files available for the service. All scripts run in batch mode by loading some input data and storing some output files. The batch scripts are located in the `scripts` module.
 
-If everything is configured then the following scripts have to be executed:
+If everything is configured, then the following scripts have to be executed:
 * `python -m scripts.download_binance -c config.json`
 * `python -m scripts.merge -c config.json`
 * `python -m scripts.features -c config.json`
 * `python -m scripts.labels -c config.json`
 * `python -m scripts.train -c config.json`
 * `python -m scripts.signals -c config.json`
-* `python -m scripts.train_signals -c config.json`
 
-Without a configuration file the scripts will use the default parameters which is useful for testing purposes and not intended for showing good performance. Use sample configuration files which are provided for each release like `config-sample-v0.6.0.jsonc`.
+All necessary parameters are provided in the configuration file. The project provides some sample configuration files in the `config` folder.
 
-## Downloading and merging source data
+Some common parameters of the configuration file:
+* `data_folder` - location of data files which are needed only for batch offline mode
+* `symbol` it is a trading pair like `BTCUSDT`
+* `description` Any text helping understand the purpose of this configuration file
+* `freq` data frequency according to `pandas` conventions
 
-The main configuration parameter for the both scripts is a list of sources in ``data_sources``. One entry in this list specifies a data source as well as ``column_prefix`` used to distinguish columns with the same name from different sources. 
+## Download data 
 
-* Download the latest historic data: `python -m scripts.download_binance -c config.json`
-  * It uses Binance API but you can use any other data source or download data manually using other scripts
+This batch script will download historic data from one or more data sources and store them in separate files. The data sources are listed in the `data_sources` section. One entry in this list specifies a data source as well as `column_prefix` used to distinguish columns with the same name from different sources. Currently data sources are not extendable and it is possible only to download from Binance and Yahoo.
 
-* Merge several historic datasets into one dataset: `python -m scripts.merge -c config.json`
-  * This script solves two problems: 1) there could be other sources like depth data or futures 2) a data source may have gaps so we need to produce a regular time raster in the output file
+## Merging source data
+
+The downloaded data are stored in multiple files. The system however works with only one data table therefore all these data entries (like candle lines) must be merged into one table. This is done by the `merge` script. It aligns all data entries according to their time stamp, that is, one record in the output file will merge records with the same time stamp from all input files. In addition, it will produce continuous raster in case there are gaps in the input files.  
 
 ## Generate features
 
-This script is intended for computing derived features:
-* Script: `python -m scripts.features -c config.json`
-* Currently it runs in non-incremental model by computing features for *all* available input records (and not only for the latest update), and hence it may take hours for complex configurations
-* The script loads merged input data, applies feature generation procedures and stores all derived features in an output file
-* Not all generated features will be used for training and prediction. For the train/predict phases, a separate list of features is specified 
-* Feature functions get additional parameters like windows from the config section
-* The same features must be used for on-line feature generation (in the service when they are generated for a micro-batch) and off-line feature generation.
+This script is intended for computing derived features. These features will be added as additional columns to the data table. Feature definitions are provided in the `feature_sets` section of the configuration file. Each entry in this list specifies a *feature generator* as well as its parameters. The script loads one merged input file, applies feature generation procedures and stores all derived features in an output file. 
 
-The list of features to be generated is configured via ``feature_sets`` list in the configuration file. How features are generated is defined by the *feature generator* each having some parameters specified in its config section.
+Here are some notes on the current implementation: 
+* Not all generated features must be used for training and prediction. Some of them can be used as input to next features. Other feature could be used only for the feature selection process where we want to find which of them have better predictive power. For the train/predict phases, a separate explicit list of features is specified 
+* Currently it runs in non-incremental model by computing features for *all* available input records (and not only for the latest update), and hence it may take hours for complex configurations. Yet, in online (stream) mode, features can be computed more efficiently if it is supported by the feature generator
+* Feature generation functions get additional parameters like windows from the config section
+* The same features must be used in online (stream) mode (in the service when they are applied to a micro-batch) and offline mode. This is guaranteed by design
 
-* ``talib`` feature generator relies on the TA-lib technical analysis library. Here an example of its configuration: ``"config":  {"columns": ["close"], "functions": ["SMA"], "windows": [5, 10, 15]}``
-* ``itbstats`` feature generator implements functions which can be found in tsfresh like ``scipy_skew``, ``scipy_kurtosis``, ``lsbm`` (longest strike below mean), ``fmax`` (first location of maximum), ``mean``, ``std``, ``area``, ``slope``. Here are typical parameters: ``"config":  {"columns": ["close"], "functions": ["skew", "fmax"], "windows": [5, 10, 15]}``   
-* ``itblib`` feature generator implemented in ITB but most of its features can be generated (much faster) via talib
-* ``tsfresh`` generates functions from the tsfresh library
+Here are some pre-defined feature generators (although it is possible to define custom feature generation functions):
+* `talib` feature generator relies on the TA-lib technical analysis library. Here an example of its configuration: `"config":  {"columns": ["close"], "functions": ["SMA"], "windows": [5, 10, 15]}`
+* `itbstats` feature generator implements functions which can be found in tsfresh like `scipy_skew`, `scipy_kurtosis`, `lsbm` (longest strike below mean), `fmax` (first location of maximum), `mean`, `std`, `area`, `slope`. Here are typical parameters: `"config":  {"columns": ["close"], "functions": ["skew", "fmax"], "windows": [5, 10, 15]}`   
+* `itblib` feature generator implemented in ITB but most of its features can be generated (much faster) via talib
+* `tsfresh` generates functions from the tsfresh library
 
 ## Generate labels
 
-This script is similar to feature generation because it adds new columns to the input file. However, these columns describe something that we want to predict and what is not known when executing in online mode. For example, it could be price increase in future:
-* Script: `python -m scripts.labels -c config.json`
-* The script loads features, computes label columns and stores the result in output file
-* Not all generated labels have to be used. The labels to be used for training are specified in a separate list
+This script is similar to feature generation because it adds new columns to the input file. However, these columns describe something that we want to predict and what is not known when executing in online mode. In other words, features are computed from previous (historic) data while labels are computed from future data which are not visible in online mode yet. For example, a label could find maximum price increase during next hour in percent. Computationally it is the same as computing features but this step is separate because we do not need this and cannot compute in online mode. This script will apply all labels defined in the `label_sets` section, add them as new columns and store the result in the output file. Just like for features, not all labels must be really used -- they could be generated for exploratory purposes. The really used labels are listed in the `labels` section.
 
-The list of labels to be generated is configured via ``label_sets`` list in the configuration. One label set points to the function which generates additional columns. Their configuration is very similar to feature configurations.
-
-* ``highlow`` label generator returns True if the price is higher than the specified threshold within some future horizon
-* ``highlow2`` Computes future increases (decreases) with the conditions that there are no significant decreases (increases) before that. Here is its typical configuration: ``"config":  {"columns": ["close", "high", "low"], "function": "high", "thresholds": [1.0, 1.5, 2.0], "tolerance": 0.2, "horizon": 10080, "names": ["first_high_10", "first_high_15", "first_high_20"]}``
-* ``topbot`` Deprecated
-* ``topbot2`` Computes maximum and minimum values (labeled as True). Every labelled maximum (minimum) is guaranteed to be surrounded by minimums (maximums) lower (higher) than the specified level. The required minimum difference between adjacent minimums and maximums is specified via ``level`` parameters. The tolerance parameter allows for including also points close to the maximum/minimum. Here is a typical configuration: ``"config":  {"columns": "close", "function": "bot", "level": 0.02, "tolerances": [0.1, 0.2], "names": ["bot2_1", "bot2_2"]}``
+Here are some pre-defined label generators:
+* `highlow` label generator returns True if the price is higher than the specified threshold within some future horizon
+* `highlow2` Computes future increases (decreases) with the conditions that there are no significant decreases (increases) before that. Here is its typical configuration: `"config":  {"columns": ["close", "high", "low"], "function": "high", "thresholds": [1.0, 1.5, 2.0], "tolerance": 0.2, "horizon": 10080, "names": ["first_high_10", "first_high_15", "first_high_20"]}`
+* `topbot` Deprecated
+* `topbot2` Computes maximum and minimum values (labeled as True). Every labelled maximum (minimum) is guaranteed to be surrounded by minimums (maximums) lower (higher) than the specified level. The required minimum difference between adjacent minimums and maximums is specified via `level` parameters. The tolerance parameter allows for including also points close to the maximum/minimum. Here is a typical configuration: `"config":  {"columns": "close", "function": "bot", "level": 0.02, "tolerances": [0.1, 0.2], "names": ["bot2_1", "bot2_2"]}`
 
 ## Train prediction models
 
-This script uses the specified input features and labels to train several ML models:
-* Script: `python -m scripts.train -c config.json`
-* Hyper-parameter tuning is not part of this procedure - they are supposed to be known
-* The algorithm descriptions and hyper-parameters are specified in the model store
-* The results are stored as multiple model files in the model folder. File names are equal to the predicted column names and have this pattern: (label_name, algorithm_name)
-* This script trains models for all specified labels and all specified algorithms
-* The script also generates `prediction-metrics.txt` file with the prediction scores for all models
+This script is needed only in batch (offline) mode and its purpose is to analyze historic data and produce ML models as output files. These ML models store in a condensed form some knowledge about the time series and they are used then in online (stream) model for forecasting. More specifically, one ML model is trained to predict some label based on the generated features. When this model is applied to the latest data in online mode, it will predict the value of this label which is normally used to make some trade decision.
 
-Configuration:
-- Models and hyper-parameters are described in ``model_store.py``
-- Features to be used for training are specified in ``train_features``
-- List of labels is specified in ``labels``
-- List of algorithms is specified in ``algorithms``
+The parameters for the train script are specified in the `train_feature_sets` section. Currently classification and regression algorithms can be used. They can automatically scale input features if specified in the configuration. The trained models are applied to the train data set and the prediction scores are stored in this file `prediction-metrics.txt`.
 
-## Aggregation and post-processing
+## Post-processing
 
-The goal of this step is to aggregate the prediction scores generated by different algorithms for different labels. The result is one score which is supposed to be consumed by the signal rules on the next step. The aggregation parameters are specified in the `score_aggregation` section. The `buy_labels` and `sell_labels` specify input prediction scores processed by the aggregation procedure. `window` is the number of previous steps used for rolling aggregation and `combine` is a way how two score types (buy and labels) are combined into one output score.
+After ML models were applied and some predictions were generated as new columns (in online mode), we might want to compute something else based on these predictions. It is very similar to normal feature generation with the difference that it is done after predictions. Frequently we want to aggregate the predictions generated by ML algorithms for different labels and produce one *intelligent indicator* which is supposed to be used for making trade decisions. These computations are performed according to parameters in the `signal_sets` section which has same structure as feature generators. The result is one or more new columns.
 
-## Signal generation
+## Output signal generation
 
-The score generated by the aggregation procedure is some number and the goal of signal rules is to make the trading decisions: buy, sell or do nothing. The parameters of the signal rules are described in the `trade_model`.
+Each previous step adds new columns to the data table with historic (in batch mode) or latest (in stream model) data table. Yet, we need to provide some functions for interacting with external systems, for example, sending messages, storing signals in the database or executing real transactions (buying or selling some assets). How it is done is configured in the `output_sets`. Each entry in this list specifies a function which is supposed to do some interaction with an external system. For example, the generator `score_notification_model` will send a message to the configured Telegram channel.
 
-## Train signal models
+## Backtesting
 
-This script simulates trades using many buy-sell signal parameters and then chooses the best performing signal parameters:
-* Script: `python -m scripts.train_signals -c config.json`
+When training ML models we need to find the best hyper-parameters. This is done in some traditional ways and is not explicitly supported by this framework. Yet, even if we find good hyper-parameters this does not guarantee that our trade performance will be good. The ultimate criterion for choosing among various features, labels, ML algorithms and their hyper-parameters is trade performance. Computing real (or close to real) trade performance is supported by the following two scripts working with historic data and helping to estimate trade performance of the whole pipeline. 
 
-# Prediction online based on trained models (service)
+The `predict_rolling` script applies prediction to some data (similar to the `predict` script) but does it by regularly re-training ML models. This makes the predictions much more realistic because the models are applied to unseen data only (data which is was not used for training) but the models are regularly re-trained after enough new data was collected. It is precisely what is done in real system but this script applies this to historic data.
 
-This script starts a service which periodically executes one and the same task: load latest data, generate features, make predictions, generate signals, notify subscribers:
-- Start script: `python -m service.server -c config.json`
-- The service assumes that the models were trained using the features specified in the configuration
-- The service uses credentials to access the exchange which are specified in the configuration
+The `simulate` script applies some (pre-defined) logic of trading to historic data which includes all data expected in online mode. Essentially, it scans the historic data by applying the trade rules and produces buy-sell transactions which are then aggregated.
 
-# Hyper-parameter tuning
+# Online service
 
-There are two problems:
-* How to choose best hyper-parameters for ML models. This problem is solved in the classical way, e.g., by grid search. For example, for Gradient Boosting, we train the model on the same data using different hyper-parameters and then select those showing the best score. This approach has one drawback - we optimize it for the best score which is not trading performance. This means that the trading performance is not guaranteed to be good (and in fact it will not be good). Therefore, we use this score as an intermediate feature with the goal to optimize trading performance on later stages.
-* If we compute the final aggregated score (like +0.21), then the question is should we buy, sell or do nothing? In fact, it is the most difficult question. To help answer it, additional scripts were developed for backtesting and optimizing buy-sell signal generation:
-  * Generate rolling predictions which simulates what we do by regularly re-training the models and using them for prediction: `python -m scripts.predict_rolling -c config.json`
-  * Train signal models for choosing the best thresholds for sell-buy signals producing the best performance on historic data: `python -m scripts.train_signals -c config.json` 
+This script starts a service: `python -m service.server -c config.json`
 
-# Configuration parameters
-
-The configuration parameters are specified in two files:
-* `service.App.py` in the `config` field of the `App` class
-* `-c config.jsom` argument to the services and scripts. The values from this config file will overwrite those in the `App.config` when this file is loaded into a script or service
-
-Here are some most important fields (in both `App.py` and `config.json`):
-* `data_folder` - location of data files which are needed only for batch offline scripts
-* `symbol` it is a trading pair like `BTCUSDT`
-* Analyzer parameters. These mainly columns names.
-  * `labels` List of column names which are treated as labels. If you define a new label used for training and then for prediction then you need to specify its name here
-  * `algorithms` List of algorithm names used for training
-  * `train_features` List of all column names used as input features for training and prediction.
-* Signers:
-  * ``buy_labels`` and ``sell_labels`` Lists of predicted columns used for signals
-  * ``trade_model`` Parameters of the signaler (mainly some thresholds)
-* `trader` is a section for trader parameters. Currently, not thoroughly tested.
-* `collector` These parameter section is intended for data collection services. There are two types of data collection services: synchronous with regular requests to the data provider and asynchronous streaming service which subscribes to the data provider and gets notifications as soon as new data is available. They are working but not thoroughly tested and integrated into the main service. The current main usage pattern relies on manual batch data updates, feature generation and model training. One reason for having these data collection services is 1) to have faster updates 2) to have data not available in normal API like order book (there exist some features which use this data but they are not integrated into the main workflow).
-
-See sample configuration files and comments in App.config for more details.
-
-# Signaler service
-
-Every minute, the signaler performs the following steps to make a prediction about whether the price is likely to increase or decrease:
+The service will periodically (for example, every minute) execute these tasks:
 * Retrieve the latest data from the server and update the current data window which includes some history (the history length is defined by a configuration parameter)
 * Compute derived features based on the nearest history collected (which now includes the latest data). The features to be computed are described in the configuration file and are exactly the same as used in batch mode during model training
-* Apply several (previously trained) ML models by forecasting some future values (not necessarily prices) which are also treated as (more complex) derived features. We apply several forecasting models (currently, Gradient Boosting, Neural network, and Linear regression) to several target variables (labels)
-* Aggregate the results of forecasting produced by different ML models and compute the final signal score which reflects the strength of the upward or downward trend. Here we use many previously computed scores as inputs and derive one output score. Currently, it is implemented as an aggregation procedure but it could be based on a dedicated ML model trained on previously collected scores and the target variable. Positive score means growth and negative score means fall
-* Use the final score for notifications
-
-Notes:
-* The final result of the signaler is the score (between -1 and +1). The score should be used for further decisions about buying or selling by taking into account other parameters and data sources
-* For the signaler service to work, trained models have to be available and stored in the "MODELS" folder. The models are trained in batch mode and the process is described in the corresponding section.
-
-Starting the service: `python3 -m service.server -c config.json`
-
-# Trader
-
-The trader is working but not thoroughly debugged, particularly, not tested for stability and reliability. Therefore, it should be considered a prototype with basic functionality. It is currently integrated with the Signaler but in a better design should be a separate service.
+* Apply several (previously trained) ML models by predicting values of the labels which are also treated as (more complex) derived features. Trained models are loaded from the `MODELS` folder specified in the configuration file
+* Aggregate the results of forecasting produced by different ML models and compute the final signal score which reflects the strength of the upward or downward trend. Here we use many previously computed scores as inputs and derive one output score. 
+* Execute functions for interacting with external systems, for example, by sending notifications to a Telegram channel. It is also possible to configure a real trader which will execute buy or sell transactions
 
 # Related projects
 
