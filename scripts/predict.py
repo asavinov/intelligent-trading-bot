@@ -161,7 +161,7 @@ def main(config_file):
     # End
     #
     elapsed = datetime.now() - now
-    print(f"Finished training models in {str(elapsed).split('.')[0]}")
+    print(f"Finished predicting in {str(elapsed).split('.')[0]}")
 
 
 if __name__ == '__main__':
