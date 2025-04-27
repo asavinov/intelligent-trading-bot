@@ -108,7 +108,7 @@ def generate_labels_highlow2(df, config: dict):
         thresholds = [-abs(t) for t in thresholds]
         price_columns = [low_column, high_column]
 
-    tolerances = [round(-t*tolerance, 6) for t in thresholds]  # Tolerance have opposite sign
+    tolerances = [round(-t*tolerance, 6) for t in thresholds]  # Tolerance has the opposite sign
 
     horizon = config.get('horizon')  # Length of history to be analyzed
 

@@ -1,3 +1,5 @@
+(OUTDATED)
+
 # Signaler: Signal server
 
 ## Principles

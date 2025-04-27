@@ -1,6 +1,6 @@
 # Change Log
 
-* v0.7.dev
+* v0.7.0 (2025-04-27)
   * introduce a generic format for output functions like notifiers and traders
   * make server and the scripts work with different frequencies rather than only 1 minute
   * restructure config for ML-features making their configuration closer to normal features and normal generators

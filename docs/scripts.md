@@ -1,3 +1,5 @@
+(OUTDATED)
+
 # Scripts
 
 Scripts are used for retrieving data, computing derived features, training ML models, hyper-parameter search, training signal models.

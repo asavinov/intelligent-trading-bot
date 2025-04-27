@@ -1,3 +1,5 @@
+(OUTDATED)
+
 # Conventions
 
 ## Input data

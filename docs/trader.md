@@ -1,3 +1,5 @@
+(OUTDATED)
+
 # Trader: trade server
 
 The trader receives signals and then executes them depending on the current situation which includes its own state as well as the market state.
