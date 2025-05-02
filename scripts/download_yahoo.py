@@ -3,6 +3,7 @@ from datetime import datetime, date, timedelta
 import click
 
 import yfinance as yf
+from curl_cffi import requests  # Without its Session object, yahoo will reject requests with YFRateLimitError
 
 from service.App import *
 
@@ -22,6 +23,9 @@ def main(config_file):
     download_max_rows = App.config.get("download_max_rows", 0)
 
     now = datetime.now()
+
+    # This session will be used in all requests to avoid YFRateLimitError
+    session = requests.Session(impersonate="chrome")
 
     data_sources = App.config["data_sources"]
     for ds in data_sources:
@@ -51,7 +55,7 @@ def main(config_file):
 
             # === Download from the remote server
             # Download more data than we need and then overwrite the older data
-            new_df = yf.download(quote, period="5d", auto_adjust=True, multi_level_index=False)
+            new_df = yf.download(quote, period="5d", auto_adjust=True, multi_level_index=False, session=session)
 
             new_df = new_df.reset_index()
             new_df['Date'] = pd.to_datetime(new_df['Date'], format="ISO8601").dt.date
@@ -68,7 +72,7 @@ def main(config_file):
 
             # === Download from the remote server
             #df = yf.download(quote, date(1990, 1, 1), auto_adjust=True, multi_level_index=False)
-            df = yf.download(quote, period="max", auto_adjust=True, multi_level_index=False)
+            df = yf.download(quote, period="max", auto_adjust=True, multi_level_index=False, session=session)
 
             df = df.reset_index()
             df['Date'] = pd.to_datetime(df['Date'], format="ISO8601").dt.date
