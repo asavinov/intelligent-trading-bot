@@ -1,30 +1,42 @@
-import os
-import sys
-import argparse
-import math, time
-from datetime import datetime
 from decimal import *
 
 import pandas as pd
 import asyncio
-
-from binance import Client
-from binance.exceptions import *
-from binance.helpers import date_to_milliseconds, interval_to_milliseconds
-from binance.enums import *
+import MetaTrader5 as mt5
 
 from service.App import *
 from common.utils import *
+from common.types import MT5OrderStatus
 from outputs.notifier_trades import get_signal
+from service.mt5 import connect_mt5
 
 import logging
+
 log = logging.getLogger('trader')
 
 
-async def trader_binance(df, model: dict, config: dict):
+async def trader_mt5(df: pd.DataFrame, model: dict, config: dict):
+    """It is a highest level task which is added to the event loop and executed normally every frequency specified(e.g 1h) and then it calls other tasks.
+
+    This function implements the main trading logic for the MetaTrader 5 platform.
+    It handles order placement, order status updates, account balance updates, and signal processing.
+
+    Parameters:
+    ----------
+        df (pd.DataFrame): The DataFrame containing the trading data.
+        model (dict): The model configuration dictionary.
+        config (dict): The general configuration dictionary.
     """
-    It is a highest level task which is added to the event loop and executed normally every 1 minute and then it calls other tasks.
-    """
+    # Connect to trading account (same as before)
+    mt5_account_id = App.config.get("mt5_account_id")
+    mt5_password = App.config.get("mt5_password")
+    mt5_server = App.config.get("mt5_server")
+    if mt5_account_id and mt5_password and mt5_server:
+        authorized = connect_mt5(int(mt5_account_id), password=str(mt5_password), server=str(mt5_server))
+        if not authorized:
+            log.error(f"MT5 Login failed for account #{mt5_account_id}, error code: {mt5.last_error()}")
+            return
+
     symbol = config["symbol"]
     freq = config["freq"]
     startTime, endTime = pandas_get_interval(freq)
@@ -62,27 +74,27 @@ async def trader_binance(df, model: dict, config: dict):
             await update_trade_status()
             log.error(f"Bad order or order status {order}. Full reset/init needed.")
             return
-        if order_status == ORDER_STATUS_FILLED:
+        if order_status == MT5OrderStatus.FILLED.value:
             log.info(f"Limit order filled. {order}")
             if status == "BUYING":
                 print(f"===> BOUGHT: {order}")
                 App.status = "BOUGHT"
             elif status == "SELLING":
-                print(f"<=== SOLD: {order}")
+                print(f"<=== SOLD: {order}")  # TODO: Check if it is correct
                 App.status = "SOLD"
             log.info(f'New trade mode: {App.status}')
-        elif order_status == ORDER_STATUS_REJECTED or order_status == ORDER_STATUS_EXPIRED or order_status == ORDER_STATUS_CANCELED:
+        elif order_status in [MT5OrderStatus.REJECTED.value, MT5OrderStatus.EXPIRED.value, MT5OrderStatus.CANCELED.value]:
             log.error(f"Failed to fill order with order status {order_status}")
             if status == "BUYING":
                 App.status = "SOLD"
             elif status == "SELLING":
                 App.status = "BOUGHT"
             log.info(f'New trade mode: {App.status}')
-        elif order_status == ORDER_STATUS_PENDING_CANCEL:
-            return  # Currently do nothing. Check next time.
-        elif order_status == ORDER_STATUS_PARTIALLY_FILLED:
+        elif order_status == MT5OrderStatus.PENDING_CANCEL.value:
+            return  # Currently do nothing. Check next time.   
+        elif order_status == mt5.ORDER_STATE_PARTIAL:
             pass  # Currently do nothing. Check next time.
-        elif order_status == ORDER_STATUS_NEW:
+        elif order_status == mt5.ORDER_STATE_PLACED: # try ORDER_STATE_STARTED
             pass  # Wait further for execution
         else:
             pass  # Order still exists and is active
@@ -130,16 +142,16 @@ async def trader_binance(df, model: dict, config: dict):
 
     if status == "SOLD" and signal_side == "BUY":
         # -----
-        await new_limit_order(side=SIDE_BUY)
+        await new_limit_order(side=mt5.ORDER_TYPE_BUY_LIMIT)
 
         if model.get("no_trades_only_data_processing"):
             print("SKIP TRADING due to 'no_trades_only_data_processing' parameter True")
             # Never change status if orders not executed
         else:
             App.status = "BUYING"
-    elif status == "BOUGHT" and signal_side == "SELL":
+    elif status == "BOUGHT" and signal_side == "SELL": 
         # -----
-        await new_limit_order(side=SIDE_SELL)
+        await new_limit_order(symbol, side=mt5.ORDER_TYPE_SELL)
 
         if model.get("no_trades_only_data_processing"):
             print("SKIP TRADING due to 'no_trades_only_data_processing' parameter True")
@@ -158,17 +170,15 @@ async def trader_binance(df, model: dict, config: dict):
 
 async def update_trade_status():
     """Read the account state and set the local state parameters."""
-    # GET /api/v3/openOrders - get current open orders
-    # GET /api/v3/allOrders - get all orders: active, canceled, or filled
 
     symbol = App.config["symbol"]
 
     # -----
-    try:
-        open_orders = App.client.get_open_orders(symbol=symbol)  # By "open" orders they probably mean "NEW" or "PARTIALLY_FILLED"
-        # orders = App.client.get_all_orders(symbol=symbol, limit=10)
-    except Exception as e:
-        log.error(f"Binance exception in 'get_open_orders' {e}")
+    # Get all open orders
+    open_orders = mt5.orders_get(symbol=symbol)
+
+    if open_orders is None:
+        log.error(f"MT5 error in 'orders_get' {mt5.last_error()}")
         return
 
     if not open_orders:
@@ -176,7 +186,7 @@ async def update_trade_status():
         await update_account_balance()
 
         last_kline = App.analyzer.get_last_kline(symbol)
-        last_close_price = to_decimal(last_kline[4])  # Close price of kline has index 4 in the list
+        last_close_price = to_decimal(last_kline[4])  # Close price of kline has index 4 in the list (0-based)
 
         base_quantity = App.account_info.base_quantity  # BTC
         btc_assets_in_usd = base_quantity * last_close_price  # Cost of available BTC in USD
@@ -189,12 +199,12 @@ async def update_trade_status():
             App.status = "BOUGHT"
 
     elif len(open_orders) == 1:
-        order = open_orders[0]
-        if order.get("side") == SIDE_SELL:
+        order = open_orders[0]  # TODO: Check if it is correct
+        if order.type == mt5.ORDER_TYPE_SELL_LIMIT:
             App.status = "SELLING"
-        elif order.get("side") == SIDE_BUY:
+        elif order.type == mt5.ORDER_TYPE_BUY_LIMIT:
             App.status = "BUYING"
-        else:
+        else: 
             log.error(f"Neither SELL nor BUY side of the order {order}.")
             return None
 
@@ -212,7 +222,6 @@ async def update_order_status():
     - only one or no orders can be active currently, but in future there can be many orders
     - if no order id(s) is provided then retrieve all existing orders
     """
-    symbol = App.config["symbol"]
 
     # Get currently active order and id (if any)
     order = App.order
@@ -223,17 +232,17 @@ async def update_order_status():
 
     # -----
     # Retrieve order from the server
-    try:
-        new_order = App.client.get_order(symbol=symbol, orderId=order_id)
-    except Exception as e:
-        log.error(f"Binance exception in 'get_order' {e}")
-        return
+    order_info = mt5.orders_get(ticket=order_id)
+    if order_info is None or len(order_info) == 0:
+        log.error(f"MT5 error in 'orders_get' {mt5.last_error()}")
+        return None
+    new_order = order_info[0]
 
     # Impose and overwrite the new order information
-    if new_order:
-        order.update(new_order)
-    else:
-        return None
+    if new_order: 
+        order.update(new_order._asdict())
+    else:  # TODO: Check if it is correct
+        return None 
 
     # Now order["status"] contains the latest status of the order
     return order["status"]
@@ -242,21 +251,21 @@ async def update_order_status():
 async def update_account_balance():
     """Get available assets (as decimal)."""
 
-    try:
-        balance = App.client.get_asset_balance(asset=App.config["base_asset"])
-    except Exception as e:
-        log.error(f"Binance exception in 'get_asset_balance' {e}")
+    # Get account info
+    account_info = mt5.account_info()
+    if account_info is None:
+        log.error(f"MT5 error in 'account_info' {mt5.last_error()}")
         return
 
-    App.account_info.base_quantity = Decimal(balance.get("free", "0.00000000"))  # BTC
+    # Get free margin
+    margin_free = account_info.margin_free
+    App.account_info.quote_quantity = Decimal(margin_free)  # USD
 
-    try:
-        balance = App.client.get_asset_balance(asset=App.config["quote_asset"])
-    except Exception as e:
-        log.error(f"Binance exception in 'get_asset_balance' {e}")
-        return
-
-    App.account_info.quote_quantity = Decimal(balance.get("free", "0.00000000"))  # USD
+    # Get positions
+    positions = mt5.positions_get()
+    if positions is not None and len(positions) > 0:
+        position = positions[0]
+        App.account_info.base_quantity = Decimal(position.volume)  # BTC
 
     pass
 
@@ -270,8 +279,7 @@ async def cancel_order():
     Kill existing sell order. It is a blocking request, that is, it waits for the end of the operation.
     Info: DELETE /api/v3/order - cancel order
     """
-    symbol = App.config["symbol"]
-
+    
     # Get currently active order and id (if any)
     order = App.order
     order_id = order.get("orderId", 0) if order else 0
@@ -280,13 +288,16 @@ async def cancel_order():
         return None
 
     # -----
-    try:
-        log.info(f"Cancelling order id {order_id}")
-        new_order = App.client.cancel_order(symbol=symbol, orderId=order_id)
-    except Exception as e:
-        log.error(f"Binance exception in 'cancel_order' {e}")
+    log.info(f"Cancelling order id {order_id}")
+    request = {
+        "action": mt5.TRADE_ACTION_REMOVE, 
+        "order": order_id,
+    }
+    result = mt5.order_send(request)
+    if result.retcode != mt5.TRADE_RETCODE_DONE:
+        log.error(f"MT5 error in 'order_send' {mt5.last_error()}")
         return None
-
+    new_order = result
     # TODO: There is small probability that the order will be filled just before we want to kill it
     #   We need to somehow catch and process this case
     #   If we get an error (say, order does not exist and cannot be killed), then after error returned, we could do trade state reset
@@ -295,17 +306,17 @@ async def cancel_order():
     if new_order:
         order.update(new_order)
     else:
-        return None
+        return None  # TODO: Check if it is correct
 
-    # Now order["status"] contains the latest status of the order
-    return order["status"]
+    # Now order["state"] contains the latest status of the order
+    return order["state"]
 
 
 #
-# Order creation
+# Order creation (MT5)
 #
 
-async def new_limit_order(side):
+async def new_limit_order(symbol, side):
     """
     Create a new limit sell order with the amount we current have.
     The amount is total amount and price is determined according to our strategy (either fixed increase or increase depending on the signal).
@@ -320,15 +331,15 @@ async def new_limit_order(side):
     #
     last_kline = App.analyzer.get_last_kline(symbol)
     last_close_price = to_decimal(last_kline[4])  # Close price of kline has index 4 in the list
-    if not last_close_price:
+    if not last_close_price or last_close_price == 0:
         log.error(f"Cannot determine last close price in order to create a market buy order.")
         return None
 
     price_adjustment = trade_model.get("limit_price_adjustment")
-    if side == SIDE_BUY:
+    if side == mt5.ORDER_TYPE_BUY_LIMIT: 
         price = last_close_price * Decimal(1.0 - price_adjustment)  # Adjust price slightly lower
-    elif side == SIDE_SELL:
-        price = last_close_price * Decimal(1.0 + price_adjustment)  # Adjust price slightly higher
+    elif side == mt5.ORDER_TYPE_SELL_LIMIT:
+        price = last_close_price * Decimal(1.0 + price_adjustment)  # Adjust price slightly higher 
 
     price_str = round_str(price, 2)
     price = Decimal(price_str)  # We will use the adjusted price for computing quantity
@@ -336,14 +347,14 @@ async def new_limit_order(side):
     #
     # Find quantity
     #
-    if side == SIDE_BUY:
+    if side == mt5.ORDER_TYPE_BUY_LIMIT: 
         # Find how much quantity we can buy for all available USD using the computed price
         quantity = App.account_info.quote_quantity  # USD
         percentage_used_for_trade = trade_model.get("percentage_used_for_trade")
         quantity = (quantity * percentage_used_for_trade) / Decimal(100.0)  # Available for trade
         quantity = quantity / price  # BTC to buy
         # Alternatively, we can pass quoteOrderQty in USDT (how much I want to spend)
-    elif side == SIDE_SELL:
+    elif side == mt5.ORDER_TYPE_SELL_LIMIT:
         # All available BTCs
         quantity = App.account_info.base_quantity  # BTC
 
@@ -352,13 +363,14 @@ async def new_limit_order(side):
     #
     # Execute order
     #
-    order_spec = dict(
+    order_spec = dict( 
         symbol=symbol,
-        side=side,
-        type=ORDER_TYPE_LIMIT,  # Alternatively, ORDER_TYPE_LIMIT_MAKER
-        timeInForce=TIME_IN_FORCE_GTC,
-        quantity=quantity_str,
-        price=price_str,
+        type=side,
+        volume=float(quantity_str),
+        price=float(price_str),
+        type_time=mt5.ORDER_TIME_GTC, 
+        type_filling=mt5.ORDER_FILLING_IOC,
+        deviation=20,
     )
 
     if trade_model.get("no_trades_only_data_processing"):
@@ -383,29 +395,23 @@ def execute_order(order: dict):
     # TODO: Check validity, e.g., against filters (min, max) and our own limits
 
     if trade_model.get("test_order_before_submit"):
-        try:
-            log.info(f"Submitting test order: {order}")
-            test_response = App.client.create_test_order(**order)  # Returns {} if ok. Does not check available balances - only trade rules
-        except Exception as e:
-            log.error(f"Binance exception in 'create_test_order' {e}")
-            # TODO: Reset/resync whole account
-            return
+        log.info(f"Submitting test order: {order}")
+        # TODO: Check if it is possible to test order in MT5
+        pass
 
     if trade_model.get("simulate_order_execution"):
         # TODO: Simply store order so that later we can check conditions of its execution
         print(order)
         pass
     else:
-        # -----
         # Submit order
-        try:
-            log.info(f"Submitting order: {order}")
-            order = App.client.create_order(**order)
-        except Exception as e:
-            log.error(f"Binance exception in 'create_order' {e}")
-            return
-
-        if not order or not order.get("status"):
+        log.info(f"Submitting order: {order}")
+        request = { 
+            "action": mt5.TRADE_ACTION_DEAL, 
+            **order
+        }
+        result = mt5.order_send(request)
+        if result.retcode != mt5.TRADE_RETCODE_DONE:
+            log.error(f"MT5 error in 'order_send' {mt5.last_error()}")
             return None
-
-    return order
+        return result._asdict() 
