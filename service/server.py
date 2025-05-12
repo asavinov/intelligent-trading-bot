@@ -47,6 +47,7 @@ async def main_task():
     # 1. Execute input adapters to receive new data from data source(s)
     #
     venue = App.config.get("venue")
+    venue = Venue(venue)
     main_collector_task, _, _ = get_collector_functions(venue)
 
     try:
@@ -102,16 +103,15 @@ def start_server(config_file):
         if venue is not None:
             venue = Venue(venue)
     except ValueError as e:
-        log.error(f"Invalid venue specified in config: {venue}. Error: {e}")
+        log.error(f"Invalid venue specified in config: {venue}. Error: {e}. Currently these values are supported: {[e.value for e in Venue]}")
         return
     
     _, data_provider_health_check, sync_data_collector_task = get_collector_functions(venue)
     trader_funcs = get_trader_functions(venue)
     
-    log.info(f"Initializing server. Trade pair: {symbol}. ")
+    log.info(f"Initializing server. Venue: {venue.value}. Trade pair: {symbol}. Frequency: {freq}")
     
     #getcontext().prec = 8
-
 
     #
     # Validation
@@ -190,7 +190,7 @@ def start_server(config_file):
     trigger = freq_to_CronTrigger(freq)
 
     App.sched.add_job(
-        main_task, 
+        main_task,
         trigger=trigger,
         id='main_task'
     )
@@ -203,9 +203,6 @@ def start_server(config_file):
     # Start event loop and scheduler
     #
     try:
-        # Start the scheduler *INSIDE* the try block, right before running the loop
-        App.sched.start()
-        log.info(f"Scheduler started.")
         App.loop.run_forever()  # Blocking. Run until stop() is called
     except KeyboardInterrupt:
         log.info(f"KeyboardInterrupt.")

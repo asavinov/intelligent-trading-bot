@@ -10,11 +10,10 @@ from decimal import *
 import numpy as np
 import pandas as pd
 
-import MetaTrader5 as mt5
-
 from apscheduler.triggers.cron import CronTrigger
 
 from binance.helpers import date_to_milliseconds, interval_to_milliseconds
+import MetaTrader5 as mt5
 
 from common.gen_features import *
 
