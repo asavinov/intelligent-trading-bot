@@ -1,8 +1,9 @@
 {
-    "venue": "binance",
+    "venue": "mt5",
     
-    "api_key": "<binance-key>",
-    "api_secret": "<binance-secret>",
+    "mt5_account_id": "<mt5-account-id>",
+    "mt5_password": "<mt5-password>",
+    "mt5_server": "<mt5-server>",
 
     "telegram_bot_token": "<token>",
     "telegram_chat_id": "<chat-id-to-publish-messages>",
@@ -11,14 +12,17 @@
 
     // === DOWNLOAD AND MERGE ===
 
-    "symbol": "BTCUSDT",
+    "symbol": "BTCUSD",
 
-    "description": "BTCUSDT 1h SVM",
+    "description": "BTCUSD 1h",
 
     "freq": "1h", // pandas frequency
 
     "data_sources": [
-        {"folder": "BTCUSDT", "file": "klines", "column_prefix": ""}
+        {"folder": "BTCUSD", "file": "klines", "column_prefix": ""},
+        {"folder": "BTCUSD", "file": "ticks", "column_prefix": "", "chunk_size": 10}, // you can also specify the chunk size, tick data not working yet, maybe it has something to do with the CHUNK SIZE
+        {"folder": "EURUSD", "file": "klines", "column_prefix": ""},
+        {"folder": "GBPUSD", "file": "klines", "column_prefix": ""}
     ],
 
     // === GENERATE FEATURES ===

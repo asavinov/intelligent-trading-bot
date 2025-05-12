@@ -1,4 +1,4 @@
-from datetime import datetime
+
 from decimal import *
 import asyncio
 
@@ -8,19 +8,23 @@ from apscheduler.schedulers.asyncio import AsyncIOScheduler
 
 from binance import Client
 
+from common.types import Venue
 from service.App import *
 from common.utils import *
 from common.generators import output_feature_set
 from service.analyzer import *
+from service.mt5 import connect_mt5
 
-from inputs.collector_binance import main_collector_task, data_provider_health_check, sync_data_collector_task
+from inputs import get_collector_functions
 
 from outputs.notifier_trades import *
 from outputs.notifier_scores import *
 from outputs.notifier_diagram import *
-from outputs.trader_binance import trader_binance, update_trade_status
+from outputs import get_trader_functions
+
 
 import logging
+
 log = logging.getLogger('server')
 
 logging.basicConfig(
@@ -31,16 +35,20 @@ logging.basicConfig(
     #datefmt = '%Y-%m-%d %H:%M:%S',
 )
 
+# Get the collector functions based on the collector type
+
 #
 # Main procedure
 #
-
 async def main_task():
     """This task will be executed regularly according to the schedule"""
 
     #
     # 1. Execute input adapters to receive new data from data source(s)
     #
+    venue = App.config.get("venue")
+    venue = Venue(venue)
+    main_collector_task, _, _ = get_collector_functions(venue)
 
     try:
         res = await main_collector_task()
@@ -90,9 +98,19 @@ def start_server(config_file):
 
     symbol = App.config["symbol"]
     freq = App.config["freq"]
-
-    log.info(f"Initializing server. Trade pair: {symbol}. ")
-
+    venue = App.config.get("venue")
+    try:
+        if venue is not None:
+            venue = Venue(venue)
+    except ValueError as e:
+        log.error(f"Invalid venue specified in config: {venue}. Error: {e}. Currently these values are supported: {[e.value for e in Venue]}")
+        return
+    
+    _, data_provider_health_check, sync_data_collector_task = get_collector_functions(venue)
+    trader_funcs = get_trader_functions(venue)
+    
+    log.info(f"Initializing server. Venue: {venue.value}. Trade pair: {symbol}. Frequency: {freq}")
+    
     #getcontext().prec = 8
 
     #
@@ -102,10 +120,18 @@ def start_server(config_file):
     #
     # Connect to the server and update/initialize the system state
     #
-    App.client = Client(api_key=App.config["api_key"], api_secret=App.config["api_secret"])
+    if venue == Venue.BINANCE:
+        App.client = Client(api_key=App.config["api_key"], api_secret=App.config["api_secret"])
+    
+    if venue == Venue.MT5:
+        authorized = connect_mt5(mt5_account_id=int(App.config.get("mt5_account_id")), mt5_password=str(App.config.get("mt5_password")), mt5_server=str(App.config.get("mt5_server")))
+        if not authorized:
+            log.error(f"Failed to connect to MT5. Check credentials and server details.")
+            return
+        App.client = mt5  
 
     App.analyzer = Analyzer(App.config)
-
+    
     App.loop = asyncio.get_event_loop()
 
     # Do one time server check and state update
@@ -141,7 +167,7 @@ def start_server(config_file):
     # Initialize trade status (account, balances, orders etc.) in case we are going to really execute orders
     if App.config.get("trade_model", {}).get("trader_binance"):
         try:
-            App.loop.run_until_complete(update_trade_status())
+            App.loop.run_until_complete(trader_funcs['update_trade_status']())
         except Exception as e:
             log.error(f"Problems trade status sync. {e}")
 
@@ -150,8 +176,8 @@ def start_server(config_file):
             return
 
         log.info(f"Finished trade status sync (account, balances etc.)")
-        log.info(f"Balance: {App.config['base_asset']} = {str(App.base_quantity)}")
-        log.info(f"Balance: {App.config['quote_asset']} = {str(App.quote_quantity)}")
+        log.info(f"Balance: {App.config['base_asset']} = {str(App.account_info.base_quantity)}")
+        log.info(f"Balance: {App.config['quote_asset']} = {str(App.account_info.quote_quantity)}")
 
     #
     # Register scheduler
@@ -172,19 +198,34 @@ def start_server(config_file):
     App.sched.start()  # Start scheduler (essentially, start the thread)
 
     log.info(f"Scheduler started.")
-
+    
     #
-    # Start event loop
+    # Start event loop and scheduler
     #
     try:
         App.loop.run_forever()  # Blocking. Run until stop() is called
     except KeyboardInterrupt:
         log.info(f"KeyboardInterrupt.")
     finally:
+        log.info("Shutting down...")
+        # Graceful shutdown
+        if App.sched and App.sched.running:
+             App.sched.shutdown()
+             log.info(f"Scheduler shutdown.")
+        # Stop the loop if it's still running (e.g., if shutdown initiated by signal other than KeyboardInterrupt)
+        if App.loop.is_running():
+             App.loop.stop()
+             log.info("Event loop stop requested.")
+        # Close the loop
+        # Allow pending tasks to complete before closing (optional but good practice)
+        # You might need to run loop.run_until_complete(asyncio.sleep(0.1)) or similar
+        # if loop.stop() doesn't immediately halt everything.
         App.loop.close()
         log.info(f"Event loop closed.")
-        App.sched.shutdown()
-        log.info(f"Scheduler shutdown.")
+        # Shutdown MT5 connection if it was initialized
+        if venue == Venue.MT5:
+            mt5.shutdown()
+            log.info("MT5 connection shutdown.")
 
     return 0
 

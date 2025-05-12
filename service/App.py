@@ -5,6 +5,7 @@ from datetime import datetime, date, timedelta
 import re
 
 import pandas as pd
+from common.types import AccountBalances, MT5AccountInfo
 
 PACKAGE_ROOT = Path(__file__).parent.parent
 #PACKAGE_PARENT = '..'
@@ -47,25 +48,35 @@ class App:
     order = None  # Latest or current order
     order_time = None  # Order submission time
 
+    # Account Info
     # Available assets for trade
     # Can be set by the sync/recover function or updated by the trading algorithm
-    base_quantity = "0.04108219"  # BTC owned (on account, already bought, available for trade)
-    quote_quantity = "1000.0"  # USDT owned (on account, available for trade)
+    # base_quantity = "0.04108219"  # BTC owned (on account, already bought, available for trade)
+    # quote_quantity = "1000.0"  # USDT owned (on account, available for trade)
+    account_info: Union[AccountBalances, MT5AccountInfo] = AccountBalances()
 
     #
     # Trader. Status data retrieved from the server. Below are examples only.
     #
     system_status = {"status": 0, "msg": "normal"}  # 0: normal，1：system maintenance
     symbol_info = {}
-    account_info = {}
+    # account_info = {}
 
     #
     # Constant configuration parameters
     #
     config = {
+        # Venue 
+        "venue": "",
+        
         # Binance
         "api_key": "",
         "api_secret": "",
+        
+        # MetaTrader5
+        "mt5_account_id": "",
+        "mt5_password": "",
+        "mt5_server": "",
 
         # Telegram
         "telegram_bot_token": "",  # Source address of messages
@@ -92,7 +103,7 @@ class App:
         # === DOWNLOADER, MERGER and (online) READER ===
 
         # Symbol determines sub-folder and used in other identifiers
-        "symbol": "BTCUSDT",  # BTCUSDT ETHUSDT ^gspc
+        "symbol": "BTCUSDT",  # BTCUSDT ETHUSDT ^gspc EURUSD
 
         # This parameter determines time raster (granularity) for the data
         # It is pandas frequency
