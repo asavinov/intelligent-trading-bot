@@ -195,6 +195,7 @@ def start_server(config_file):
         id='main_task'
     )
 
+    App.sched._eventloop = App.loop
     App.sched.start()  # Start scheduler (essentially, start the thread)
 
     log.info(f"Scheduler started.")

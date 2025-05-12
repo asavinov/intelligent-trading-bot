@@ -1,5 +1,8 @@
 # Change Log
 
+* v0.8.dev
+  * Added MT5 integration
+
 * v0.7.0 (2025-04-27)
   * introduce a generic format for output functions like notifiers and traders
   * make server and the scripts work with different frequencies rather than only 1 minute

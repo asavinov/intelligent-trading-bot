@@ -128,7 +128,7 @@ async def generate_transaction_stats():
     df = df[max(mask.idxmax()-1, 0):]  # We add one previous row to use the previous close
 
     df["prev_close"] = df["close"].shift()
-    df["profit_percent"] = df.apply(lambda x: 100.0*x["profit"]/x["prev_close"], axis=1)
+    df["profit_percent"] = df.apply(lambda x: 100.0*x["profit"]/x["prev_close"] if not x["prev_close"] else 0.0, axis=1)
 
     df = df.iloc[1:]  # Remove the first row which was added to compute relative profit
 
