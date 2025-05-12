@@ -1,12 +1,13 @@
 from decimal import *
+from enum import Enum
 
 import pandas as pd
 import asyncio
+
 import MetaTrader5 as mt5
 
 from service.App import *
 from common.utils import *
-from common.types import MT5OrderStatus
 from outputs.notifier_trades import get_signal
 from service.mt5 import connect_mt5
 
@@ -414,4 +415,14 @@ def execute_order(order: dict):
         if result.retcode != mt5.TRADE_RETCODE_DONE:
             log.error(f"MT5 error in 'order_send' {mt5.last_error()}")
             return None
-        return result._asdict() 
+        return result._asdict()
+
+
+class MT5OrderStatus(Enum):
+    NEW = mt5.ORDER_STATE_PLACED
+    PARTIALLY_FILLED = mt5.ORDER_STATE_PARTIAL
+    FILLED = mt5.ORDER_STATE_FILLED
+    CANCELED = mt5.ORDER_STATE_CANCELED
+    PENDING_CANCEL = mt5.ORDER_STATE_REQUEST_CANCEL
+    REJECTED = mt5.ORDER_STATE_REJECTED
+    EXPIRED = mt5.ORDER_STATE_EXPIRED

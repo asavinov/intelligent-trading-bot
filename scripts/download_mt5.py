@@ -5,10 +5,11 @@ import os
 
 import pandas as pd
 import click
-import MetaTrader5 as mt5
 import pytz
 
-from common.utils import mt5_freq_from_pandas, get_timedelta_for_mt5_timeframe
+import MetaTrader5 as mt5
+
+from common.utils_mt5 import mt5_freq_from_pandas, get_timedelta_for_mt5_timeframe
 from service.App import App, load_config
 from service.mt5 import connect_mt5
 

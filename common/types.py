@@ -1,6 +1,5 @@
 from decimal import Decimal
 from enum import Enum
-import MetaTrader5 as mt5
 
 class Venue(Enum):
     BINANCE = "binance"
@@ -28,14 +27,3 @@ class MT5AccountInfo:
     name: str = ""
     server: str = ""
     leverage: int = 1
-
-
-class MT5OrderStatus(Enum):
-    NEW = mt5.ORDER_STATE_PLACED
-    PARTIALLY_FILLED = mt5.ORDER_STATE_PARTIAL
-    FILLED = mt5.ORDER_STATE_FILLED
-    CANCELED = mt5.ORDER_STATE_CANCELED
-    PENDING_CANCEL = mt5.ORDER_STATE_REQUEST_CANCEL
-    REJECTED = mt5.ORDER_STATE_REJECTED
-    EXPIRED = mt5.ORDER_STATE_EXPIRED
-    

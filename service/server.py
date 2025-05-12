@@ -13,7 +13,6 @@ from service.App import *
 from common.utils import *
 from common.generators import output_feature_set
 from service.analyzer import *
-from service.mt5 import connect_mt5
 
 from inputs import get_collector_functions
 
@@ -124,6 +123,7 @@ def start_server(config_file):
         App.client = Client(api_key=App.config["api_key"], api_secret=App.config["api_secret"])
     
     if venue == Venue.MT5:
+        from service.mt5 import connect_mt5
         authorized = connect_mt5(mt5_account_id=int(App.config.get("mt5_account_id")), mt5_password=str(App.config.get("mt5_password")), mt5_server=str(App.config.get("mt5_server")))
         if not authorized:
             log.error(f"Failed to connect to MT5. Check credentials and server details.")

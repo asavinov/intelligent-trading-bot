@@ -12,7 +12,7 @@ import asyncio
 import MetaTrader5 as mt5
 import pytz
 
-from common.utils import mt5_freq_from_pandas, get_timedelta_for_mt5_timeframe
+from common.utils_mt5 import mt5_freq_from_pandas, get_timedelta_for_mt5_timeframe
 from service.App import *
 from common.utils import *
 from service.analyzer import *
