@@ -132,7 +132,8 @@ def start_server(config_file):
 
     App.analyzer = Analyzer(App.config)
     
-    App.loop = asyncio.get_event_loop()
+    #App.loop = asyncio.get_event_loop()  # In Python 3.12: DeprecationWarning: There is no current event loop
+    App.loop = asyncio.new_event_loop()
 
     # Do one time server check and state update
     try:
