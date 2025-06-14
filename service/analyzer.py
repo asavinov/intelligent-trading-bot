@@ -54,19 +54,15 @@ class Analyzer:
         self.queue = queue.Queue()
 
         #
-        # Load models
+        # Model store and loading models
         #
-        symbol = App.config["symbol"]
-        data_path = Path(App.config["data_folder"]) / symbol
 
-        model_path = Path(App.config["model_folder"])
-        if not model_path.is_absolute():
-            model_path = data_path / model_path
-        model_path = model_path.resolve()
+        self.model_store = ModelStore(App.config)
+        self.models = self.model_store.load_models_for_generators()
 
-        self.models = load_models_for_generators(App.config, model_path)
-
+        #
         # Load latest transaction and (simulated) trade state
+        #
         App.transaction = load_last_transaction()
 
     #

@@ -11,6 +11,7 @@ tqdm
 python-binance==1.0.*
 #MetaTrader5>=5.0.4874; sys_platform == 'win32'  # If mt5 venue is used
 #yfinance
+#curl-cffi  # Used in yahoo downloder
 
 # Features/label generation
 # tsfresh  # if tsfresh feature generator is used. It depends on matrixprofile with binary (in pip) only for Python 3.8

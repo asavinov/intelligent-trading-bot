@@ -31,6 +31,7 @@ class P:
 @click.option('--config_file', '-c', type=click.Path(), default='', help='Configuration file name')
 def main(config_file):
     load_config(config_file)
+    model_store = ModelStore(App.config)
 
     time_column = App.config["time_column"]
 
@@ -132,17 +133,10 @@ def main(config_file):
     #
     # Store all collected models in files
     #
-    model_path = Path(App.config["model_folder"])
-    if not model_path.is_absolute():
-        model_path = data_path / model_path
-    model_path = model_path.resolve()
-
-    model_path.mkdir(parents=True, exist_ok=True)  # Ensure that folder exists
-
     for score_column_name, model_pair in models.items():
-        save_model_pair(model_path, score_column_name, model_pair)
+        model_store.save_model_pair(score_column_name, model_pair)
 
-    print(f"Models stored in path: {model_path.absolute()}")
+    print(f"Models stored in path: {model_store.model_path.absolute()}")
 
     #
     # Store scores

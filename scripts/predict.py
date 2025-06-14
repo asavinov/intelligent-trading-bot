@@ -27,6 +27,7 @@ class P:
 @click.option('--config_file', '-c', type=click.Path(), default='', help='Configuration file name')
 def main(config_file):
     load_config(config_file)
+    model_store = ModelStore(App.config)
 
     time_column = App.config["time_column"]
 
@@ -86,12 +87,7 @@ def main(config_file):
     #
     # Load models for all score columns
     #
-    model_path = Path(App.config["model_folder"])
-    if not model_path.is_absolute():
-        model_path = data_path / model_path
-    model_path = model_path.resolve()
-
-    models = load_models_for_generators(App.config, model_path)
+    models = model_store.load_models_for_generators()
 
     #
     # Generate/predict train features
