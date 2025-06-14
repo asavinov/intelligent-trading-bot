@@ -56,9 +56,8 @@ class Analyzer:
         #
         # Model store and loading models
         #
-
         self.model_store = ModelStore(App.config)
-        self.models = self.model_store.load_models_for_generators()
+        self.model_store.load_models()
 
         #
         # Load latest transaction and (simulated) trade state
@@ -340,7 +339,7 @@ class Analyzer:
         score_df = pd.DataFrame(index=predict_df.index)
         train_feature_columns = []
         for fs in train_feature_sets:
-            fs_df, feats, _ = predict_feature_set(predict_df, fs, App.config, self.models)
+            fs_df, feats, _ = predict_feature_set(predict_df, fs, App.config, self.model_store.get_all_model_pairs())
             score_df = pd.concat([score_df, fs_df], axis=1)
             train_feature_columns.extend(feats)
 

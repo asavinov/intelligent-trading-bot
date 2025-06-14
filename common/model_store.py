@@ -1,3 +1,5 @@
+import json
+import pickle
 import itertools
 from pathlib import Path
 
@@ -52,60 +54,82 @@ class ModelStore:
 
         self.model_registry = config.get("model_registry", [])
 
+        # Currently, for compatibility, we use two approaches to model representation:
+        # models are named by the derived feature name corresponding to label-algo combination used in the generator config
+        self.model_pairs = {}  # Old convention with label-algo pairs identified by output feature name
+        # arbitrary model name and such models are supposed to be listed in the model registry
         self.models = []  # List of dicts with model attributes
 
-        #
-        # Load models
-        #
+    def load_models(self):
+        """Load models from persistent store to memory where they are available for consumers."""
 
-        # For compatibility with the previous version where models are identified by the label-algo pair in the generator config
-        # It returns a dict with (model name, model object) pairs by getting information from generator (previous version) configs
-        #self.ml_models = self.load_models_for_generators()
+        #
+        # 1. Load models (model pairs) according to the old label-algo convention (models identified by feature name)
+        #
+        self.model_pairs = self._load_models_for_generators()
+
+        #
+        # 2. Load models explicitly declared in the registry by (name, file, ...)
+        #
+        for model_entry in self.model_registry:
+            model_file = model_entry.get("file")
+            model_path = self.model_path / model_file
+            model_extension = model_path.suffix.lower()
+            if model_extension == ".json":  # Python dict
+                with open(model_path) as f:
+                    model_object = json.load(f)
+            elif model_extension in [".txt", ".csv"]:  # Python string
+                model_object = model_path.read_text()
+            elif model_extension in [".pickle", ".scaler"]:  # Python serialization
+                model_object = load(model_path)
+            else:  # Python object
+                with open(model_path, 'rb') as f:
+                   model_object = pickle.load(f)
+                # Alternatively model_object = joblib.load(model_path)
+
+            model_entry["object"] = model_object  # Store in an entry attribute
+
+    def put_model(self, name: str, model):
+        """Store the specified model object with the specified name."""
+        model_entry = self.model_registry.get(name, None)
+
+        model_entry["object"] = model
+
+        model_file = model_entry.get("file")
+        model_path = self.model_path / model_file
+        model_extension = model_path.suffix.lower()
+
+        if model_extension == ".json":  # Python dict
+            with open(model_path) as f:
+                json.dump(model, f)
+        elif model_extension in [".txt", ".csv"]:  # Python string
+            model_path.write_text(model)
+        elif model_extension in [".pickle", ".scaler"]:  # Python serialization
+            dump(model, model_path)
+        else:  # Python object
+            with open(model_path, 'wb') as f:
+                pickle.dump(model, f)
+            # Alternatively joblib.dump(model, model_path)
+
+    def get_model(self, name: str):
+        """Retrieve and return a model object with the specified name"""
+        return None
+
+    def get_all_model_pairs(self):
+        return self.model_pairs
+
+    def get_model_pair(self, column_name: str):
+        return self.model_pairs[column_name]
+
+    def put_model_pair(self, column_name: str, model_pair: tuple):
+        self.model_pairs[column_name] = model_pair
+        self._save_label_algo_model_pair_to_file(column_name, model_pair)
 
     #
     # Old approach where models are identified by label-algo pairs
     #
 
-    def save_model_pair(self, score_column_name: str, model_pair: tuple):
-        """Save two models in two files with the corresponding extensions."""
-        self.model_path.mkdir(parents=True, exist_ok=True)  # Ensure that folder exists
-
-        model = model_pair[0]
-        scaler = model_pair[1]
-        # Save scaler
-        scaler_file_name = (self.model_path / score_column_name).with_suffix(".scaler")
-        dump(scaler, scaler_file_name)
-        # Save prediction model
-        model_extension = ".pickle"
-        model_file_name = (self.model_path / score_column_name).with_suffix(model_extension)
-        dump(model, model_file_name)
-
-    def load_model_pair(self, score_column_name: str):
-        """Load a pair consisting of scaler model (possibly null) and prediction model from two files."""
-        # Load scaler
-        scaler_file_name = (self.model_path / score_column_name).with_suffix(".scaler")
-        scaler = load(scaler_file_name)
-        # Load prediction model
-        model_extension = ".pickle"
-        model_file_name = (self.model_path / score_column_name).with_suffix(model_extension)
-        model = load(model_file_name)
-
-        return (model, scaler)
-
-    def load_models(self, labels: list, algorithms: list):
-        """Load all model pairs for all combinations of labels and algorithms and return as a dict."""
-        models = {}
-        for label_algorithm in itertools.product(labels, algorithms):
-            score_column_name = label_algorithm[0] + label_algo_separator + label_algorithm[1]["name"]
-            try:
-                model_pair = self.load_model_pair(score_column_name)
-            except Exception as e:
-                log.error(f"ERROR: Cannot load model {score_column_name} from path {self.model_path}. Skip.")
-                continue
-            models[score_column_name] = model_pair
-        return models
-
-    def load_models_for_generators(self):
+    def _load_models_for_generators(self):
         """Load all model pairs which are really used according to the algorithm section."""
 
         labels_default = self.config.get("labels", [])
@@ -127,11 +151,50 @@ class ModelStore:
             algorithms = resolve_algorithms_for_generator(algorithm_names, algorithms_default)
 
             # Load models for all combinations of labels and algorithms
-            fs_models = self.load_models(labels, algorithms)
+            fs_models = self._load_all_label_algo_model_pairs(labels, algorithms)
 
             models.update(fs_models)
 
         return models
+
+    def _load_all_label_algo_model_pairs(self, labels: list, algorithms: list):
+        """Load all model pairs for all combinations of labels and algorithms and return as a dict."""
+        models = {}
+        for label_algorithm in itertools.product(labels, algorithms):
+            score_column_name = label_algorithm[0] + label_algo_separator + label_algorithm[1]["name"]
+            try:
+                model_pair = self._load_label_algo_model_pair_from_file(score_column_name)
+            except Exception as e:
+                log.error(f"ERROR: Cannot load model {score_column_name} from path {self.model_path}. Skip.")
+                continue
+            models[score_column_name] = model_pair
+        return models
+
+    def _load_label_algo_model_pair_from_file(self, score_column_name: str):
+        """Load a pair consisting of scaler model (possibly null) and prediction model from two files."""
+        # Load scaler
+        scaler_file_name = (self.model_path / score_column_name).with_suffix(".scaler")
+        scaler = load(scaler_file_name)
+        # Load prediction model
+        model_extension = ".pickle"
+        model_file_name = (self.model_path / score_column_name).with_suffix(model_extension)
+        model = load(model_file_name)
+
+        return (model, scaler)
+
+    def _save_label_algo_model_pair_to_file(self, column_name: str, model_pair: tuple):
+        """Save two models in two files with the corresponding extensions."""
+        self.model_path.mkdir(parents=True, exist_ok=True)  # Ensure that folder exists
+
+        model = model_pair[0]
+        scaler = model_pair[1]
+        # Save scaler
+        scaler_file_name = (self.model_path / column_name).with_suffix(".scaler")
+        dump(scaler, scaler_file_name)
+        # Save prediction model
+        model_extension = ".pickle"
+        model_file_name = (self.model_path / column_name).with_suffix(model_extension)
+        dump(model, model_file_name)
 
 
 def resolve_algorithms_for_generator(algorithm_names: list, algorithms_default: list):

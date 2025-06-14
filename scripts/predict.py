@@ -27,7 +27,9 @@ class P:
 @click.option('--config_file', '-c', type=click.Path(), default='', help='Configuration file name')
 def main(config_file):
     load_config(config_file)
+
     model_store = ModelStore(App.config)
+    model_store.load_models()
 
     time_column = App.config["time_column"]
 
@@ -85,11 +87,6 @@ def main(config_file):
     df = df.reset_index(drop=True)  # We must reset index after removing rows to remove gaps
 
     #
-    # Load models for all score columns
-    #
-    models = model_store.load_models_for_generators()
-
-    #
     # Generate/predict train features
     #
     train_feature_sets = App.config.get("train_feature_sets", [])
@@ -107,7 +104,7 @@ def main(config_file):
         fs_now = datetime.now()
         print(f"Start train feature set {i}/{len(train_feature_sets)}. Generator {fs.get('generator')}...")
 
-        fs_out_df, fs_features, fs_scores = predict_feature_set(df, fs, App.config, models)
+        fs_out_df, fs_features, fs_scores = predict_feature_set(df, fs, App.config, model_store.get_all_model_pairs())
 
         out_df = pd.concat([out_df, fs_out_df], axis=1)
         features.extend(fs_features)
