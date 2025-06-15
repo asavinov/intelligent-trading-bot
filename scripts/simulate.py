@@ -10,6 +10,7 @@ from sklearn.model_selection import ParameterGrid
 
 from service.App import *
 from common.utils import *
+from common.model_store import *
 from common.backtesting import *
 from common.classifiers import *
 from common.generators import generate_feature_set
@@ -40,6 +41,9 @@ class P:
 @click.option('--config_file', '-c', type=click.Path(), default='', help='Configuration file name')
 def main(config_file):
     load_config(config_file)
+
+    App.model_store = ModelStore(App.config)
+    App.model_store.load_models()
 
     time_column = App.config["time_column"]
 
@@ -150,7 +154,7 @@ def main(config_file):
         #
         # Execute the signal generator with new parameters by producing new signal columns
         #
-        df, new_features = generate_feature_set(df, signal_generator, last_rows=0)
+        df, new_features = generate_feature_set(df, signal_generator, App.config, App.model_store, last_rows=0)
 
         #
         # Simulate trade and compute performance using close price and two boolean signals

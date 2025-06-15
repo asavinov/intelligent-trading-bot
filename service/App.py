@@ -5,6 +5,8 @@ from datetime import datetime, date, timedelta
 import re
 
 import pandas as pd
+
+from common.model_store import *
 from common.types import AccountBalances, MT5AccountInfo
 
 PACKAGE_ROOT = Path(__file__).parent.parent
@@ -61,6 +63,8 @@ class App:
     system_status = {"status": 0, "msg": "normal"}  # 0: normal，1：system maintenance
     symbol_info = {}
     # account_info = {}
+
+    model_store: ModelStore = None
 
     #
     # Constant configuration parameters

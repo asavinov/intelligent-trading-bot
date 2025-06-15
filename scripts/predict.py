@@ -104,7 +104,7 @@ def main(config_file):
         fs_now = datetime.now()
         print(f"Start train feature set {i}/{len(train_feature_sets)}. Generator {fs.get('generator')}...")
 
-        fs_out_df, fs_features, fs_scores = predict_feature_set(df, fs, App.config, model_store.get_all_model_pairs())
+        fs_out_df, fs_features, fs_scores = predict_feature_set(df, fs, App.config, model_store)
 
         out_df = pd.concat([out_df, fs_out_df], axis=1)
         features.extend(fs_features)

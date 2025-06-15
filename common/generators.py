@@ -20,7 +20,7 @@ from outputs.notifier_trades import *
 from outputs.trader_binance import *
 
 
-def generate_feature_set(df: pd.DataFrame, fs: dict, last_rows: int) -> Tuple[pd.DataFrame, list]:
+def generate_feature_set(df: pd.DataFrame, fs: dict, config: dict, model_store: ModelStore, last_rows: int) -> Tuple[pd.DataFrame, list]:
     """
     Apply the specified resolved feature generator to the input data set.
     """
@@ -114,7 +114,7 @@ def generate_feature_set(df: pd.DataFrame, fs: dict, last_rows: int) -> Tuple[pd
     return df, new_features
 
 
-def predict_feature_set(df, fs, config, models: dict):
+def predict_feature_set(df, fs, config, model_store: ModelStore) -> Tuple[pd.DataFrame, list, dict]:
 
     labels_all = config.get("labels", [])
     labels = fs.get("config").get("labels", [])
@@ -157,7 +157,7 @@ def predict_feature_set(df, fs, config, models: dict):
             score_column_name = label + label_algo_separator + algo_name
 
             # It is an entry from loaded model dict
-            model_pair = models.get(score_column_name)  # Trained model from model registry
+            model_pair = model_store.get_model_pair(score_column_name)  # Trained model from model registry
 
             print(f"Predict '{score_column_name}'. Algorithm {algo_name}. Label: {label}. Train length {len(train_df)}. Train columns {len(train_df.columns)}")
 
@@ -186,7 +186,7 @@ def predict_feature_set(df, fs, config, models: dict):
     return out_df, features, scores
 
 
-def train_feature_set(df, fs, config):
+def train_feature_set(df, fs, config) -> Tuple[pd.DataFrame, dict, dict]:
 
     labels_all = config.get("labels", [])
     labels = fs.get("config").get("labels", [])
@@ -275,7 +275,7 @@ def train_feature_set(df, fs, config):
     return out_df, models, scores
 
 
-async def output_feature_set(df, fs: dict, config: dict):
+async def output_feature_set(df, fs: dict, config: dict, model_store: ModelStore) -> None:
     #
     # Resolve and apply feature generator functions from the configuration
     #

@@ -81,7 +81,7 @@ async def main_task():
     output_sets = App.config.get("output_sets", [])
     for os in output_sets:
         try:
-            await output_feature_set(App.df, os, App.config)
+            await output_feature_set(App.df, os, App.config, App.model_store)
         except Exception as e:
             log.error(f"Error in output function: {e}")
             return
@@ -130,7 +130,9 @@ def start_server(config_file):
             return
         App.client = mt5  
 
-    App.analyzer = Analyzer(App.config)
+    App.model_store = ModelStore(App.config)
+    App.model_store.load_models()
+    App.analyzer = Analyzer(App.config, App.model_store)
     
     #App.loop = asyncio.get_event_loop()  # In Python 3.12: DeprecationWarning: There is no current event loop
     App.loop = asyncio.new_event_loop()

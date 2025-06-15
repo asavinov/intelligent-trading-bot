@@ -34,7 +34,7 @@ class Analyzer:
     - "close_time" is a right border of the interval in ms (last millisecond) like "1502942459999" equivalent to "2017-08-17 04:00::59.999"
     """
 
-    def __init__(self, config):
+    def __init__(self, config: dict, model_store: ModelStore):
         """
         Create a new operation object using its definition.
 
@@ -42,6 +42,7 @@ class Analyzer:
         """
 
         self.config = config
+        self.model_store = model_store
 
         #
         # Data state
@@ -52,12 +53,6 @@ class Analyzer:
         self.klines = {}
 
         self.queue = queue.Queue()
-
-        #
-        # Model store and loading models
-        #
-        self.model_store = ModelStore(App.config)
-        self.model_store.load_models()
 
         #
         # Load latest transaction and (simulated) trade state
@@ -311,7 +306,7 @@ class Analyzer:
         feature_sets = App.config.get("feature_sets", [])
         feature_columns = []
         for fs in feature_sets:
-            df, feats = generate_feature_set(df, fs, last_rows=last_rows if not ignore_last_rows else 0)
+            df, feats = generate_feature_set(df, fs, self.config, self.model_store, last_rows=last_rows if not ignore_last_rows else 0)
             feature_columns.extend(feats)
 
         # Shorten the data frame. Only several last rows will be needed and not the whole data context
@@ -339,7 +334,7 @@ class Analyzer:
         score_df = pd.DataFrame(index=predict_df.index)
         train_feature_columns = []
         for fs in train_feature_sets:
-            fs_df, feats, _ = predict_feature_set(predict_df, fs, App.config, self.model_store.get_all_model_pairs())
+            fs_df, feats, _ = predict_feature_set(predict_df, fs, App.config, self.model_store)
             score_df = pd.concat([score_df, fs_df], axis=1)
             train_feature_columns.extend(feats)
 
@@ -353,7 +348,7 @@ class Analyzer:
         signal_sets = App.config.get("signal_sets", [])
         signal_columns = []
         for fs in signal_sets:
-            df, feats = generate_feature_set(df, fs, last_rows=last_rows if not ignore_last_rows else 0)
+            df, feats = generate_feature_set(df, fs, self.config, self.model_store, last_rows=last_rows if not ignore_last_rows else 0)
             signal_columns.extend(feats)
 
         #

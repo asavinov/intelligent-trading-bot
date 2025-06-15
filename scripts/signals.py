@@ -5,8 +5,9 @@ from tqdm import tqdm
 import numpy as np
 import pandas as pd
 
-from common.generators import generate_feature_set
 from service.App import *
+from common.model_store import *
+from common.generators import generate_feature_set
 
 """
 Generate new derived columns according to the signal definitions.
@@ -29,6 +30,9 @@ def main(config_file):
     """
     """
     load_config(config_file)
+
+    App.model_store = ModelStore(App.config)
+    App.model_store.load_models()
 
     time_column = App.config["time_column"]
 
@@ -81,7 +85,7 @@ def main(config_file):
         fs_now = datetime.now()
         print(f"Start feature set {i}/{len(feature_sets)}. Generator {fs.get('generator')}...")
 
-        df, new_features = generate_feature_set(df, fs, last_rows=0)
+        df, new_features = generate_feature_set(df, fs, App.config, App.model_store, last_rows=0)
 
         all_features.extend(new_features)
 

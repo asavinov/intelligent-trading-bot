@@ -4,6 +4,7 @@ import pandas as pd
 import click
 
 from service.App import *
+from common.model_store import *
 from scripts.features import generate_feature_set
 
 """
@@ -29,6 +30,9 @@ def main(config_file):
     compute top-bottom labels, add them to the data, and store to output file.
     """
     load_config(config_file)
+
+    App.model_store = ModelStore(App.config)
+    App.model_store.load_models()
 
     time_column = App.config["time_column"]
 
@@ -76,7 +80,9 @@ def main(config_file):
     for i, fs in enumerate(label_sets):
         fs_now = datetime.now()
         print(f"Start label set {i}/{len(label_sets)}. Generator {fs.get('generator')}...")
-        df, new_features = generate_feature_set(df, fs, last_rows=0)
+
+        df, new_features = generate_feature_set(df, fs, App.config, App.model_store, last_rows=0)
+
         all_features.extend(new_features)
         fs_elapsed = datetime.now() - fs_now
         print(f"Finished label set {i}/{len(label_sets)}. Generator {fs.get('generator')}. Labels: {len(new_features)}. Time: {str(fs_elapsed).split('.')[0]}")
