@@ -15,13 +15,14 @@ from binance.enums import *
 
 from service.App import *
 from common.utils import *
+from common.model_store import *
 from outputs.notifier_trades import get_signal
 
 import logging
 log = logging.getLogger('trader')
 
 
-async def trader_binance(df, model: dict, config: dict):
+async def trader_binance(df, model: dict, config: dict, model_store: ModelStore):
     """
     It is a highest level task which is added to the event loop and executed normally every 1 minute and then it calls other tasks.
     """

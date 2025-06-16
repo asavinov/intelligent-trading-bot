@@ -10,6 +10,7 @@ import requests
 
 from service.App import *
 from common.utils import *
+from common.model_store import *
 from outputs.notifier_trades import load_all_transactions
 
 import logging
@@ -19,7 +20,7 @@ logging.getLogger('PIL').setLevel(logging.WARNING)
 logging.getLogger('matplotlib').setLevel(logging.WARNING)
 
 
-async def send_diagram(df, model: dict, config: dict):
+async def send_diagram(df, model: dict, config: dict, model_store: ModelStore):
     """
     Produce a line chart based on latest data and send it to the channel.
     """
@@ -276,7 +277,3 @@ def generate_chart(df, title, buy_signal_column, sell_signal_column, score_colum
     # plt.show()
 
     return fig
-
-
-if __name__ == '__main__':
-    pass

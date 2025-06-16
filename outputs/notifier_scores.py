@@ -9,12 +9,13 @@ import requests
 
 from service.App import *
 from common.utils import *
+from common.model_store import *
 
 import logging
 log = logging.getLogger('notifier')
 
 
-async def send_score_notification(df, model: dict, config: dict):
+async def send_score_notification(df, model: dict, config: dict, model_store: ModelStore):
     symbol = config["symbol"]
     freq = config["freq"]
 
@@ -142,7 +143,3 @@ def _find_score_band(score_value, model):
         band_no = -(len(bands) - band_no)
 
     return band_no, band
-
-
-if __name__ == '__main__':
-    pass

@@ -8,6 +8,7 @@ import MetaTrader5 as mt5
 
 from service.App import *
 from common.utils import *
+from common.model_store import *
 from outputs.notifier_trades import get_signal
 from service.mt5 import connect_mt5
 
@@ -16,7 +17,7 @@ import logging
 log = logging.getLogger('trader')
 
 
-async def trader_mt5(df: pd.DataFrame, model: dict, config: dict):
+async def trader_mt5(df: pd.DataFrame, model: dict, config: dict, model_store: ModelStore):
     """It is a highest level task which is added to the event loop and executed normally every frequency specified(e.g 1h) and then it calls other tasks.
 
     This function implements the main trading logic for the MetaTrader 5 platform.

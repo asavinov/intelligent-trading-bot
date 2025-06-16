@@ -9,6 +9,7 @@ import requests
 
 from service.App import *
 from common.utils import *
+from common.model_store import *
 
 import logging
 log = logging.getLogger('notifier')
@@ -17,7 +18,7 @@ logging.getLogger('PIL').setLevel(logging.WARNING)
 logging.getLogger('matplotlib').setLevel(logging.WARNING)
 
 
-async def trader_simulation(df, model: dict, config: dict):
+async def trader_simulation(df, model: dict, config: dict, model_store: ModelStore):
     try:
         transaction = await generate_trader_transaction(df, model, config)
     except Exception as e:
@@ -230,7 +231,3 @@ def load_all_transactions():
 
 def get_transaction_path():
     return Path(App.config["data_folder"]) / App.config["symbol"] / "transactions.txt"
-
-
-if __name__ == '__main__':
-    pass

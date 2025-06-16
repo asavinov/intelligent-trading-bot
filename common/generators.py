@@ -4,6 +4,7 @@ import numpy as np
 import pandas as pd
 from pandas.api.types import is_float_dtype, is_numeric_dtype, is_integer_dtype, is_string_dtype
 
+from common.types import Venue
 from common.classifiers import *
 from common.model_store import *
 from common.gen_features import *
@@ -17,7 +18,7 @@ from common.gen_signals import (
 from outputs.notifier_scores import *
 from outputs.notifier_diagram import *
 from outputs.notifier_trades import *
-from outputs.trader_binance import *
+from outputs import get_trader_functions
 
 
 def generate_feature_set(df: pd.DataFrame, fs: dict, config: dict, model_store: ModelStore, last_rows: int) -> Tuple[pd.DataFrame, list]:
@@ -94,7 +95,7 @@ def generate_feature_set(df: pd.DataFrame, fs: dict, config: dict, model_store: 
             raise ValueError(f"Unknown feature generator name or name cannot be resolved: {generator}")
 
         # Call this function
-        f_df, features = generator_fn(f_df, gen_config)
+        f_df, features = generator_fn(f_df, gen_config, config, model_store)
 
     #
     # Add generated features to the main data frame with all other columns and features
@@ -289,7 +290,9 @@ async def output_feature_set(df, fs: dict, config: dict, model_store: ModelStore
     elif generator == "trader_simulation":
         generator_fn = trader_simulation
     elif generator == "trader_binance":
-        generator_fn = trader_binance
+        generator_fn = get_trader_functions(Venue.BINANCE)["trader"]
+    elif generator == "trader_mt5":
+        generator_fn = get_trader_functions(Venue.MT5)["trader"]
 
     else:
         # Resolve generator name to a function reference
@@ -300,8 +303,8 @@ async def output_feature_set(df, fs: dict, config: dict, model_store: ModelStore
     # Call the resolved function
     if asyncio.iscoroutinefunction(generator_fn):
         if asyncio.get_running_loop():
-            await generator_fn(df, gen_config, config)
+            await generator_fn(df, gen_config, config, model_store)
         else:
-            asyncio.run(generator_fn(df, gen_config, config))
+            asyncio.run(generator_fn(df, gen_config, config, model_store))
     else:
-        generator_fn(df, gen_config, config)
+        generator_fn(df, gen_config, config, model_store)

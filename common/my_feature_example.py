@@ -2,11 +2,13 @@ from pathlib import Path
 from typing import Union
 import pandas as pd
 
+from common.model_store import *
+
 """
 Example of a feature
 """
 
-def my_feature_example(df, config: dict):
+def my_feature_example(df, config: dict, global_config: dict, model_store: ModelStore):
     """
     Add a parameter to the column or multiply by this parameter
     """
