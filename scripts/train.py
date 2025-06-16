@@ -32,8 +32,8 @@ class P:
 def main(config_file):
     load_config(config_file)
 
-    model_store = ModelStore(App.config)
-    model_store.load_models()
+    App.model_store = ModelStore(App.config)
+    App.model_store.load_models()
 
     time_column = App.config["time_column"]
 
@@ -136,9 +136,9 @@ def main(config_file):
     # Store all collected models in files
     #
     for score_column_name, model_pair in models.items():
-        model_store.put_model_pair(score_column_name, model_pair)
+        App.model_store.put_model_pair(score_column_name, model_pair)
 
-    print(f"Models stored in path: {model_store.model_path.absolute()}")
+    print(f"Models stored in path: {App.model_store.model_path.absolute()}")
 
     #
     # Store scores

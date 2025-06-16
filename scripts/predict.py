@@ -28,8 +28,8 @@ class P:
 def main(config_file):
     load_config(config_file)
 
-    model_store = ModelStore(App.config)
-    model_store.load_models()
+    App.model_store = ModelStore(App.config)
+    App.model_store.load_models()
 
     time_column = App.config["time_column"]
 
@@ -104,7 +104,7 @@ def main(config_file):
         fs_now = datetime.now()
         print(f"Start train feature set {i}/{len(train_feature_sets)}. Generator {fs.get('generator')}...")
 
-        fs_out_df, fs_features, fs_scores = predict_feature_set(df, fs, App.config, model_store)
+        fs_out_df, fs_features, fs_scores = predict_feature_set(df, fs, App.config, App.model_store)
 
         out_df = pd.concat([out_df, fs_out_df], axis=1)
         features.extend(fs_features)

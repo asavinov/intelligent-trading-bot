@@ -38,6 +38,9 @@ class P:
 def main(config_file):
     load_config(config_file)
 
+    App.model_store = ModelStore(App.config)
+    App.model_store.load_models()
+
     time_column = App.config["time_column"]
 
     now = datetime.now()
