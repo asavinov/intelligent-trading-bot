@@ -3,9 +3,9 @@ from pathlib import Path
 import pandas as pd
 import click
 
-from service.App import *
-from common.model_store import *
-from scripts.features import generate_feature_set
+from intelligent_trading_bot.service.App import *
+from intelligent_trading_bot.common.model_store import *
+from intelligent_trading_bot.common.generators import generate_feature_set
 
 """
 This script will load a feature file (or any file with close price), and add

@@ -7,11 +7,11 @@ import numpy as np
 import pandas as pd
 from pandas.api.types import is_float_dtype, is_numeric_dtype, is_integer_dtype, is_string_dtype
 
-from service.App import *
-from common.utils import *
-from common.gen_features import *
-from common.classifiers import *
-from common.model_store import *
+from intelligent_trading_bot.service.App import *
+from intelligent_trading_bot.common.utils import *
+from intelligent_trading_bot.common.gen_features import *
+from intelligent_trading_bot.common.classifiers import *
+from intelligent_trading_bot.common.model_store import *
 
 """
 Generate label predictions for the whole input feature matrix by iteratively training models using historic data and predicting labels for some future horizon.

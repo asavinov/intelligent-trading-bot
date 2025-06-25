@@ -4,21 +4,21 @@ import numpy as np
 import pandas as pd
 from pandas.api.types import is_float_dtype, is_numeric_dtype, is_integer_dtype, is_string_dtype
 
-from common.types import Venue
-from common.classifiers import *
-from common.model_store import *
-from common.gen_features import *
-from common.gen_labels_highlow import generate_labels_highlow, generate_labels_highlow2
-from common.gen_labels_topbot import generate_labels_topbot, generate_labels_topbot2
-from common.gen_signals import (
+from intelligent_trading_bot.common.types import Venue
+from intelligent_trading_bot.common.classifiers import *
+from intelligent_trading_bot.common.model_store import *
+from intelligent_trading_bot.common.gen_features import *
+from intelligent_trading_bot.common.gen_labels_highlow import generate_labels_highlow, generate_labels_highlow2
+from intelligent_trading_bot.common.gen_labels_topbot import generate_labels_topbot, generate_labels_topbot2
+from intelligent_trading_bot.common.gen_signals import (
     generate_smoothen_scores, generate_combine_scores,
     generate_threshold_rule, generate_threshold_rule2
 )
 
-from outputs.notifier_scores import *
-from outputs.notifier_diagram import *
-from outputs.notifier_trades import *
-from outputs import get_trader_functions
+from intelligent_trading_bot.outputs.notifier_scores import *
+from intelligent_trading_bot.outputs.notifier_diagram import *
+from intelligent_trading_bot.outputs.notifier_trades import *
+from intelligent_trading_bot.outputs import get_trader_functions
 
 
 def generate_feature_set(df: pd.DataFrame, fs: dict, config: dict, model_store: ModelStore, last_rows: int) -> Tuple[pd.DataFrame, list]:

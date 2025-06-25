@@ -1,6 +1,6 @@
 [project]
 name = "intelligent-trading-bot"
-version = "0.7.0"
+version = "0.8.dev"
 description = "Automatically generating signals and trading based on machine learning and feature engineering"
 readme = "README.md"
 requires-python = ">=3.11"
@@ -12,6 +12,8 @@ dependencies = [
     "pandas==2.*",
     "pyarrow>=20.0.0",
     "tqdm>=4.67.1",
+    "toml>=0.10.2",
+    "pyyaml>=6.0.2",
     "ta-lib>=0.6.4",
     "lightgbm==4.*",
     "scikit-learn==1.6.*",
@@ -19,6 +21,8 @@ dependencies = [
     "tensorflow-io-gcs-filesystem==0.31.0; sys_platform == 'win32'",
     "tensorflow-io-gcs-filesystem; sys_platform != 'win32'",
     "tensorflow==2.19.*",
+    "curl-cffi>=0.11.4",
+    "dateparser>=1.2.1",
 ]
 
 [dependency-groups]
@@ -31,3 +35,19 @@ connectors = [
 features = [
     "tsfresh>=0.21.0",
 ]
+test = [
+    "pytest>=8.4.1",
+]
+
+[project.scripts]
+sage = "intelligent_trading_bot.__main__:sage_cli"
+
+[build-system]
+requires = ["setuptools", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[tool.setuptools]
+include-package-data = false
+
+[tool.setuptools.packages.find]
+exclude = ["/DATA", "/configs"]

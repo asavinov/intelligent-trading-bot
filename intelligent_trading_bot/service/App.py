@@ -6,8 +6,8 @@ import re
 
 import pandas as pd
 
-from common.model_store import *
-from common.types import AccountBalances, MT5AccountInfo
+from intelligent_trading_bot.common.model_store import ModelStore
+from intelligent_trading_bot.common.types import AccountBalances, MT5AccountInfo
 
 PACKAGE_ROOT = Path(__file__).parent.parent
 #PACKAGE_PARENT = '..'
@@ -239,6 +239,39 @@ def load_config(config_file):
 
             conf_json = json.loads(conf_str)
             App.config.update(conf_json)
+
+
+
+def _merge_data_sources(data_sources: list) -> pd.DataFrame:
+    time_column = App.config["time_column"]
+    freq = App.config["freq"]
+
+    for ds in data_sources:
+        df = ds["df"]
+        df = df.set_index(time_column) if time_column in df.columns else df
+        if ds["column_prefix"]:
+            df.columns = [
+                f"{ds['column_prefix']}_{col}" if not col.startswith(f"{ds['column_prefix']}_") else col
+                for col in df.columns
+            ]
+        ds["df"] = df
+        ds["start"], ds["end"] = df.first_valid_index(), df.last_valid_index()
+
+    range_start = min(ds["start"] for ds in data_sources)
+    range_end = min(ds["end"] for ds in data_sources)
+
+    df_out = pd.DataFrame(index=pd.date_range(start=range_start, end=range_end, freq=freq))
+    df_out.index.name = time_column
+
+    for ds in data_sources:
+        df_out = df_out.join(ds["df"], how="left")
+
+    if App.config.get("merge_interpolate", False):
+        num_cols = df_out.select_dtypes(include=[float, int]).columns
+        df_out[num_cols] = df_out[num_cols].interpolate()
+
+    return df_out
+
 
 
 if __name__ == "__main__":

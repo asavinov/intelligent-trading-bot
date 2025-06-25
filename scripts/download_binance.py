@@ -12,8 +12,8 @@ import click
 
 from binance import Client
 
-from common.utils import klines_to_df, binance_freq_from_pandas
-from service.App import *
+from intelligent_trading_bot.common.utils import klines_to_df, binance_freq_from_pandas
+from intelligent_trading_bot.service.App import *
 
 """
 Download from binance

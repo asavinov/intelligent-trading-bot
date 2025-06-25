@@ -2,7 +2,7 @@ from pathlib import Path
 from typing import Union
 import pandas as pd
 
-from common.model_store import *
+from intelligent_trading_bot.common.model_store import *
 
 """
 Example of a feature

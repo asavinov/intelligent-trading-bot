@@ -6,11 +6,11 @@ from tqdm import tqdm
 import numpy as np
 import pandas as pd
 
-from service.App import *
-from common.gen_features import *
-from common.classifiers import *
-from common.model_store import *
-from common.generators import train_feature_set
+from intelligent_trading_bot.service.App import *
+from intelligent_trading_bot.common.gen_features import *
+from intelligent_trading_bot.common.classifiers import *
+from intelligent_trading_bot.common.model_store import *
+from intelligent_trading_bot.common.generators import train_feature_set
 
 """
 Train models for all target labels and all algorithms declared in the configuration using the specified features.

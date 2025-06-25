@@ -7,9 +7,9 @@ import asyncio
 import pandas as pd
 import requests
 
-from service.App import *
-from common.utils import *
-from common.model_store import *
+from intelligent_trading_bot.service.App import *
+from intelligent_trading_bot.common.utils import *
+from intelligent_trading_bot.common.model_store import *
 
 import logging
 log = logging.getLogger('notifier')

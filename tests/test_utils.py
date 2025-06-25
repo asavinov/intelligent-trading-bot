@@ -1,9 +1,9 @@
 import pytest
 import numpy.testing as npt
 
-from common.utils import *
-from common.utils import add_area_ratio
-from common.gen_signals import *
+from intelligent_trading_bot.common.utils import *
+from intelligent_trading_bot.common.utils import add_area_ratio
+from intelligent_trading_bot.common.gen_signals import *
 
 
 def test_decimal():

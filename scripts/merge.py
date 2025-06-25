@@ -6,7 +6,7 @@ import numpy as np
 
 import click
 
-from service.App import *
+from intelligent_trading_bot.service.App import *
 
 """
 Create one output file from multiple input data files. 

@@ -8,18 +8,18 @@ from apscheduler.schedulers.asyncio import AsyncIOScheduler
 
 from binance import Client
 
-from common.types import Venue
-from service.App import *
-from common.utils import *
-from common.generators import output_feature_set
-from service.analyzer import *
+from intelligent_trading_bot.common.types import Venue
+from intelligent_trading_bot.service.App import *
+from intelligent_trading_bot.common.utils import *
+from intelligent_trading_bot.common.generators import output_feature_set
+from intelligent_trading_bot.service.analyzer import *
 
-from inputs import get_collector_functions
+from intelligent_trading_bot.inputs import get_collector_functions
 
-from outputs.notifier_trades import *
-from outputs.notifier_scores import *
-from outputs.notifier_diagram import *
-from outputs import get_trader_functions
+from intelligent_trading_bot.outputs.notifier_trades import *
+from intelligent_trading_bot.outputs.notifier_scores import *
+from intelligent_trading_bot.outputs.notifier_diagram import *
+from intelligent_trading_bot.outputs import get_trader_functions
 
 
 import logging
