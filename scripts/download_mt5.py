@@ -9,9 +9,9 @@ import pytz
 
 import MetaTrader5 as mt5
 
-from common.utils_mt5 import mt5_freq_from_pandas, get_timedelta_for_mt5_timeframe
-from service.App import App, load_config
-from service.mt5 import connect_mt5
+from intelligent_trading_bot.common.utils_mt5 import mt5_freq_from_pandas, get_timedelta_for_mt5_timeframe
+from intelligent_trading_bot.service.App import App, load_config
+from intelligent_trading_bot.service.mt5 import connect_mt5
 
 
 print("MetaTrader5 package author: ", mt5.__author__)

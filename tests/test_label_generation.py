@@ -1,9 +1,9 @@
 import pytest
 import numpy.testing as npt
 
-from common.utils import *
-from common.gen_signals import *
-from common.gen_labels_topbot import *
+from intelligent_trading_bot.common.utils import *
+from intelligent_trading_bot.common.gen_signals import *
+from intelligent_trading_bot.common.gen_labels_topbot import *
 
 
 def test_extremum_labels():

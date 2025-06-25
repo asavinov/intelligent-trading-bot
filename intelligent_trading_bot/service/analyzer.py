@@ -8,15 +8,15 @@ import queue
 import numpy as np
 import pandas as pd
 
-from service.App import *
+from intelligent_trading_bot.service.App import *
 
-from common.utils import *
-from common.classifiers import *
-from common.model_store import *
-from common.generators import generate_feature_set
-from common.generators import predict_feature_set
+from intelligent_trading_bot.common.utils import *
+from intelligent_trading_bot.common.classifiers import *
+from intelligent_trading_bot.common.model_store import *
+from intelligent_trading_bot.common.generators import generate_feature_set
+from intelligent_trading_bot.common.generators import predict_feature_set
 
-from outputs.notifier_trades import load_last_transaction
+from intelligent_trading_bot.outputs.notifier_trades import load_last_transaction
 
 from scripts.merge import *
 from scripts.features import *

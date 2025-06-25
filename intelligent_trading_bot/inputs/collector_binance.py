@@ -13,9 +13,9 @@ from binance.exceptions import *
 from binance.helpers import date_to_milliseconds, interval_to_milliseconds
 from binance.enums import *
 
-from service.App import *
-from common.utils import *
-from service.analyzer import *
+from intelligent_trading_bot.service.App import *
+from intelligent_trading_bot.common.utils import *
+from intelligent_trading_bot.service.analyzer import *
 
 import logging
 log = logging.getLogger('collector')

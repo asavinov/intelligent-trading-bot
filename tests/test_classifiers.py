@@ -1,7 +1,7 @@
 import pytest
 
-from common.utils import *
-from common.classifiers import *
+from intelligent_trading_bot.common.utils import *
+from intelligent_trading_bot.common.classifiers import *
 
 
 def test_nan_handling_predict():

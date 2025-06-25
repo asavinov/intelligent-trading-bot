@@ -13,7 +13,7 @@ from apscheduler.triggers.cron import CronTrigger
 
 from binance.helpers import date_to_milliseconds, interval_to_milliseconds
 
-from common.gen_features import *
+from intelligent_trading_bot.common.gen_features import *
 
 
 #

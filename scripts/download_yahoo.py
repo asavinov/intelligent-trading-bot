@@ -5,7 +5,7 @@ import click
 import yfinance as yf
 from curl_cffi import requests  # Without its Session object, yahoo will reject requests with YFRateLimitError
 
-from service.App import *
+from intelligent_trading_bot.service.App import *
 
 """
 Download quotes from Yahoo

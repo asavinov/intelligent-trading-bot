@@ -6,8 +6,8 @@ import re
 
 import pandas as pd
 
-from common.model_store import *
-from common.types import AccountBalances, MT5AccountInfo
+from intelligent_trading_bot.common.model_store import ModelStore
+from intelligent_trading_bot.common.types import AccountBalances, MT5AccountInfo
 
 PACKAGE_ROOT = Path(__file__).parent.parent
 #PACKAGE_PARENT = '..'
@@ -229,7 +229,8 @@ def problems_exist():
 
 def load_config(config_file):
     if config_file:
-        config_file_path = PACKAGE_ROOT / config_file
+        # config_file_path = PACKAGE_ROOT / config_file
+        config_file_path = config_file
         with open(config_file_path, encoding='utf-8') as json_file:
             #conf_str = json.load(json_file)
             conf_str = json_file.read()
