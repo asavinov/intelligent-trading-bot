@@ -1,4 +1,4 @@
-from common.types import Venue
+from intelligent_trading_bot.common.types import Venue
 
 
 def get_trader_functions(venue: Venue) -> dict[str, callable]:

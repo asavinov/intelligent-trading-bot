@@ -101,3 +101,4 @@ def handle_config(path: Union[str, Path], mode="load", data=None):
 
     else:
         raise ValueError("Mode must be 'load' or 'save'")
+
