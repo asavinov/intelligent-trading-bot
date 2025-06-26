@@ -2,6 +2,7 @@ from decimal import Decimal
 from enum import Enum
 
 class Venue(Enum):
+    YAHOO = "yahoo"
     BINANCE = "binance"
     MT5 = "mt5"
     

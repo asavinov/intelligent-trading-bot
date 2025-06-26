@@ -58,7 +58,7 @@ class ModelStore:
         # models are named by the derived feature name corresponding to label-algo combination used in the generator config
         self.model_pairs = {}  # Old convention with label-algo pairs identified by output feature name
         # arbitrary model name and such models are supposed to be listed in the model registry
-        self.models = []  # List of dicts with model attributes
+        self.models = {}  # Model name as a key and model object as a value
 
     def load_models(self):
         """Load models from persistent store to memory where they are available for consumers."""
@@ -72,36 +72,43 @@ class ModelStore:
         # 2. Load models explicitly declared in the registry by (name, file, ...)
         #
         for model_entry in self.model_registry:
+            model_name = model_entry.get("name")
             model_file = model_entry.get("file")
             model_path = self.model_path / model_file
             model_extension = model_path.suffix.lower()
-            if model_extension == ".json":  # Python dict
-                with open(model_path) as f:
-                    model_object = json.load(f)
-            elif model_extension in [".txt", ".csv"]:  # Python string
-                model_object = model_path.read_text()
-            elif model_extension in [".pickle", ".scaler"]:  # Python serialization
-                model_object = load(model_path)
-            else:  # Python object
-                with open(model_path, 'rb') as f:
-                   model_object = pickle.load(f)
-                # Alternatively model_object = joblib.load(model_path)
 
-            model_entry["object"] = model_object  # Store in an entry attribute
+            try:
+                if model_extension == ".json":  # Python dict
+                    with open(model_path) as f:
+                        model_object = json.load(f)
+                elif model_extension in [".txt", ".csv"]:  # Python string
+                    model_object = model_path.read_text()
+                elif model_extension in [".pickle", ".scaler"]:  # Python serialization
+                    model_object = load(model_path)
+                else:  # Python object
+                    with open(model_path, 'rb') as f:
+                       model_object = pickle.load(f)
+                    # Alternatively model_object = joblib.load(model_path)
+            except Exception as e:
+                model_object = None
+
+            self.models[model_name] = model_object
 
     def put_model(self, name: str, model):
         """Store the specified model object with the specified name."""
-        model_entry = self.model_registry.get(name, None)
 
-        model_entry["object"] = model
+        # Find entry
+        model_entry = next((x for x in self.model_registry if x.get("name") == name), None)
+        if not model_entry:
+            raise ValueError(f"Model with name '{name}' is not found in the model registry of config file")
 
         model_file = model_entry.get("file")
         model_path = self.model_path / model_file
         model_extension = model_path.suffix.lower()
 
         if model_extension == ".json":  # Python dict
-            with open(model_path) as f:
-                json.dump(model, f)
+            with open(model_path, 'w', encoding='utf-8') as f:
+                json.dump(model, f, ensure_ascii=False, indent=4)
         elif model_extension in [".txt", ".csv"]:  # Python string
             model_path.write_text(model)
         elif model_extension in [".pickle", ".scaler"]:  # Python serialization
@@ -111,9 +118,12 @@ class ModelStore:
                 pickle.dump(model, f)
             # Alternatively joblib.dump(model, model_path)
 
+        # Update the in-memory registry
+        self.models[name] = model
+
     def get_model(self, name: str):
         """Retrieve and return a model object with the specified name"""
-        return None
+        return self.models.get(name, None)
 
     def get_all_model_pairs(self):
         return self.model_pairs
