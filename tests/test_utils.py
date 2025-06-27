@@ -1,9 +1,14 @@
 import pytest
 import numpy.testing as npt
 
-from intelligent_trading_bot.common.utils import *
-from intelligent_trading_bot.common.utils import add_area_ratio
-from intelligent_trading_bot.common.gen_signals import *
+import numpy as np
+import pandas as pd
+from decimal import Decimal
+
+from intelligent_trading_bot.common.utils import to_decimal, round_str, round_down_str
+from intelligent_trading_bot.common.utils import add_area_ratio, add_linear_trends
+from intelligent_trading_bot.common.depth_processing import discretize, discretize_ask
+from intelligent_trading_bot.common.gen_signals import generate_signals
 
 
 def test_decimal():
