@@ -10,14 +10,16 @@ from concurrent.futures import ProcessPoolExecutor
 from pandas.api.types import is_float_dtype
 from intelligent_trading_bot.config import handle_config
 from intelligent_trading_bot.common.merge import merge_data_sources
+from intelligent_trading_bot.asyncbus.registry import ChannelRegistry
+from intelligent_trading_bot.asyncbus import AsyncMappedBus
 
 
 @click.group()
-def sage_cli():
+def sage_ctl():
     """
     📊 Sage CLI — Intelligent Trading Automation
 
-    A unified interface for managing data, ML models/pipelines, and automated trading operations.
+    A unified control interface for managing data, ML models/pipelines, and automated trading operations.
 
     🛠️  Core Commands: \n
     ──────────────────────────────────────────────\n
@@ -32,7 +34,7 @@ def sage_cli():
     pass
 
 
-@sage_cli.command(name="config", help="⚙️  Load and display the contents of a configuration file")
+@sage_ctl.command(name="config", help="⚙️  Load and display the contents of a configuration file")
 @click.option(
     '--config-file', '-c',
     type=click.Path(exists=True, dir_okay=False, readable=True),
@@ -62,7 +64,7 @@ def read_config(config_file):
 """
 Create one output file from multiple input data files. 
 """
-@sage_cli.command(name="merge")
+@sage_ctl.command(name="merge")
 @click.option(
     "--config-file", "-c",
     type=click.Path(exists=True, readable=True, dir_okay=False),
@@ -419,13 +421,13 @@ def generate_signals(config_file, in_nrows, start_index, end_index):
 
 
 # add generate sub-command
-sage_cli.add_command(generate)
+sage_ctl.add_command(generate)
 
 
 """
 Train models for all target labels and all algorithms declared in the configuration using the specified features.
 """
-@sage_cli.command(name="train", help="🧠 Train models on features and labels.")
+@sage_ctl.command(name="train", help="🧠 Train models on features and labels.")
 @click.option('--config-file', '-c', type=click.Path(exists=True, readable=True), required=True,
               help='Path to the configuration file (YAML/TOML/JSON)')
 @click.option('--in-nrows', type=int, default=100_000_000,
@@ -845,7 +847,7 @@ def predict_rolling(config_file, in_nrows, max_workers):
 
     click.echo(f"🏁 Rolling prediction finished in {str(datetime.now() - now).split('.')[0]}")
 
-sage_cli.add_command(predict)
+sage_ctl.add_command(predict)
 
 
 """
@@ -864,7 +866,7 @@ than another threshold then sell. There is also a version with two thresholds fo
 - The script consumes the results of signal script but it then varies parameters of one entry
 responsible for generation of trade signals. It then measures performance.
 """
-@sage_cli.command(name="simulate", help="🧪  Run signal simulation using exhaustive parameter grid and backtesting")
+@sage_ctl.command(name="simulate", help="🧪  Run signal simulation using exhaustive parameter grid and backtesting")
 @click.option('--config_file', '-c', type=click.Path(), default='', help='Path to config file')
 def simulate(config_file):
     """Run signal simulation using exhaustive parameter grid and backtesting."""
@@ -992,3 +994,82 @@ def simulate(config_file):
     click.echo(f"✅ Simulation results stored in: {out_file} ({len(lines)} lines)")
     click.echo(f"⏱️  Finished simulation in {str(datetime.now() - now).split('.')[0]}")
 
+
+"""
+    Execute trades in live/paper mode
+"""
+# @sage_ctl.command(name="live", help="💸  Run Sage in live prediction mode")
+# @click.option(
+#     '--config-file', '-c',
+#     type=click.Path(exists=True, readable=True),
+#     required=True,
+#     help='Path to the configuration file'
+# )
+# def live(config_file):
+#     """
+#     Run Sage in live prediction mode with signal + (optional) trade.
+#     """
+#     from intelligent_trading_bot.service.App import App
+#     from intelligent_trading_bot.pipline.live import LiveTradingEngine
+    
+#     config = handle_config(config_file)
+#     App.config.update(config)
+#     engine = LiveTradingEngine(App)
+#     engine.run()
+
+
+"""
+Async Bus
+"""
+@sage_ctl.command("bus-summary")
+@click.option("--topic", type=str, help="Filter by topic name.")
+@click.option("--stats", is_flag=True, help="Include runtime stats like read/write indices.")
+@click.option("--json", "as_json", is_flag=True, help="Output summary as JSON.")
+def bus_summary(topic, stats, as_json):
+    """Show summary of all registered channels (buses)."""
+    registry = ChannelRegistry.global_instance()
+    buses = registry.all_buses()
+
+    filtered = {k: v for k, v in buses.items() if topic is None or topic in k}
+    summaries = {}
+
+    for name, channel in filtered.items():
+        bus = AsyncMappedBus(name, channel.slot_size, channel.num_slots, channel.max_consumers)
+        summaries[name] = bus.summary(stats=stats, as_dict=as_json)
+
+    if as_json:
+        click.echo(json.dumps(summaries, indent=2))
+    else:
+        for name, info in summaries.items():
+            click.echo(f"\n{name}")
+            click.echo("-" * len(name))
+            click.echo(info)
+
+
+@sage_ctl.command("bus-memory")
+def bus_memory():
+    """Display memory usage estimates for all buses."""
+    registry = ChannelRegistry.global_instance()
+    buses = registry.all_buses()
+
+    for name, channel in buses.items():
+        size = channel.slot_size * channel.num_slots
+        size_kb = size / 1024
+        click.echo(f"{name}: {size_kb:.2f} KB")
+
+
+@sage_ctl.command("bus-inspect")
+@click.argument("topic")
+@click.option("--consumer", type=int, default=0, help="Consumer ID to inspect.")
+def bus_inspect(topic, consumer):
+    """Inspect a specific bus/channel."""
+    registry = ChannelRegistry.global_instance()
+    if not registry.exists(topic):
+        click.echo(f"Channel '{topic}' not found.")
+        return
+
+    channel = registry.get(topic)
+    bus = AsyncMappedBus(topic, channel.slot_size, channel.num_slots, channel.max_consumers)
+    summary = bus.summary(stats=True, as_dict=True)
+
+    click.echo(json.dumps(summary, indent=2))

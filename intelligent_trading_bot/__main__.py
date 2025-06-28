@@ -1,4 +1,5 @@
-from intelligent_trading_bot.sage_cli import sage_cli
+from intelligent_trading_bot.sage_ctl import sage_ctl
 
 if __name__ == '__main__':
-    sage_cli()
+    sage_ctl()
+

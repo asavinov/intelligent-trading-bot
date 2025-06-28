@@ -9,11 +9,11 @@ from cython cimport boundscheck, wraparound
 
 cdef int CACHE_LINE_SIZE = 64
 
-cdef class MappedBus:
-    cdef uint8_t* buffer
+cdef class Channel:
+    cdef readonly uint8_t* buffer
     cdef readonly int slot_size, num_slots, aligned_size
-    cdef uint64_t write_idx
-    cdef uint64_t[:] read_indices
+    cdef readonly uint64_t write_idx
+    cdef readonly uint64_t[:] read_indices
     cdef readonly int max_consumers
     cdef readonly str name
 

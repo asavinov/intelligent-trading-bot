@@ -42,7 +42,7 @@ tests = [
 ]
 
 [project.scripts]
-sage = "intelligent_trading_bot.__main__:sage_cli"
+sage = "intelligent_trading_bot.__main__:sage_ctl"
 
 [build-system]
 requires = [
