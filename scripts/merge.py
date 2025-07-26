@@ -16,18 +16,34 @@ Create one output file from multiple input data files.
 @click.option('--config_file', '-c', type=click.Path(), default='', help='Configuration file name')
 def main(config_file):
     load_config(config_file)
+    config = App.config
 
-    time_column = App.config["time_column"]
+    time_column = config["time_column"]
 
-    data_sources = App.config.get("data_sources", [])
+    now = datetime.now()
+
+    symbol = config["symbol"]
+    data_path = Path(config["data_folder"])
+
+    # Determine desired data length depending on train/predict mode
+    is_train = config.get("train")
+    if is_train:
+        window_size = config.get("train_length")
+    else:
+        window_size = config.get("predict_length")
+    features_horizon = config.get("features_horizon")
+    if window_size:
+        window_size += features_horizon
+
+    #
+    # Load data from multiple sources and merge
+    #
+    data_sources = config.get("data_sources", [])
     if not data_sources:
         print(f"ERROR: Data sources are not defined. Nothing to merge.")
         #data_sources = [{"folder": symbol, "file": "klines", "column_prefix": ""}]
 
-    now = datetime.now()
-
     # Read data from input files
-    data_path = Path(App.config["data_folder"])
     for ds in data_sources:
         # What is want is for each source, load file into df, determine its properties (columns, start, end etc.), and then merge all these dfs
 
@@ -41,14 +57,24 @@ def main(config_file):
         if not file:
             file = quote
 
-        file_path = (data_path / quote / file).with_suffix(".csv")
-        if not file_path.is_file():
-            print(f"Data file does not exist: {file_path}")
-            return
+        file_path = (data_path / quote / file)
+        if not file_path.suffix:
+            file_path = file_path.with_suffix(".csv")  # CSV by default
 
         print(f"Reading data file: {file_path}")
-        df = pd.read_csv(file_path, parse_dates=[time_column], date_format="ISO8601")
+        if file_path.suffix == ".parquet":
+            df = pd.read_parquet(file_path)
+        elif file_path.suffix == ".csv":
+            df = pd.read_csv(file_path, parse_dates=[time_column], date_format="ISO8601")
+        else:
+            print(f"ERROR: Unknown extension of the input file '{file_path.suffix}'. Only 'csv' and 'parquet' are supported")
+            return
         print(f"Loaded file with {len(df)} records.")
+
+        # Select only the data necessary for analysis
+        if window_size:
+            df = df.tail(window_size)
+            df = df.reset_index(drop=True)
 
         ds["df"] = df
 
@@ -58,7 +84,7 @@ def main(config_file):
     #
     # Store file with features
     #
-    out_path = data_path / App.config["symbol"] / App.config.get("merge_file_name")
+    out_path = data_path / symbol / config.get("merge_file_name")
 
     print(f"Storing output file...")
     df_out = df_out.reset_index()

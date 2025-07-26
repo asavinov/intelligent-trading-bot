@@ -14,34 +14,37 @@ from common.generators import predict_feature_set
 Apply models to (previously generated) features and compute prediction scores.
 """
 
-
-#
-# Parameters
-#
-class P:
-    in_nrows = 100_000_000  # For debugging
-    tail_rows = 0  # How many last rows to select (for debugging)
-
-
 @click.command()
 @click.option('--config_file', '-c', type=click.Path(), default='', help='Configuration file name')
 def main(config_file):
     load_config(config_file)
+    config = App.config
 
-    App.model_store = ModelStore(App.config)
+    App.model_store = ModelStore(config)
     App.model_store.load_models()
 
-    time_column = App.config["time_column"]
+    time_column = config["time_column"]
 
     now = datetime.now()
 
-    #
-    # Load feature matrix
-    #
-    symbol = App.config["symbol"]
-    data_path = Path(App.config["data_folder"]) / symbol
+    symbol = config["symbol"]
+    data_path = Path(config["data_folder"]) / symbol
 
-    file_path = data_path / App.config.get("matrix_file_name")
+    # Determine desired data length depending on train/predict mode
+    is_train = config.get("train")
+    if is_train:
+        window_size = config.get("train_length")
+        print(f"WARNING: Train mode is specified although this script is intended for prediction and will not train models.")
+    else:
+        window_size = config.get("predict_length")
+    features_horizon = config.get("features_horizon")
+    if window_size:
+        window_size += features_horizon
+
+    #
+    # Load data
+    #
+    file_path = data_path / config.get("matrix_file_name")
     if not file_path.is_file():
         print(f"ERROR: Input file does not exist: {file_path}")
         return
@@ -50,23 +53,26 @@ def main(config_file):
     if file_path.suffix == ".parquet":
         df = pd.read_parquet(file_path)
     elif file_path.suffix == ".csv":
-        df = pd.read_csv(file_path, parse_dates=[time_column], date_format="ISO8601", nrows=P.in_nrows)
+        df = pd.read_csv(file_path, parse_dates=[time_column], date_format="ISO8601")
     else:
         print(f"ERROR: Unknown extension of the input file '{file_path.suffix}'. Only 'csv' and 'parquet' are supported")
         return
-    print(f"Finished loading {len(df)} records with {len(df.columns)} columns.")
 
-    df = df.iloc[-P.tail_rows:]
-    df = df.reset_index(drop=True)
+    print(f"Finished loading {len(df)} records with {len(df.columns)} columns from the source file {file_path}")
+
+    # Select only the data necessary for analysis
+    if window_size:
+        df = df.tail(window_size)
+        df = df.reset_index(drop=True)
 
     print(f"Input data size {len(df)} records. Range: [{df.iloc[0][time_column]}, {df.iloc[-1][time_column]}]")
 
     #
-    # Prepare data by selecting columns and rows
+    # Apply ML algorithm predictors
     #
-    train_features = App.config.get("train_features")
-    labels = App.config["labels"]
-    algorithms = App.config.get("algorithms")
+    train_features = config.get("train_features")
+    labels = config["labels"]
+    algorithms = config.get("algorithms")
 
     # Select necessary features and label
     out_columns = [time_column, 'open', 'high', 'low', 'close', 'volume', 'close_time']
@@ -78,18 +84,18 @@ def main(config_file):
         all_features = train_features
     df = df[out_columns + [x for x in all_features if x not in out_columns]]
 
+    # Handle NULLs
     df.replace([np.inf, -np.inf], np.nan, inplace=True)
-    if len(df) == 0:
-        print(f"ERROR: Empty data set after removing NULLs in feature columns. Some features might all have NULL values.")
-        # print(train_df.isnull().sum().sort_values(ascending=False))
-
-    df = df.dropna(subset=train_features)
-    df = df.reset_index(drop=True)  # We must reset index after removing rows to remove gaps
+    na_df = df[ df[train_features].isna().any(axis=1) ]
+    if len(na_df) > 0:
+        print(f"WARNING: There exist {len(na_df)} rows with NULLs in some feature columns. These rows will be removed.")
+        df = df.dropna(subset=train_features)
+        df = df.reset_index(drop=True)  # We must reset index after removing rows to remove gaps
 
     #
     # Generate/predict train features
     #
-    train_feature_sets = App.config.get("train_feature_sets", [])
+    train_feature_sets = config.get("train_feature_sets", [])
     if not train_feature_sets:
         print(f"ERROR: no train feature sets defined. Nothing to process.")
         return
@@ -104,7 +110,7 @@ def main(config_file):
         fs_now = datetime.now()
         print(f"Start train feature set {i}/{len(train_feature_sets)}. Generator {fs.get('generator')}...")
 
-        fs_out_df, fs_features, fs_scores = predict_feature_set(df, fs, App.config, App.model_store)
+        fs_out_df, fs_features, fs_scores = predict_feature_set(df, fs, config, App.model_store)
 
         out_df = pd.concat([out_df, fs_out_df], axis=1)
         features.extend(fs_features)
@@ -135,9 +141,9 @@ def main(config_file):
     # Store predictions
     #
     # Store only selected original data, labels, and their predictions
-    out_df = out_df.join(df[out_columns + (labels if labels_present else [])])
+    out_df = df[out_columns + (labels if labels_present else [])].join(out_df)
 
-    out_path = data_path / App.config.get("predict_file_name")
+    out_path = data_path / config.get("predict_file_name")
 
     print(f"Storing predictions with {len(out_df)} records and {len(out_df.columns)} columns in output file {out_path}...")
     if out_path.suffix == ".parquet":

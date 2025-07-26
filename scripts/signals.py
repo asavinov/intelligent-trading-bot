@@ -14,66 +14,64 @@ Generate new derived columns according to the signal definitions.
 The transformations are applied to the results of ML predictions.
 """
 
-#
-# Parameters
-#
-class P:
-    in_nrows = 100_000_000
-
-    start_index = 0
-    end_index = None
-
-
 @click.command()
 @click.option('--config_file', '-c', type=click.Path(), default='', help='Configuration file name')
 def main(config_file):
     """
     """
     load_config(config_file)
+    config = App.config
 
-    App.model_store = ModelStore(App.config)
+    App.model_store = ModelStore(config)
     App.model_store.load_models()
 
-    time_column = App.config["time_column"]
+    time_column = config["time_column"]
 
     now = datetime.now()
 
-    symbol = App.config["symbol"]
-    data_path = Path(App.config["data_folder"]) / symbol
-    if not data_path.is_dir():
-        print(f"Data folder does not exist: {data_path}")
-        return
-    out_path = Path(App.config["data_folder"]) / symbol
-    out_path.mkdir(parents=True, exist_ok=True)  # Ensure that folder exists
+    symbol = config["symbol"]
+    data_path = Path(config["data_folder"]) / symbol
+
+    # Determine desired data length depending on train/predict mode
+    is_train = config.get("train")
+    if is_train:
+        window_size = config.get("train_length")
+    else:
+        window_size = config.get("predict_length")
+    features_horizon = config.get("features_horizon")
+    if window_size:
+        window_size += features_horizon
 
     #
-    # Load data with (rolling) label point-wise predictions
+    # Load data
     #
-    file_path = data_path / App.config.get("predict_file_name")
+    file_path = data_path / config.get("predict_file_name")
     if not file_path.exists():
         print(f"ERROR: Input file does not exist: {file_path}")
         return
 
-    print(f"Loading predictions from input file: {file_path}...")
+    print(f"Loading data from source data file {file_path}...")
     if file_path.suffix == ".parquet":
         df = pd.read_parquet(file_path)
     elif file_path.suffix == ".csv":
-        df = pd.read_csv(file_path, parse_dates=[time_column], date_format="ISO8601", nrows=P.in_nrows)
+        df = pd.read_csv(file_path, parse_dates=[time_column], date_format="ISO8601")
     else:
         print(f"ERROR: Unknown extension of the input file '{file_path.suffix}'. Only 'csv' and 'parquet' are supported")
         return
-    print(f"Predictions loaded. Length: {len(df)}. Width: {len(df.columns)}")
 
-    # Limit size according to parameters start_index end_index
-    df = df.iloc[P.start_index:P.end_index]
-    df = df.reset_index(drop=True)
+    print(f"Finished loading {len(df)} records with {len(df.columns)} columns from the source file {file_path}")
+
+    # Select only the data necessary for analysis
+    if window_size:
+        df = df.tail(window_size)
+        df = df.reset_index(drop=True)
 
     print(f"Input data size {len(df)} records. Range: [{df.iloc[0][time_column]}, {df.iloc[-1][time_column]}]")
 
     #
-    # Signals
+    # Apply signal generators
     #
-    feature_sets = App.config.get("signal_sets", [])
+    feature_sets = config.get("signal_sets", [])
     if not feature_sets:
         print(f"ERROR: no signal sets defined. Nothing to process.")
         return
@@ -85,7 +83,7 @@ def main(config_file):
         fs_now = datetime.now()
         print(f"Start feature set {i}/{len(feature_sets)}. Generator {fs.get('generator')}...")
 
-        df, new_features = generate_feature_set(df, fs, App.config, App.model_store, last_rows=0)
+        df, new_features = generate_feature_set(df, fs, config, App.model_store, last_rows=0)
 
         all_features.extend(new_features)
 
@@ -94,15 +92,20 @@ def main(config_file):
 
     print(f"Finished generating features.")
 
-    print(f"Number of NULL values:")
-    print(df[all_features].isnull().sum().sort_values(ascending=False))
+    # Handle NULLs
+    df.replace([np.inf, -np.inf], np.nan, inplace=True)
+    na_df = df[ df[all_features].isna().any(axis=1) ]
+    if len(na_df) > 0:
+        print(f"WARNING: There exist {len(na_df)} rows with NULLs in some columns")
+        print(f"Number of NULL values:")
+        print(df[all_features].isnull().sum().sort_values(ascending=False))
 
     #
     # Choose columns to stored
     #
     out_columns = [time_column, "open", "high", "low", "close"]  # Source data
     out_columns = [x for x in out_columns if x in df.columns]
-    out_columns.extend(App.config.get('labels'))  # True labels
+    out_columns.extend(config.get('labels'))  # True labels
     out_columns.extend(all_features)
 
     out_df = df[out_columns]
@@ -110,7 +113,7 @@ def main(config_file):
     #
     # Store data
     #
-    out_path = data_path / App.config.get("signal_file_name")
+    out_path = data_path / config.get("signal_file_name")
 
     print(f"Storing signals with {len(out_df)} records and {len(out_df.columns)} columns in output file {out_path}...")
     if out_path.suffix == ".parquet":

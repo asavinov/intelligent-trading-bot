@@ -1,42 +1,49 @@
 from typing import Tuple
 from pathlib import Path
-import click
 
 import numpy as np
 import pandas as pd
+
+import click
 
 from service.App import *
 from common.model_store import *
 from common.generators import generate_feature_set
 
-
-#
-# Parameters
-#
-class P:
-    in_nrows = 50_000_000  # Load only this number of records
-    tail_rows = int(10.0 * 525_600)  # Process only this number of last rows
-
+"""
+Apply feature generators
+"""
 
 @click.command()
 @click.option('--config_file', '-c', type=click.Path(), default='', help='Configuration file name')
 def main(config_file):
     load_config(config_file)
+    config = App.config
 
-    App.model_store = ModelStore(App.config)
+    App.model_store = ModelStore(config)
     App.model_store.load_models()
 
-    time_column = App.config["time_column"]
+    time_column = config["time_column"]
 
     now = datetime.now()
+
+    symbol = config["symbol"]
+    data_path = Path(config["data_folder"]) / symbol
+
+    # Determine desired data length depending on train/predict mode
+    is_train = config.get("train")
+    if is_train:
+        window_size = config.get("train_length")
+    else:
+        window_size = config.get("predict_length")
+    features_horizon = config.get("features_horizon")
+    if window_size:
+        window_size += features_horizon
 
     #
     # Load merged data with regular time series
     #
-    symbol = App.config["symbol"]
-    data_path = Path(App.config["data_folder"]) / symbol
-
-    file_path = data_path / App.config.get("merge_file_name")
+    file_path = data_path / config.get("merge_file_name")
     if not file_path.is_file():
         print(f"Data file does not exist: {file_path}")
         return
@@ -45,27 +52,30 @@ def main(config_file):
     if file_path.suffix == ".parquet":
         df = pd.read_parquet(file_path)
     elif file_path.suffix == ".csv":
-        df = pd.read_csv(file_path, parse_dates=[time_column], date_format="ISO8601", nrows=P.in_nrows)
+        df = pd.read_csv(file_path, parse_dates=[time_column], date_format="ISO8601")
     else:
         print(f"ERROR: Unknown extension of the input file '{file_path.suffix}'. Only 'csv' and 'parquet' are supported")
         return
-    print(f"Finished loading {len(df)} records with {len(df.columns)} columns.")
 
-    df = df.iloc[-P.tail_rows:]
-    df = df.reset_index(drop=True)
+    print(f"Finished loading {len(df)} records with {len(df.columns)} columns from the source file {file_path}")
+
+    # Select only the data necessary for analysis
+    if window_size:
+        df = df.tail(window_size)
+        df = df.reset_index(drop=True)
 
     print(f"Input data size {len(df)} records. Range: [{df.iloc[0][time_column]}, {df.iloc[-1][time_column]}]")
 
     #
     # Generate derived features
     #
-    feature_sets = App.config.get("feature_sets", [])
+    feature_sets = config.get("feature_sets", [])
     if not feature_sets:
         print(f"ERROR: no feature sets defined. Nothing to process.")
         return
 
     # Apply all feature generators to the data frame which get accordingly new derived columns
-    # The feature parameters will be taken from App.config (depending on generator)
+    # The feature parameters will be taken from config (depending on generator)
     print(f"Start generating features for {len(df)} input records.")
 
     all_features = []
@@ -73,7 +83,7 @@ def main(config_file):
         fs_now = datetime.now()
         print(f"Start feature set {i}/{len(feature_sets)}. Generator {fs.get('generator')}...")
 
-        df, new_features = generate_feature_set(df, fs, App.config, App.model_store, last_rows=0)
+        df, new_features = generate_feature_set(df, fs, config, App.model_store, last_rows=0)
 
         all_features.extend(new_features)
         fs_elapsed = datetime.now() - fs_now
@@ -81,13 +91,19 @@ def main(config_file):
 
     print(f"Finished generating features.")
 
+    # Handle NULLs
+    df.replace([np.inf, -np.inf], np.nan, inplace=True)
+    na_df = df[ df[all_features].isna().any(axis=1) ]
+    if len(na_df) > 0:
+        print(f"WARNING: There exist {len(na_df)} rows with NULLs in some feature columns")
+
     print(f"Number of NULL values:")
     print(df[all_features].isnull().sum().sort_values(ascending=False))
 
     #
     # Store feature matrix in output file
     #
-    out_file_name = App.config.get("feature_file_name")
+    out_file_name = config.get("feature_file_name")
     out_path = (data_path / out_file_name).resolve()
 
     print(f"Storing features with {len(df)} records and {len(df.columns)} columns in output file {out_path}...")

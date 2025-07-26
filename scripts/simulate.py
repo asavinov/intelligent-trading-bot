@@ -33,34 +33,26 @@ responsible for generation of trade signals. It then measures performance.
 """
 
 
-class P:
-    in_nrows = 100_000_000
-
-
 @click.command()
 @click.option('--config_file', '-c', type=click.Path(), default='', help='Configuration file name')
 def main(config_file):
     load_config(config_file)
+    config = App.config
 
-    App.model_store = ModelStore(App.config)
+    App.model_store = ModelStore(config)
     App.model_store.load_models()
 
-    time_column = App.config["time_column"]
+    time_column = config["time_column"]
 
     now = datetime.now()
 
-    symbol = App.config["symbol"]
-    data_path = Path(App.config["data_folder"]) / symbol
-    if not data_path.is_dir():
-        print(f"Data folder does not exist: {data_path}")
-        return
-    out_path = Path(App.config["data_folder"]) / symbol
-    out_path.mkdir(parents=True, exist_ok=True)  # Ensure that folder exists
+    symbol = config["symbol"]
+    data_path = Path(config["data_folder"]) / symbol
 
     #
     # Load data with (rolling) label point-wise predictions and signals generated
     #
-    file_path = data_path / App.config.get("signal_file_name")
+    file_path = data_path / config.get("signal_file_name")
     if not file_path.exists():
         print(f"ERROR: Input file does not exist: {file_path}")
         return
@@ -69,7 +61,7 @@ def main(config_file):
     if file_path.suffix == ".parquet":
         df = pd.read_parquet(file_path)
     elif file_path.suffix == ".csv":
-        df = pd.read_csv(file_path, parse_dates=[time_column], date_format="ISO8601", nrows=P.in_nrows)
+        df = pd.read_csv(file_path, parse_dates=[time_column], date_format="ISO8601")
     else:
         print(f"ERROR: Unknown extension of the input file '{file_path.suffix}'. Only 'csv' and 'parquet' are supported")
         return
@@ -79,7 +71,7 @@ def main(config_file):
     #
     # Limit the source data
     #
-    simulate_config = App.config["simulate_model"]
+    simulate_config = config["simulate_model"]
 
     data_start = simulate_config.get("data_start", None)
     data_end = simulate_config.get("data_end", None)
@@ -130,7 +122,7 @@ def main(config_file):
     # Find the generator, the parameters of which will be varied
     #
     generator_name = simulate_config.get("signal_generator")
-    signal_generator = next((ss for ss in App.config.get("signal_sets", []) if ss.get('generator') == generator_name), None)
+    signal_generator = next((ss for ss in config.get("signal_sets", []) if ss.get('generator') == generator_name), None)
     if not signal_generator:
         raise ValueError(f"Signal generator '{generator_name}' not found among all 'signal_sets'")
 
@@ -154,7 +146,7 @@ def main(config_file):
         #
         # Execute the signal generator with new parameters by producing new signal columns
         #
-        df, new_features = generate_feature_set(df, signal_generator, App.config, App.model_store, last_rows=0)
+        df, new_features = generate_feature_set(df, signal_generator, config, App.model_store, last_rows=0)
 
         #
         # Simulate trade and compute performance using close price and two boolean signals
@@ -213,7 +205,8 @@ def main(config_file):
     #
     # Store simulation parameters and performance
     #
-    out_path = (out_path / App.config.get("signal_models_file_name")).with_suffix(".txt").resolve()
+    out_file_name = config.get("signal_models_file_name")
+    out_path = (data_path / out_file_name).with_suffix(".txt").resolve()
 
     if out_path.is_file():
         add_header = False
