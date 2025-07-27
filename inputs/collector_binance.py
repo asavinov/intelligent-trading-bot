@@ -109,7 +109,7 @@ async def sync_data_collector_task():
             # TODO: Print somewhere diagnostics about how many lines are in history buffer of db, and if nans are found
             results.update(res)
             try:
-                added_count = App.analyzer.store_klines(res)
+                added_count = App.analyzer.append_klines(res)
             except Exception as e:
                 log.error(f"Error storing kline result in the database. Exception: {e}")
                 return 1
