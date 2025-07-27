@@ -8,15 +8,11 @@ import queue
 import numpy as np
 import pandas as pd
 
-from service.App import *
-
 from common.utils import *
 from common.classifiers import *
 from common.model_store import *
 from common.generators import generate_feature_set
 from common.generators import predict_feature_set
-
-from outputs.notifier_trades import load_last_transaction
 
 from scripts.merge import *
 from scripts.features import *
@@ -51,10 +47,8 @@ class Analyzer:
         #
         self.klines = {}
 
-        #
-        # Load latest transaction and (simulated) trade state
-        #
-        App.transaction = load_last_transaction()
+        # Data frame with all the data (source and derived) where rows are appended and their (derived) columns are computed
+        self.df = None
 
     #
     # Data state operations
@@ -84,9 +78,9 @@ class Analyzer:
         """
         last_kline_ts = self.get_last_kline_ts(symbol)
         if not last_kline_ts:
-            return App.config["features_horizon"]
+            return self.config["features_horizon"]
 
-        freq = App.config["freq"]
+        freq = self.config["freq"]
         now = datetime.utcnow()
         last_kline = datetime.utcfromtimestamp(last_kline_ts // 1000)
         interval_length = pd.Timedelta(freq).to_pytimedelta()
@@ -105,7 +99,7 @@ class Analyzer:
         :type dict:
         """
         now_ts = now_timestamp()
-        freq = App.config["freq"]
+        freq = self.config["freq"]
         interval_length_ms = pandas_interval_length_ms(freq)
 
         for symbol, klines in data.items():
@@ -134,7 +128,7 @@ class Analyzer:
             klines_data.extend(klines)
 
             # Remove too old klines
-            kline_window = App.config["features_horizon"]
+            kline_window = self.config["features_horizon"]
             to_delete = len(klines_data) - kline_window
             if to_delete > 0:
                 del klines_data[:to_delete]
@@ -161,10 +155,10 @@ class Analyzer:
         3. Derive (predict) labels by applying models trained for each label
         4. Generate buy/sell signals by applying rule models trained for best overall trade performance
         """
-        symbol = App.config["symbol"]
+        symbol = self.config["symbol"]
 
         # Features, predictions, signals etc. have to be computed only for these last rows (for performance reasons)
-        last_rows = App.config["features_last_rows"]
+        last_rows = self.config["features_last_rows"]
 
         last_kline_ts = self.get_last_kline_ts(symbol)
         last_kline_ts_str = str(pd.to_datetime(last_kline_ts, unit='ms'))
@@ -174,7 +168,7 @@ class Analyzer:
         #
         # Convert source data (klines) into data frames for each data source
         #
-        data_sources = App.config.get("data_sources", [])
+        data_sources = self.config.get("data_sources", [])
         for ds in data_sources:
             if ds.get("file") == "klines":
                 try:
@@ -206,7 +200,7 @@ class Analyzer:
         # 2.
         # Generate all necessary derived features (NaNs are possible due to limited history)
         #
-        feature_sets = App.config.get("feature_sets", [])
+        feature_sets = self.config.get("feature_sets", [])
         feature_columns = []
         for fs in feature_sets:
             df, feats = generate_feature_set(df, fs, self.config, self.model_store, last_rows=last_rows if not ignore_last_rows else 0)
@@ -216,7 +210,7 @@ class Analyzer:
         if not ignore_last_rows:
             df = df.iloc[-last_rows:]
 
-        features = App.config["train_features"]
+        features = self.config["train_features"]
         # Exclude rows with at least one NaN
         tail_rows = notnull_tail_rows(df[features])
         df = df.tail(tail_rows)
@@ -233,11 +227,11 @@ class Analyzer:
             log.error(f"Null in predict_df found. Columns with Null: {null_columns}")
             return
 
-        train_feature_sets = App.config.get("train_feature_sets", [])
+        train_feature_sets = self.config.get("train_feature_sets", [])
         score_df = pd.DataFrame(index=predict_df.index)
         train_feature_columns = []
         for fs in train_feature_sets:
-            fs_df, feats, _ = predict_feature_set(predict_df, fs, App.config, self.model_store)
+            fs_df, feats, _ = predict_feature_set(predict_df, fs, self.config, self.model_store)
             score_df = pd.concat([score_df, fs_df], axis=1)
             train_feature_columns.extend(feats)
 
@@ -248,7 +242,7 @@ class Analyzer:
         # 4.
         # Signals
         #
-        signal_sets = App.config.get("signal_sets", [])
+        signal_sets = self.config.get("signal_sets", [])
         signal_columns = []
         for fs in signal_sets:
             df, feats = generate_feature_set(df, fs, self.config, self.model_store, last_rows=last_rows if not ignore_last_rows else 0)
@@ -263,8 +257,8 @@ class Analyzer:
         scores = ", ".join([f"{x}={row[x]:+.3f}" if isinstance(row[x], float) else f"{x}={str(row[x])}" for x in signal_columns])
         log.info(f"Analyze finished. Close: {int(row['close']):,} Signals: {scores}")
 
-        if App.df is None or len(App.df) == 0:
-            App.df = df
+        if self.df is None or len(self.df) == 0:
+            self.df = df
             return
 
         # Test if newly retrieved and computed values are equal to the previous ones
@@ -275,23 +269,23 @@ class Analyzer:
         for r in range(2, check_row_count):
             idx = df.index[-r-1]
 
-            if idx not in App.df.index:
+            if idx not in self.df.index:
                 continue
 
             # Compare all numeric values of the previously retrieved and newly retrieved rows for the same time
-            old_row = App.df[num_cols].loc[idx]
+            old_row = self.df[num_cols].loc[idx]
             new_row = df[num_cols].loc[idx]
             comp_idx = np.isclose(old_row, new_row)
             if not np.all(comp_idx):
                 log.warning(f"Newly computed row is not equal to the previously computed row for '{idx}'. NEW: {new_row[~comp_idx].to_dict()}. OLD: {old_row[~comp_idx].to_dict()}")
 
         # Append new rows to the main data frame
-        App.df = df.tail(check_row_count).combine_first(App.df)
+        self.df = df.tail(check_row_count).combine_first(self.df)
 
         # Remove too old rows
-        features_horizon = App.config["features_horizon"]
-        if len(App.df) > features_horizon + 15:
-            App.df = App.df.tail(features_horizon)
+        features_horizon = self.config["features_horizon"]
+        if len(self.df) > features_horizon + 15:
+            self.df = self.df.tail(features_horizon)
 
 
 if __name__ == "__main__":

@@ -177,7 +177,7 @@ def get_signal(buy_signal_column, sell_signal_column):
     """From the last row, produce and return an object with parameters important for trading."""
     freq = App.config["freq"]
 
-    df = App.df
+    df = App.analyzer.df
     row = df.iloc[-1]  # Last row stores the latest values we need
 
     interval_length = pd.Timedelta(freq).to_pytimedelta()

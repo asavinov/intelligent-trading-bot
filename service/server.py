@@ -81,7 +81,7 @@ async def main_task():
     output_sets = App.config.get("output_sets", [])
     for os in output_sets:
         try:
-            await output_feature_set(App.df, os, App.config, App.model_store)
+            await output_feature_set(App.analyzer.df, os, App.config, App.model_store)
         except Exception as e:
             log.error(f"Error in output function: {e}")
             return
@@ -94,6 +94,8 @@ async def main_task():
 def start_server(config_file):
 
     load_config(config_file)
+
+    App.config["train"] = False  # Server does not train - it only predicts therefore disable train mode
 
     symbol = App.config["symbol"]
     freq = App.config["freq"]
@@ -133,7 +135,10 @@ def start_server(config_file):
     App.model_store = ModelStore(App.config)
     App.model_store.load_models()
     App.analyzer = Analyzer(App.config, App.model_store)
-    
+
+    # Load latest transaction and (simulated) trade state
+    App.transaction = load_last_transaction()
+
     #App.loop = asyncio.get_event_loop()  # In Python 3.12: DeprecationWarning: There is no current event loop
     App.loop = asyncio.new_event_loop()
 
