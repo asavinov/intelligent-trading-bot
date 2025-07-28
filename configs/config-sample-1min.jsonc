@@ -9,13 +9,19 @@
 
     "data_folder": "C:/DATA_ITB",
 
-    // === DOWNLOAD AND MERGE ===
-
     "symbol": "BTCUSDT",
 
     "description": "BTCUSDT 1min",
 
     "freq": "1min", // pandas frequency
+
+    "label_horizon": 120,  // Batch/offline: do not use these last rows because their labels might not be correct
+    "features_horizon": 120, // Online/stream: Minimum data length for computing features. Take it from feature generator parameters
+    "train_length": 525600,  // Batch/offline: Uses this number of rows for training (if not additionally limited by the algorithm)
+    "predict_length": 288,  // These records must be kept up-to-date (in contrast to those in feature horizon)
+    "append_overlap_records": 5,  // Online/stream: These records will be requested and then re-computed on each iteration
+
+    // === DOWNLOAD AND MERGE ===
 
     "data_sources": [
         {"folder": "BTCUSDT", "file": "klines", "column_prefix": ""}
@@ -38,9 +44,6 @@
     ],
 
     // === TRAIN ===
-
-    "label_horizon": 120,  // Batch/offline: do not use these last rows because their labels might not be correct
-    "train_length": 525600,  // Batch/offline: Uses this number of rows for training (if not additionally limited by the algorithm)
 
     "train_feature_sets": [
     {
@@ -65,9 +68,6 @@
             "train": {"penalty": "l2", "C": 1.0, "class_weight": null, "solver": "sag", "max_iter": 100}
         }
     ],
-
-    "features_horizon": 2880, // Online/stream: Minimum data length for computing features. Take it from feature generator parameters
-    "features_last_rows": 5, // Online/stream: Last values which are really needed and have to be computed. All older values are not needed
 
     // === GENERATE SIGNALS ===
 
