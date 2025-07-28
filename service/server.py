@@ -157,11 +157,11 @@ def start_server(config_file):
     # Cold start: load initial data, do complete analysis
     try:
         App.loop.run_until_complete(sync_data_collector_task())
-        # First call may take some time because of big initial size and hence we make the second call to get the (possible) newest klines
+        # The very first call (cold start) may take some time because of big initial size and hence we make the second call to get the (possible) newest klines
         App.loop.run_until_complete(sync_data_collector_task())
 
         # Analyze all received data (and not only last few rows) so that we have full history
-        App.analyzer.analyze(ignore_last_rows=True)
+        App.analyzer.analyze()
     except Exception as e:
         log.error(f"Problems during initial data collection. {e}")
 
