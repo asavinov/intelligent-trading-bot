@@ -6,6 +6,8 @@ from datetime import timedelta, datetime
 import asyncio
 
 import pandas as pd
+import pandas.api.types as ptypes
+
 import requests
 
 from service.App import *
@@ -24,9 +26,17 @@ async def send_diagram(df, model: dict, config: dict, model_store: ModelStore):
     """
     Produce a line chart based on latest data and send it to the channel.
     """
+    freq = config.get("freq")
+    time_column = config["time_column"]
+
+    # Ensure that timestamp is in index. It is needed for visualization
+    if not ptypes.is_datetime64_dtype(df.index):  # Alternatively df.index.inferred_type == "datetime64"
+        if time_column in df.columns:
+            df = df.set_index('timestamp', inplace=False)
+        else:
+            raise ValueError(f"Neither index nor time columns '{time_column}' are of datetime type")
 
     notification_freq = model.get("notification_freq")
-    freq = config.get("freq")
     if notification_freq:
         # Continue only if system interval start is equal to the (longer) diagram interval start
         if pandas_get_interval(notification_freq)[0] != pandas_get_interval(freq)[0]:

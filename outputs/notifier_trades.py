@@ -5,6 +5,8 @@ from datetime import timedelta, datetime
 import asyncio
 
 import pandas as pd
+import pandas.api.types as ptypes
+
 import requests
 
 from service.App import *
@@ -44,14 +46,18 @@ async def generate_trader_transaction(df, model: dict, config: dict):
     buy_signal_column = model.get("buy_signal_column")
     sell_signal_column = model.get("sell_signal_column")
 
-    signal = get_signal(buy_signal_column, sell_signal_column)
+    signal = get_signal(df, buy_signal_column, sell_signal_column)
     signal_side = signal.get("side")
     close_price = signal.get("close_price")
     close_time = signal.get("close_time")
 
     # Previous transaction: BUY (we are currently selling) or SELL (we are currently buying)
-    t_status = App.transaction.get("status")
-    t_price = App.transaction.get("price")
+    if not App.transaction:
+        t_status = None
+        t_price = None
+    else:
+        t_status = App.transaction.get("status")
+        t_price = App.transaction.get("price")
     if signal_side == "BUY" and (not t_status or t_status == "SELL"):
         profit = t_price - close_price if t_price else 0.0
         t_dict = dict(timestamp=str(close_time), price=close_price, profit=profit, status="BUY")
@@ -173,15 +179,18 @@ async def generate_transaction_stats():
     return profit, profit_percent, profit_descr, profit_percent_descr
 
 
-def get_signal(buy_signal_column, sell_signal_column):
+def get_signal(df, buy_signal_column, sell_signal_column):
     """From the last row, produce and return an object with parameters important for trading."""
     freq = App.config["freq"]
 
-    df = App.analyzer.df
     row = df.iloc[-1]  # Last row stores the latest values we need
 
     interval_length = pd.Timedelta(freq).to_pytimedelta()
+
+    if not ptypes.is_datetime64_dtype(df.index):  # Alternatively df.index.inferred_type == "datetime64"
+        raise ValueError(f"Index of the data frame must be of datetime type.")
     close_time = row.name + interval_length  # Add interval length because timestamp is start of the interval
+
     close_price = row["close"]
 
     buy_signal = row[buy_signal_column]

@@ -34,7 +34,7 @@ async def trader_binance(df, model: dict, config: dict, model_store: ModelStore)
     buy_signal_column = model.get("buy_signal_column")
     sell_signal_column = model.get("sell_signal_column")
 
-    signal = get_signal(buy_signal_column, sell_signal_column)
+    signal = get_signal(df, buy_signal_column, sell_signal_column)
     signal_side = signal.get("side")
     close_price = signal.get("close_price")
     close_time = signal.get("close_time")

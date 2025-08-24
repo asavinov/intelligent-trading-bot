@@ -3,9 +3,10 @@ import sys
 from datetime import timedelta, datetime
 
 import asyncio
+import requests
 
 import pandas as pd
-import requests
+import pandas.api.types as ptypes
 
 from service.App import *
 from common.utils import *
@@ -18,6 +19,7 @@ log = logging.getLogger('notifier')
 async def send_score_notification(df, model: dict, config: dict, model_store: ModelStore):
     symbol = config["symbol"]
     freq = config["freq"]
+    time_column = config["time_column"]
 
     score_column_names = model.get("score_column_names")
     if not score_column_names:
@@ -27,7 +29,15 @@ async def send_score_notification(df, model: dict, config: dict, model_store: Mo
     row = df.iloc[-1]  # Last row stores the latest values we need
 
     interval_length = pd.Timedelta(freq).to_pytimedelta()
-    close_time = row.name + interval_length  # Add interval length because timestamp is start of the interval
+
+    if ptypes.is_datetime64_dtype(df.index):  # Alternatively df.index.inferred_type == "datetime64"
+        close_time = row.name
+    elif time_column in df.columns and ptypes.is_datetime64_dtype(df[time_column]):
+        close_time = row[time_column]
+    else:
+        raise ValueError(f"Neither index nor time columns '{time_column}' are of datetime type")
+    close_time += interval_length  # Add interval length because timestamp is start of the interval
+
     close_price = row["close"]
     trade_scores = [row[col] for col in score_column_names]
     trade_score_primary = trade_scores[0]
