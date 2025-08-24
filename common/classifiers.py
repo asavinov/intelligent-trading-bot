@@ -498,13 +498,9 @@ def compute_scores(y_true, y_hat):
     precision = metrics.precision_score(y_true, y_hat_class)
     recall = metrics.recall_score(y_true, y_hat_class)
 
-    scores = dict(
-        auc=round(auc, 3),
-        ap=round(ap, 3),
-        f1=round(f1, 3),
-        precision=round(precision, 3),
-        recall=round(recall, 3),
-    )
+    scores = dict(auc=auc, ap=ap, f1=f1, precision=precision, recall=recall,)
+
+    scores = {key: round(float(value), 3) for (key, value) in scores.items()}
 
     return scores
 
@@ -549,16 +545,11 @@ def compute_scores_regression(y_true, y_hat):
     recall = metrics.recall_score(y_true_class, y_hat_class)
 
     scores = dict(
-        mae=round(mae, 3),
-        mape=round(mape, 3),
-        r2=round(r2, 3),
-
-        auc=round(auc, 3),
-        ap=round(ap, 3),
-        f1=round(f1, 3),
-        precision=round(precision, 3),
-        recall=round(recall, 3),
+        mae=mae, mape=mape, r2=r2,
+        auc=auc, ap=ap, f1=f1, precision=precision, recall=recall,
     )
+
+    scores = {key: round(float(value), 3) for (key, value) in scores.items()}
 
     return scores
 

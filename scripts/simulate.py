@@ -92,8 +92,6 @@ def main(config_file):
 
     print(f"Input data size {len(df)} records. Range: [{df.iloc[0][time_column]}, {df.iloc[-1][time_column]}]")
 
-    months_in_simulation = (df[time_column].iloc[-1] - df[time_column].iloc[0]) / timedelta(days=365/12)
-
     #
     # Load signal train parameters
     #
@@ -117,6 +115,8 @@ def main(config_file):
     if simulate_config.get("buy_sell_equal"):
         parameter_grid["sell_signal_threshold"] = [None]
         parameter_grid["sell_signal_threshold_2"] = [None]
+
+    months_in_simulation = (df[time_column].iloc[-1] - df[time_column].iloc[0]) / timedelta(days=365/12)
 
     #
     # Find the generator, the parameters of which will be varied
