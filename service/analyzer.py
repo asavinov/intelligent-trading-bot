@@ -257,7 +257,7 @@ class Analyzer:
         score_df = pd.DataFrame(index=predict_df.index)
         train_feature_columns = []
         for fs in train_feature_sets:
-            fs_df, feats, _ = predict_feature_set(predict_df, fs, self.config, self.model_store)
+            fs_df, feats = predict_feature_set(predict_df, fs, self.config, self.model_store)
             score_df = pd.concat([score_df, fs_df], axis=1)
             train_feature_columns.extend(feats)
 

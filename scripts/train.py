@@ -74,36 +74,36 @@ def main(config_file):
     #
 
     # Default (common) values for all trained features
-    label_horizon = config["label_horizon"]  # Labels are generated from future data and hence we might want to explicitly remove some tail rows
-    train_length = config.get("train_length")
-    train_features = config.get("train_features")
-    labels = config["labels"]
-    algorithms = config.get("algorithms")
+    train_features_all = config.get("train_features")
+    labels_all = config["labels"]
 
     # Select necessary features and labels
     out_columns = [time_column, 'open', 'high', 'low', 'close', 'volume', 'close_time']
     out_columns = [x for x in out_columns if x in df.columns]
-    all_features = train_features + labels
+    all_features = train_features_all + labels_all
     df = df[out_columns + [x for x in all_features if x not in out_columns]]
 
-    for label in labels:
+    for label in labels_all:
         if np.issubdtype(df[label].dtype, bool):
             df[label] = df[label].astype(int)  # For classification tasks we want to use integers
+
+    label_horizon = config["label_horizon"]  # Labels are generated from future data and hence we might want to explicitly remove some tail rows
+    train_length = config.get("train_length")
 
     # Remove the tail data for which no (correct) labels are available
     # The reason is that these labels are computed from future values which are not available and hence labels might be wrong
     if label_horizon:
         df = df.head(-label_horizon)
 
-    # Handle NULLs
-    df.replace([np.inf, -np.inf], np.nan, inplace=True)
-    na_df = df[ df[train_features].isna().any(axis=1) ]
-    if len(na_df) > 0:
-        print(f"WARNING: There exist {len(na_df)} rows with NULLs in some feature columns")
-
     # Limit maximum length for all algorithms (algorithms can further limit their train size)
     if train_length:
         df = df.tail(train_length)
+
+    # Handle NULLs
+    df.replace([np.inf, -np.inf], np.nan, inplace=True)
+    na_df = df[ df[train_features_all].isna().any(axis=1) ]
+    if len(na_df) > 0:
+        print(f"WARNING: There exist {len(na_df)} rows with NULLs in some feature columns")
 
     df = df.reset_index(drop=True)  # To remove gaps in index before use
 
@@ -117,19 +117,13 @@ def main(config_file):
 
     print(f"Start training models for {len(df)} input records.")
 
-    out_df = pd.DataFrame()  # Collect predictions
     models = dict()
-    scores = dict()
-
     for i, fs in enumerate(train_feature_sets):
         fs_now = datetime.now()
         print(f"Start train feature set {i}/{len(train_feature_sets)}. Generator {fs.get('generator')}...")
 
-        fs_out_df, fs_models, fs_scores = train_feature_set(df, fs, config)
-
-        out_df = pd.concat([out_df, fs_out_df], axis=1)
+        fs_models = train_feature_set(df, fs, config)
         models.update(fs_models)
-        scores.update(fs_scores)
 
         fs_elapsed = datetime.now() - fs_now
         print(f"Finished train feature set {i}/{len(train_feature_sets)}. Generator {fs.get('generator')}. Time: {str(fs_elapsed).split('.')[0]}")
@@ -143,40 +137,6 @@ def main(config_file):
         App.model_store.put_model_pair(score_column_name, model_pair)
 
     print(f"Models stored in path: {App.model_store.model_path.absolute()}")
-
-    #
-    # Store scores
-    #
-    lines = list()
-    for score_column_name, score in scores.items():
-        line = score_column_name + ", " + str(score)
-        lines.append(line)
-
-    metrics_file_name = f"prediction-metrics.txt"
-    metrics_path = (data_path / metrics_file_name).resolve()
-    with open(metrics_path, 'a+') as f:
-        f.write("\n".join(lines) + "\n\n")
-
-    print(f"Metrics stored in path: {metrics_path.absolute()}")
-
-    #
-    # Store predictions
-    #
-    # Store only selected original data, labels, and their predictions
-    out_df = df[out_columns + labels].join(out_df)
-
-    out_path = data_path / config.get("predict_file_name")
-
-    print(f"Storing predictions with {len(out_df)} records and {len(out_df.columns)} columns in output file {out_path}...")
-    if out_path.suffix == ".parquet":
-        out_df.to_parquet(out_path, index=False)
-    elif out_path.suffix == ".csv":
-        out_df.to_csv(out_path, index=False, float_format='%.6f')
-    else:
-        print(f"ERROR: Unknown extension of the output file '{out_path.suffix}'. Only 'csv' and 'parquet' are supported")
-        return
-
-    print(f"Predictions stored in file: {out_path}. Length: {len(out_df)}. Columns: {len(out_df.columns)}")
 
     #
     # End

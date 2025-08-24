@@ -2,7 +2,7 @@ from typing import Tuple
 
 import numpy as np
 import pandas as pd
-from pandas.api.types import is_float_dtype, is_numeric_dtype, is_integer_dtype, is_string_dtype
+import pandas.api.types as ptypes
 
 from common.types import Venue
 from common.classifiers import *
@@ -115,39 +115,13 @@ def generate_feature_set(df: pd.DataFrame, fs: dict, config: dict, model_store: 
     return df, new_features
 
 
-def predict_feature_set(df, fs, config, model_store: ModelStore) -> Tuple[pd.DataFrame, list, dict]:
+def predict_feature_set(df, fs, config, model_store: ModelStore) -> Tuple[pd.DataFrame, list]:
 
-    labels_all = config.get("labels", [])
-    labels = fs.get("config").get("labels", [])
-    if not labels:
-        labels = labels_all
-
-    algorithms_all = config.get("algorithms")
-    algorithms_str = fs.get("config").get("functions", [])
-    if not algorithms_str:
-        algorithms_str = fs.get("config").get("algorithms", [])
-    # The algorithms can be either strings (names) or dicts (definitions) so we resolve the names
-    algorithms = []
-    for alg in algorithms_str:
-        if isinstance(alg, str):  # Find in the list of algorithms
-            alg = find_algorithm_by_name(algorithms_all, alg)
-        elif not isinstance(alg, dict):
-            raise ValueError(f"Algorithm has to be either dict or name")
-        algorithms.append(alg)
-    if not algorithms:
-        algorithms = algorithms_all
-
-    train_features_all = config.get("train_features", [])
-    train_features = fs.get("config").get("columns", [])
-    if not train_features:
-        train_features = fs.get("config").get("features", [])
-    if not train_features:
-        train_features = train_features_all
+    train_features, labels, algorithms = get_features_labels_algorithms(fs, config)
 
     train_df = df[train_features]
 
     features = []
-    scores = dict()
     out_df = pd.DataFrame(index=train_df.index)  # Collect predictions
 
     for label in labels:
@@ -171,58 +145,23 @@ def predict_feature_set(df, fs, config, model_store: ModelStore) -> Tuple[pd.Dat
             elif algo_type == "svc":
                 df_y_hat = predict_svc(model_pair, train_df, model_config)
             else:
-                raise ValueError(f"Unknown algorithm type '{algo_type}'")
+                raise ValueError(f"Unknown algorithm type {algo_type}. Check algorithm list.")
 
             out_df[score_column_name] = df_y_hat
             features.append(score_column_name)
 
-            # For each new score, compare it with the label true values
-            if label in df:
-                df_y = df[label]
-                if is_float_dtype(df_y) and is_float_dtype(df_y_hat):
-                    scores[score_column_name] = compute_scores_regression(df_y, df_y_hat)  # Regression stores
-                else:
-                    scores[score_column_name] = compute_scores(df_y, df_y_hat)  # Classification stores
-
-    return out_df, features, scores
+    return out_df, features
 
 
-def train_feature_set(df, fs, config) -> Tuple[pd.DataFrame, dict, dict]:
+def train_feature_set(df, fs, config) -> dict:
 
-    labels_all = config.get("labels", [])
-    labels = fs.get("config").get("labels", [])
-    if not labels:
-        labels = labels_all
-
-    algorithms_all = config.get("algorithms")
-    algorithms_str = fs.get("config").get("functions", [])
-    if not algorithms_str:
-        algorithms_str = fs.get("config").get("algorithms", [])
-    # The algorithms can be either strings (names) or dicts (definitions) so we resolve the names
-    algorithms = []
-    for alg in algorithms_str:
-        if isinstance(alg, str):  # Find in the list of algorithms
-            alg = find_algorithm_by_name(algorithms_all, alg)
-        elif not isinstance(alg, dict):
-            raise ValueError(f"Algorithm has to be either dict or name")
-        algorithms.append(alg)
-    if not algorithms:
-        algorithms = algorithms_all
-
-    train_features_all = config.get("train_features", [])
-    train_features = fs.get("config").get("columns", [])
-    if not train_features:
-        train_features = fs.get("config").get("features", [])
-    if not train_features:
-        train_features = train_features_all
+    train_features, labels, algorithms = get_features_labels_algorithms(fs, config)
 
     # Only for train mode
     df = df.dropna(subset=train_features).reset_index(drop=True)
     df = df.dropna(subset=labels).reset_index(drop=True)
 
-    models = dict()
-    scores = dict()
-    out_df = pd.DataFrame()  # Collect predictions
+    models = dict()  # Here collect the resulted trained models
 
     for label in labels:
         for model_config in algorithms:
@@ -249,31 +188,56 @@ def train_feature_set(df, fs, config) -> Tuple[pd.DataFrame, dict, dict]:
             if algo_type == "gb":
                 model_pair = train_gb(df_X, df_y, model_config)
                 models[score_column_name] = model_pair
-                df_y_hat = predict_gb(model_pair, df_X, model_config)
             elif algo_type == "nn":
                 model_pair = train_nn(df_X, df_y, model_config)
                 models[score_column_name] = model_pair
-                df_y_hat = predict_nn(model_pair, df_X, model_config)
             elif algo_type == "lc":
                 model_pair = train_lc(df_X, df_y, model_config)
                 models[score_column_name] = model_pair
-                df_y_hat = predict_lc(model_pair, df_X, model_config)
             elif algo_type == "svc":
                 model_pair = train_svc(df_X, df_y, model_config)
                 models[score_column_name] = model_pair
-                df_y_hat = predict_svc(model_pair, df_X, model_config)
             else:
-                print(f"ERROR: Unknown algorithm type {algo_type}. Check algorithm list.")
-                return
+                raise ValueError(f"Unknown algorithm type {algo_type}. Check algorithm list.")
 
-            out_df[score_column_name] = df_y_hat
+    return models
 
-            if is_float_dtype(df_y) and is_float_dtype(df_y_hat):
-                scores[score_column_name] = compute_scores_regression(df_y, df_y_hat)  # Regression stores
-            else:
-                scores[score_column_name] = compute_scores(df_y, df_y_hat)  # Classification stores
 
-    return out_df, models, scores
+def get_features_labels_algorithms(fs, config) -> Tuple[list, list, list]:
+    """
+    Get three lists by combining the entries from default lists in the config file
+    and lists in the generator config. The function will return a list from the specific
+    generator config if it is available and the default list otherwise.
+    For the algorithm list, it will resolve the algorithm names into their definitions if necessary.
+    """
+    train_features_all = config.get("train_features", [])
+    train_features = fs.get("config").get("columns", [])
+    if not train_features:
+        train_features = fs.get("config").get("features", [])
+    if not train_features:
+        train_features = train_features_all
+
+    labels_all = config.get("labels", [])
+    labels = fs.get("config").get("labels", [])
+    if not labels:
+        labels = labels_all
+
+    algorithms_all = config.get("algorithms")
+    algorithms_str = fs.get("config").get("functions", [])
+    if not algorithms_str:
+        algorithms_str = fs.get("config").get("algorithms", [])
+    # The algorithms can be either strings (names) or dicts (definitions) so we resolve the names
+    algorithms = []
+    for alg in algorithms_str:
+        if isinstance(alg, str):  # Find in the list of algorithms
+            alg = find_algorithm_by_name(algorithms_all, alg)
+        elif not isinstance(alg, dict):
+            raise ValueError(f"Algorithm has to be either dict or name")
+        algorithms.append(alg)
+    if not algorithms:
+        algorithms = algorithms_all
+
+    return train_features, labels, algorithms
 
 
 async def output_feature_set(df, fs: dict, config: dict, model_store: ModelStore) -> None:

@@ -5,9 +5,11 @@ from tqdm import tqdm
 
 import numpy as np
 import pandas as pd
+import pandas.api.types as ptypes
 
 from service.App import *
 from common.model_store import *
+from common.classifiers import compute_scores_regression, compute_scores
 from common.generators import predict_feature_set
 
 """
@@ -70,26 +72,25 @@ def main(config_file):
     #
     # Apply ML algorithm predictors
     #
-    train_features = config.get("train_features")
-    labels = config["labels"]
-    algorithms = config.get("algorithms")
+    train_features_all = config.get("train_features")
+    labels_all = config["labels"]
 
     # Select necessary features and label
     out_columns = [time_column, 'open', 'high', 'low', 'close', 'volume', 'close_time']
     out_columns = [x for x in out_columns if x in df.columns]
-    labels_present = set(labels).issubset(df.columns)
+    labels_present = set(labels_all).issubset(df.columns)
     if labels_present:
-        all_features = train_features + labels
+        all_features = train_features_all + labels_all
     else:
-        all_features = train_features
+        all_features = train_features_all
     df = df[out_columns + [x for x in all_features if x not in out_columns]]
 
     # Handle NULLs
     df.replace([np.inf, -np.inf], np.nan, inplace=True)
-    na_df = df[ df[train_features].isna().any(axis=1) ]
+    na_df = df[ df[train_features_all].isna().any(axis=1) ]
     if len(na_df) > 0:
         print(f"WARNING: There exist {len(na_df)} rows with NULLs in some feature columns. These rows will be removed.")
-        df = df.dropna(subset=train_features)
+        df = df.dropna(subset=train_features_all)
         df = df.reset_index(drop=True)  # We must reset index after removing rows to remove gaps
 
     #
@@ -102,19 +103,17 @@ def main(config_file):
 
     print(f"Start generating trained features for {len(df)} input records.")
 
-    out_df = pd.DataFrame()  # Collect predictions
+    labels_hat_df = pd.DataFrame()  # Collect predictions
     features = []
-    scores = dict()
 
     for i, fs in enumerate(train_feature_sets):
         fs_now = datetime.now()
         print(f"Start train feature set {i}/{len(train_feature_sets)}. Generator {fs.get('generator')}...")
 
-        fs_out_df, fs_features, fs_scores = predict_feature_set(df, fs, config, App.model_store)
+        fs_out_df, fs_features = predict_feature_set(df, fs, config, App.model_store)
 
-        out_df = pd.concat([out_df, fs_out_df], axis=1)
+        labels_hat_df = pd.concat([labels_hat_df, fs_out_df], axis=1)
         features.extend(fs_features)
-        scores.update(fs_scores)
 
         fs_elapsed = datetime.now() - fs_now
         print(f"Finished train feature set {i}/{len(train_feature_sets)}. Generator {fs.get('generator')}. Time: {str(fs_elapsed).split('.')[0]}")
@@ -122,26 +121,10 @@ def main(config_file):
     print(f"Finished generating trained features.")
 
     #
-    # Store scores
-    #
-    if labels_present:
-        lines = list()
-        for score_column_name, score in scores.items():
-            line = score_column_name + ", " + str(score)
-            lines.append(line)
-
-        metrics_file_name = f"prediction-metrics.txt"
-        metrics_path = (data_path / metrics_file_name).resolve()
-        with open(metrics_path, 'a+') as f:
-            f.write("\n".join(lines) + "\n\n")
-
-        print(f"Metrics stored in path: {metrics_path.absolute()}")
-
-    #
     # Store predictions
     #
     # Store only selected original data, labels, and their predictions
-    out_df = df[out_columns + (labels if labels_present else [])].join(out_df)
+    out_df = labels_hat_df.join(df[out_columns + (labels_all if labels_present else [])])
 
     out_path = data_path / config.get("predict_file_name")
 
@@ -155,6 +138,38 @@ def main(config_file):
         return
 
     print(f"Predictions stored in file: {out_path}. Length: {len(out_df)}. Columns: {len(out_df.columns)}")
+
+    #
+    # Compute and store scores
+    #
+    score_lines = []
+    # For each predicted column, find the corresponding true label column and then compare them
+    for score_column_name in labels_hat_df.columns:
+        label_column, _ = score_to_label_algo_pair(score_column_name)
+
+        # Drop nans from scores
+        df_scores = pd.DataFrame({"y_true": out_df[label_column], "y_predicted": out_df[score_column_name]})
+        df_scores = df_scores.dropna()
+
+        y_true = df_scores["y_true"]
+        y_predicted = df_scores["y_predicted"]
+        y_predicted_class = np.where(y_predicted.values > 0.5, 1, 0)
+
+        if ptypes.is_float_dtype(y_true) and ptypes.is_float_dtype(y_predicted):
+            score = compute_scores_regression(y_true, y_predicted)  # Regression stores
+        else:
+            score = compute_scores(y_true.astype(int), y_predicted)  # Classification stores
+
+        score_lines.append(f"{score_column_name}: {score}")
+
+    #
+    # Store scores
+    #
+    score_path = out_path.with_suffix('.txt')
+    with open(score_path, "a+") as f:
+        f.write("\n".join([str(x) for x in score_lines]) + "\n\n")
+
+    print(f"Prediction scores stored in path: {score_path.absolute()}")
 
     #
     # End
