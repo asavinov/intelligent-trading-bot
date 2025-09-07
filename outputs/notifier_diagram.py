@@ -43,8 +43,11 @@ async def send_diagram(df, model: dict, config: dict, model_store: ModelStore):
             return
 
     score_column_names = model.get("score_column_names")
-    if isinstance(score_column_names, list) and len(score_column_names) > 0:
-        score_column_names = score_column_names[0]
+    if isinstance(score_column_names, str):
+        score_column_names = [score_column_names]
+    elif isinstance(score_column_names, list) and len(score_column_names) > 1:
+        score_column_names = [score_column_names[0]]
+        log.warning(f"Parameter 'score_column_names' should be one column. Only the first column will be visualized.")
 
     score_thresholds = model.get("score_thresholds")
 
@@ -56,12 +59,27 @@ async def send_diagram(df, model: dict, config: dict, model_store: ModelStore):
     #
     # Prepare data to be visualized
     #
-    # Get main df with high, low, close for the symbol.
     vis_columns = ['open', 'high', 'low', 'close']
-    if score_column_names:
-        vis_columns.append(score_column_names)
+    score_col = score_column_names[0]
+    vis_columns.append(score_col)
+
+    # Generate MAs if necessary
+    score_mas = model.get("score_ma")
+    if not isinstance(score_mas, list):
+        score_mas = [score_mas]
+    for ma in score_mas:
+        if not isinstance(ma, int):
+            log.error(f"Parameter 'score_ma' {ma} have to be an integer or a list of integers. Ignore")
+            continue
+        # TODO: Compute moving average column and add it to the list of columns to be visualized
+        ma_column_name = f"{score_col}_{ma}"
+        df[ma_column_name] = df[score_col].rolling(window=ma).mean()
+        vis_columns.append(ma_column_name)
+        score_column_names.append(ma_column_name)
+
+    # Resample
     df_ohlc = df[vis_columns]
-    df_ohlc = resample_ohlc_data(df_ohlc.reset_index(), resampling_freq, nrows, score_column=score_column_names, buy_signal_column=None, sell_signal_column=None)
+    df_ohlc = resample_ohlc_data(df_ohlc.reset_index(), resampling_freq, nrows, score_columns=score_column_names, buy_signal_column=None, sell_signal_column=None)
 
     # Get transaction data
     df_t = load_all_transactions()  # timestamp,price,profit,status
@@ -122,7 +140,7 @@ async def send_diagram(df, model: dict, config: dict, model_store: ModelStore):
         log.error(f"Error sending notification: {e}")
 
 
-def resample_ohlc_data(df, freq, nrows, score_column, buy_signal_column, sell_signal_column):
+def resample_ohlc_data(df, freq, nrows, score_columns, buy_signal_column, sell_signal_column):
     """
     Resample ohlc data to lower frequency. Assumption: time in 'timestamp' column.
     """
@@ -135,9 +153,11 @@ def resample_ohlc_data(df, freq, nrows, score_column, buy_signal_column, sell_si
         'close': 'last',
     }
 
-    # Optional columns
-    if score_column:
-        ohlc[score_column] = lambda x: max(x) if len(x) > 0 and all(x > 0.0) else min(x) if len(x) > 0 and all(x < 0.0) else np.mean(x)
+    if isinstance(score_columns, str):
+        score_columns = [score_columns]
+    for col in score_columns:
+        # Add to aggregations
+        ohlc[col] = lambda x: max(x) if len(x) > 0 and all(x > 0.0) else min(x) if len(x) > 0 and all(x < 0.0) else np.mean(x)
 
     if buy_signal_column:
         # Buy signal if at least one buy signal was during this time interval
@@ -260,10 +280,15 @@ def generate_chart(df, title, buy_signal_column, sell_signal_column, score_colum
     # Indicator line
     #
 
-    if score_column and score_column in df.columns:
+    if not isinstance(score_column, list):
+        score_column = [score_column]
+
+    main_score_column = score_column[0] if len(score_column) > 0 else None
+
+    if main_score_column and main_score_column in df.columns:
         ax2 = ax1.twinx()
 
-        ymax = max(df[score_column].abs().max(), max(thresholds) if thresholds else 0.0)
+        ymax = max(df[main_score_column].abs().max(), max(thresholds) if thresholds else 0.0)
         ax2.set(ylim=(-ymax * 1.2, +ymax * 1.2))
 
         # ax2.set_frame_on(False)
@@ -271,13 +296,22 @@ def generate_chart(df, title, buy_signal_column, sell_signal_column, score_colum
 
         # ax2.axhline(0.0, lw=.1, color="black")
 
+        # Draw horizontal threshold lines
         for threshold in thresholds:
             ax2.axhline(threshold, lw=3.0, color="lightgray")
 
+        # Draw secondary score columns if any
+        for i, sec_score_col in enumerate(score_column):
+            if i == 0:
+                continue
+            sns.lineplot(data=df, x="timestamp", y=sec_score_col, drawstyle='default', lw=1.0, color="violet", ax=ax2)  # marker="v" "^" , markersize=12
+
+        # Primary score
         # ax2.plot(x, y1, 'o-', color="red" )
-        sns.lineplot(data=df, x="timestamp", y=score_column, drawstyle='steps-mid', lw=1.0, color="red", ax=ax2)  # marker="v" "^" , markersize=12
+        sns.lineplot(data=df, x="timestamp", y=main_score_column, drawstyle='steps-mid', lw=1.0, color="red", ax=ax2)  # marker="v" "^" , markersize=12
         ax2.set_ylabel('Intelligent Indicator', color='r', fontsize=16)
         # ax2.set_ylabel('Score', color='b')
+
 
     # fig.suptitle("My figtitle", fontsize=14)  # Positioned higher
     # plt.title('Weekly: $\\bf{S&P 500}$', fontsize=16)  # , weight='bold' or MathText

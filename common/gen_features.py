@@ -17,7 +17,7 @@ from common.gen_features_rolling_agg import _aggregate_last_rows
 
 """
 Feature generators. 
-A feature generator knows how to generate features from its delcarative specification in the config file.
+A feature generator knows how to generate features from its declarative specification in the config file.
 """
 
 

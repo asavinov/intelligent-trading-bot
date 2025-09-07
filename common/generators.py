@@ -1,10 +1,12 @@
 from typing import Tuple
+import asyncio
 
 import numpy as np
 import pandas as pd
 import pandas.api.types as ptypes
 
 from common.types import Venue
+from common.utils import *
 from common.classifiers import *
 from common.model_store import *
 from common.gen_features import *
@@ -14,12 +16,6 @@ from common.gen_signals import (
     generate_smoothen_scores, generate_combine_scores,
     generate_threshold_rule, generate_threshold_rule2
 )
-
-from outputs.notifier_scores import *
-from outputs.notifier_diagram import *
-from outputs.notifier_trades import *
-from outputs import get_trader_functions
-
 
 def generate_feature_set(df: pd.DataFrame, fs: dict, config: dict, model_store: ModelStore, last_rows: int) -> Tuple[pd.DataFrame, list]:
     """
@@ -241,6 +237,11 @@ def get_features_labels_algorithms(fs, config) -> Tuple[list, list, list]:
 
 
 async def output_feature_set(df, fs: dict, config: dict, model_store: ModelStore) -> None:
+    from outputs.notifier_scores import send_score_notification
+    from outputs.notifier_diagram import send_diagram
+    from outputs.notifier_trades import trader_simulation
+    from outputs import get_trader_functions
+
     #
     # Resolve and apply feature generator functions from the configuration
     #
