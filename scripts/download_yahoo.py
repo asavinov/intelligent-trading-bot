@@ -20,6 +20,7 @@ def main(config_file):
 
     time_column = App.config["time_column"]
     data_path = Path(App.config["data_folder"])
+
     download_max_rows = App.config.get("download_max_rows", 0)
 
     now = datetime.now()
@@ -53,9 +54,12 @@ def main(config_file):
             df[time_column] = df[time_column].dt.date
             last_date = df.iloc[-1][time_column]
 
+            overlap = 2  # The overlap can be longer because the difference in days includes also weekends which are not trade days
+            days = (pd.Timestamp(now) - pd.Timestamp(last_date)).days + overlap
+
             # === Download from the remote server
             # Download more data than we need and then overwrite the older data
-            new_df = yf.download(quote, period="5d", auto_adjust=True, multi_level_index=False, session=session)
+            new_df = yf.download(quote, period=f"{days}d", auto_adjust=True, multi_level_index=False, session=session)
 
             new_df = new_df.reset_index()
             new_df['Date'] = pd.to_datetime(new_df['Date'], format="ISO8601").dt.date
