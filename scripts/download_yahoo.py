@@ -51,7 +51,8 @@ def main(config_file):
         if file_name.is_file():
             df = pd.read_csv(file_name, parse_dates=[time_column], date_format="ISO8601")
             #df['Date'] = pd.to_datetime(df['Date'], format="ISO8601")  # "2022-06-07" iso format
-            df[time_column] = df[time_column].dt.date
+            if pd.api.types.is_datetime64_any_dtype(df[time_column]):
+                df[time_column] = df[time_column].dt.date
             last_date = df.iloc[-1][time_column]
 
             overlap = 2  # The overlap can be longer because the difference in days includes also weekends which are not trade days

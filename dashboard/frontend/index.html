@@ -1,0 +1,313 @@
+<!DOCTYPE html>
+<html lang="fa" dir="rtl">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>داشبورد ربات ترید هوشمند</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        .status-dot {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            display: inline-block;
+            margin-left: 8px;
+        }
+
+        .nav-link {
+            display: block;
+            padding: 12px 16px;
+            color: #d1d5db;
+            text-decoration: none;
+            border-radius: 6px;
+            transition: all 0.2s;
+        }
+
+        .nav-link:hover,
+        .nav-link.active {
+            background-color: #374151;
+            color: white;
+        }
+
+        .quick-action-card {
+            background: white;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+            text-align: center;
+        }
+
+        .btn-primary {
+            background-color: #3b82f6;
+            color: white;
+            padding: 8px 16px;
+            border-radius: 6px;
+            border: none;
+            cursor: pointer;
+            transition: background-color 0.2s;
+        }
+
+        .btn-primary:hover {
+            background-color: #2563eb;
+        }
+
+        .btn-secondary {
+            background-color: #6b7280;
+            color: white;
+            padding: 8px 16px;
+            border-radius: 6px;
+            border: none;
+            cursor: pointer;
+            transition: background-color 0.2s;
+        }
+
+        .btn-secondary:hover {
+            background-color: #4b5563;
+        }
+
+        .signal-score {
+            font-size: 1.5rem;
+            font-weight: bold;
+            color: #10b981;
+        }
+
+        .signal-time {
+            font-size: 0.875rem;
+            color: #6b7280;
+        }
+
+        .connection-status .status-item {
+            display: flex;
+            align-items: center;
+            margin-bottom: 4px;
+            font-size: 0.875rem;
+        }
+
+        #live-logs {
+            font-family: 'Courier New', monospace;
+            white-space: pre-wrap;
+            overflow-wrap: break-word;
+        }
+
+        .log-line {
+            margin-bottom: 2px;
+            padding: 2px 0;
+        }
+
+        .log-stdout {
+            color: #10b981;
+        }
+
+        .log-stderr {
+            color: #ef4444;
+        }
+
+        .log-info {
+            color: #3b82f6;
+        }
+
+        .log-error {
+            color: #ef4444;
+        }
+    </style>
+</head>
+
+<body class="bg-gray-100 font-sans">
+    <!-- Header -->
+    <header class="bg-blue-600 text-white p-4">
+        <div class="flex justify-between items-center">
+            <h1 class="text-2xl font-bold">داشبورد ربات ترید هوشمند</h1>
+            <div class="flex items-center space-x-4">
+                <div class="status-indicator" id="system-status">
+                    <span class="status-dot bg-green-500"></span>
+                    <span id="status-text">در حال بررسی...</span>
+                </div>
+                <button class="btn-secondary" onclick="refreshSystemStatus()">
+                    🔄 بروزرسانی
+                </button>
+            </div>
+        </div>
+    </header>
+
+    <div class="flex min-h-screen">
+        <!-- Sidebar -->
+        <aside class="w-64 bg-gray-800 text-white">
+            <nav class="p-4">
+                <ul class="space-y-2">
+                    <li><a href="#dashboard" class="nav-link active" onclick="showSection('dashboard')">📊 داشبورد</a>
+                    </li>
+                    <li><a href="#scripts" class="nav-link" onclick="showSection('scripts')">⚙️ مدیریت اسکریپت‌ها</a>
+                    </li>
+                    <li><a href="#configs" class="nav-link" onclick="showSection('configs')">📝 تنظیمات</a></li>
+                    <li><a href="#monitoring" class="nav-link" onclick="showSection('monitoring')">📈 مانیتورینگ</a>
+                    </li>
+                    <li><a href="#setup" class="nav-link" onclick="window.location.href='/setup'">🔧 راه‌اندازی</a></li>
+                </ul>
+            </nav>
+        </aside>
+
+        <!-- Main Content -->
+        <main class="flex-1 p-6">
+            <!-- Dashboard Section -->
+            <div id="dashboard-section" class="section">
+                <!-- Quick Actions -->
+                <div class="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
+                    <div class="quick-action-card">
+                        <h3 class="text-lg font-semibold mb-2">بروزرسانی داده‌ها</h3>
+                        <button class="btn-primary" onclick="downloadData()">
+                            📥 دانلود جدید
+                        </button>
+                    </div>
+
+                    <div class="quick-action-card">
+                        <h3 class="text-lg font-semibold mb-2">اجرای تحلیل</h3>
+                        <button class="btn-primary" onclick="runFullAnalysis()">
+                            🔍 تحلیل کامل
+                        </button>
+                    </div>
+
+                    <div class="quick-action-card">
+                        <h3 class="text-lg font-semibold mb-2">آخرین سیگنال</h3>
+                        <div id="latest-signal" class="mt-2">
+                            <div class="signal-score" id="signal-score">--</div>
+                            <div class="signal-time" id="signal-time">در حال بارگذاری...</div>
+                        </div>
+                    </div>
+
+                    <div class="quick-action-card">
+                        <h3 class="text-lg font-semibold mb-2">وضعیت اتصالات</h3>
+                        <div class="connection-status mt-2" id="connection-status">
+                            <div class="status-item">
+                                <span class="status-dot bg-gray-400"></span>
+                                <span>در حال بررسی...</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- System Resources -->
+                <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
+                    <div class="bg-white rounded-lg shadow-md p-6">
+                        <h3 class="text-lg font-semibold mb-4">CPU</h3>
+                        <div class="flex items-center">
+                            <div class="w-full bg-gray-200 rounded-full h-2.5 mr-3">
+                                <div class="bg-blue-600 h-2.5 rounded-full" id="cpu-bar" style="width: 0%"></div>
+                            </div>
+                            <span id="cpu-percent" class="text-sm font-medium">0%</span>
+                        </div>
+                    </div>
+
+                    <div class="bg-white rounded-lg shadow-md p-6">
+                        <h3 class="text-lg font-semibold mb-4">حافظه</h3>
+                        <div class="flex items-center">
+                            <div class="w-full bg-gray-200 rounded-full h-2.5 mr-3">
+                                <div class="bg-green-600 h-2.5 rounded-full" id="memory-bar" style="width: 0%"></div>
+                            </div>
+                            <span id="memory-percent" class="text-sm font-medium">0%</span>
+                        </div>
+                        <div class="text-xs text-gray-500 mt-1" id="memory-details">0 GB / 0 GB</div>
+                    </div>
+
+                    <div class="bg-white rounded-lg shadow-md p-6">
+                        <h3 class="text-lg font-semibold mb-4">دیسک</h3>
+                        <div class="flex items-center">
+                            <div class="w-full bg-gray-200 rounded-full h-2.5 mr-3">
+                                <div class="bg-yellow-600 h-2.5 rounded-full" id="disk-bar" style="width: 0%"></div>
+                            </div>
+                            <span id="disk-percent" class="text-sm font-medium">0%</span>
+                        </div>
+                        <div class="text-xs text-gray-500 mt-1" id="disk-details">0 GB آزاد</div>
+                    </div>
+                </div>
+
+                <!-- Live Logs -->
+                <div class="bg-white rounded-lg shadow-md p-6">
+                    <div class="flex justify-between items-center mb-4">
+                        <h2 class="text-xl font-semibold">لاگ‌های زنده سیستم</h2>
+                        <div class="flex space-x-2">
+                            <button class="btn-secondary text-sm" onclick="clearLogs()">پاک کردن</button>
+                            <button class="btn-secondary text-sm" onclick="toggleAutoScroll()" id="autoscroll-btn">توقف
+                                اسکرول</button>
+                        </div>
+                    </div>
+                    <div id="live-logs"
+                        class="bg-gray-900 text-green-400 p-4 rounded font-mono text-sm h-64 overflow-y-auto">
+                        <div class="log-line log-info">[INFO] داشبورد آماده است</div>
+                        <div class="log-line log-info">[INFO] در انتظار عملیات...</div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Scripts Section -->
+            <div id="scripts-section" class="section hidden">
+                <h2 class="text-2xl font-bold mb-6">مدیریت اسکریپت‌ها</h2>
+
+                <div class="bg-white rounded-lg shadow-md p-6 mb-6">
+                    <h3 class="text-lg font-semibold mb-4">اسکریپت‌های موجود</h3>
+                    <div id="scripts-list" class="space-y-4">
+                        <!-- Scripts will be loaded here -->
+                    </div>
+                </div>
+
+                <div class="bg-white rounded-lg shadow-md p-6">
+                    <h3 class="text-lg font-semibold mb-4">اسکریپت‌های در حال اجرا</h3>
+                    <div id="active-scripts" class="space-y-4">
+                        <!-- Active scripts will be shown here -->
+                    </div>
+                </div>
+            </div>
+
+            <!-- Configs Section -->
+            <div id="configs-section" class="section hidden">
+                <h2 class="text-2xl font-bold mb-6">مدیریت تنظیمات</h2>
+                <!-- Script Logs Section -->
+                <div class="bg-white rounded-lg shadow p-6">
+                    <h2 class="text-xl font-bold mb-4">لاگ‌های زنده سیستم</h2>
+                    <div class="mb-4">
+                        <select id="logLevel" class="px-3 py-2 border rounded ml-2">
+                            <option value="all">همه لاگ‌ها</option>
+                            <option value="error">فقط خطاها</option>
+                            <option value="info">اطلاعات</option>
+                        </select>
+                        <button id="clearLogs" onclick="clearLogs()"
+                            class="bg-red-500 text-white px-3 py-2 rounded hover:bg-red-600">
+                            پاک کردن لاگ‌ها
+                        </button>
+                        <button id="downloadLogs" onclick="downloadLogs()"
+                            class="bg-blue-500 text-white px-3 py-2 rounded hover:bg-blue-600 mr-2">
+                            دانلود لاگ‌ها
+                        </button>
+                    </div>
+                    <div id="logs" class="bg-gray-100 p-4 rounded h-64 overflow-y-auto font-mono text-sm">
+                        <div class="text-gray-500">در انتظار لاگ‌ها...</div>
+                    </div>
+                </div>
+            </div>
+    </div>
+
+    <!-- Monitoring Section -->
+    <div id="monitoring-section" class="section hidden">
+        <h2 class="text-2xl font-bold mb-6">مانیتورینگ سیستم</h2>
+
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <div class="bg-white rounded-lg shadow-md p-6">
+                <h3 class="text-lg font-semibold mb-4">تشخیص خودکار</h3>
+                <button class="btn-primary mb-4" onclick="runDiagnostics()">🔍 اجرای تشخیص</button>
+                <div id="diagnostics-results"></div>
+            </div>
+
+            <div class="bg-white rounded-lg shadow-md p-6">
+                <h3 class="text-lg font-semibold mb-4">بازیابی خودکار</h3>
+                <button class="btn-primary mb-4" onclick="runAutoRecovery()">🔧 بازیابی خودکار</button>
+                <div id="recovery-results"></div>
+            </div>
+        </div>
+    </div>
+    </main>
+    </div>
+
+    <script src="/static/js/dashboard-v2.js"></script>
+</body>
+
+</html>
