@@ -1,4 +1,6 @@
 {
+    "train": true,
+
     "venue": "mt5",
     
     "mt5_account_id": "<mt5-account-id>",

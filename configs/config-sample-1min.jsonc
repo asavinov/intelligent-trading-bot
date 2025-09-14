@@ -1,4 +1,6 @@
 {
+    "train": true,  // If true (offline) then models will be trained before use and more data will be processed. Use false for predict only (online) mode with only latest data
+
     "venue": "binance",
     
     "api_key": "<binance-key>",

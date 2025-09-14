@@ -58,7 +58,9 @@ If everything is configured, then the following scripts have to be executed:
 * `python -m scripts.features -c config.json`
 * `python -m scripts.labels -c config.json`
 * `python -m scripts.train -c config.json`
+* `python -m scripts.predict -c config.json`
 * `python -m scripts.signals -c config.json`
+* `python -m scripts.output -c config.json`
 
 All necessary parameters are provided in the configuration file. The project provides some sample configuration files in the `config` folder.
 
