@@ -40,18 +40,18 @@ async def lifespan(app: FastAPI):
     global script_wrapper
     
     # Startup
-    print("🔧 راه‌اندازی سرویس‌ها...")
+    print("Starting services...")
     init_database()
     script_wrapper = ScriptWrapper(project_root)
-    print("✅ Database initialized successfully")
-    print("🚀 Dashboard started successfully!")
-    print(f"📁 Project root: {project_root}")
-    print("🔗 Access dashboard at: http://127.0.0.1:8000")
+    print("Database initialized successfully")
+    print("Dashboard started successfully!")
+    print(f"Project root: {project_root}")
+    print("Access dashboard at: http://127.0.0.1:8000")
     
     yield
     
     # Shutdown
-    print("🔄 بستن سرویس‌ها...")
+    print("Shutting down services...")
 
 
 # Initialize FastAPI app

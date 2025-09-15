@@ -267,19 +267,45 @@ function updateActiveScriptsList(scripts) {
     let html = '';
     scripts.forEach(script => {
         const statusBadge = getStatusBadge(script.status);
+        const startTime = new Date(script.start_time * 1000).toLocaleString('fa-IR');
+
+        // Calculate duration (always real-time)
+        const currentTime = Date.now() / 1000;
+        const endTime = script.end_time || currentTime;
+        const duration = Math.round(endTime - script.start_time);
+        const durationStr = duration > 60 ? `${Math.floor(duration / 60)}دقیقه ${duration % 60}ثانیه` : `${duration}ثانیه`;
+
+        // Error details
+        let errorDetails = '';
+        if (script.status === 'failed' && script.stderr) {
+            errorDetails = `
+                <div class="mt-2 p-2 bg-red-50 border border-red-200 rounded text-sm">
+                    <div class="font-medium text-red-800">خطا:</div>
+                    <div class="text-red-700 font-mono text-xs mt-1 whitespace-pre-wrap">${script.stderr.slice(0, 200)}${script.stderr.length > 200 ? '...' : ''}</div>
+                </div>
+            `;
+        }
+
         html += `
-            <div class="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
-                <div>
-                    <div class="font-medium">${script.name}</div>
-                    <div class="text-sm text-gray-500">شروع: ${script.start_time}</div>
+            <div class="p-3 bg-gray-50 rounded-lg border ${script.status === 'failed' ? 'border-red-300' : 'border-gray-200'}">
+                <div class="flex items-center justify-between">
+                    <div class="flex-1">
+                        <div class="font-medium">${script.script}</div>
+                        <div class="text-sm text-gray-500">شروع: ${startTime}</div>
+                        <div class="text-sm text-gray-500">مدت: ${durationStr}</div>
+                        ${script.returncode !== undefined ? `<div class="text-sm text-gray-500">کد خروج: ${script.returncode}</div>` : ''}
+                    </div>
+                    <div class="flex items-center space-x-2">
+                        ${statusBadge}
+                        ${script.status === 'running' ? `
+                            <button onclick="stopScript('${script.job_id}')" 
+                                    class="px-3 py-1 bg-red-500 text-white text-sm rounded hover:bg-red-600">
+                                توقف
+                            </button>
+                        ` : ''}
+                    </div>
                 </div>
-                <div class="flex items-center space-x-2">
-                    ${statusBadge}
-                    <button onclick="stopScript('${script.job_id}')" 
-                            class="px-3 py-1 bg-red-500 text-white text-sm rounded hover:bg-red-600">
-                        توقف
-                    </button>
-                </div>
+                ${errorDetails}
             </div>
         `;
     });
@@ -328,10 +354,12 @@ function updateAvailableScriptsList(scripts) {
 
 function getStatusBadge(status) {
     const badges = {
-        'running': '<span class="px-2 py-1 bg-green-100 text-green-800 text-xs rounded-full">در حال اجرا</span>',
-        'completed': '<span class="px-2 py-1 bg-blue-100 text-blue-800 text-xs rounded-full">تکمیل شده</span>',
-        'failed': '<span class="px-2 py-1 bg-red-100 text-red-800 text-xs rounded-full">ناموفق</span>',
-        'stopped': '<span class="px-2 py-1 bg-gray-100 text-gray-800 text-xs rounded-full">متوقف شده</span>'
+        'starting': '<span class="px-2 py-1 bg-yellow-100 text-yellow-800 text-xs rounded-full">🚀 شروع</span>',
+        'running': '<span class="px-2 py-1 bg-green-100 text-green-800 text-xs rounded-full">🔄 در حال اجرا</span>',
+        'completed': '<span class="px-2 py-1 bg-blue-100 text-blue-800 text-xs rounded-full">✅ تکمیل شده</span>',
+        'failed': '<span class="px-2 py-1 bg-red-100 text-red-800 text-xs rounded-full">❌ ناموفق</span>',
+        'error': '<span class="px-2 py-1 bg-red-100 text-red-800 text-xs rounded-full">💥 خطا</span>',
+        'stopped': '<span class="px-2 py-1 bg-gray-100 text-gray-800 text-xs rounded-full">⏹️ متوقف شده</span>'
     };
     return badges[status] || badges['stopped'];
 }
@@ -421,7 +449,7 @@ async function stopScript(jobId) {
 
     try {
         const response = await fetch(`/api/scripts/stop/${jobId}`, {
-            method: 'POST'
+            method: 'DELETE'
         });
 
         if (!response.ok) {
@@ -525,15 +553,35 @@ async function loadConfigsForScripts() {
         const response = await fetch('/api/configs/list');
         const configs = await response.json();
 
+        // Try to fetch dashboard-selected default config (new endpoint)
+        let defaultConfig = null;
+        try {
+            const sresp = await fetch('/api/setup/selected-config');
+            if (sresp.ok) {
+                const sdata = await sresp.json();
+                defaultConfig = sdata.selected_config || null;
+            }
+        } catch (e) {
+            // fail silently - fall back to client-side heuristics
+            defaultConfig = null;
+        }
+
         // Update config dropdowns for each script
         document.querySelectorAll('select[id^="config-"]').forEach(select => {
-            select.innerHTML = '<option value="">انتخاب کانفیگ</option>';
+            select.innerHTML = '<option value="">Select config</option>';
             configs.forEach(config => {
-                const configName = config.name || config.filename || 'نامشخص';
+                const configName = config.name || config.filename || 'Unnamed';
                 const configValue = config.name || config.filename || config.path;
                 const option = document.createElement('option');
                 option.value = configValue;
                 option.textContent = configName;
+                // Pre-select if it matches the dashboard-selected config
+                if (defaultConfig) {
+                    const candidate = defaultConfig.replace('configs/', '').split('/').pop();
+                    if (option.value === defaultConfig || option.value.endsWith(candidate)) {
+                        option.selected = true;
+                    }
+                }
                 select.appendChild(option);
             });
         });
@@ -636,6 +684,26 @@ function updateLatestSignalUI(data) {
                     </div>
                     <span class="text-sm text-gray-500">${new Date(signal.timestamp).toLocaleString('fa-IR')}</span>
                 </div>
+
+                        // Try to fetch saved setup default config
+                        let defaultConfig = null;
+                        try {
+                            const setupResp = await fetch('/api/setup');
+                            // If the server serves the HTML page, try the JSON file instead
+                        } catch (e) {
+                            // ignore
+                        }
+                        try {
+                            // Read setup file via API (we don't have a direct API; try known locations)
+                            const resp1 = await fetch('/setup_config.json');
+                            if (resp1.ok) {
+                                const js1 = await resp1.json();
+                                defaultConfig = js1.selected_config || js1.default_config || null;
+                            }
+                        } catch (e) {
+                            // ignore
+                        }
+
                 <div class="grid grid-cols-2 gap-4 text-sm">
                     <div>
                         <span class="text-gray-600">قیمت:</span>
@@ -647,6 +715,19 @@ function updateLatestSignalUI(data) {
                     </div>
                 </div>
                 ${signal.indicators ? `
+
+                            // If defaultConfig is available, attempt to pre-select it
+                            if (defaultConfig) {
+                                // defaultConfig may be relative like 'configs/config-test.json' or filename
+                                const candidate = defaultConfig.replace('configs/', '').split('/').pop();
+                                for (let i = 0; i < select.options.length; i++) {
+                                    const opt = select.options[i];
+                                    if (opt.value && (opt.value === defaultConfig || opt.value.endsWith(candidate))) {
+                                        opt.selected = true;
+                                        break;
+                                    }
+                                }
+                            }
                     <div class="mt-3 pt-3 border-t border-blue-200">
                         <div class="flex flex-wrap gap-2 text-xs">
                             ${signal.indicators.rsi ? `<span class="bg-blue-100 text-blue-700 px-2 py-1 rounded">RSI: ${signal.indicators.rsi}</span>` : ''}

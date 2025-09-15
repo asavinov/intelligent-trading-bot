@@ -9,9 +9,12 @@ import requests
 import sys
 import psutil
 import shutil
+import re
 from pathlib import Path
 import json
 from typing import Dict, Any
+from datetime import datetime
+from typing import Optional
 
 router = APIRouter(prefix="/setup", tags=["setup"])
 
@@ -74,6 +77,41 @@ async def check_dependencies():
             status[package] = {"status": "missing", "error": "Package not found"}
     
     return status
+
+
+def read_env_file() -> Dict[str, str]:
+    """Read a simple .env file from project root and return a dict of keys."""
+    try:
+        project_root = Path(__file__).parent.parent.parent
+        env_file = project_root / '.env'
+        result: Dict[str, str] = {}
+        if not env_file.exists():
+            return result
+
+        for line in env_file.read_text(encoding='utf-8').splitlines():
+            line = line.strip()
+            if not line or line.startswith('#'):
+                continue
+            if '=' not in line:
+                continue
+            key, val = line.split('=', 1)
+            key = key.strip()
+            val = val.strip().strip('"').strip("'")
+            result[key] = val
+
+        return result
+    except Exception:
+        return {}
+
+
+def mask_secret(value: Optional[str]) -> Optional[str]:
+    if not value:
+        return None
+    v = str(value)
+    if len(v) <= 6:
+        return '****'
+    # show last 4 characters
+    return '****' + v[-4:]
 
 @router.post("/validate-binance")
 async def validate_binance_api(config: BinanceConfig):
@@ -150,32 +188,30 @@ async def validate_binance_api(config: BinanceConfig):
 
 @router.get("/discover-configs")
 async def discover_configurations():
-    """کشف فایل‌های کانفیگ موجود"""
+    """کشف فایل‌های کانفیگ موجود - مسیرها نسبی به project root برگردانده می‌شود"""
     try:
-        configs_dir = Path(__file__).parent.parent.parent / "configs"
+        project_root = Path(__file__).parent.parent.parent
+        configs_dir = project_root / "configs"
         config_files = []
-        
+
         if configs_dir.exists():
             for config_file in configs_dir.glob("*.json*"):
                 try:
                     with open(config_file, 'r', encoding='utf-8') as f:
-                        if config_file.suffix == '.jsonc':
-                            # Simple JSONC parsing - remove comments
-                            content = f.read()
-                            lines = content.split('\n')
-                            clean_lines = []
-                            for line in lines:
-                                if '//' in line:
-                                    line = line[:line.index('//')]
-                                clean_lines.append(line)
-                            content = '\n'.join(clean_lines)
-                            config_data = json.loads(content)
-                        else:
+                        content = f.read()
+                        # Allow JSONC-ish comments removal for parsing
+                        content_clean = re.sub(r'//.*', '', content)
+                        content_clean = re.sub(r'/\*.*?\*/', '', content_clean, flags=re.DOTALL)
+                        try:
+                            config_data = json.loads(content_clean)
+                        except Exception:
+                            # Fallback: try plain json load
+                            f.seek(0)
                             config_data = json.load(f)
-                    
+
                     config_files.append({
                         "filename": config_file.name,
-                        "path": str(config_file),
+                        "path": str(config_file.relative_to(project_root)),
                         "symbol": config_data.get("symbol", "N/A"),
                         "frequency": config_data.get("frequency", "N/A"),
                         "venue": config_data.get("venue", "N/A"),
@@ -185,14 +221,14 @@ async def discover_configurations():
                 except Exception as e:
                     config_files.append({
                         "filename": config_file.name,
-                        "path": str(config_file),
+                        "path": str(config_file.relative_to(project_root)),
                         "symbol": "Error",
                         "frequency": "Error",
                         "venue": "Error",
                         "description": f"خطا در خواندن فایل: {str(e)}",
                         "status": "error"
                     })
-        
+
         return {
             "configs": config_files,
             "total": len(config_files)
@@ -212,26 +248,189 @@ async def save_setup_config(setup_data: Dict[str, Any]):
         # Save setup configuration
         setup_file = setup_dir / "dashboard_setup.json"
         
+        # Merge with .env fallbacks for missing values (do not expose secrets)
+        env = read_env_file()
+
+        # Determine selected_config: payload wins, otherwise keep existing or env suggestion
+        selected = setup_data.get("selected_config") or env.get('SELECTED_CONFIG') or setup_data.get('selected_config', '')
+
         setup_config = {
             "setup_completed": True,
             "setup_date": setup_data.get("timestamp", ""),
             "system_health": setup_data.get("system_health", {}),
-            "binance_configured": setup_data.get("binance", {}).get("valid", False),
-            "telegram_configured": setup_data.get("telegram", {}).get("valid", False),
-            "selected_config": setup_data.get("selected_config", ""),
-            "dashboard_version": "1.0.0"
+            "binance_configured": setup_data.get("binance", {}).get("valid", False) or bool(env.get('BINANCE_API_KEY')),
+            "telegram_configured": setup_data.get("telegram", {}).get("valid", False) or bool(env.get('TELEGRAM_BOT_TOKEN')),
+            "selected_config": selected,
+            "dashboard_version": "1.0.0",
+            "configured_from_env": {
+                "binance": bool(env.get('BINANCE_API_KEY')),
+                "telegram": bool(env.get('TELEGRAM_BOT_TOKEN'))
+            }
         }
         
         with open(setup_file, 'w', encoding='utf-8') as f:
             json.dump(setup_config, f, indent=2, ensure_ascii=False)
+
+        # 🔥 NEW: Update actual config file with real credentials
+        # When updating actual config files with credentials, prefer explicit payload values.
+        # If payload lacks secrets but .env has them, use env values internally (do not echo secrets back).
+        selected_config = selected
+        # prepare a combined setup_data_for_update for update_config_file
+        combined_setup = dict(setup_data)
+        # If binance not provided in payload but exists in env, fill it for update
+        if not combined_setup.get('binance'):
+            if env.get('BINANCE_API_KEY') or env.get('BINANCE_API_SECRET'):
+                combined_setup['binance'] = {
+                    'valid': True,
+                    'api_key': env.get('BINANCE_API_KEY'),
+                    'api_secret': env.get('BINANCE_API_SECRET')
+                }
+
+        if not combined_setup.get('telegram'):
+            if env.get('TELEGRAM_BOT_TOKEN') or env.get('TELEGRAM_CHAT_ID'):
+                combined_setup['telegram'] = {
+                    'valid': True,
+                    'bot_token': env.get('TELEGRAM_BOT_TOKEN'),
+                    'chat_id': env.get('TELEGRAM_CHAT_ID')
+                }
+
+        if selected_config:
+            await update_config_file(selected_config, combined_setup)
         
+        # Return success but do NOT include secret values in the response
         return {
             "success": True,
-            "message": "تنظیمات با موفقیت ذخیره شد",
-            "config_file": str(setup_file)
+            "message": "تنظیمات با موفقیت ذخیره شد و config files به‌روزرسانی شدند",
+            "config_file": str(setup_file),
+            "updated_config": selected_config,
+            "secrets_present": {
+                "binance": bool(env.get('BINANCE_API_KEY')) or bool(setup_data.get('binance', {}).get('api_key')),
+                "telegram": bool(env.get('TELEGRAM_BOT_TOKEN')) or bool(setup_data.get('telegram', {}).get('bot_token'))
+            }
         }
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"خطا در ذخیره تنظیمات: {str(e)}")
+
+
+@router.get('/selected-config')
+async def get_selected_setup_config():
+    """Return the selected config saved by the dashboard setup (if any)."""
+    try:
+        project_root = Path(__file__).parent.parent.parent
+        setup_file = project_root / 'setup' / 'dashboard_setup.json'
+        if not setup_file.exists():
+            return {"selected_config": None}
+
+        with open(setup_file, 'r', encoding='utf-8') as f:
+            data = json.load(f)
+
+        return {
+            "selected_config": data.get('selected_config') if isinstance(data, dict) else None,
+            "raw": data
+        }
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Error reading setup config: {str(e)}")
+
+
+@router.get('/defaults')
+async def get_setup_defaults():
+    """Return safe (redacted) defaults read from .env for UI prefill."""
+    try:
+        env = read_env_file()
+        defaults = {
+            "binance": {
+                "has_key": bool(env.get('BINANCE_API_KEY')),
+                "api_key_masked": mask_secret(env.get('BINANCE_API_KEY'))
+            },
+            "telegram": {
+                "has_token": bool(env.get('TELEGRAM_BOT_TOKEN')),
+                "bot_token_masked": mask_secret(env.get('TELEGRAM_BOT_TOKEN'))
+            },
+            "selected_config_suggestion": env.get('SELECTED_CONFIG') or None,
+            "env_found": True if env else False
+        }
+
+        # Also attempt to include selected_config from saved setup if present
+        project_root = Path(__file__).parent.parent.parent
+        setup_file = project_root / 'setup' / 'dashboard_setup.json'
+        if setup_file.exists():
+            try:
+                data = json.loads(setup_file.read_text(encoding='utf-8'))
+                defaults['selected_config_saved'] = data.get('selected_config')
+            except Exception:
+                defaults['selected_config_saved'] = None
+
+        return defaults
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Error reading defaults: {str(e)}")
+
+async def update_config_file(config_filename: str, setup_data: Dict[str, Any]):
+    """به‌روزرسانی فایل config واقعی با credentials جدید"""
+    try:
+        project_root = Path(__file__).parent.parent.parent
+        configs_dir = project_root / "configs"
+
+        # Resolve provided path: accept absolute or relative (relative to project root)
+        p = Path(config_filename)
+        if p.is_absolute():
+            config_path = p
+        else:
+            # Try relative to project root first
+            candidate = project_root / p
+            if candidate.exists():
+                config_path = candidate
+            else:
+                # Fallback to configs_dir / filename
+                config_path = configs_dir / p.name
+
+        if not config_path.exists():
+            raise FileNotFoundError(f"Config file not found: {config_path}")
+
+        # Read current config
+        raw = config_path.read_text(encoding='utf-8')
+
+        # Create a backup before modifying
+        timestamp = datetime.utcnow().strftime('%Y%m%dT%H%M%SZ')
+        backup_path = config_path.parent / f"{config_path.name}.bak.{timestamp}"
+        shutil.copyfile(str(config_path), str(backup_path))
+
+        # Try to parse JSON (support JSONC-ish by removing comments)
+        content_clean = re.sub(r'//.*', '', raw)
+        content_clean = re.sub(r'/\*.*?\*/', '', content_clean, flags=re.DOTALL)
+        try:
+            config_data = json.loads(content_clean)
+        except Exception:
+            # Last resort: try plain json.loads on original raw
+            config_data = json.loads(raw)
+
+        # Update fields programmatically (safer than regex)
+        binance_data = setup_data.get("binance", {})
+        if binance_data.get("valid") and binance_data.get("api_key"):
+            config_data["api_key"] = binance_data.get("api_key")
+            config_data["api_secret"] = binance_data.get("api_secret")
+
+        telegram_data = setup_data.get("telegram", {})
+        if telegram_data.get("valid") and telegram_data.get("bot_token"):
+            config_data["telegram_bot_token"] = telegram_data.get("bot_token")
+            config_data["telegram_chat_id"] = telegram_data.get("chat_id")
+
+        # Write updated config back (atomically)
+        new_content = json.dumps(config_data, indent=2, ensure_ascii=False)
+        config_path.write_text(new_content, encoding='utf-8')
+
+        # Validate written JSON
+        try:
+            json.loads(config_path.read_text(encoding='utf-8'))
+        except Exception as e:
+            # Rollback from backup
+            shutil.copyfile(str(backup_path), str(config_path))
+            raise RuntimeError(f"Updated config is invalid JSON, rolled back. Error: {str(e)}")
+
+        print(f"✅ Config file updated: {config_path}")
+        
+    except Exception as e:
+        print(f"❌ خطا در به‌روزرسانی config file: {str(e)}")
+        raise e
 
 @router.post("/test-telegram")
 async def test_telegram(config: TelegramConfig):
@@ -271,73 +470,6 @@ async def test_telegram(config: TelegramConfig):
             "suggestion": "بررسی کنید که Bot Token و Chat ID صحیح باشند"
         }
 
-@router.get("/discover-configs")
-async def discover_configurations():
-    """کشف کانفیگ‌های موجود"""
-    try:
-        project_root = Path(__file__).parent.parent.parent
-        configs_dir = project_root / "configs"
-        
-        if not configs_dir.exists():
-            return {"configs": [], "error": "پوشه configs یافت نشد"}
-        
-        configs = []
-        for config_file in configs_dir.glob("*.json*"):
-            try:
-                # Try to read basic info from config
-                with open(config_file, 'r', encoding='utf-8') as f:
-                    content = f.read()
-                    # Remove comments for JSON parsing
-                    if config_file.suffix == '.jsonc':
-                        import re
-                        content = re.sub(r'//.*', '', content)
-                        content = re.sub(r'/\*.*?\*/', '', content, flags=re.DOTALL)
-                    
-                    config_data = json.loads(content)
-                    
-                    configs.append({
-                        "filename": config_file.name,
-                        "path": str(config_file.relative_to(project_root)),
-                        "symbol": config_data.get("symbol", "Unknown"),
-                        "frequency": config_data.get("frequency", "Unknown"),
-                        "venue": config_data.get("venue", "Unknown"),
-                        "size": config_file.stat().st_size,
-                        "status": "ready"
-                    })
-            except Exception as e:
-                configs.append({
-                    "filename": config_file.name,
-                    "path": str(config_file.relative_to(project_root)),
-                    "error": str(e),
-                    "status": "error"
-                })
-        
-        return {"configs": configs}
-        
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=f"خطا در کشف کانفیگ‌ها: {str(e)}")
-
-@router.post("/save-setup")
-async def save_setup_config(setup_data: Dict[str, Any]):
-    """ذخیره تنظیمات راه‌اندازی"""
-    try:
-        project_root = Path(__file__).parent.parent.parent
-        setup_file = project_root / "dashboard" / "setup_config.json"
-        
-        # Create dashboard directory if it doesn't exist
-        setup_file.parent.mkdir(exist_ok=True)
-        
-        with open(setup_file, 'w', encoding='utf-8') as f:
-            json.dump(setup_data, f, indent=2, ensure_ascii=False)
-        
-        return {
-            "success": True,
-            "message": "تنظیمات با موفقیت ذخیره شد",
-            "file": str(setup_file)
-        }
-        
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=f"خطا در ذخیره تنظیمات: {str(e)}")
 
 @router.post("/final-test")
 async def run_final_setup_test(test_data: Dict[str, Any]):

@@ -95,7 +95,7 @@ def init_database():
     
     conn.commit()
     conn.close()
-    print("✅ Database initialized successfully")
+    print("Database initialized successfully")
 
 
 def get_db():

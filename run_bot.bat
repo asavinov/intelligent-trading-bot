@@ -22,8 +22,11 @@ if "%choice%"=="0" exit
 goto menu
 
 :start
-start "Bot Server" cmd /k "python -m uvicorn dashboard.main:app --host 0.0.0.0 --port 8000"
-echo Starting server...
+rem Ensure the server starts from the repository root and PYTHONPATH includes the repo
+set SCRIPT_DIR=%~dp0
+rem Use cmd /k to keep window open; change dir to script dir and set PYTHONPATH for that session
+start "Bot Server" cmd /k "cd /d "%SCRIPT_DIR%" && set PYTHONPATH=%SCRIPT_DIR% && python -m uvicorn dashboard.main:app --host 0.0.0.0 --port 8000"
+echo Starting server (opened in a new window)...
 goto menu
 
 :stop
