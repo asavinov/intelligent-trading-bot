@@ -18,11 +18,52 @@ from typing import Dict, Any, Optional, List
 from ..core.config_validator import ConfigValidator
 import psutil
 import uuid
+from typing import BinaryIO
+from tempfile import NamedTemporaryFile
 
 router = APIRouter(prefix="/scripts", tags=["scripts"])
 
 # Global process manager - now stores dict with process info
 active_processes: Dict[str, Dict[str, Any]] = {}
+
+
+def _meta_path_for_job(project_root: Path, job_id: str) -> Path:
+    logs_dir = project_root / 'logs' / 'jobs'
+    return logs_dir / f"{job_id}.meta.json"
+
+
+def _write_job_metadata_atomic(project_root: Path, job_id: str):
+    """Write a compact metadata JSON for the job atomically to disk.
+
+    Uses a temporary file and os.replace to avoid partially written metadata files.
+    """
+    try:
+        if job_id not in active_processes:
+            return
+        info = active_processes[job_id]
+        meta = {
+            "job_id": job_id,
+            "script": info.get("script"),
+            "config": info.get("config"),
+            "pid": (info.get("process").pid if info.get("process") else None),
+            "status": info.get("status"),
+            "start_time": info.get("start_time"),
+            "end_time": info.get("end_time"),
+            "returncode": info.get("returncode"),
+            "log_stdout": info.get("log_stdout"),
+            "log_stderr": info.get("log_stderr")
+        }
+        meta_path = _meta_path_for_job(project_root, job_id)
+        # Ensure containing dir exists
+        meta_path.parent.mkdir(parents=True, exist_ok=True)
+        # Write atomically
+        with NamedTemporaryFile('w', encoding='utf-8', delete=False, dir=str(meta_path.parent)) as tf:
+            tf.write(json.dumps(meta, ensure_ascii=False, indent=2))
+            tmp = tf.name
+        os.replace(tmp, str(meta_path))
+    except Exception as e:
+        # Avoid raising - metadata is best-effort
+        print(f"_write_job_metadata_atomic: failed for {job_id}: {e}")
 
 class ScriptRunRequest(BaseModel):
     script_name: str
@@ -87,32 +128,94 @@ async def run_script(request: ScriptRunRequest):
             if req_cf.startswith("configs/") or req_cf.startswith("configs\\"):
                 config_file_arg = req_cf
             else:
-                # Prefer project_root/configs/<name> when it exists
-                config_path = project_root / "configs" / req_cf
+                # Prefer project_root/configs/<name> when it exists. Support cases where
+                # callers provide a logical name (without extension) by searching the
+                # configs directory for a matching stem.
+                configs_dir = project_root / "configs"
+                config_path = configs_dir / req_cf
                 if config_path.exists():
                     config_file_arg = f"configs/{req_cf}"
                 else:
-                    # Fallback to project_root/<name> if present
-                    alt_path = project_root / req_cf
-                    if alt_path.exists():
-                        config_file_arg = req_cf
+                    # Try to resolve by stem (e.g. 'config-sample-1min' -> 'config-sample-1min.jsonc')
+                    found = None
+                    try:
+                        if configs_dir.exists():
+                            for p in configs_dir.iterdir():
+                                if p.is_file() and p.stem == req_cf:
+                                    found = p
+                                    break
+                    except Exception:
+                        found = None
+
+                    if found:
+                        # Use the relative path under configs/
+                        config_file_arg = f"configs/{found.name}"
                     else:
-                        # Last-resort: pass through what caller provided (script will resolve or fail)
-                        config_file_arg = req_cf
+                        # Fallback to project_root/<name> if present
+                        alt_path = project_root / req_cf
+                        if alt_path.exists():
+                            config_file_arg = req_cf
+                        else:
+                            # Last-resort: pass through what caller provided (script will resolve or fail)
+                            config_file_arg = req_cf
     
     if not script_path.exists():
         raise HTTPException(status_code=404, detail=f"اسکریپت {request.script_name} یافت نشد")
     
     # Generate unique job ID
     job_id = str(uuid.uuid4())
+
+    # --- Server-side validation: ensure the resolved config file actually exists when provided ---
+    # This avoids launching a job that will immediately fail with FileNotFoundError
+    if config_file_arg:
+        try:
+            candidates = []
+            cf = str(config_file_arg)
+            # Absolute path candidate
+            p = Path(cf)
+            if p.is_absolute():
+                candidates.append(p)
+            else:
+                # project-relative candidate
+                candidates.append(project_root / cf)
+                # candidate under configs/
+                candidates.append(project_root / 'configs' / cf)
+                # try common extensions if no suffix provided
+                if Path(cf).suffix == '':
+                    candidates.append(project_root / 'configs' / (cf + '.jsonc'))
+                    candidates.append(project_root / 'configs' / (cf + '.json'))
+
+            found = False
+            for cand in candidates:
+                try:
+                    if cand.exists():
+                        found = True
+                        break
+                except Exception:
+                    # ignore any permission/path errors when probing
+                    continue
+
+            if not found:
+                tried = [str(x) for x in candidates]
+                raise HTTPException(status_code=400, detail=(
+                    f"Config file قابل یافتن نیست: {config_file_arg}. \n"
+                    f"مسیرهای امتحان‌شده: {tried}. \n"
+                    "لطفاً یک config معتبر انتخاب کنید یا مسیر کامل فایل را وارد نمایید."
+                ))
+        except HTTPException:
+            raise
+        except Exception:
+            # If something unexpected happens during validation, don't block execution;
+            # fall through and let the job attempt to run (script may still resolve config differently).
+            pass
     
     # Setup environment
     env = os.environ.copy()
     env["PYTHONPATH"] = str(project_root)
     
-    # Command construction - execute script directly with proper PYTHONPATH
-    # Use direct script execution with proper CLI arguments
-    cmd = ["python", str(script_path)]
+    # Command construction - execute script with the same interpreter in unbuffered mode
+    # Use sys.executable to ensure we run with the current Python and -u to disable buffering
+    cmd = [sys.executable, "-u", str(script_path)]
     # pass config using -c to match CLI scripts' click option
     if config_file_arg:
         cmd += ["-c", config_file_arg]
@@ -125,6 +228,9 @@ async def run_script(request: ScriptRunRequest):
     
     # اجرای اسکریپت در محیط کاملاً ایزوله
     try:
+        # Ensure child Python runs unbuffered so prints flush promptly
+        env["PYTHONUNBUFFERED"] = "1"
+
         if sys.platform == "win32":
             # در ویندوز بجای batch file، مستقیماً با env vars اجرا کنیم
             process = subprocess.Popen(
@@ -146,7 +252,13 @@ async def run_script(request: ScriptRunRequest):
                 cwd=str(project_root),
                 preexec_fn=os.setsid if hasattr(os, 'setsid') else None
             )
-        
+
+        # Prepare per-job log files so we persist output even if the server restarts
+        logs_dir = Path(project_root) / 'logs' / 'jobs'
+        logs_dir.mkdir(parents=True, exist_ok=True)
+        stdout_path = str(logs_dir / f"{job_id}.stdout.log")
+        stderr_path = str(logs_dir / f"{job_id}.stderr.log")
+
         # Store process info - record the normalized config argument we passed to the script
         actual_config_record = config_file_arg or (config_to_use or "")
         active_processes[job_id] = {
@@ -156,11 +268,65 @@ async def run_script(request: ScriptRunRequest):
             "start_time": time.time(),
             "status": "starting",
             "stdout": "",
-            "stderr": ""
+            "stderr": "",
+            "log_stdout": stdout_path,
+            "log_stderr": stderr_path
         }
+
+        # Persist initial metadata
+        try:
+            _write_job_metadata_atomic(project_root, job_id)
+        except Exception:
+            pass
+
+        # Start background tasks to stream subprocess stdout/stderr to files
+        async def _stream_reader_to_file(reader, path: str, job_id: str, kind: str):
+            """Read from an asyncio StreamReader and append bytes to a file asynchronously."""
+            loop = asyncio.get_running_loop()
+            try:
+                # Use a blocking chunked read in an executor thread for cross-platform reliability.
+                # Some Windows file objects don't behave well with readline/asyncio; reading raw chunks
+                # (read) is more robust.
+                with open(path, 'ab') as fh:
+                    while True:
+                        try:
+                            chunk = await loop.run_in_executor(None, reader.read, 4096)
+                        except Exception as inner_e:
+                            if job_id in active_processes:
+                                active_processes[job_id][f'{kind}_stream_error'] = str(inner_e)
+                            break
+
+                        if not chunk:
+                            break
+
+                        # write chunk (bytes) via executor to avoid blocking the loop
+                        await loop.run_in_executor(None, fh.write, chunk)
+                        await loop.run_in_executor(None, fh.flush)
+            except Exception as e:
+                # Record streaming error in process_info for debugging
+                if job_id in active_processes:
+                    active_processes[job_id][f'{kind}_stream_error'] = str(e)
+
+        # kick off streaming tasks (don't await)
+        # Write an initial marker into each log to indicate the writer started
+        try:
+            with open(stdout_path, 'ab') as f:
+                f.write(f"---JOB START {job_id} STDOUT---\n".encode('utf-8'))
+        except Exception:
+            pass
+        try:
+            with open(stderr_path, 'ab') as f:
+                f.write(f"---JOB START {job_id} STDERR---\n".encode('utf-8'))
+        except Exception:
+            pass
+
+        if process.stdout:
+            asyncio.create_task(_stream_reader_to_file(process.stdout, stdout_path, job_id, 'stdout'))
+        if process.stderr:
+            asyncio.create_task(_stream_reader_to_file(process.stderr, stderr_path, job_id, 'stderr'))
         # Log which config we decided to use (helps debugging)
         print(f"Script job {job_id} started for {request.script_name} using config: {actual_config_record}")
-        
+
         # Quick startup validation - wait a bit to catch immediate failures
         await asyncio.sleep(0.5)
         if process.poll() is not None:
@@ -177,18 +343,23 @@ async def run_script(request: ScriptRunRequest):
                     "returncode": process.returncode,
                     "end_time": time.time()
                 })
+                # update metadata
+                try:
+                    _write_job_metadata_atomic(project_root, job_id)
+                except Exception:
+                    pass
                 
                 error_msg = f"اسکریپت بلافاصله متوقف شد - کد خطا: {process.returncode}"
                 if stderr_text:
                     error_msg += f"\nخطا: {stderr_text[:200]}..."
                 
                 raise HTTPException(status_code=500, detail=error_msg)
-                
+
             except subprocess.TimeoutExpired:
                 process.kill()
                 active_processes[job_id]["status"] = "failed"
                 raise HTTPException(status_code=500, detail="اسکریپت در startup timeout شد")
-        
+
         # If we get here, process started successfully
         active_processes[job_id]["status"] = "running"
 
@@ -224,7 +395,7 @@ async def monitor_process(job_id: str, user_timeout: Optional[int] = None):
         
         print(f"Monitor: Starting monitoring for {job_id} (PID: {process.pid})")
 
-        # Wait for process to complete with timeout protection
+    # Wait for process to complete with timeout protection
         # Default max wait time is 30 minutes, but honor the user's requested timeout if provided
         default_max = 30 * 60  # 30 minutes
         max_wait_time = user_timeout if (user_timeout and user_timeout > 0) else default_max
@@ -246,47 +417,55 @@ async def monitor_process(job_id: str, user_timeout: Optional[int] = None):
                 return
         
         print(f"Monitor: Process {job_id} completed with return code: {process.returncode}")
-        
-        # Collect final output safely
+
+        # Read tail of per-job log files (if present) to populate process_info for API responses
         try:
-            # Since we use PIPE, collect the output
-            try:
-                stdout, stderr = process.communicate(timeout=5)
-                stdout_text = stdout.decode('utf-8', errors='ignore') if stdout else ""
-                stderr_text = stderr.decode('utf-8', errors='ignore') if stderr else ""
-                
-                process_info["stdout"] = stdout_text
-                process_info["stderr"] = stderr_text
-                print(f"Monitor: Collected output for {job_id} - stdout: {len(stdout_text)} chars, stderr: {len(stderr_text)} chars")
-                
-            except subprocess.TimeoutExpired:
-                print(f"Monitor: communicate() timed out for {job_id}")
-                # If communicate times out, kill and move on
+            stdout_path = process_info.get('log_stdout')
+            stderr_path = process_info.get('log_stderr')
+            def _tail_file(path, max_bytes=2000):
+                if not path:
+                    return ""
                 try:
-                    process.kill()
-                except:
-                    pass
-                process_info["stdout"] = "Output collection timed out"
-                process_info["stderr"] = "Process cleanup timeout"
-            
-            # Log detailed information for debugging
-            if process.returncode != 0:
-                print(f"Monitor: Script {job_id} failed with return code {process.returncode}")
-                if process_info.get("stderr"):
-                    print(f"Monitor: STDERR: {process_info['stderr'][:200]}...")
-                
+                    with open(path, 'rb') as f:
+                        f.seek(0, os.SEEK_END)
+                        size = f.tell()
+                        start = max(0, size - max_bytes)
+                        f.seek(start)
+                        data = f.read()
+                        try:
+                            return data.decode('utf-8', errors='ignore')
+                        except Exception:
+                            return '<binary data>'
+                except Exception as e:
+                    return f"<could not read log: {e}>"
+
+            stdout_text = _tail_file(stdout_path, max_bytes=4000)
+            stderr_text = _tail_file(stderr_path, max_bytes=4000)
+
+            process_info['stdout'] = stdout_text
+            process_info['stderr'] = stderr_text
+            print(f"Monitor: Collected tail logs for {job_id} - stdout: {len(stdout_text)} chars, stderr: {len(stderr_text)} chars")
+
         except Exception as e:
-            print(f"Monitor: Error collecting output for {job_id}: {e}")
-            process_info["stdout"] = f"Output collection failed: {str(e)}"
-            process_info["stderr"] = str(e)
+            print(f"Monitor: Error collecting tail logs for {job_id}: {e}")
+            process_info['stdout'] = process_info.get('stdout', '')
+            process_info['stderr'] = process_info.get('stderr', '')
         
         # Update status
         process_info["status"] = "completed" if process.returncode == 0 else "failed"
         process_info["end_time"] = time.time()
         process_info["returncode"] = process.returncode
-        
+
+        # Persist metadata after completion
+        try:
+            # derive project_root
+            project_root = Path(__file__).parent.parent.parent
+            _write_job_metadata_atomic(project_root, job_id)
+        except Exception:
+            pass
+
         print(f"Monitor: Updated status for {job_id}: {process_info['status']}")
-        
+
     except Exception as e:
         print(f"Monitor: Error monitoring process {job_id}: {e}")
         if job_id in active_processes:
@@ -353,9 +532,33 @@ async def list_active_scripts():
         # Check current process status
         poll_result = process.poll()
         
+        # Helper to tail a log file safely
+        def _tail_file_safe(path, max_chars=500):
+            if not path:
+                return ''
+            try:
+                if not os.path.exists(path):
+                    return ''
+                with open(path, 'rb') as f:
+                    f.seek(max(0, os.path.getsize(path) - max_chars))
+                    data = f.read()
+                    return data.decode('utf-8', errors='ignore')
+            except Exception:
+                return ''
+
         if poll_result is None:
             # Still running
             current_status = process_info.get("status", "running")
+            # Prefer small tail from the per-job stdout/stderr files (background readers write there)
+            so_tail = _tail_file_safe(process_info.get('log_stdout'), max_chars=800)
+            se_tail = _tail_file_safe(process_info.get('log_stderr'), max_chars=800)
+
+            # If no file content yet, fall back to in-memory stored fields
+            if not so_tail:
+                so_tail = (process_info.get("stdout") or '')[:800]
+            if not se_tail:
+                se_tail = (process_info.get("stderr") or '')[:800]
+
             active_jobs.append({
                 "job_id": job_id,
                 "script": process_info["script"],
@@ -365,8 +568,8 @@ async def list_active_scripts():
                 "start_time": process_info["start_time"],
                 "cpu_percent": get_process_cpu_usage(process.pid),
                 "memory_mb": get_process_memory_usage(process.pid),
-                "stdout": process_info.get("stdout", "")[:500],  # Last 500 chars
-                "stderr": process_info.get("stderr", "")[:500]   # Last 500 chars
+                "stdout": so_tail,
+                "stderr": se_tail
             })
         else:
             # Process finished - update status if not already done by monitor_process
@@ -610,26 +813,126 @@ async def stream_script_logs(job_id: str):
     """استریم لاگ‌های زنده اسکریپت"""
     if job_id not in active_processes:
         raise HTTPException(status_code=404, detail="Job ID یافت نشد")
-    
+    # Stream by tailing the per-job stdout log file that background readers write to.
+    # This avoids reading from the process pipe directly (which the background
+    # reader tasks already consume) and works cross-platform.
+    process_info = active_processes[job_id]
+    stdout_path = process_info.get('log_stdout')
+
     async def generate_logs():
-        process_info = active_processes[job_id]
-        process = process_info["process"]
-        
-        while process.poll() is None:
-            # Read available output
-            if process.stdout:
-                try:
-                    line = process.stdout.readline()
-                    if line:
-                        yield f"data: {line.decode('utf-8', errors='ignore')}\n\n"
-                except:
-                    pass
-            await asyncio.sleep(0.1)
-        
-        # Send final status
-        yield f"data: [FINISHED] Process completed with code {process.returncode}\n\n"
-    
-    return StreamingResponse(generate_logs(), media_type="text/plain")
+        last_pos = 0
+        # If file exists, start at its current end to stream new data
+        if stdout_path and os.path.exists(stdout_path):
+            try:
+                last_pos = os.path.getsize(stdout_path)
+            except Exception:
+                last_pos = 0
+
+        while True:
+            try:
+                if stdout_path and os.path.exists(stdout_path):
+                    size = os.path.getsize(stdout_path)
+                    if size > last_pos:
+                        with open(stdout_path, 'rb') as f:
+                            f.seek(last_pos)
+                            data = f.read()
+                            last_pos = f.tell()
+                            try:
+                                text = data.decode('utf-8', errors='ignore')
+                            except Exception:
+                                text = '<binary data>'
+                            # Yield each line as an SSE-like message
+                            for line in text.splitlines(True):
+                                yield f"data: {line}\n\n"
+
+                proc = process_info.get('process')
+                # If process finished, flush remaining content and exit
+                if proc and proc.poll() is not None:
+                    # read any remaining bytes
+                    if stdout_path and os.path.exists(stdout_path):
+                        size = os.path.getsize(stdout_path)
+                        if size > last_pos:
+                            with open(stdout_path, 'rb') as f:
+                                f.seek(last_pos)
+                                data = f.read()
+                                try:
+                                    text = data.decode('utf-8', errors='ignore')
+                                except Exception:
+                                    text = '<binary data>'
+                                for line in text.splitlines(True):
+                                    yield f"data: {line}\n\n"
+                    yield f"data: [FINISHED] Process completed with code {proc.returncode}\n\n"
+                    break
+
+            except Exception as e:
+                yield f"data: [ERROR] {str(e)}\n\n"
+                break
+
+            await asyncio.sleep(0.25)
+
+    return StreamingResponse(generate_logs(), media_type="text/event-stream")
+
+
+@router.get('/debug/active_processes')
+async def debug_list_active_processes():
+    """Debug endpoint: return a compact summary of active_processes for inspection."""
+    try:
+        out = {}
+        for jid, info in active_processes.items():
+            out[jid] = {
+                'script': info.get('script'),
+                'status': info.get('status'),
+                'pid': info.get('process').pid if info.get('process') else None,
+                'start_time': info.get('start_time'),
+                'returncode': info.get('returncode', None),
+                'stdout_len': None,
+                'stderr_len': None,
+                'stream_errors': {k: v for k, v in info.items() if k.endswith('_stream_error')}
+            }
+            try:
+                so = info.get('log_stdout')
+                se = info.get('log_stderr')
+                if so and os.path.exists(so):
+                    out[jid]['stdout_len'] = os.path.getsize(so)
+                if se and os.path.exists(se):
+                    out[jid]['stderr_len'] = os.path.getsize(se)
+            except Exception:
+                pass
+        return out
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.get('/debug/job/{job_id}')
+async def debug_get_job(job_id: str):
+    """Debug endpoint: return full stored process info for a specific job (helpful for debugging)."""
+    if job_id not in active_processes:
+        raise HTTPException(status_code=404, detail='Job ID not found')
+    info = active_processes[job_id]
+    # Avoid returning the raw process object (not JSON serializable) - replace with pid and repr
+    proc = info.get('process')
+    safe = dict(info)
+    safe['process'] = {'pid': proc.pid if proc else None, 'repr': repr(proc) if proc else None}
+    # If log files exist, include small tail previews
+    try:
+        so = info.get('log_stdout')
+        se = info.get('log_stderr')
+        def tail(path, max_chars=2000):
+            if not path or not os.path.exists(path):
+                return ''
+            try:
+                with open(path, 'rb') as f:
+                    f.seek(max(0, os.path.getsize(path) - max_chars))
+                    return f.read().decode('utf-8', errors='ignore')
+            except Exception as e:
+                return f'<could not read: {e}>'
+
+        safe['log_stdout_tail'] = tail(so, 2000)
+        safe['log_stderr_tail'] = tail(se, 2000)
+    except Exception:
+        pass
+
+    return safe
 
 
 @router.delete("/stop/{job_id}")
@@ -655,6 +958,12 @@ async def stop_script(job_id: str):
         process.kill()
         process_info["status"] = "stopped"
         process_info["end_time"] = time.time()
+        # Persist metadata for stopped job
+        try:
+            project_root = Path(__file__).parent.parent.parent
+            _write_job_metadata_atomic(project_root, job_id)
+        except Exception:
+            pass
         print(f"API: Successfully killed process for job {job_id}")
         
         return {"status": "success", "message": f"Script {job_id} stopped"}

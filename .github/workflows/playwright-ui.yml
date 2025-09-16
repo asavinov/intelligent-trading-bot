@@ -1,0 +1,72 @@
+name: Playwright UI test
+
+on:
+  push:
+    branches: [ master, 'ci/*' ]
+  pull_request:
+    branches: [ master ]
+
+jobs:
+  playwright-ui:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.11'
+
+      - name: Install Python dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+
+      - name: Start server (uvicorn)
+        run: |
+          nohup python -m uvicorn dashboard.main:app --host 127.0.0.1 --port 8000 > server.log 2>&1 &
+          # wait for server to be ready
+          for i in {1..30}; do
+            sleep 1
+            if curl --silent --fail http://127.0.0.1:8000/ > /dev/null; then
+              echo "server up"
+              break
+            fi
+          done
+        shell: bash
+
+      - name: Upload server log
+        uses: actions/upload-artifact@v4
+        with:
+          name: server-log
+          path: server.log
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '18'
+
+      - name: Install Node dependencies (playwright)
+        run: |
+          cd tools
+          npm install --no-audit --no-fund
+          npx playwright install --with-deps
+        shell: bash
+
+      - name: Run Playwright UI test
+        run: |
+          # run the test; EXPECTED_RETURN_CODE can be set if needed
+          node tools/ui_playwright_test.js
+        env:
+          CI: true
+        shell: bash
+
+      - name: Upload Playwright artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: playwright-artifacts
+          path: |
+            tools/ui_playwright_result.json
+            tools/ui_playwright_screenshot.png
+            logs/jobs/
