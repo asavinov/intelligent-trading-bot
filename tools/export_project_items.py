@@ -18,6 +18,8 @@ try:
     import requests
 except Exception:
     requests = None
+import urllib.request
+import urllib.error
 
 
 def run(cmd_list):
@@ -69,14 +71,33 @@ def gh_graphql_with_token(query, token=None):
                 print('Response status:', e.response.status_code)
                 print('Response body:', e.response.text)
             raise SystemExit(2)
-
-    # fallback: use PowerShell Invoke-RestMethod (kept for environments without requests)
-    payload = json.dumps({'query': query})
-    cmd = [
-        'powershell', '-Command',
-        f"Invoke-RestMethod -Uri https://api.github.com/graphql -Method Post -Headers @{{Authorization='bearer {token}'}} -Body '{payload}' | ConvertTo-Json -Depth 10"
-    ]
-    return run(cmd)
+    # fallback: use Python standard library (urllib) to POST the GraphQL query so we don't depend on PowerShell
+    payload = json.dumps({'query': query}).encode('utf-8')
+    req = urllib.request.Request(
+        'https://api.github.com/graphql',
+        data=payload,
+        headers={
+            'Authorization': f'bearer {token}',
+            'Accept': 'application/json',
+            'Content-Type': 'application/json',
+        },
+        method='POST'
+    )
+    try:
+        with urllib.request.urlopen(req, timeout=30) as r:
+            out = r.read().decode('utf-8')
+            return out
+    except urllib.error.HTTPError as he:
+        try:
+            body = he.read().decode('utf-8')
+        except Exception:
+            body = '<could not read error body>'
+        print('GraphQL HTTP error:', he.code, he.reason)
+        print('Response body:', body)
+        raise SystemExit(3)
+    except urllib.error.URLError as ue:
+        print('GraphQL request failed (network error):', ue)
+        raise SystemExit(4)
 
 
 def export(project_id, out_dir, token=None):
