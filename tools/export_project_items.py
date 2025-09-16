@@ -101,18 +101,45 @@ def gh_graphql_with_token(query, token=None):
 
 
 def export(project_id, out_dir, token=None):
-    q = (
-        f'query {{ node(id:\"{project_id}\") {{ ... on ProjectV2 {{ items(first:500) {{ nodes {{ id content {{ __typename ... on Issue {{ number title url }} ... on PullRequest {{ number title url }} }} fieldValues(first:50) {{ nodes {{ __typename '
-        f'... on ProjectV2ItemFieldSingleSelectValue {{ projectField {{ name }} singleSelectOption {{ id name }} }} '
-        f'... on ProjectV2ItemFieldTextValue {{ projectField {{ name }} text }} '
-        f'}} }} }} }} }} }}'
-    )
+    # Build a clear GraphQL query string and substitute the project node id safely.
+    q_template = '''query {
+  node(id: "PROJECT_ID") {
+    ... on ProjectV2 {
+      items(first: 500) {
+        nodes {
+          id
+          content {
+            __typename
+            ... on Issue { number title url }
+            ... on PullRequest { number title url }
+          }
+          fieldValues(first: 50) {
+            nodes {
+              __typename
+              ... on ProjectV2ItemFieldSingleSelectValue {
+                projectField { name }
+                singleSelectOption { id name }
+              }
+              ... on ProjectV2ItemFieldTextValue {
+                projectField { name }
+                text
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+}'''
+    q = q_template.replace('PROJECT_ID', project_id)
+
     # Debug: write the assembled query to a file so we can inspect syntax when gh reports parse errors
     try:
         with open(os.path.join('tools', '_last_query.graphql'), 'w', encoding='utf-8') as qq:
             qq.write(q)
     except Exception:
         pass
+
     out = gh_graphql_with_token(q, token=token)
     try:
         data = json.loads(out)
@@ -120,6 +147,7 @@ def export(project_id, out_dir, token=None):
         print('Failed to decode GraphQL response as JSON:', e)
         print('Raw response:\n', out)
         raise SystemExit(5)
+
     # If the GraphQL response doesn't include 'data', print any 'errors' payload for debugging
     if 'data' not in data:
         print('GraphQL response missing "data" key. Full response:')
@@ -129,6 +157,7 @@ def export(project_id, out_dir, token=None):
             print('GraphQL errors:')
             print(json.dumps(data['errors'], indent=2, ensure_ascii=False))
         raise SystemExit(6)
+
     items = []
     nodes = data['data']['node']['items']['nodes']
     for n in nodes:
@@ -138,6 +167,7 @@ def export(project_id, out_dir, token=None):
         number = content.get('number')
         title = content.get('title')
         url = content.get('url')
+
         # collect field values
         fv = {}
         for f in n.get('fieldValues', {}).get('nodes', []):
@@ -146,7 +176,15 @@ def export(project_id, out_dir, token=None):
                 fv[field] = f['singleSelectOption'].get('name')
             elif f.get('text'):
                 fv[field] = f.get('text')
-        items.append({'item_id': item_id, 'kind': kind, 'number': number, 'title': title, 'url': url, 'fields': fv})
+
+        items.append({
+            'item_id': item_id,
+            'kind': kind,
+            'number': number,
+            'title': title,
+            'url': url,
+            'fields': fv,
+        })
 
     # ensure out_dir
     os.makedirs(out_dir, exist_ok=True)
@@ -161,7 +199,16 @@ def export(project_id, out_dir, token=None):
         writer.writerow(['item_id', 'kind', 'number', 'title', 'url', 'Status', 'Priority', 'Effort'])
         for it in items:
             fv = it.get('fields', {})
-            writer.writerow([it['item_id'], it['kind'], it['number'], it['title'], it['url'], fv.get('Status',''), fv.get('Priority',''), fv.get('Effort','')])
+            writer.writerow([
+                it.get('item_id'),
+                it.get('kind'),
+                it.get('number'),
+                it.get('title'),
+                it.get('url'),
+                fv.get('Status', ''),
+                fv.get('Priority', ''),
+                fv.get('Effort', ''),
+            ])
 
     print('Wrote', json_path, csv_path)
 
