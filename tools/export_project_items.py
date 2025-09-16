@@ -114,7 +114,21 @@ def export(project_id, out_dir, token=None):
     except Exception:
         pass
     out = gh_graphql_with_token(q, token=token)
-    data = json.loads(out)
+    try:
+        data = json.loads(out)
+    except Exception as e:
+        print('Failed to decode GraphQL response as JSON:', e)
+        print('Raw response:\n', out)
+        raise SystemExit(5)
+    # If the GraphQL response doesn't include 'data', print any 'errors' payload for debugging
+    if 'data' not in data:
+        print('GraphQL response missing "data" key. Full response:')
+        print(json.dumps(data, indent=2, ensure_ascii=False))
+        # If there are GraphQL errors, show them
+        if 'errors' in data:
+            print('GraphQL errors:')
+            print(json.dumps(data['errors'], indent=2, ensure_ascii=False))
+        raise SystemExit(6)
     items = []
     nodes = data['data']['node']['items']['nodes']
     for n in nodes:
