@@ -53,6 +53,7 @@ def gh_graphql_with_token(query, token=None):
             raise SystemExit(1)
 
     # Prefer using requests (no shell quoting issues). If requests isn't available, fall back to PowerShell.
+    # Prefer using requests (no shell quoting issues).
     if requests:
         headers = {
             'Authorization': f'bearer {token}',
@@ -60,18 +61,14 @@ def gh_graphql_with_token(query, token=None):
         }
         try:
             resp = requests.post('https://api.github.com/graphql', json={'query': query}, headers=headers, timeout=30)
-        except requests.RequestException as e:
-            print('GraphQL request failed (network):', e)
-            raise SystemExit(2)
-        try:
             resp.raise_for_status()
-        except Exception as e:
-            print('GraphQL request failed:', e)
-            print('Response status:', resp.status_code)
-            print('Response body:', resp.text)
-            raise
-    # return the raw JSON text for downstream parsing
-    return resp.text
+            return resp.text
+        except requests.RequestException as e:
+            print('GraphQL request failed (network or HTTP error):', e)
+            if hasattr(e, 'response') and e.response is not None:
+                print('Response status:', e.response.status_code)
+                print('Response body:', e.response.text)
+            raise SystemExit(2)
 
     # fallback: use PowerShell Invoke-RestMethod (kept for environments without requests)
     payload = json.dumps({'query': query})
