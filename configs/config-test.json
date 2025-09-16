@@ -1,0 +1,40 @@
+{
+    "venue": "binance",
+    "symbol": "BTCUSDT",
+    "description": "تست اولیه سیستم",
+    "freq": "1h",
+    "data_folder": "C:/DATA_ITB_TEST",
+    "label_horizon": 24,
+    "features_horizon": 168,
+    "train_length": 1000,
+    "predict_length": 48,
+    "append_overlap_records": 5,
+    
+    "data_sources": [
+        {"folder": "BTCUSDT", "file": "klines", "column_prefix": ""}
+    ],
+    
+    "time_column": "timestamp",
+    "download_max_rows": 10000,
+    
+    "features": [
+        {"name": "close_sma", "window": 10},
+        {"name": "close_ema", "window": 20},
+        {"name": "rsi", "window": 14}
+    ],
+    
+    "labels": {
+        "method": "trend",
+        "horizon": 24,
+        "threshold": 0.02
+    },
+    
+    "model": {
+        "type": "lightgbm",
+        "parameters": {
+            "n_estimators": 100,
+            "max_depth": 6,
+            "learning_rate": 0.1
+        }
+    }
+}

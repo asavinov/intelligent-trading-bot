@@ -1,11 +1,9 @@
 {
-    "train": true,  // If true (offline) then models will be trained before use and more data will be processed. Use false for predict only (online) mode with only latest data
-
     "venue": "binance",
-    "api_key": "DEMO_API_KEY_FOR_TESTING",
-    "api_secret": "DEMO_SECRET_FOR_TESTING",
-    "telegram_bot_token": "<token>",
-    "telegram_chat_id": "<chat-id-to-publish-messages>",
+    "api_key": "TEST_NEW_API_KEY_12345",
+    "api_secret": "TEST_NEW_SECRET_67890",
+    "telegram_bot_token": "TEST_BOT_TOKEN_123",
+    "telegram_chat_id": "TEST_CHAT_ID_456",
     "data_folder": "C:/DATA_ITB",
     "symbol": "BTCUSDT",
     "description": "BTCUSDT 1h SVM",
@@ -13,7 +11,7 @@
     "label_horizon": 24, // Batch/offline: do not use these last rows because their labels might not be correct
     "features_horizon": 672, // Online/stream: Minimum data length for computing features. Take it from feature generator parameters
     "train_length": 0, // Batch/offline: Uses this number of rows for training (if not additionally limited by the algorithm)
-    "predict_length": 0, // These records must be kept up-to-date (in contrast to those in feature horizon)
+    "predict_length": 168, // These records must be kept up-to-date (in contrast to those in feature horizon)
     "append_overlap_records": 5, // Online/stream: These records will be requested and then re-computed on each iteration
     // === DOWNLOAD AND MERGE ===
     "data_sources": [

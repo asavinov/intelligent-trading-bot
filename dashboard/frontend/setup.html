@@ -1,0 +1,202 @@
+<!DOCTYPE html>
+<html lang="fa" dir="rtl">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>راه‌اندازی اولیه - ربات ترید هوشمند</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        .hidden {
+            display: none !important;
+        }
+
+        .step-indicator.active {
+            background-color: #3b82f6;
+            color: white;
+        }
+
+        .step-indicator.completed {
+            background-color: #10b981;
+            color: white;
+        }
+    </style>
+</head>
+
+<body class="bg-gray-50 font-sans">
+    <div class="min-h-screen py-8 px-4">
+        <div class="max-w-4xl mx-auto">
+            <!-- Header -->
+            <div class="text-center mb-8">
+                <h1 class="text-3xl font-bold text-gray-800 mb-2">راه‌اندازی اولیه ربات ترید هوشمند</h1>
+                <p class="text-gray-600">در 4 مرحله ساده سیستم خود را راه‌اندازی کنید</p>
+            </div>
+
+            <!-- Progress Indicators -->
+            <div class="flex justify-center mb-8">
+                <div class="flex items-center space-x-4 space-x-reverse">
+                    <div class="flex items-center">
+                        <div class="w-8 h-8 bg-blue-500 text-white rounded-full flex items-center justify-center text-sm font-medium step-indicator active"
+                            data-step="1">1</div>
+                        <span class="mr-2 text-sm text-gray-600">بررسی سیستم</span>
+                    </div>
+                    <div class="flex items-center">
+                        <div class="w-8 h-8 bg-gray-200 text-gray-600 rounded-full flex items-center justify-center text-sm font-medium step-indicator"
+                            data-step="2">2</div>
+                        <span class="mr-2 text-sm text-gray-600">تنظیمات API</span>
+                    </div>
+                    <div class="flex items-center">
+                        <div class="w-8 h-8 bg-gray-200 text-gray-600 rounded-full flex items-center justify-center text-sm font-medium step-indicator"
+                            data-step="3">3</div>
+                        <span class="mr-2 text-sm text-gray-600">Telegram Bot</span>
+                    </div>
+                    <div class="flex items-center">
+                        <div class="w-8 h-8 bg-gray-200 text-gray-600 rounded-full flex items-center justify-center text-sm font-medium step-indicator"
+                            data-step="4">4</div>
+                        <span class="mr-2 text-sm text-gray-600">تست نهایی</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Step 1: System Health Check -->
+            <div id="step-1" class="bg-white rounded-lg shadow-md p-6">
+                <h2 class="text-xl font-semibold text-gray-800 mb-4">۱. بررسی سلامت سیستم</h2>
+                <p class="text-gray-600 mb-6">بررسی آمادگی سیستم برای اجرای ربات ترید</p>
+
+                <div id="health-check-results" class="mb-6">
+                    <div class="text-center py-8">
+                        <div class="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-500 mx-auto"></div>
+                        <p class="text-gray-500 mt-2">در حال بررسی سیستم...</p>
+                    </div>
+                </div>
+
+                <div class="flex justify-end">
+                    <button id="next-step-1"
+                        class="bg-blue-500 text-white px-6 py-2 rounded-lg hover:bg-blue-600 transition-colors hidden">
+                        مرحله بعد ←
+                    </button>
+                </div>
+            </div>
+
+            <!-- Step 2: API Configuration -->
+            <div id="step-2" class="bg-white rounded-lg shadow-md p-6 hidden">
+                <h2 class="text-xl font-semibold text-gray-800 mb-4">۲. تنظیمات API</h2>
+                <p class="text-gray-600 mb-6">اطلاعات API Binance و انتخاب کانفیگ ترید</p>
+
+                <!-- Binance API -->
+                <div class="mb-6">
+                    <h3 class="text-lg font-medium text-gray-700 mb-4">Binance API</h3>
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-2">API Key</label>
+                            <input type="text" id="binance-api-key"
+                                class="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                                placeholder="API Key خود را وارد کنید">
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-2">Secret Key</label>
+                            <input type="password" id="binance-api-secret"
+                                class="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                                placeholder="Secret Key خود را وارد کنید">
+                        </div>
+                    </div>
+                    <button id="test-binance"
+                        class="bg-green-500 text-white px-4 py-2 rounded-lg hover:bg-green-600 transition-colors mb-4">
+                        🔗 تست اتصال Binance
+                    </button>
+                    <div id="binance-status"></div>
+                </div>
+
+                <!-- Config Selection -->
+                <div class="mb-6">
+                    <h3 class="text-lg font-medium text-gray-700 mb-4">انتخاب کانفیگ ترید</h3>
+                    <div id="config-selection" class="mb-4">
+                        <div class="text-center py-4">
+                            <p class="text-gray-500">در حال بارگیری کانفیگ‌ها...</p>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="flex justify-between">
+                    <button id="prev-step-2"
+                        class="bg-gray-500 text-white px-6 py-2 rounded-lg hover:bg-gray-600 transition-colors">
+                        → مرحله قبل
+                    </button>
+                    <button id="next-step-2"
+                        class="bg-blue-500 text-white px-6 py-2 rounded-lg hover:bg-blue-600 transition-colors hidden">
+                        مرحله بعد ←
+                    </button>
+                </div>
+            </div>
+
+            <!-- Step 3: Telegram Bot -->
+            <div id="step-3" class="bg-white rounded-lg shadow-md p-6 hidden">
+                <h2 class="text-xl font-semibold text-gray-800 mb-4">۳. تنظیمات Telegram Bot</h2>
+                <p class="text-gray-600 mb-6">پیکربندی ربات تلگرام برای دریافت اعلان‌ها</p>
+
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-2">Bot Token</label>
+                        <input type="text" id="telegram-bot-token"
+                            class="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                            placeholder="Bot Token خود را وارد کنید">
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-2">Chat ID</label>
+                        <input type="text" id="telegram-chat-id"
+                            class="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                            placeholder="Chat ID خود را وارد کنید">
+                    </div>
+                </div>
+
+                <div class="flex gap-2 mb-4">
+                    <button id="test-telegram"
+                        class="bg-blue-500 text-white px-4 py-2 rounded-lg hover:bg-blue-600 transition-colors">
+                        📱 تست Telegram Bot
+                    </button>
+                    <button id="skip-telegram"
+                        class="bg-gray-400 text-white px-4 py-2 rounded-lg hover:bg-gray-500 transition-colors">
+                        ⏭️ رد کردن
+                    </button>
+                </div>
+                <div id="telegram-status"></div>
+
+                <div class="flex justify-between mt-6">
+                    <button id="prev-step-3"
+                        class="bg-gray-500 text-white px-6 py-2 rounded-lg hover:bg-gray-600 transition-colors">
+                        → مرحله قبل
+                    </button>
+                    <button id="next-step-3"
+                        class="bg-blue-500 text-white px-6 py-2 rounded-lg hover:bg-blue-600 transition-colors hidden">
+                        مرحله بعد ←
+                    </button>
+                </div>
+            </div>
+
+            <!-- Step 4: Final Test -->
+            <div id="step-4" class="bg-white rounded-lg shadow-md p-6 hidden">
+                <h2 class="text-xl font-semibold text-gray-800 mb-4">۴. تست نهایی و تکمیل</h2>
+                <p class="text-gray-600 mb-6">بررسی نهایی تنظیمات و ذخیره کانفیگ</p>
+
+                <div id="final-test-results" class="mb-6"></div>
+
+                <div class="flex justify-between">
+                    <button id="prev-step-4"
+                        class="bg-gray-500 text-white px-6 py-2 rounded-lg hover:bg-gray-600 transition-colors">
+                        → مرحله قبل
+                    </button>
+                    <button id="save-setup"
+                        class="bg-green-500 text-white px-6 py-2 rounded-lg hover:bg-green-600 transition-colors"
+                        disabled>
+                        💾 ذخیره تنظیمات
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Load JavaScript -->
+    <script src="/static/js/setup.js?v=2"></script>
+</body>
+
+</html>

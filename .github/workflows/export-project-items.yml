@@ -1,0 +1,27 @@
+name: Export ProjectV2 Items
+
+on:
+  workflow_dispatch:
+
+jobs:
+  export:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.11'
+
+      - name: Run exporter
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          python tools/export_project_items.py --project-id PVT_kwHODCzAMM4BDOn_ --out-dir planning
+      - name: Upload snapshots as artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: project_items_snapshot
+          path: planning
