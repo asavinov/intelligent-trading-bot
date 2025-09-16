@@ -113,19 +113,20 @@ def export(project_id, out_dir, token=None):
             ... on Issue { number title url }
             ... on PullRequest { number title url }
           }
-          fieldValues(first: 50) {
-            nodes {
-              __typename
-              ... on ProjectV2ItemFieldSingleSelectValue {
-                projectField { name }
-                singleSelectOption { id name }
-              }
-              ... on ProjectV2ItemFieldTextValue {
-                projectField { name }
-                text
-              }
-            }
-          }
+                    fieldValues(first: 50) {
+                        nodes {
+                            __typename
+                            ... on ProjectV2ItemFieldSingleSelectValue {
+                                optionId
+                            }
+                            ... on ProjectV2ItemFieldTextValue {
+                                text
+                            }
+                            ... on ProjectV2ItemFieldNumberValue {
+                                number
+                            }
+                        }
+                    }
         }
       }
     }
