@@ -1,0 +1,1787 @@
+{
+  "timestamp": "2025-09-16T14:56:42.662Z",
+  "url": "http://127.0.0.1:8000/",
+  "console": [
+    {
+      "type": "warning",
+      "text": "cdn.tailwindcss.com should not be used in production. To use Tailwind CSS in production, install it as a PostCSS plugin or use the Tailwind CLI: https://tailwindcss.com/docs/installation",
+      "location": {
+        "url": "https://cdn.tailwindcss.com/",
+        "lineNumber": 63,
+        "columnNumber": 1710
+      }
+    },
+    {
+      "type": "log",
+      "text": "Initializing dashboard...",
+      "location": {
+        "url": "http://127.0.0.1:8000/static/js/dashboard-v2.js?v=6",
+        "lineNumber": 12,
+        "columnNumber": 12
+      }
+    },
+    {
+      "type": "warning",
+      "text": "SSE connection error for job 74d78e3f-2457-4039-b7b6-79059dbaa175 Event",
+      "location": {
+        "url": "http://127.0.0.1:8000/static/js/dashboard-v2.js?v=6",
+        "lineNumber": 498,
+        "columnNumber": 20
+      }
+    }
+  ],
+  "network": [
+    {
+      "event": "request",
+      "url": "http://127.0.0.1:8000/",
+      "method": "GET",
+      "headers": {
+        "upgrade-insecure-requests": "1",
+        "user-agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) HeadlessChrome/120.0.6099.28 Safari/537.36",
+        "sec-ch-ua": "\"Not_A Brand\";v=\"8\", \"Chromium\";v=\"120\", \"HeadlessChrome\";v=\"120\"",
+        "sec-ch-ua-mobile": "?0",
+        "sec-ch-ua-platform": "\"Windows\""
+      },
+      "postData": null
+    },
+    {
+      "event": "response",
+      "url": "http://127.0.0.1:8000/",
+      "status": 200,
+      "headers": {
+        "content-length": "13023",
+        "content-type": "text/html; charset=utf-8",
+        "date": "Tue, 16 Sep 2025 14:56:21 GMT",
+        "server": "uvicorn"
+      },
+      "body": null
+    },
+    {
+      "event": "request",
+      "url": "https://cdn.tailwindcss.com/",
+      "method": "GET",
+      "headers": {
+        "sec-ch-ua": "\"Not_A Brand\";v=\"8\", \"Chromium\";v=\"120\", \"HeadlessChrome\";v=\"120\"",
+        "referer": "http://127.0.0.1:8000/",
+        "sec-ch-ua-mobile": "?0",
+        "user-agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) HeadlessChrome/120.0.6099.28 Safari/537.36",
+        "sec-ch-ua-platform": "\"Windows\""
+      },
+      "postData": null
+    },
+    {
+      "event": "request",
+      "url": "http://127.0.0.1:8000/static/js/dashboard-v2.js?v=6",
+      "method": "GET",
+      "headers": {
+        "sec-ch-ua": "\"Not_A Brand\";v=\"8\", \"Chromium\";v=\"120\", \"HeadlessChrome\";v=\"120\"",
+        "referer": "http://127.0.0.1:8000/",
+        "sec-ch-ua-mobile": "?0",
+        "user-agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) HeadlessChrome/120.0.6099.28 Safari/537.36",
+        "sec-ch-ua-platform": "\"Windows\""
+      },
+      "postData": null
+    },
+    {
+      "event": "response",
+      "url": "http://127.0.0.1:8000/static/js/dashboard-v2.js?v=6",
+      "status": 200,
+      "headers": {
+        "date": "Tue, 16 Sep 2025 14:56:21 GMT",
+        "last-modified": "Tue, 16 Sep 2025 14:00:21 GMT",
+        "server": "uvicorn",
+        "etag": "1f2e83adb46821d306c1ac3a37e943c7",
+        "content-length": "34288",
+        "content-type": "application/javascript"
+      },
+      "body": null
+    },
+    {
+      "event": "response",
+      "url": "https://cdn.tailwindcss.com/",
+      "status": 302,
+      "headers": {
+        "date": "Tue, 16 Sep 2025 14:56:49 GMT",
+        "strict-transport-security": "max-age=63072000",
+        "cf-cache-status": "HIT",
+        "server": "cloudflare",
+        "x-vercel-id": "fra1::iad1::s4bwt-1758034121436-a6ae3b9010d0",
+        "age": "105",
+        "x-vercel-cache": "MISS",
+        "vary": "accept-encoding",
+        "location": "/3.4.17",
+        "cache-control": "max-age=14400",
+        "cf-ray": "980136745db08ece-GYD"
+      },
+      "body": null
+    },
+    {
+      "event": "request",
+      "url": "https://cdn.tailwindcss.com/3.4.17",
+      "method": "GET",
+      "headers": {
+        "referer": "http://127.0.0.1:8000/",
+        "user-agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) HeadlessChrome/120.0.6099.28 Safari/537.36"
+      },
+      "postData": null
+    },
+    {
+      "event": "response",
+      "url": "https://cdn.tailwindcss.com/3.4.17",
+      "status": 200,
+      "headers": {
+        "date": "Tue, 16 Sep 2025 14:56:49 GMT",
+        "content-encoding": "br",
+        "strict-transport-security": "max-age=63072000",
+        "last-modified": "Thu, 07 Aug 2025 06:29:26 GMT",
+        "server": "cloudflare",
+        "x-vercel-id": "fra1::iad1::ldmns-1754548166221-6f56734fb118",
+        "age": "2122821",
+        "x-vercel-cache": "MISS",
+        "vary": "accept-encoding",
+        "content-type": "text/javascript",
+        "cache-control": "max-age=31536000",
+        "cf-cache-status": "HIT",
+        "cf-ray": "980136751e068ece-GYD"
+      },
+      "body": null
+    },
+    {
+      "event": "request",
+      "url": "http://127.0.0.1:8000/api/system/health",
+      "method": "GET",
+      "headers": {
+        "sec-ch-ua": "\"Not_A Brand\";v=\"8\", \"Chromium\";v=\"120\", \"HeadlessChrome\";v=\"120\"",
+        "referer": "http://127.0.0.1:8000/",
+        "sec-ch-ua-mobile": "?0",
+        "user-agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) HeadlessChrome/120.0.6099.28 Safari/537.36",
+        "sec-ch-ua-platform": "\"Windows\""
+      },
+      "postData": null
+    },
+    {
+      "event": "request",
+      "url": "http://127.0.0.1:8000/api/signals/latest",
+      "method": "GET",
+      "headers": {
+        "sec-ch-ua": "\"Not_A Brand\";v=\"8\", \"Chromium\";v=\"120\", \"HeadlessChrome\";v=\"120\"",
+        "referer": "http://127.0.0.1:8000/",
+        "sec-ch-ua-mobile": "?0",
+        "user-agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) HeadlessChrome/120.0.6099.28 Safari/537.36",
+        "sec-ch-ua-platform": "\"Windows\""
+      },
+      "postData": null
+    },
+    {
+      "event": "request",
+      "url": "http://127.0.0.1:8000/api/system/connections",
+      "method": "GET",
+      "headers": {
+        "sec-ch-ua": "\"Not_A Brand\";v=\"8\", \"Chromium\";v=\"120\", \"HeadlessChrome\";v=\"120\"",
+        "referer": "http://127.0.0.1:8000/",
+        "sec-ch-ua-mobile": "?0",
+        "user-agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) HeadlessChrome/120.0.6099.28 Safari/537.36",
+        "sec-ch-ua-platform": "\"Windows\""
+      },
+      "postData": null
+    },
+    {
+      "event": "request",
+      "url": "http://127.0.0.1:8000/api/scripts/active",
+      "method": "GET",
+      "headers": {
+        "sec-ch-ua": "\"Not_A Brand\";v=\"8\", \"Chromium\";v=\"120\", \"HeadlessChrome\";v=\"120\"",
+        "referer": "http://127.0.0.1:8000/",
+        "sec-ch-ua-mobile": "?0",
+        "user-agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) HeadlessChrome/120.0.6099.28 Safari/537.36",
+        "sec-ch-ua-platform": "\"Windows\""
+      },
+      "postData": null
+    },
+    {
+      "event": "response",
+      "url": "http://127.0.0.1:8000/api/system/health",
+      "status": 200,
+      "headers": {
+        "date": "Tue, 16 Sep 2025 14:56:50 GMT",
+        "server": "uvicorn",
+        "content-length": "276",
+        "content-type": "application/json"
+      },
+      "body": {
+        "status": "healthy",
+        "python_version": "3.13.5",
+        "memory": {
+          "total_gb": 31.9,
+          "available_gb": 8.8,
+          "percent_used": 72.4,
+          "used_gb": 23.1
+        },
+        "disk": {
+          "healthy": true,
+          "usage_percent": 73.18,
+          "total_gb": 465.05,
+          "used_gb": 340.31,
+          "free_gb": 124.74,
+          "status": "normal"
+        },
+        "cpu_count": 4,
+        "cpu_percent": 37.4
+      }
+    },
+    {
+      "event": "response",
+      "url": "http://127.0.0.1:8000/api/system/connections",
+      "status": 200,
+      "headers": {
+        "date": "Tue, 16 Sep 2025 14:56:50 GMT",
+        "server": "uvicorn",
+        "content-length": "783",
+        "content-type": "application/json"
+      },
+      "body": {
+        "status": "degraded",
+        "active_connections": 2,
+        "total_connections": 5,
+        "connections": {
+          "binance": {
+            "name": "Binance API",
+            "status": "connected",
+            "response_time": 0.776927,
+            "last_check": 1758034612.809355
+          },
+          "mt5": {
+            "name": "MetaTrader 5",
+            "status": "not_installed",
+            "error": "MT5 Python package not installed",
+            "last_check": 1758034612.8102956
+          },
+          "telegram": {
+            "name": "Telegram Bot",
+            "status": "not_configured",
+            "error": "Bot token not found",
+            "last_check": 1758034612.810304
+          },
+          "database": {
+            "name": "Local Database",
+            "status": "connected",
+            "type": "SQLite",
+            "path": "C:\\intelligent-trading-bot-master\\dashboard\\dashboard.db",
+            "last_check": 1758034612.8108833
+          },
+          "apis_status": {
+            "name": "Internal APIs",
+            "status": "partial",
+            "working_endpoints": 0,
+            "total_endpoints": 3,
+            "last_check": 1758034618.8929033
+          }
+        },
+        "last_check": 1758034618.8929133
+      }
+    },
+    {
+      "event": "response",
+      "url": "http://127.0.0.1:8000/api/signals/latest",
+      "status": 200,
+      "headers": {
+        "date": "Tue, 16 Sep 2025 14:56:50 GMT",
+        "server": "uvicorn",
+        "content-length": "398",
+        "content-type": "application/json"
+      },
+      "body": {
+        "status": "no_recent_signals",
+        "signal": {
+          "symbol": "BTCUSDT",
+          "action": "BUY",
+          "price": 45250.5,
+          "confidence": 0.85,
+          "timestamp": "2025-09-16T18:26:58.895501",
+          "indicators": {
+            "rsi": 35.2,
+            "macd": "bullish",
+            "volume": "high"
+          },
+          "source": "sample"
+        },
+        "timestamp": "2025-09-16T18:26:58.895501",
+        "source": "sample",
+        "message": "هیچ سیگنال اخیری یافت نشد - نمونه سیگنال نمایش داده شده"
+      }
+    },
+    {
+      "event": "request",
+      "url": "http://127.0.0.1:8000/api/scripts/list",
+      "method": "GET",
+      "headers": {
+        "sec-ch-ua": "\"Not_A Brand\";v=\"8\", \"Chromium\";v=\"120\", \"HeadlessChrome\";v=\"120\"",
+        "referer": "http://127.0.0.1:8000/",
+        "sec-ch-ua-mobile": "?0",
+        "user-agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) HeadlessChrome/120.0.6099.28 Safari/537.36",
+        "sec-ch-ua-platform": "\"Windows\""
+      },
+      "postData": null
+    },
+    {
+      "event": "response",
+      "url": "http://127.0.0.1:8000/api/scripts/active",
+      "status": 200,
+      "headers": {
+        "date": "Tue, 16 Sep 2025 14:56:50 GMT",
+        "server": "uvicorn",
+        "content-length": "2",
+        "content-type": "application/json"
+      },
+      "body": []
+    },
+    {
+      "event": "request",
+      "url": "http://127.0.0.1:8000/api/configs/list",
+      "method": "GET",
+      "headers": {
+        "sec-ch-ua": "\"Not_A Brand\";v=\"8\", \"Chromium\";v=\"120\", \"HeadlessChrome\";v=\"120\"",
+        "referer": "http://127.0.0.1:8000/",
+        "sec-ch-ua-mobile": "?0",
+        "user-agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) HeadlessChrome/120.0.6099.28 Safari/537.36",
+        "sec-ch-ua-platform": "\"Windows\""
+      },
+      "postData": null
+    },
+    {
+      "event": "response",
+      "url": "http://127.0.0.1:8000/api/scripts/list",
+      "status": 200,
+      "headers": {
+        "date": "Tue, 16 Sep 2025 14:56:50 GMT",
+        "server": "uvicorn",
+        "content-length": "3544",
+        "content-type": "application/json"
+      },
+      "body": {
+        "scripts": [
+          {
+            "name": "download_binance",
+            "file": "download_binance.py",
+            "path": "C:\\intelligent-trading-bot-master\\scripts\\download_binance.py",
+            "description": "دانلود داده‌های تاریخی از Binance",
+            "category": "data_collection",
+            "duration": "2-5 دقیقه",
+            "requires_api": true
+          },
+          {
+            "name": "download_mt5",
+            "file": "download_mt5.py",
+            "path": "C:\\intelligent-trading-bot-master\\scripts\\download_mt5.py",
+            "description": "دانلود داده‌های تاریخی از MT5",
+            "category": "data_collection",
+            "duration": "2-5 دقیقه",
+            "requires_api": true
+          },
+          {
+            "name": "download_yahoo",
+            "file": "download_yahoo.py",
+            "path": "C:\\intelligent-trading-bot-master\\scripts\\download_yahoo.py",
+            "description": "دانلود داده‌های تاریخی از Yahoo Finance",
+            "category": "data_collection",
+            "duration": "1-2 دقیقه",
+            "requires_api": false
+          },
+          {
+            "name": "features",
+            "file": "features.py",
+            "path": "C:\\intelligent-trading-bot-master\\scripts\\features.py",
+            "description": "استخراج ویژگی‌های تکنیکال",
+            "category": "feature_engineering",
+            "duration": "10-20 دقیقه",
+            "requires_api": false
+          },
+          {
+            "name": "labels",
+            "file": "labels.py",
+            "path": "C:\\intelligent-trading-bot-master\\scripts\\labels.py",
+            "description": "تولید برچسب‌های آموزشی",
+            "category": "feature_engineering",
+            "duration": "5-15 دقیقه",
+            "requires_api": false
+          },
+          {
+            "name": "merge",
+            "file": "merge.py",
+            "path": "C:\\intelligent-trading-bot-master\\scripts\\merge.py",
+            "description": "ادغام و پردازش داده‌های خام",
+            "category": "data_processing",
+            "duration": "5-10 دقیقه",
+            "requires_api": false
+          },
+          {
+            "name": "output",
+            "file": "output.py",
+            "path": "C:\\intelligent-trading-bot-master\\scripts\\output.py",
+            "description": "اسکریپت output",
+            "category": "output",
+            "duration": "1-2 دقیقه",
+            "requires_api": false
+          },
+          {
+            "name": "predict",
+            "file": "predict.py",
+            "path": "C:\\intelligent-trading-bot-master\\scripts\\predict.py",
+            "description": "پیش‌بینی قیمت‌های آینده",
+            "category": "prediction",
+            "duration": "1-3 دقیقه",
+            "requires_api": false
+          },
+          {
+            "name": "predict_rolling",
+            "file": "predict_rolling.py",
+            "path": "C:\\intelligent-trading-bot-master\\scripts\\predict_rolling.py",
+            "description": "پیش‌بینی با بازآموزی دوره‌ای مدل‌ها",
+            "category": "prediction",
+            "duration": "60-300 دقیقه",
+            "requires_api": false
+          },
+          {
+            "name": "signals",
+            "file": "signals.py",
+            "path": "C:\\intelligent-trading-bot-master\\scripts\\signals.py",
+            "description": "تولید سیگنال‌های معاملاتی",
+            "category": "trading",
+            "duration": "2-5 دقیقه",
+            "requires_api": false
+          },
+          {
+            "name": "simulate",
+            "file": "simulate.py",
+            "path": "C:\\intelligent-trading-bot-master\\scripts\\simulate.py",
+            "description": "شبیه‌سازی معاملات و بک‌تست",
+            "category": "backtesting",
+            "duration": "10-30 دقیقه",
+            "requires_api": false
+          },
+          {
+            "name": "test_print",
+            "file": "test_print.py",
+            "path": "C:\\intelligent-trading-bot-master\\scripts\\test_print.py",
+            "description": "اسکریپت test_print",
+            "category": "other",
+            "duration": "نامشخص",
+            "requires_api": false
+          },
+          {
+            "name": "train",
+            "file": "train.py",
+            "path": "C:\\intelligent-trading-bot-master\\scripts\\train.py",
+            "description": "آموزش مدل‌های یادگیری ماشین",
+            "category": "model_training",
+            "duration": "30-120 دقیقه",
+            "requires_api": false
+          },
+          {
+            "name": "service.server",
+            "file": "server.py",
+            "path": "C:\\intelligent-trading-bot-master\\service\\server.py",
+            "description": "سرویس تولید سیگنال‌های آنلاین",
+            "category": "service",
+            "duration": "دائمی (سرویس)",
+            "requires_api": true
+          }
+        ]
+      }
+    },
+    {
+      "event": "request",
+      "url": "http://127.0.0.1:8000/api/system/resources",
+      "method": "GET",
+      "headers": {
+        "sec-ch-ua": "\"Not_A Brand\";v=\"8\", \"Chromium\";v=\"120\", \"HeadlessChrome\";v=\"120\"",
+        "referer": "http://127.0.0.1:8000/",
+        "sec-ch-ua-mobile": "?0",
+        "user-agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) HeadlessChrome/120.0.6099.28 Safari/537.36",
+        "sec-ch-ua-platform": "\"Windows\""
+      },
+      "postData": null
+    },
+    {
+      "event": "response",
+      "url": "http://127.0.0.1:8000/api/configs/list",
+      "status": 200,
+      "headers": {
+        "date": "Tue, 16 Sep 2025 14:56:50 GMT",
+        "server": "uvicorn",
+        "content-length": "1360",
+        "content-type": "application/json"
+      },
+      "body": [
+        {
+          "name": "config-mt5-sample-1h",
+          "path": "C:\\intelligent-trading-bot-master\\configs\\config-mt5-sample-1h.jsonc",
+          "size": 7207,
+          "modified": 1758017269.510543,
+          "symbol": "BTCUSD",
+          "venue": "mt5",
+          "frequency": "1h",
+          "description": "BTCUSD 1h",
+          "has_api_keys": false,
+          "has_telegram": false
+        },
+        {
+          "name": "config-sample-1h",
+          "path": "C:\\intelligent-trading-bot-master\\configs\\config-sample-1h.jsonc",
+          "size": 10577,
+          "modified": 1758017272.9113684,
+          "symbol": "BTCUSDT",
+          "venue": "binance",
+          "frequency": "1h",
+          "description": "BTCUSDT 1h SVM",
+          "has_api_keys": true,
+          "has_telegram": false
+        },
+        {
+          "name": "config-sample-1min",
+          "path": "C:\\intelligent-trading-bot-master\\configs\\config-sample-1min.jsonc",
+          "size": 7717,
+          "modified": 1758017269.513162,
+          "symbol": "BTCUSDT",
+          "venue": "binance",
+          "frequency": "1min",
+          "description": "BTCUSDT 1min",
+          "has_api_keys": false,
+          "has_telegram": false
+        },
+        {
+          "name": "config-test",
+          "path": "C:\\intelligent-trading-bot-master\\configs\\config-test.json",
+          "size": 916,
+          "modified": 1758017272.918573,
+          "symbol": "BTCUSDT",
+          "venue": "binance",
+          "frequency": "1h",
+          "description": "تست اولیه سیستم",
+          "has_api_keys": false,
+          "has_telegram": false
+        },
+        {
+          "name": "config-test",
+          "path": "C:\\intelligent-trading-bot-master\\configs\\config-test.jsonc",
+          "size": 10396,
+          "modified": 1758017272.939895,
+          "symbol": "BTCUSDT",
+          "venue": "binance",
+          "frequency": "1h",
+          "description": "BTCUSDT 1h SVM",
+          "has_api_keys": true,
+          "has_telegram": true
+        }
+      ]
+    },
+    {
+      "event": "request",
+      "url": "http://127.0.0.1:8000/api/configs/list",
+      "method": "GET",
+      "headers": {
+        "sec-ch-ua": "\"Not_A Brand\";v=\"8\", \"Chromium\";v=\"120\", \"HeadlessChrome\";v=\"120\"",
+        "referer": "http://127.0.0.1:8000/",
+        "sec-ch-ua-mobile": "?0",
+        "user-agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) HeadlessChrome/120.0.6099.28 Safari/537.36",
+        "sec-ch-ua-platform": "\"Windows\""
+      },
+      "postData": null
+    },
+    {
+      "event": "response",
+      "url": "http://127.0.0.1:8000/api/system/resources",
+      "status": 200,
+      "headers": {
+        "date": "Tue, 16 Sep 2025 14:56:50 GMT",
+        "server": "uvicorn",
+        "content-length": "235",
+        "content-type": "application/json"
+      },
+      "body": {
+        "cpu": {
+          "percent": 42.9,
+          "healthy": true
+        },
+        "memory": {
+          "percent": 72.5,
+          "total_gb": 31.9,
+          "used_gb": 23.12,
+          "available_gb": 8.78,
+          "healthy": true
+        },
+        "disk": {
+          "percent": 73.2,
+          "total_gb": 465.1,
+          "free_gb": 124.7,
+          "healthy": true
+        },
+        "timestamp": 1758034619.2704291
+      }
+    },
+    {
+      "event": "request",
+      "url": "http://127.0.0.1:8000/api/setup/selected-config",
+      "method": "GET",
+      "headers": {
+        "sec-ch-ua": "\"Not_A Brand\";v=\"8\", \"Chromium\";v=\"120\", \"HeadlessChrome\";v=\"120\"",
+        "referer": "http://127.0.0.1:8000/",
+        "sec-ch-ua-mobile": "?0",
+        "user-agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) HeadlessChrome/120.0.6099.28 Safari/537.36",
+        "sec-ch-ua-platform": "\"Windows\""
+      },
+      "postData": null
+    },
+    {
+      "event": "response",
+      "url": "http://127.0.0.1:8000/api/configs/list",
+      "status": 200,
+      "headers": {
+        "date": "Tue, 16 Sep 2025 14:56:50 GMT",
+        "server": "uvicorn",
+        "content-length": "1360",
+        "content-type": "application/json"
+      },
+      "body": [
+        {
+          "name": "config-mt5-sample-1h",
+          "path": "C:\\intelligent-trading-bot-master\\configs\\config-mt5-sample-1h.jsonc",
+          "size": 7207,
+          "modified": 1758017269.510543,
+          "symbol": "BTCUSD",
+          "venue": "mt5",
+          "frequency": "1h",
+          "description": "BTCUSD 1h",
+          "has_api_keys": false,
+          "has_telegram": false
+        },
+        {
+          "name": "config-sample-1h",
+          "path": "C:\\intelligent-trading-bot-master\\configs\\config-sample-1h.jsonc",
+          "size": 10577,
+          "modified": 1758017272.9113684,
+          "symbol": "BTCUSDT",
+          "venue": "binance",
+          "frequency": "1h",
+          "description": "BTCUSDT 1h SVM",
+          "has_api_keys": true,
+          "has_telegram": false
+        },
+        {
+          "name": "config-sample-1min",
+          "path": "C:\\intelligent-trading-bot-master\\configs\\config-sample-1min.jsonc",
+          "size": 7717,
+          "modified": 1758017269.513162,
+          "symbol": "BTCUSDT",
+          "venue": "binance",
+          "frequency": "1min",
+          "description": "BTCUSDT 1min",
+          "has_api_keys": false,
+          "has_telegram": false
+        },
+        {
+          "name": "config-test",
+          "path": "C:\\intelligent-trading-bot-master\\configs\\config-test.json",
+          "size": 916,
+          "modified": 1758017272.918573,
+          "symbol": "BTCUSDT",
+          "venue": "binance",
+          "frequency": "1h",
+          "description": "تست اولیه سیستم",
+          "has_api_keys": false,
+          "has_telegram": false
+        },
+        {
+          "name": "config-test",
+          "path": "C:\\intelligent-trading-bot-master\\configs\\config-test.jsonc",
+          "size": 10396,
+          "modified": 1758017272.939895,
+          "symbol": "BTCUSDT",
+          "venue": "binance",
+          "frequency": "1h",
+          "description": "BTCUSDT 1h SVM",
+          "has_api_keys": true,
+          "has_telegram": true
+        }
+      ]
+    },
+    {
+      "event": "response",
+      "url": "http://127.0.0.1:8000/api/setup/selected-config",
+      "status": 200,
+      "headers": {
+        "date": "Tue, 16 Sep 2025 14:56:50 GMT",
+        "server": "uvicorn",
+        "content-length": "784",
+        "content-type": "application/json"
+      },
+      "body": {
+        "selected_config": "C:\\intelligent-trading-bot-master\\configs\\config-sample-1h.jsonc",
+        "raw": {
+          "setup_completed": true,
+          "setup_date": "2025-09-09T22:35:33.663Z",
+          "system_health": {
+            "python_version": "3.13.5",
+            "memory_gb": 31.9,
+            "disk_free_gb": 141,
+            "cpu_count": 4,
+            "dependencies_status": {
+              "pandas": {
+                "status": "installed",
+                "version": "unknown"
+              },
+              "numpy": {
+                "status": "installed",
+                "version": "unknown"
+              },
+              "requests": {
+                "status": "installed",
+                "version": "unknown"
+              },
+              "fastapi": {
+                "status": "installed",
+                "version": "unknown"
+              },
+              "uvicorn": {
+                "status": "installed",
+                "version": "unknown"
+              },
+              "psutil": {
+                "status": "installed",
+                "version": "unknown"
+              }
+            },
+            "overall_health": true
+          },
+          "binance_configured": true,
+          "telegram_configured": true,
+          "selected_config": "C:\\intelligent-trading-bot-master\\configs\\config-sample-1h.jsonc",
+          "dashboard_version": "1.0.0"
+        }
+      }
+    },
+    {
+      "event": "request",
+      "url": "http://127.0.0.1:8000/api/system/resources",
+      "method": "GET",
+      "headers": {
+        "sec-ch-ua": "\"Not_A Brand\";v=\"8\", \"Chromium\";v=\"120\", \"HeadlessChrome\";v=\"120\"",
+        "referer": "http://127.0.0.1:8000/",
+        "sec-ch-ua-mobile": "?0",
+        "user-agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) HeadlessChrome/120.0.6099.28 Safari/537.36",
+        "sec-ch-ua-platform": "\"Windows\""
+      },
+      "postData": null
+    },
+    {
+      "event": "response",
+      "url": "http://127.0.0.1:8000/api/system/resources",
+      "status": 200,
+      "headers": {
+        "date": "Tue, 16 Sep 2025 14:57:04 GMT",
+        "server": "uvicorn",
+        "content-length": "233",
+        "content-type": "application/json"
+      },
+      "body": {
+        "cpu": {
+          "percent": 42.9,
+          "healthy": true
+        },
+        "memory": {
+          "percent": 72.4,
+          "total_gb": 31.9,
+          "used_gb": 23.1,
+          "available_gb": 8.8,
+          "healthy": true
+        },
+        "disk": {
+          "percent": 73.2,
+          "total_gb": 465.1,
+          "free_gb": 124.7,
+          "healthy": true
+        },
+        "timestamp": 1758034624.2785933
+      }
+    },
+    {
+      "event": "request",
+      "url": "http://127.0.0.1:8000/api/system/resources",
+      "method": "GET",
+      "headers": {
+        "sec-ch-ua": "\"Not_A Brand\";v=\"8\", \"Chromium\";v=\"120\", \"HeadlessChrome\";v=\"120\"",
+        "referer": "http://127.0.0.1:8000/",
+        "sec-ch-ua-mobile": "?0",
+        "user-agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) HeadlessChrome/120.0.6099.28 Safari/537.36",
+        "sec-ch-ua-platform": "\"Windows\""
+      },
+      "postData": null
+    },
+    {
+      "event": "response",
+      "url": "http://127.0.0.1:8000/api/system/resources",
+      "status": 200,
+      "headers": {
+        "date": "Tue, 16 Sep 2025 14:57:08 GMT",
+        "server": "uvicorn",
+        "content-length": "235",
+        "content-type": "application/json"
+      },
+      "body": {
+        "cpu": {
+          "percent": 28.6,
+          "healthy": true
+        },
+        "memory": {
+          "percent": 72.2,
+          "total_gb": 31.9,
+          "used_gb": 23.03,
+          "available_gb": 8.87,
+          "healthy": true
+        },
+        "disk": {
+          "percent": 73.2,
+          "total_gb": 465.1,
+          "free_gb": 124.7,
+          "healthy": true
+        },
+        "timestamp": 1758034629.2728143
+      }
+    },
+    {
+      "event": "request",
+      "url": "http://127.0.0.1:8000/api/system/resources",
+      "method": "GET",
+      "headers": {
+        "sec-ch-ua": "\"Not_A Brand\";v=\"8\", \"Chromium\";v=\"120\", \"HeadlessChrome\";v=\"120\"",
+        "referer": "http://127.0.0.1:8000/",
+        "sec-ch-ua-mobile": "?0",
+        "user-agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) HeadlessChrome/120.0.6099.28 Safari/537.36",
+        "sec-ch-ua-platform": "\"Windows\""
+      },
+      "postData": null
+    },
+    {
+      "event": "response",
+      "url": "http://127.0.0.1:8000/api/system/resources",
+      "status": 200,
+      "headers": {
+        "date": "Tue, 16 Sep 2025 14:57:14 GMT",
+        "server": "uvicorn",
+        "content-length": "235",
+        "content-type": "application/json"
+      },
+      "body": {
+        "cpu": {
+          "percent": 35.7,
+          "healthy": true
+        },
+        "memory": {
+          "percent": 72.2,
+          "total_gb": 31.9,
+          "used_gb": 23.04,
+          "available_gb": 8.86,
+          "healthy": true
+        },
+        "disk": {
+          "percent": 73.2,
+          "total_gb": 465.1,
+          "free_gb": 124.7,
+          "healthy": true
+        },
+        "timestamp": 1758034634.2851562
+      }
+    },
+    {
+      "event": "request",
+      "url": "http://127.0.0.1:8000/api/system/resources",
+      "method": "GET",
+      "headers": {
+        "sec-ch-ua": "\"Not_A Brand\";v=\"8\", \"Chromium\";v=\"120\", \"HeadlessChrome\";v=\"120\"",
+        "referer": "http://127.0.0.1:8000/",
+        "sec-ch-ua-mobile": "?0",
+        "user-agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) HeadlessChrome/120.0.6099.28 Safari/537.36",
+        "sec-ch-ua-platform": "\"Windows\""
+      },
+      "postData": null
+    },
+    {
+      "event": "response",
+      "url": "http://127.0.0.1:8000/api/system/resources",
+      "status": 200,
+      "headers": {
+        "date": "Tue, 16 Sep 2025 14:57:18 GMT",
+        "server": "uvicorn",
+        "content-length": "235",
+        "content-type": "application/json"
+      },
+      "body": {
+        "cpu": {
+          "percent": 39.3,
+          "healthy": true
+        },
+        "memory": {
+          "percent": 72.2,
+          "total_gb": 31.9,
+          "used_gb": 23.04,
+          "available_gb": 8.86,
+          "healthy": true
+        },
+        "disk": {
+          "percent": 73.2,
+          "total_gb": 465.1,
+          "free_gb": 124.7,
+          "healthy": true
+        },
+        "timestamp": 1758034639.2853067
+      }
+    },
+    {
+      "event": "request",
+      "url": "http://127.0.0.1:8000/api/signals/latest",
+      "method": "GET",
+      "headers": {
+        "sec-ch-ua": "\"Not_A Brand\";v=\"8\", \"Chromium\";v=\"120\", \"HeadlessChrome\";v=\"120\"",
+        "referer": "http://127.0.0.1:8000/",
+        "sec-ch-ua-mobile": "?0",
+        "user-agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) HeadlessChrome/120.0.6099.28 Safari/537.36",
+        "sec-ch-ua-platform": "\"Windows\""
+      },
+      "postData": null
+    },
+    {
+      "event": "response",
+      "url": "http://127.0.0.1:8000/api/signals/latest",
+      "status": 200,
+      "headers": {
+        "date": "Tue, 16 Sep 2025 14:57:20 GMT",
+        "server": "uvicorn",
+        "content-length": "398",
+        "content-type": "application/json"
+      },
+      "body": {
+        "status": "no_recent_signals",
+        "signal": {
+          "symbol": "BTCUSDT",
+          "action": "BUY",
+          "price": 45250.5,
+          "confidence": 0.85,
+          "timestamp": "2025-09-16T18:27:21.033702",
+          "indicators": {
+            "rsi": 35.2,
+            "macd": "bullish",
+            "volume": "high"
+          },
+          "source": "sample"
+        },
+        "timestamp": "2025-09-16T18:27:21.033702",
+        "source": "sample",
+        "message": "هیچ سیگنال اخیری یافت نشد - نمونه سیگنال نمایش داده شده"
+      }
+    },
+    {
+      "event": "request",
+      "url": "http://127.0.0.1:8000/api/system/resources",
+      "method": "GET",
+      "headers": {
+        "sec-ch-ua": "\"Not_A Brand\";v=\"8\", \"Chromium\";v=\"120\", \"HeadlessChrome\";v=\"120\"",
+        "referer": "http://127.0.0.1:8000/",
+        "sec-ch-ua-mobile": "?0",
+        "user-agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) HeadlessChrome/120.0.6099.28 Safari/537.36",
+        "sec-ch-ua-platform": "\"Windows\""
+      },
+      "postData": null
+    },
+    {
+      "event": "response",
+      "url": "http://127.0.0.1:8000/api/system/resources",
+      "status": 200,
+      "headers": {
+        "date": "Tue, 16 Sep 2025 14:57:20 GMT",
+        "server": "uvicorn",
+        "content-length": "235",
+        "content-type": "application/json"
+      },
+      "body": {
+        "cpu": {
+          "percent": 50,
+          "healthy": true
+        },
+        "memory": {
+          "percent": 72,
+          "total_gb": 31.9,
+          "used_gb": 22.97,
+          "available_gb": 8.93,
+          "healthy": true
+        },
+        "disk": {
+          "percent": 73.2,
+          "total_gb": 465.1,
+          "free_gb": 124.7,
+          "healthy": true
+        },
+        "timestamp": 1758034648.6301389
+      }
+    },
+    {
+      "event": "request",
+      "url": "http://127.0.0.1:8000/api/system/resources",
+      "method": "GET",
+      "headers": {
+        "sec-ch-ua": "\"Not_A Brand\";v=\"8\", \"Chromium\";v=\"120\", \"HeadlessChrome\";v=\"120\"",
+        "referer": "http://127.0.0.1:8000/",
+        "sec-ch-ua-mobile": "?0",
+        "user-agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) HeadlessChrome/120.0.6099.28 Safari/537.36",
+        "sec-ch-ua-platform": "\"Windows\""
+      },
+      "postData": null
+    },
+    {
+      "event": "request",
+      "url": "http://127.0.0.1:8000/api/system/resources",
+      "method": "GET",
+      "headers": {
+        "sec-ch-ua": "\"Not_A Brand\";v=\"8\", \"Chromium\";v=\"120\", \"HeadlessChrome\";v=\"120\"",
+        "referer": "http://127.0.0.1:8000/",
+        "sec-ch-ua-mobile": "?0",
+        "user-agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) HeadlessChrome/120.0.6099.28 Safari/537.36",
+        "sec-ch-ua-platform": "\"Windows\""
+      },
+      "postData": null
+    },
+    {
+      "event": "response",
+      "url": "http://127.0.0.1:8000/api/system/resources",
+      "status": 200,
+      "headers": {
+        "date": "Tue, 16 Sep 2025 14:57:20 GMT",
+        "server": "uvicorn",
+        "content-length": "234",
+        "content-type": "application/json"
+      },
+      "body": {
+        "cpu": {
+          "percent": 37.5,
+          "healthy": true
+        },
+        "memory": {
+          "percent": 72.9,
+          "total_gb": 31.9,
+          "used_gb": 23.25,
+          "available_gb": 8.65,
+          "healthy": true
+        },
+        "disk": {
+          "percent": 73.2,
+          "total_gb": 465.1,
+          "free_gb": 124.7,
+          "healthy": true
+        },
+        "timestamp": 1758034655.761722
+      }
+    },
+    {
+      "event": "request",
+      "url": "http://127.0.0.1:8000/api/system/resources",
+      "method": "GET",
+      "headers": {
+        "sec-ch-ua": "\"Not_A Brand\";v=\"8\", \"Chromium\";v=\"120\", \"HeadlessChrome\";v=\"120\"",
+        "referer": "http://127.0.0.1:8000/",
+        "sec-ch-ua-mobile": "?0",
+        "user-agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) HeadlessChrome/120.0.6099.28 Safari/537.36",
+        "sec-ch-ua-platform": "\"Windows\""
+      },
+      "postData": null
+    },
+    {
+      "event": "request",
+      "url": "http://127.0.0.1:8000/api/system/resources",
+      "method": "GET",
+      "headers": {
+        "sec-ch-ua": "\"Not_A Brand\";v=\"8\", \"Chromium\";v=\"120\", \"HeadlessChrome\";v=\"120\"",
+        "referer": "http://127.0.0.1:8000/",
+        "sec-ch-ua-mobile": "?0",
+        "user-agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) HeadlessChrome/120.0.6099.28 Safari/537.36",
+        "sec-ch-ua-platform": "\"Windows\""
+      },
+      "postData": null
+    },
+    {
+      "event": "request",
+      "url": "http://127.0.0.1:8000/api/system/resources",
+      "method": "GET",
+      "headers": {
+        "sec-ch-ua": "\"Not_A Brand\";v=\"8\", \"Chromium\";v=\"120\", \"HeadlessChrome\";v=\"120\"",
+        "referer": "http://127.0.0.1:8000/",
+        "sec-ch-ua-mobile": "?0",
+        "user-agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) HeadlessChrome/120.0.6099.28 Safari/537.36",
+        "sec-ch-ua-platform": "\"Windows\""
+      },
+      "postData": null
+    },
+    {
+      "event": "response",
+      "url": "http://127.0.0.1:8000/api/system/resources",
+      "status": 200,
+      "headers": {
+        "date": "Tue, 16 Sep 2025 14:57:20 GMT",
+        "server": "uvicorn",
+        "content-length": "235",
+        "content-type": "application/json"
+      },
+      "body": {
+        "cpu": {
+          "percent": 25,
+          "healthy": true
+        },
+        "memory": {
+          "percent": 71.6,
+          "total_gb": 31.9,
+          "used_gb": 22.84,
+          "available_gb": 9.06,
+          "healthy": true
+        },
+        "disk": {
+          "percent": 73.2,
+          "total_gb": 465.1,
+          "free_gb": 124.7,
+          "healthy": true
+        },
+        "timestamp": 1758034669.7731106
+      }
+    },
+    {
+      "event": "response",
+      "url": "http://127.0.0.1:8000/api/system/resources",
+      "status": 200,
+      "headers": {
+        "date": "Tue, 16 Sep 2025 14:57:49 GMT",
+        "server": "uvicorn",
+        "content-length": "235",
+        "content-type": "application/json"
+      },
+      "body": {
+        "cpu": {
+          "percent": 60,
+          "healthy": true
+        },
+        "memory": {
+          "percent": 71.6,
+          "total_gb": 31.9,
+          "used_gb": 22.83,
+          "available_gb": 9.07,
+          "healthy": true
+        },
+        "disk": {
+          "percent": 73.2,
+          "total_gb": 465.1,
+          "free_gb": 124.7,
+          "healthy": true
+        },
+        "timestamp": 1758034670.0352178
+      }
+    },
+    {
+      "event": "response",
+      "url": "http://127.0.0.1:8000/api/system/resources",
+      "status": 200,
+      "headers": {
+        "date": "Tue, 16 Sep 2025 14:57:49 GMT",
+        "server": "uvicorn",
+        "content-length": "235",
+        "content-type": "application/json"
+      },
+      "body": {
+        "cpu": {
+          "percent": 39.3,
+          "healthy": true
+        },
+        "memory": {
+          "percent": 71.5,
+          "total_gb": 31.9,
+          "used_gb": 22.82,
+          "available_gb": 9.08,
+          "healthy": true
+        },
+        "disk": {
+          "percent": 73.2,
+          "total_gb": 465.1,
+          "free_gb": 124.7,
+          "healthy": true
+        },
+        "timestamp": 1758034670.5848243
+      }
+    },
+    {
+      "event": "response",
+      "url": "http://127.0.0.1:8000/api/system/resources",
+      "status": 200,
+      "headers": {
+        "date": "Tue, 16 Sep 2025 14:57:49 GMT",
+        "server": "uvicorn",
+        "content-length": "234",
+        "content-type": "application/json"
+      },
+      "body": {
+        "cpu": {
+          "percent": 25,
+          "healthy": true
+        },
+        "memory": {
+          "percent": 71.6,
+          "total_gb": 31.9,
+          "used_gb": 22.83,
+          "available_gb": 9.07,
+          "healthy": true
+        },
+        "disk": {
+          "percent": 73.2,
+          "total_gb": 465.1,
+          "free_gb": 124.7,
+          "healthy": true
+        },
+        "timestamp": 1758034670.804314
+      }
+    },
+    {
+      "event": "request",
+      "url": "http://127.0.0.1:8000/api/signals/latest",
+      "method": "GET",
+      "headers": {
+        "sec-ch-ua": "\"Not_A Brand\";v=\"8\", \"Chromium\";v=\"120\", \"HeadlessChrome\";v=\"120\"",
+        "referer": "http://127.0.0.1:8000/",
+        "sec-ch-ua-mobile": "?0",
+        "user-agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) HeadlessChrome/120.0.6099.28 Safari/537.36",
+        "sec-ch-ua-platform": "\"Windows\""
+      },
+      "postData": null
+    },
+    {
+      "event": "request",
+      "url": "http://127.0.0.1:8000/api/system/connections",
+      "method": "GET",
+      "headers": {
+        "sec-ch-ua": "\"Not_A Brand\";v=\"8\", \"Chromium\";v=\"120\", \"HeadlessChrome\";v=\"120\"",
+        "referer": "http://127.0.0.1:8000/",
+        "sec-ch-ua-mobile": "?0",
+        "user-agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) HeadlessChrome/120.0.6099.28 Safari/537.36",
+        "sec-ch-ua-platform": "\"Windows\""
+      },
+      "postData": null
+    },
+    {
+      "event": "response",
+      "url": "http://127.0.0.1:8000/api/signals/latest",
+      "status": 200,
+      "headers": {
+        "date": "Tue, 16 Sep 2025 14:57:49 GMT",
+        "server": "uvicorn",
+        "content-length": "398",
+        "content-type": "application/json"
+      },
+      "body": {
+        "status": "no_recent_signals",
+        "signal": {
+          "symbol": "BTCUSDT",
+          "action": "BUY",
+          "price": 45250.5,
+          "confidence": 0.85,
+          "timestamp": "2025-09-16T18:27:51.038197",
+          "indicators": {
+            "rsi": 35.2,
+            "macd": "bullish",
+            "volume": "high"
+          },
+          "source": "sample"
+        },
+        "timestamp": "2025-09-16T18:27:51.038197",
+        "source": "sample",
+        "message": "هیچ سیگنال اخیری یافت نشد - نمونه سیگنال نمایش داده شده"
+      }
+    },
+    {
+      "event": "request",
+      "url": "http://127.0.0.1:8000/api/scripts/run",
+      "method": "POST",
+      "headers": {
+        "sec-ch-ua": "\"Not_A Brand\";v=\"8\", \"Chromium\";v=\"120\", \"HeadlessChrome\";v=\"120\"",
+        "sec-ch-ua-platform": "\"Windows\"",
+        "referer": "http://127.0.0.1:8000/",
+        "sec-ch-ua-mobile": "?0",
+        "user-agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) HeadlessChrome/120.0.6099.28 Safari/537.36",
+        "content-type": "application/json"
+      },
+      "postData": "{\"script_name\":\"download_yahoo\",\"config_file\":\"config-test.json\",\"timeout\":300}"
+    },
+    {
+      "event": "request",
+      "url": "http://127.0.0.1:8000/api/system/resources",
+      "method": "GET",
+      "headers": {
+        "sec-ch-ua": "\"Not_A Brand\";v=\"8\", \"Chromium\";v=\"120\", \"HeadlessChrome\";v=\"120\"",
+        "referer": "http://127.0.0.1:8000/",
+        "sec-ch-ua-mobile": "?0",
+        "user-agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) HeadlessChrome/120.0.6099.28 Safari/537.36",
+        "sec-ch-ua-platform": "\"Windows\""
+      },
+      "postData": null
+    },
+    {
+      "event": "response",
+      "url": "http://127.0.0.1:8000/api/system/connections",
+      "status": 200,
+      "headers": {
+        "date": "Tue, 16 Sep 2025 14:57:49 GMT",
+        "server": "uvicorn",
+        "content-length": "784",
+        "content-type": "application/json"
+      },
+      "body": {
+        "status": "degraded",
+        "active_connections": 2,
+        "total_connections": 5,
+        "connections": {
+          "binance": {
+            "name": "Binance API",
+            "status": "connected",
+            "response_time": 0.798697,
+            "last_check": 1758034671.8394969
+          },
+          "mt5": {
+            "name": "MetaTrader 5",
+            "status": "not_installed",
+            "error": "MT5 Python package not installed",
+            "last_check": 1758034671.8404143
+          },
+          "telegram": {
+            "name": "Telegram Bot",
+            "status": "not_configured",
+            "error": "Bot token not found",
+            "last_check": 1758034671.8404224
+          },
+          "database": {
+            "name": "Local Database",
+            "status": "connected",
+            "type": "SQLite",
+            "path": "C:\\intelligent-trading-bot-master\\dashboard\\dashboard.db",
+            "last_check": 1758034671.8410308
+          },
+          "apis_status": {
+            "name": "Internal APIs",
+            "status": "partial",
+            "working_endpoints": 0,
+            "total_endpoints": 3,
+            "last_check": 1758034677.8942947
+          }
+        },
+        "last_check": 1758034677.894304
+      }
+    },
+    {
+      "event": "response",
+      "url": "http://127.0.0.1:8000/api/system/resources",
+      "status": 200,
+      "headers": {
+        "date": "Tue, 16 Sep 2025 14:57:49 GMT",
+        "server": "uvicorn",
+        "content-length": "235",
+        "content-type": "application/json"
+      },
+      "body": {
+        "cpu": {
+          "percent": 62.5,
+          "healthy": true
+        },
+        "memory": {
+          "percent": 71.6,
+          "total_gb": 31.9,
+          "used_gb": 22.84,
+          "available_gb": 9.06,
+          "healthy": true
+        },
+        "disk": {
+          "percent": 73.2,
+          "total_gb": 465.1,
+          "free_gb": 124.7,
+          "healthy": true
+        },
+        "timestamp": 1758034678.1577408
+      }
+    },
+    {
+      "event": "request",
+      "url": "http://127.0.0.1:8000/api/scripts/logs/74d78e3f-2457-4039-b7b6-79059dbaa175/stream",
+      "method": "GET",
+      "headers": {
+        "sec-ch-ua": "\"Not_A Brand\";v=\"8\", \"Chromium\";v=\"120\", \"HeadlessChrome\";v=\"120\"",
+        "accept": "text/event-stream",
+        "cache-control": "no-cache",
+        "referer": "http://127.0.0.1:8000/",
+        "sec-ch-ua-mobile": "?0",
+        "user-agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) HeadlessChrome/120.0.6099.28 Safari/537.36",
+        "sec-ch-ua-platform": "\"Windows\""
+      },
+      "postData": null
+    },
+    {
+      "event": "response",
+      "url": "http://127.0.0.1:8000/api/scripts/run",
+      "status": 200,
+      "headers": {
+        "date": "Tue, 16 Sep 2025 14:57:49 GMT",
+        "server": "uvicorn",
+        "content-length": "180",
+        "content-type": "application/json"
+      },
+      "body": {
+        "job_id": "74d78e3f-2457-4039-b7b6-79059dbaa175",
+        "status": "started",
+        "script": "download_yahoo",
+        "config": "configs/config-test.json",
+        "pid": 14972,
+        "estimated_duration": "1-2 دقیقه"
+      }
+    },
+    {
+      "event": "request",
+      "url": "http://127.0.0.1:8000/api/system/resources",
+      "method": "GET",
+      "headers": {
+        "sec-ch-ua": "\"Not_A Brand\";v=\"8\", \"Chromium\";v=\"120\", \"HeadlessChrome\";v=\"120\"",
+        "referer": "http://127.0.0.1:8000/",
+        "sec-ch-ua-mobile": "?0",
+        "user-agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) HeadlessChrome/120.0.6099.28 Safari/537.36",
+        "sec-ch-ua-platform": "\"Windows\""
+      },
+      "postData": null
+    },
+    {
+      "event": "response",
+      "url": "http://127.0.0.1:8000/api/system/resources",
+      "status": 200,
+      "headers": {
+        "date": "Tue, 16 Sep 2025 14:57:58 GMT",
+        "server": "uvicorn",
+        "content-length": "234",
+        "content-type": "application/json"
+      },
+      "body": {
+        "cpu": {
+          "percent": 75,
+          "healthy": true
+        },
+        "memory": {
+          "percent": 71.9,
+          "total_gb": 31.9,
+          "used_gb": 22.94,
+          "available_gb": 8.96,
+          "healthy": true
+        },
+        "disk": {
+          "percent": 73.2,
+          "total_gb": 465.1,
+          "free_gb": 124.7,
+          "healthy": true
+        },
+        "timestamp": 1758034679.290506
+      }
+    },
+    {
+      "event": "request",
+      "url": "http://127.0.0.1:8000/api/scripts/status/74d78e3f-2457-4039-b7b6-79059dbaa175",
+      "method": "GET",
+      "headers": {
+        "sec-ch-ua": "\"Not_A Brand\";v=\"8\", \"Chromium\";v=\"120\", \"HeadlessChrome\";v=\"120\"",
+        "referer": "http://127.0.0.1:8000/",
+        "sec-ch-ua-mobile": "?0",
+        "user-agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) HeadlessChrome/120.0.6099.28 Safari/537.36",
+        "sec-ch-ua-platform": "\"Windows\""
+      },
+      "postData": null
+    },
+    {
+      "event": "response",
+      "url": "http://127.0.0.1:8000/api/scripts/status/74d78e3f-2457-4039-b7b6-79059dbaa175",
+      "status": 200,
+      "headers": {
+        "date": "Tue, 16 Sep 2025 14:57:58 GMT",
+        "server": "uvicorn",
+        "content-length": "216",
+        "content-type": "application/json"
+      },
+      "body": {
+        "job_id": "74d78e3f-2457-4039-b7b6-79059dbaa175",
+        "status": "running",
+        "script": "download_yahoo",
+        "config": "configs/config-test.json",
+        "start_time": 1758034677.9007528,
+        "pid": 14972,
+        "returncode": null,
+        "stdout": "",
+        "stderr": ""
+      }
+    },
+    {
+      "event": "request",
+      "url": "http://127.0.0.1:8000/api/scripts/status/74d78e3f-2457-4039-b7b6-79059dbaa175",
+      "method": "GET",
+      "headers": {
+        "sec-ch-ua": "\"Not_A Brand\";v=\"8\", \"Chromium\";v=\"120\", \"HeadlessChrome\";v=\"120\"",
+        "referer": "http://127.0.0.1:8000/",
+        "sec-ch-ua-mobile": "?0",
+        "user-agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) HeadlessChrome/120.0.6099.28 Safari/537.36",
+        "sec-ch-ua-platform": "\"Windows\""
+      },
+      "postData": null
+    },
+    {
+      "event": "response",
+      "url": "http://127.0.0.1:8000/api/scripts/status/74d78e3f-2457-4039-b7b6-79059dbaa175",
+      "status": 200,
+      "headers": {
+        "date": "Tue, 16 Sep 2025 14:58:00 GMT",
+        "server": "uvicorn",
+        "content-length": "216",
+        "content-type": "application/json"
+      },
+      "body": {
+        "job_id": "74d78e3f-2457-4039-b7b6-79059dbaa175",
+        "status": "running",
+        "script": "download_yahoo",
+        "config": "configs/config-test.json",
+        "start_time": 1758034677.9007528,
+        "pid": 14972,
+        "returncode": null,
+        "stdout": "",
+        "stderr": ""
+      }
+    },
+    {
+      "event": "request",
+      "url": "http://127.0.0.1:8000/api/scripts/status/74d78e3f-2457-4039-b7b6-79059dbaa175",
+      "method": "GET",
+      "headers": {
+        "sec-ch-ua": "\"Not_A Brand\";v=\"8\", \"Chromium\";v=\"120\", \"HeadlessChrome\";v=\"120\"",
+        "referer": "http://127.0.0.1:8000/",
+        "sec-ch-ua-mobile": "?0",
+        "user-agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) HeadlessChrome/120.0.6099.28 Safari/537.36",
+        "sec-ch-ua-platform": "\"Windows\""
+      },
+      "postData": null
+    },
+    {
+      "event": "response",
+      "url": "http://127.0.0.1:8000/api/scripts/status/74d78e3f-2457-4039-b7b6-79059dbaa175",
+      "status": 200,
+      "headers": {
+        "date": "Tue, 16 Sep 2025 14:58:03 GMT",
+        "server": "uvicorn",
+        "content-length": "216",
+        "content-type": "application/json"
+      },
+      "body": {
+        "job_id": "74d78e3f-2457-4039-b7b6-79059dbaa175",
+        "status": "running",
+        "script": "download_yahoo",
+        "config": "configs/config-test.json",
+        "start_time": 1758034677.9007528,
+        "pid": 14972,
+        "returncode": null,
+        "stdout": "",
+        "stderr": ""
+      }
+    },
+    {
+      "event": "request",
+      "url": "http://127.0.0.1:8000/api/system/resources",
+      "method": "GET",
+      "headers": {
+        "sec-ch-ua": "\"Not_A Brand\";v=\"8\", \"Chromium\";v=\"120\", \"HeadlessChrome\";v=\"120\"",
+        "referer": "http://127.0.0.1:8000/",
+        "sec-ch-ua-mobile": "?0",
+        "user-agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) HeadlessChrome/120.0.6099.28 Safari/537.36",
+        "sec-ch-ua-platform": "\"Windows\""
+      },
+      "postData": null
+    },
+    {
+      "event": "response",
+      "url": "http://127.0.0.1:8000/api/system/resources",
+      "status": 200,
+      "headers": {
+        "date": "Tue, 16 Sep 2025 14:58:03 GMT",
+        "server": "uvicorn",
+        "content-length": "235",
+        "content-type": "application/json"
+      },
+      "body": {
+        "cpu": {
+          "percent": 25,
+          "healthy": true
+        },
+        "memory": {
+          "percent": 71.6,
+          "total_gb": 31.9,
+          "used_gb": 22.84,
+          "available_gb": 9.06,
+          "healthy": true
+        },
+        "disk": {
+          "percent": 73.2,
+          "total_gb": 465.1,
+          "free_gb": 124.7,
+          "healthy": true
+        },
+        "timestamp": 1758034684.2735083
+      }
+    },
+    {
+      "event": "response",
+      "url": "http://127.0.0.1:8000/api/scripts/logs/74d78e3f-2457-4039-b7b6-79059dbaa175/stream",
+      "status": 200,
+      "headers": {
+        "date": "Tue, 16 Sep 2025 14:57:49 GMT",
+        "server": "uvicorn",
+        "transfer-encoding": "chunked",
+        "content-type": "text/event-stream; charset=utf-8"
+      },
+      "body": "data: Start downloading 'BTCUSDT' ...\r\n\n\ndata: Finished downloading 'BTCUSDT'. Stored 418 rows in 'C:\\DATA_ITB_TEST\\BTCUSDT\\klines.csv'\r\n\n\ndata: Finished downloading data in 0:00:04\r\n\n\ndata: [FINISHED] Process completed with code 0\n\n"
+    }
+  ],
+  "runResponse": {
+    "event": "response",
+    "url": "http://127.0.0.1:8000/api/scripts/run",
+    "status": 200,
+    "headers": {
+      "date": "Tue, 16 Sep 2025 14:57:49 GMT",
+      "server": "uvicorn",
+      "content-length": "180",
+      "content-type": "application/json"
+    },
+    "body": {
+      "job_id": "74d78e3f-2457-4039-b7b6-79059dbaa175",
+      "status": "started",
+      "script": "download_yahoo",
+      "config": "configs/config-test.json",
+      "pid": 14972,
+      "estimated_duration": "1-2 دقیقه"
+    }
+  },
+  "job_id": "74d78e3f-2457-4039-b7b6-79059dbaa175",
+  "job_statuses": [
+    {
+      "ts": "2025-09-16T14:57:58.965Z",
+      "status": 200,
+      "body": {
+        "job_id": "74d78e3f-2457-4039-b7b6-79059dbaa175",
+        "status": "running",
+        "script": "download_yahoo",
+        "config": "configs/config-test.json",
+        "start_time": 1758034677.9007528,
+        "pid": 14972,
+        "returncode": null,
+        "stdout": "",
+        "stderr": ""
+      }
+    },
+    {
+      "ts": "2025-09-16T14:57:59.987Z",
+      "status": 200,
+      "body": {
+        "job_id": "74d78e3f-2457-4039-b7b6-79059dbaa175",
+        "status": "running",
+        "script": "download_yahoo",
+        "config": "configs/config-test.json",
+        "start_time": 1758034677.9007528,
+        "pid": 14972,
+        "returncode": null,
+        "stdout": "",
+        "stderr": ""
+      }
+    },
+    {
+      "ts": "2025-09-16T14:58:00.993Z",
+      "status": 200,
+      "body": {
+        "job_id": "74d78e3f-2457-4039-b7b6-79059dbaa175",
+        "status": "running",
+        "script": "download_yahoo",
+        "config": "configs/config-test.json",
+        "start_time": 1758034677.9007528,
+        "pid": 14972,
+        "returncode": null,
+        "stdout": "",
+        "stderr": ""
+      }
+    },
+    {
+      "ts": "2025-09-16T14:58:02.015Z",
+      "status": 200,
+      "body": {
+        "job_id": "74d78e3f-2457-4039-b7b6-79059dbaa175",
+        "status": "running",
+        "script": "download_yahoo",
+        "config": "configs/config-test.json",
+        "start_time": 1758034677.9007528,
+        "pid": 14972,
+        "returncode": null,
+        "stdout": "",
+        "stderr": ""
+      }
+    },
+    {
+      "ts": "2025-09-16T14:58:03.038Z",
+      "status": 200,
+      "body": {
+        "job_id": "74d78e3f-2457-4039-b7b6-79059dbaa175",
+        "status": "running",
+        "script": "download_yahoo",
+        "config": "configs/config-test.json",
+        "start_time": 1758034677.9007528,
+        "pid": 14972,
+        "returncode": null,
+        "stdout": "",
+        "stderr": ""
+      }
+    },
+    {
+      "ts": "2025-09-16T14:58:04.045Z",
+      "status": 200,
+      "body": {
+        "job_id": "74d78e3f-2457-4039-b7b6-79059dbaa175",
+        "status": "running",
+        "script": "download_yahoo",
+        "config": "configs/config-test.json",
+        "start_time": 1758034677.9007528,
+        "pid": 14972,
+        "returncode": null,
+        "stdout": "",
+        "stderr": ""
+      }
+    },
+    {
+      "ts": "2025-09-16T14:58:05.055Z",
+      "status": 200,
+      "body": {
+        "job_id": "74d78e3f-2457-4039-b7b6-79059dbaa175",
+        "status": "completed",
+        "script": "download_yahoo",
+        "config": "configs/config-test.json",
+        "start_time": 1758034677.9007528,
+        "pid": 14972,
+        "returncode": 0,
+        "stdout": "---JOB START 74d78e3f-2457-4039-b7b6-79059dbaa175 STDOUT---\nStart downloading 'BTCUSDT' ...\r\nFinished downloading 'BTCUSDT'. Stored 418 rows in 'C:\\DATA_ITB_TEST\\BTCUSDT\\klines.csv'\r\nFinished downloading data in 0:00:04\r\n",
+        "stderr": "---JOB START 74d78e3f-2457-4039-b7b6-79059dbaa175 STDERR---\nHTTP Error 404: \r\n\r[*********************100%***********************]  1 of 1 completed\r\n\r\n1 Failed download:\r\n['BTCUSDT']: YFPricesMissingError('possibly delisted; no price data found  (period=3d) (Yahoo error = \"No data found, symbol may be delisted\")')\r\n",
+        "end_time": 1758034684.540312,
+        "duration": 6.639559268951416
+      }
+    }
+  ],
+  "error": null,
+  "assertion": {
+    "expected": 0,
+    "actual": 0,
+    "passed": true
+  },
+  "screenshot": "c:\\intelligent-trading-bot-master\\tools\\ui_playwright_screenshot.png"
+}

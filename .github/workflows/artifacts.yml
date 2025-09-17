@@ -1,0 +1,55 @@
+name: Artifacts (minimal CI)
+
+on:
+  push:
+    branches: [ master, 'ci/*' ]
+  pull_request:
+    branches: [ master ]
+
+jobs:
+  artifacts:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Prepare artifacts dir
+        run: |
+          mkdir -p tools/ci_artifacts
+
+      - name: Run deterministic CI dummy jobs
+        run: |
+          python scripts/ci_dummy.py --job-id ci_ci_dummy_1 --exit-code 0 > tools/ci_artifacts/ci_dummy_1.json
+          python scripts/ci_dummy.py --job-id ci_ci_dummy_2 --exit-code 0 > tools/ci_artifacts/ci_dummy_2.json
+          python scripts/ci_dummy.py --job-id ci_ci_dummy_3 --exit-code 1 || true
+          echo "CI dummy jobs executed."
+
+      - name: Build CI runs summary
+        run: |
+          python tools/build_ci_runs_summary.py
+
+      - name: Capture environment snapshot
+        run: |
+          {
+            echo "Python version:";
+            python -V;
+            echo;
+            echo "Pip list:";
+            python -m pip list;
+            echo;
+            echo "OS info:";
+            uname -a || true;
+          } > tools/ci_artifacts/env_snapshot.txt
+
+      - name: Upload artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: ci-artifacts
+          path: |
+            tools/ci_artifacts/
+            logs/jobs/

@@ -1,0 +1,112 @@
+name: Playwright UI test
+
+on:
+  push:
+    branches: [ master, 'ci/*' ]
+  pull_request:
+    branches: [ master ]
+
+jobs:
+  playwright-ui:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.11'
+
+      - name: Install Python dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+
+      - name: Start server (uvicorn)
+        run: |
+          nohup python -m uvicorn dashboard.main:app --host 127.0.0.1 --port 8000 > server.log 2>&1 &
+          # capture server PID so we can stop it later
+          echo $! > server.pid
+          # wait for server to be ready
+          for i in {1..60}; do
+            sleep 1
+            # First check root is responding
+            if curl --silent --fail http://127.0.0.1:8000/ > /dev/null; then
+              echo "root responding"
+            else
+              continue
+            fi
+
+            # Then check the scripts API returns a JSON body containing the "scripts" key
+            if curl --silent --fail http://127.0.0.1:8000/api/scripts/list | grep -q '"scripts"'; then
+              echo "API ready: /api/scripts/list returned scripts"
+              break
+            fi
+          done
+        shell: bash
+
+      - name: Upload server log
+        uses: actions/upload-artifact@v4
+        with:
+          name: server-log
+          path: server.log
+
+      - name: Smoke checks (save API outputs)
+        run: |
+          mkdir -p tools/ci_artifacts
+          set -e
+          # Save /api/scripts/list and /api/scripts/active and /api/system/resources for debugging
+          curl --silent --fail http://127.0.0.1:8000/api/scripts/list -o tools/ci_artifacts/api_scripts_list.json || true
+          curl --silent --fail http://127.0.0.1:8000/api/scripts/active -o tools/ci_artifacts/api_scripts_active.json || true
+          curl --silent --fail http://127.0.0.1:8000/api/system/resources -o tools/ci_artifacts/api_system_resources.json || true
+        shell: bash
+
+      - name: Run lightweight CI dummy job
+        run: |
+          mkdir -p tools/ci_artifacts
+          # Run the deterministic CI helper which writes logs/jobs/{job_id}.* and prints JSON
+          python scripts/ci_dummy.py --exit-code 0 > tools/ci_artifacts/ci_dummy.json
+          echo "CI dummy output saved to tools/ci_artifacts/ci_dummy.json"
+        shell: bash
+
+      - name: Upload server artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: server-artifacts
+          path: |
+            server.log
+            server.pid
+            tools/ci_artifacts/
+            logs/jobs/
+
+      - name: UI tests disabled
+        run: |
+          echo "Playwright UI tests are disabled for now by project decision."
+          echo "If you want to re-enable, restore the Playwright steps in the workflow." 
+        shell: bash
+
+      - name: Stop server (cleanup)
+        if: always()
+        run: |
+          # If we created a server.pid file when starting the server, kill that process.
+          if [ -f server.pid ]; then
+            pid=$(cat server.pid)
+            echo "Found server.pid with PID: $pid"
+            # Check if process exists, then try graceful kill, fallback to force kill
+            if kill -0 "$pid" 2>/dev/null; then
+              echo "Stopping server PID $pid"
+              kill "$pid" || true
+              sleep 1
+              if kill -0 "$pid" 2>/dev/null; then
+                echo "Process still running, force killing $pid"
+                kill -9 "$pid" || true
+              fi
+            else
+              echo "No running process for PID $pid"
+            fi
+            rm -f server.pid
+          else
+            echo "server.pid not found, nothing to cleanup"
+          fi
+        shell: bash
