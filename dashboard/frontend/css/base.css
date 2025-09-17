@@ -1,0 +1,18 @@
+/* Minimal CSS to satisfy static mount */
+body {
+    font-family: sans-serif;
+}
+
+.btn-primary {
+    background-color: #3b82f6;
+    color: white;
+    padding: 8px 12px;
+    border-radius: 4px;
+}
+
+.btn-secondary {
+    background-color: #6b7280;
+    color: white;
+    padding: 6px 10px;
+    border-radius: 4px;
+}

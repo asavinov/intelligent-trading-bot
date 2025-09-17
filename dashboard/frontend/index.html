@@ -142,6 +142,8 @@
                     <li><a href="#configs" class="nav-link" onclick="showSection('configs')">📝 تنظیمات</a></li>
                     <li><a href="#monitoring" class="nav-link" onclick="showSection('monitoring')">📈 مانیتورینگ</a>
                     </li>
+                    <li><a href="#jobs-history" class="nav-link" onclick="showSection('jobs-history')">🗂️ تاریخچه
+                            Jobs</a></li>
                     <li><a href="#setup" class="nav-link" onclick="window.location.href='/setup'">🔧 راه‌اندازی</a></li>
                 </ul>
             </nav>
@@ -286,6 +288,54 @@
             </div>
     </div>
 
+    <!-- Jobs History Section -->
+    <div id="jobs-history-section" class="section hidden">
+        <h2 class="text-2xl font-bold mb-6">تاریخچه Jobs</h2>
+
+        <div class="bg-white rounded-lg shadow-md p-6 mb-6">
+            <div class="flex items-center justify-between mb-4">
+                <div class="flex items-center space-x-2">
+                    <select id="filter-status" class="px-3 py-2 border rounded text-sm">
+                        <option value="">همه</option>
+                        <option value="running">در حال اجرا</option>
+                        <option value="completed">تکمیل شده</option>
+                        <option value="failed">ناموفق</option>
+                    </select>
+                    <input id="filter-script" placeholder="جستجوی اسکریپت..."
+                        class="px-3 py-2 border rounded text-sm" />
+                </div>
+                <div>
+                    <button class="btn-primary" id="refresh-jobs">بروزرسانی</button>
+                </div>
+            </div>
+
+            <div id="jobs-history-list" class="space-y-3">
+                <div class="text-gray-500">در حال بارگذاری...</div>
+            </div>
+
+            <div class="flex justify-between items-center mt-4">
+                <div id="jobs-pagination" class="text-sm text-gray-600"></div>
+                <div>
+                    <button id="jobs-prev" class="btn-secondary text-sm px-3 py-1 mr-2">قبلی</button>
+                    <button id="jobs-next" class="btn-secondary text-sm px-3 py-1">بعدی</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Env Snapshot Modal -->
+    <div id="env-modal" class="fixed inset-0 bg-black bg-opacity-30 hidden items-center justify-center z-50">
+        <div class="bg-white rounded-lg shadow-lg w-11/12 md:w-3/4 lg:w-1/2 max-h-[80vh] overflow-hidden">
+            <div class="flex items-center justify-between p-3 border-b">
+                <h3 class="text-lg font-semibold">Env Snapshot</h3>
+                <button id="env-modal-close" class="px-2 py-1 text-sm bg-gray-200 rounded">بستن</button>
+            </div>
+            <div class="p-3">
+                <pre id="env-modal-content" class="text-sm bg-gray-50 p-3 rounded overflow-auto max-h-[65vh]"></pre>
+            </div>
+        </div>
+    </div>
+
     <!-- Monitoring Section -->
     <div id="monitoring-section" class="section hidden">
         <h2 class="text-2xl font-bold mb-6">مانیتورینگ سیستم</h2>
@@ -303,11 +353,19 @@
                 <div id="recovery-results"></div>
             </div>
         </div>
+
+        <!-- Recent jobs monitor -->
+        <div class="mt-6 bg-white rounded-lg shadow-md p-6">
+            <h3 class="text-lg font-semibold mb-4">Jobs (اخیر)</h3>
+            <div id="monitor-jobs" class="space-y-2">
+                <div class="text-gray-500">در حال بارگذاری...</div>
+            </div>
+        </div>
     </div>
     </main>
     </div>
 
-    <script src="/static/js/dashboard-v2.js?v=6"></script>
+    <script src="/static/js/dashboard-v2.js?v=7"></script>
 </body>
 
 </html>

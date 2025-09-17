@@ -1,0 +1,12 @@
+{
+  "job_id": "108a245d-28db-4743-98a9-ce95cdde17ca",
+  "script": "download_binance",
+  "config": "configs\\config-sample-1h.jsonc",
+  "pid": 6356,
+  "status": "completed",
+  "start_time": 1758045655.0838814,
+  "end_time": 1758045663.7494318,
+  "returncode": 0,
+  "log_stdout": "C:\\intelligent-trading-bot-master\\logs\\jobs\\108a245d-28db-4743-98a9-ce95cdde17ca.stdout.log",
+  "log_stderr": "C:\\intelligent-trading-bot-master\\logs\\jobs\\108a245d-28db-4743-98a9-ce95cdde17ca.stderr.log"
+}

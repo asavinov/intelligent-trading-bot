@@ -1,6 +1,13 @@
 // Global variables
 let autoScroll = true;
 let resourceMonitorInterval;
+// Jobs history pagination state
+let jobsHistoryState = {
+    limit: 10,
+    offset: 0,
+    total: 0,
+    lastQuery: {}
+};
 
 // Initialize dashboard when DOM is loaded
 document.addEventListener('DOMContentLoaded', function () {
@@ -71,6 +78,20 @@ function setupEventListeners() {
     if (toggleScrollBtn) {
         toggleScrollBtn.addEventListener('click', toggleAutoScroll);
     }
+
+    // Jobs history controls
+    const refreshJobsBtn = document.getElementById('refresh-jobs');
+    if (refreshJobsBtn) refreshJobsBtn.addEventListener('click', () => { jobsHistoryState.offset = 0; loadJobsHistory(); });
+
+    const prevBtn = document.getElementById('jobs-prev');
+    const nextBtn = document.getElementById('jobs-next');
+    if (prevBtn) prevBtn.addEventListener('click', () => { if (jobsHistoryState.offset >= jobsHistoryState.limit) { jobsHistoryState.offset -= jobsHistoryState.limit; loadJobsHistory(); } });
+    if (nextBtn) nextBtn.addEventListener('click', () => { if (jobsHistoryState.offset + jobsHistoryState.limit < jobsHistoryState.total) { jobsHistoryState.offset += jobsHistoryState.limit; loadJobsHistory(); } });
+
+    const filterStatus = document.getElementById('filter-status');
+    const filterScript = document.getElementById('filter-script');
+    if (filterStatus) filterStatus.addEventListener('change', () => { jobsHistoryState.offset = 0; loadJobsHistory(); });
+    if (filterScript) filterScript.addEventListener('input', () => { jobsHistoryState.offset = 0; loadJobsHistory(); });
 }
 
 // Section management
@@ -96,6 +117,13 @@ function showSection(sectionName) {
     if (activeLink) {
         activeLink.classList.add('bg-blue-100', 'text-blue-700');
         activeLink.classList.remove('text-gray-600', 'hover:bg-gray-100');
+    }
+
+    // If showing jobs history, load data
+    if (sectionName === 'jobs-history') {
+        // reset offset when opening
+        jobsHistoryState.offset = 0;
+        loadJobsHistory();
     }
 }
 
@@ -157,7 +185,163 @@ function startResourceMonitoring() {
     addLogMessage('شروع مانیتورینگ منابع سیستم...', 'info');
 
     updateResourceMetrics();
-    resourceMonitorInterval = setInterval(updateResourceMetrics, 5000);
+    // Also refresh recent jobs for monitoring area
+    updateResourceMetrics();
+    loadMonitoringJobs();
+    resourceMonitorInterval = setInterval(() => {
+        updateResourceMetrics();
+        loadMonitoringJobs();
+    }, 5000);
+}
+
+
+async function loadMonitoringJobs() {
+    try {
+        const resp = await fetch('/api/scripts/history?limit=5');
+        if (!resp.ok) return;
+        const data = await resp.json();
+        const jobs = data.jobs || [];
+        const container = document.getElementById('monitor-jobs');
+        if (!container) return;
+
+        if (jobs.length === 0) {
+            container.innerHTML = '<div class="text-gray-500">هیچ job اخیر یافت نشد</div>';
+            return;
+        }
+
+        let html = '<div class="space-y-2">';
+        jobs.forEach(j => {
+            const start = j.start_time ? new Date(j.start_time * 1000).toLocaleString('fa-IR') : '-';
+            const statusBadge = getStatusBadge(j.status || 'stopped');
+            html += `
+                <div class="flex items-center justify-between p-2 border rounded bg-white">
+                    <div class="flex-1">
+                        <div class="text-sm font-medium">${j.script || j.job_id}</div>
+                        <div class="text-xs text-gray-500">شروع: ${start}</div>
+                    </div>
+                    <div class="flex items-center space-x-2">
+                        ${statusBadge}
+                        <a href="/api/scripts/logs/${j.job_id}/download" target="_blank" class="px-2 py-1 bg-gray-100 rounded text-xs">دانلود</a>
+                    </div>
+                </div>
+            `;
+        });
+        html += '</div>';
+        container.innerHTML = html;
+    } catch (e) {
+        // ignore for monitoring
+    }
+}
+
+// Jobs history loader
+async function loadJobsHistory() {
+    try {
+        const status = document.getElementById('filter-status') ? document.getElementById('filter-status').value : '';
+        const script = document.getElementById('filter-script') ? document.getElementById('filter-script').value : '';
+
+        const params = new URLSearchParams();
+        params.set('limit', jobsHistoryState.limit);
+        params.set('offset', jobsHistoryState.offset);
+        if (status) params.set('status', status);
+        if (script) params.set('script', script);
+
+        jobsHistoryState.lastQuery = { status, script };
+
+        const resp = await fetch(`/api/scripts/history?${params.toString()}`);
+        if (!resp.ok) {
+            document.getElementById('jobs-history-list').innerHTML = '<div class="text-red-500">خطا در بارگزاری تاریخچه</div>';
+            return;
+        }
+
+        const data = await resp.json();
+        jobsHistoryState.total = data.total || 0;
+
+        renderJobsHistory(data.jobs || []);
+        renderJobsPagination();
+    } catch (e) {
+        console.error('Error loading jobs history', e);
+    }
+}
+
+function renderJobsHistory(jobs) {
+    const container = document.getElementById('jobs-history-list');
+    if (!container) return;
+
+    if (!jobs || jobs.length === 0) {
+        container.innerHTML = '<div class="text-gray-500">نتیجه‌ای یافت نشد</div>';
+        return;
+    }
+
+    let html = '';
+    jobs.forEach(j => {
+        const start = j.start_time ? new Date(j.start_time * 1000).toLocaleString('fa-IR') : '-';
+        const end = j.end_time ? new Date(j.end_time * 1000).toLocaleString('fa-IR') : '-';
+        const statusBadge = getStatusBadge(j.status || 'stopped');
+        const hasEnv = !!j.env_snapshot_path;
+        html += `
+            <div class="p-3 bg-gray-50 rounded-lg border ${j.status === 'failed' ? 'border-red-300' : 'border-gray-200'}">
+                <div class="flex items-center justify-between">
+                    <div class="flex-1">
+                        <div class="font-medium">${j.script || j.job_id}</div>
+                        <div class="text-sm text-gray-500">Job ID: ${j.job_id} <button class="ml-2 px-2 py-0.5 text-xs bg-gray-200 rounded" onclick="copyText('${j.job_id}')">کپی</button></div>
+                        <div class="text-xs text-gray-500">Config: ${j.config || '-'}</div>
+                        <div class="text-xs text-gray-500">Return code: ${j.returncode === null || j.returncode === undefined ? '-' : j.returncode}</div>
+                        <div class="text-xs text-gray-500">شروع: ${start} — پایان: ${end}</div>
+                    </div>
+                    <div class="flex items-center space-x-2">
+                        ${statusBadge}
+                        <a href="/api/scripts/logs/${j.job_id}/download" target="_blank" class="px-3 py-1 bg-gray-200 text-gray-800 text-sm rounded hover:bg-gray-300">دانلود لاگ</a>
+                        ${hasEnv ? `<button class="px-3 py-1 bg-gray-100 text-gray-800 text-sm rounded hover:bg-gray-200" onclick="openEnvModal('${j.job_id}')">Env</button>` : ''}
+                    </div>
+                </div>
+            </div>
+        `;
+    });
+
+    container.innerHTML = html;
+}
+
+// Env modal helpers
+async function openEnvModal(jobId) {
+    try {
+        const resp = await fetch(`/api/scripts/env/${encodeURIComponent(jobId)}`);
+        if (!resp.ok) {
+            showEnvModalText(`خطا در دریافت env: ${resp.status}`);
+            return;
+        }
+        const data = await resp.json();
+        showEnvModalText(JSON.stringify(data, null, 2));
+    } catch (e) {
+        showEnvModalText(`خطای شبکه: ${e?.message || e}`);
+    }
+}
+
+function copyText(text) {
+    try {
+        navigator.clipboard.writeText(text);
+    } catch (e) { }
+}
+
+function showEnvModalText(text) {
+    const modal = document.getElementById('env-modal');
+    const pre = document.getElementById('env-modal-content');
+    const closer = document.getElementById('env-modal-close');
+    if (!modal || !pre || !closer) return;
+    pre.textContent = text;
+    modal.classList.remove('hidden');
+    modal.classList.add('flex');
+    const closeFn = () => { modal.classList.add('hidden'); modal.classList.remove('flex'); closer.removeEventListener('click', closeFn); };
+    closer.addEventListener('click', closeFn);
+    modal.addEventListener('click', (ev) => { if (ev.target === modal) closeFn(); });
+}
+
+function renderJobsPagination() {
+    const pagination = document.getElementById('jobs-pagination');
+    if (!pagination) return;
+
+    const start = jobsHistoryState.offset + 1;
+    const end = Math.min(jobsHistoryState.offset + jobsHistoryState.limit, jobsHistoryState.total);
+    pagination.textContent = `نمایش ${start}–${end} از ${jobsHistoryState.total}`;
 }
 
 async function updateResourceMetrics() {
@@ -297,6 +481,10 @@ function updateActiveScriptsList(scripts) {
                     </div>
                     <div class="flex items-center space-x-2">
                         ${statusBadge}
+                        <a href="/api/scripts/logs/${script.job_id}/download" target="_blank" 
+                           class="px-3 py-1 bg-gray-200 text-gray-800 text-sm rounded hover:bg-gray-300">
+                           دانلود لاگ
+                        </a>
                         ${script.status === 'running' ? `
                             <button onclick="stopScript('${script.job_id}')" 
                                     class="px-3 py-1 bg-red-500 text-white text-sm rounded hover:bg-red-600">
@@ -474,6 +662,35 @@ async function stopScript(jobId) {
 
 // Monitor script execution status
 async function monitorScriptExecution(jobId) {
+    // Try to open a Server-Sent Events connection to stream live logs.
+    // This endpoint tails the per-job stdout file written by the server.
+    let es = null;
+    try {
+        es = new EventSource(`/api/scripts/logs/${jobId}/stream`);
+        es.onmessage = (e) => {
+            const text = e.data || '';
+            // Server emits control messages like [FINISHED] or [ERROR]
+            if (text.startsWith('[FINISHED]') || text.startsWith('[ERROR]')) {
+                const level = text.startsWith('[ERROR]') ? 'error' : 'info';
+                addLogMessage(text, level);
+            } else {
+                // Split possibly multi-line payload into separate log entries
+                text.split('\n').forEach(line => {
+                    if (line && line.trim()) addLogMessage(line, 'stdout');
+                });
+            }
+        };
+        es.onerror = (ev) => {
+            // On error, close the connection and fall back to polling
+            try { es.close(); } catch (e) { }
+            es = null;
+            console.warn('SSE connection error for job', jobId, ev);
+        };
+    } catch (e) {
+        console.warn('Could not open EventSource for live logs:', e);
+        es = null;
+    }
+
     const checkStatus = async () => {
         try {
             const response = await fetch(`/api/scripts/status/${jobId}`);
@@ -494,6 +711,12 @@ async function monitorScriptExecution(jobId) {
 
                 // Update active scripts list
                 await loadActiveScripts();
+
+                // Close SSE if open
+                if (es) {
+                    try { es.close(); } catch (e) { }
+                    es = null;
+                }
             }
         } catch (error) {
             addLogMessage(`❌ خطا در مانیتورینگ اسکریپت: ${error.message}`, 'error');
@@ -571,7 +794,8 @@ async function loadConfigsForScripts() {
             select.innerHTML = '<option value="">Select config</option>';
             configs.forEach(config => {
                 const configName = config.name || config.filename || 'Unnamed';
-                const configValue = config.name || config.filename || config.path;
+                // Use the full path (or relative path) returned by the API so the server can resolve it
+                const configValue = config.path || config.name || config.filename || '';
                 const option = document.createElement('option');
                 option.value = configValue;
                 option.textContent = configName;

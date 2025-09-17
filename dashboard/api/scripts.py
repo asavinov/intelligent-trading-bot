@@ -20,6 +20,9 @@ import psutil
 import uuid
 from typing import BinaryIO
 from tempfile import NamedTemporaryFile
+import io
+import zipfile
+import platform
 
 router = APIRouter(prefix="/scripts", tags=["scripts"])
 
@@ -51,7 +54,8 @@ def _write_job_metadata_atomic(project_root: Path, job_id: str):
             "end_time": info.get("end_time"),
             "returncode": info.get("returncode"),
             "log_stdout": info.get("log_stdout"),
-            "log_stderr": info.get("log_stderr")
+            "log_stderr": info.get("log_stderr"),
+            "env_snapshot_path": info.get("env_snapshot_path")
         }
         meta_path = _meta_path_for_job(project_root, job_id)
         # Ensure containing dir exists
@@ -64,6 +68,77 @@ def _write_job_metadata_atomic(project_root: Path, job_id: str):
     except Exception as e:
         # Avoid raising - metadata is best-effort
         print(f"_write_job_metadata_atomic: failed for {job_id}: {e}")
+
+
+def _cleanup_old_job_logs(logs_dir: Path, max_jobs: int = 200, max_total_mb: int = 500):
+    """Keep logs/jobs tidy by removing oldest jobs beyond limits.
+
+    - max_jobs: keep at most this many jobs (triples: meta/stdout/stderr).
+    - max_total_mb: keep total size under this many MB by deleting oldest.
+    """
+    try:
+        if not logs_dir.exists():
+            return
+        # Group files by job_id (prefix before extension)
+        items: Dict[str, Dict[str, Any]] = {}
+        for p in logs_dir.iterdir():
+            if not p.is_file():
+                continue
+            name = p.name
+            if name.count('.') < 2:
+                # expect patterns like {job_id}.stdout.log / .stderr.log / .meta.json
+                # but accept any two-dot filenames as belonging to a job_id
+                pass
+            job_id = name.split('.')[0]
+            info = items.setdefault(job_id, {"files": [], "start_time": None, "mtime": 0, "size": 0})
+            info["files"].append(p)
+            try:
+                st = p.stat()
+                info["mtime"] = max(info["mtime"], st.st_mtime)
+                info["size"] += st.st_size
+            except Exception:
+                pass
+            if name.endswith('.meta.json'):
+                try:
+                    data = json.loads(p.read_text(encoding='utf-8'))
+                    st = float(data.get('start_time') or data.get('start_ts') or 0)
+                    if st:
+                        info['start_time'] = st
+                except Exception:
+                    pass
+
+        # Build list and sort by start_time (fallback to mtime)
+        rows = []
+        total_size = 0
+        for jid, info in items.items():
+            ts = info.get('start_time') or info.get('mtime') or 0
+            sz = info.get('size') or 0
+            total_size += sz
+            rows.append((ts, jid, sz, info['files']))
+        rows.sort(key=lambda x: x[0])  # oldest first
+
+        max_total_bytes = max_total_mb * 1024 * 1024
+        # Delete oldest until under count limit
+        while len(rows) > max_jobs:
+            _, jid, sz, files = rows.pop(0)
+            for f in files:
+                try:
+                    f.unlink(missing_ok=True)
+                except Exception:
+                    pass
+            total_size -= sz
+
+        # Delete oldest until under size limit
+        while total_size > max_total_bytes and rows:
+            _, jid, sz, files = rows.pop(0)
+            for f in files:
+                try:
+                    f.unlink(missing_ok=True)
+                except Exception:
+                    pass
+            total_size -= sz
+    except Exception as e:
+        print(f"cleanup logs/jobs failed: {e}")
 
 class ScriptRunRequest(BaseModel):
     script_name: str
@@ -259,6 +334,34 @@ async def run_script(request: ScriptRunRequest):
         stdout_path = str(logs_dir / f"{job_id}.stdout.log")
         stderr_path = str(logs_dir / f"{job_id}.stderr.log")
 
+        # Write a compact environment snapshot for this job
+        try:
+            env_snapshot_path = str(logs_dir / f"{job_id}.env.json")
+            env_sample = {
+                "timestamp": time.time(),
+                "python_version": sys.version,
+                "platform": {
+                    "system": platform.system(),
+                    "release": platform.release(),
+                    "version": platform.version(),
+                    "machine": platform.machine(),
+                    "python_implementation": platform.python_implementation(),
+                },
+                "cwd": str(project_root),
+                "script": request.script_name,
+                "config": actual_config_record,
+                "env": {
+                    k: env.get(k) for k in [
+                        "PYTHONPATH", "VIRTUAL_ENV", "CONDA_PREFIX", "PATH", "PROCESSOR_ARCHITECTURE"
+                    ] if env.get(k) is not None
+                }
+            }
+            with open(env_snapshot_path, 'w', encoding='utf-8') as ef:
+                json.dump(env_sample, ef, ensure_ascii=False, indent=2)
+        except Exception as e:
+            env_snapshot_path = None
+            print(f"env snapshot failed for {job_id}: {e}")
+
         # Store process info - record the normalized config argument we passed to the script
         actual_config_record = config_file_arg or (config_to_use or "")
         active_processes[job_id] = {
@@ -270,12 +373,21 @@ async def run_script(request: ScriptRunRequest):
             "stdout": "",
             "stderr": "",
             "log_stdout": stdout_path,
-            "log_stderr": stderr_path
+            "log_stderr": stderr_path,
+            "env_snapshot_path": env_snapshot_path
         }
 
         # Persist initial metadata
         try:
             _write_job_metadata_atomic(project_root, job_id)
+        except Exception:
+            pass
+
+        # Opportunistic cleanup of old logs/jobs
+        try:
+            max_jobs = int(os.environ.get('ITB_LOGS_MAX_JOBS', '200'))
+            max_total_mb = int(os.environ.get('ITB_LOGS_MAX_TOTAL_MB', '500'))
+            _cleanup_old_job_logs(logs_dir, max_jobs=max_jobs, max_total_mb=max_total_mb)
         except Exception:
             pass
 
@@ -464,6 +576,15 @@ async def monitor_process(job_id: str, user_timeout: Optional[int] = None):
         except Exception:
             pass
 
+        # Cleanup pass after completion as well (enforces retention)
+        try:
+            logs_dir = project_root / 'logs' / 'jobs'
+            max_jobs = int(os.environ.get('ITB_LOGS_MAX_JOBS', '200'))
+            max_total_mb = int(os.environ.get('ITB_LOGS_MAX_TOTAL_MB', '500'))
+            _cleanup_old_job_logs(logs_dir, max_jobs=max_jobs, max_total_mb=max_total_mb)
+        except Exception:
+            pass
+
         print(f"Monitor: Updated status for {job_id}: {process_info['status']}")
 
     except Exception as e:
@@ -477,9 +598,66 @@ async def monitor_process(job_id: str, user_timeout: Optional[int] = None):
 @router.get("/status/{job_id}")
 async def get_script_status(job_id: str):
     """دریافت وضعیت اجرای اسکریپت"""
+    # First, prefer in-memory active process info (jobs started via this API)
     if job_id not in active_processes:
+        # Fallback: if the job has been created by an external runner (CI helper)
+        # and only wrote metadata files under logs/jobs, attempt to return that
+        # metadata so clients (and pollers) can query status for file-backed jobs.
+        try:
+            project_root = Path(__file__).parent.parent.parent
+            meta_path = project_root / 'logs' / 'jobs' / f"{job_id}.meta.json"
+            if meta_path.exists():
+                try:
+                    with open(meta_path, 'r', encoding='utf-8') as mf:
+                        data = json.load(mf)
+                except Exception:
+                    raise HTTPException(status_code=500, detail="خطا در خواندن metadata محلی")
+
+                # Try to read stdout snippet if available
+                stdout_text = ''
+                stdout_path = data.get('log_stdout') or data.get('stdout_path') or ''
+                if stdout_path:
+                    try:
+                        sp = Path(stdout_path)
+                        if not sp.is_absolute():
+                            sp = project_root / str(sp)
+                        if sp.exists():
+                            with open(sp, 'r', encoding='utf-8', errors='ignore') as sf:
+                                txt = sf.read()
+                                # keep only a small snippet
+                                stdout_text = txt if len(txt) < 4000 else txt[-4000:]
+                    except Exception:
+                        stdout_text = ''
+
+                response = {
+                    'job_id': data.get('job_id', job_id),
+                    'status': data.get('status') or ('completed' if data.get('exit_code') in (0, '0', None) else 'failed'),
+                    'script': data.get('script'),
+                    'config': data.get('config'),
+                    'start_time': data.get('start_ts') or data.get('start_time'),
+                    'pid': data.get('pid'),
+                    'returncode': data.get('exit_code') or data.get('returncode'),
+                    'stdout': stdout_text,
+                    'stderr': '',
+                    'env_snapshot_path': data.get('env_snapshot_path')
+                }
+                if data.get('end_ts') or data.get('end_time'):
+                    response['end_time'] = data.get('end_ts') or data.get('end_time')
+                    try:
+                        response['duration'] = float(response['end_time']) - float(response.get('start_time') or 0)
+                    except Exception:
+                        pass
+
+                return response
+
+        except HTTPException:
+            raise
+        except Exception:
+            # If fallback fails, continue to raise not found below
+            pass
+
         raise HTTPException(status_code=404, detail="Job ID یافت نشد")
-    
+
     process_info = active_processes[job_id]
     process = process_info["process"]
     
@@ -510,7 +688,8 @@ async def get_script_status(job_id: str):
         "pid": process.pid,
         "returncode": returncode,
         "stdout": process_info.get("stdout", ""),
-        "stderr": process_info.get("stderr", "")
+        "stderr": process_info.get("stderr", ""),
+        "env_snapshot_path": process_info.get("env_snapshot_path")
     }
     
     if "end_time" in process_info:
@@ -808,6 +987,71 @@ def get_process_memory_usage(pid: int) -> float:
     except (psutil.NoSuchProcess, psutil.AccessDenied):
         return 0.0
 
+
+@router.get('/history')
+async def get_jobs_history(status: Optional[str] = None, script: Optional[str] = None, limit: int = 50, offset: int = 0):
+    """لیست history jobها با استفاده از metadata اتمیک ذخیره‌شده.
+
+    Query params:
+    - status: فیلتر بر اساس status (running, completed, failed, stopped)
+    - script: نام اسکریپت برای فیلتر (مثلاً download_binance)
+    - limit: تعداد آیتم بازگشتی (پیش‌فرض 50)
+    - offset: جا به جایی برای pagination
+    """
+    project_root = Path(__file__).parent.parent.parent
+    logs_dir = project_root / 'logs' / 'jobs'
+    results = []
+
+    if not logs_dir.exists():
+        return {"total": 0, "jobs": []}
+
+    try:
+        for p in logs_dir.glob('*.meta.json'):
+            try:
+                with open(p, 'r', encoding='utf-8') as fh:
+                    data = json.load(fh)
+                    # normalize keys we expect
+                    entry = {
+                        'job_id': data.get('job_id'),
+                        'script': data.get('script'),
+                        'config': data.get('config'),
+                        'pid': data.get('pid'),
+                        'status': data.get('status'),
+                        'start_time': data.get('start_time'),
+                        'end_time': data.get('end_time'),
+                        'returncode': data.get('returncode'),
+                        'log_stdout': data.get('log_stdout'),
+                        'log_stderr': data.get('log_stderr'),
+                        'env_snapshot_path': data.get('env_snapshot_path')
+                    }
+                    results.append(entry)
+            except Exception:
+                # ignore malformed metadata files
+                continue
+
+        # Apply filters
+        if status:
+            results = [r for r in results if (r.get('status') or '').lower() == status.lower()]
+        if script:
+            results = [r for r in results if (r.get('script') or '') == script]
+
+        # Sort by start_time desc (fallback to job_id if missing)
+        def _sort_key(r):
+            try:
+                return -(float(r.get('start_time') or 0))
+            except Exception:
+                return 0
+
+        results.sort(key=_sort_key)
+
+        total = len(results)
+        # Pagination
+        sliced = results[offset: offset + limit]
+
+        return {"total": total, "jobs": sliced}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"خطا در خواندن history: {e}")
+
 @router.get("/logs/{job_id}/stream")
 async def stream_script_logs(job_id: str):
     """استریم لاگ‌های زنده اسکریپت"""
@@ -970,3 +1214,57 @@ async def stop_script(job_id: str):
     except Exception as e:
         print(f"API: Error killing process for job {job_id}: {e}")
         raise HTTPException(status_code=500, detail=f"Failed to stop script: {str(e)}")
+
+
+@router.get('/logs/{job_id}/download')
+async def download_job_logs(job_id: str):
+    """Download a zip archive containing stdout, stderr and meta for a job (if present)."""
+    project_root = Path(__file__).parent.parent.parent
+    logs_dir = project_root / 'logs' / 'jobs'
+    stdout_path = logs_dir / f"{job_id}.stdout.log"
+    stderr_path = logs_dir / f"{job_id}.stderr.log"
+    meta_path = logs_dir / f"{job_id}.meta.json"
+    env_path = logs_dir / f"{job_id}.env.json"
+
+    # Ensure at least one file exists
+    files_exist = any(p.exists() for p in [stdout_path, stderr_path, meta_path, env_path])
+    if not files_exist:
+        raise HTTPException(status_code=404, detail="No logs found for the given job_id")
+
+    buf = io.BytesIO()
+    try:
+        with zipfile.ZipFile(buf, mode='w', compression=zipfile.ZIP_DEFLATED) as zf:
+            if stdout_path.exists():
+                zf.write(stdout_path, arcname=f"{job_id}.stdout.log")
+            if stderr_path.exists():
+                zf.write(stderr_path, arcname=f"{job_id}.stderr.log")
+            if meta_path.exists():
+                zf.write(meta_path, arcname=f"{job_id}.meta.json")
+            if env_path.exists():
+                zf.write(env_path, arcname=f"{job_id}.env.json")
+        buf.seek(0)
+        headers = {
+            'Content-Disposition': f'attachment; filename="{job_id}-logs.zip"'
+        }
+        return StreamingResponse(buf, media_type='application/zip', headers=headers)
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Failed to build zip archive: {e}")
+
+
+@router.get('/env/{job_id}')
+async def get_job_env(job_id: str):
+    """Return the env snapshot JSON for a job if present."""
+    try:
+        project_root = Path(__file__).parent.parent.parent
+        env_path = project_root / 'logs' / 'jobs' / f"{job_id}.env.json"
+        if not env_path.exists():
+            raise HTTPException(status_code=404, detail='Env snapshot not found')
+        try:
+            data = json.loads(env_path.read_text(encoding='utf-8'))
+        except Exception as e:
+            raise HTTPException(status_code=500, detail=f'Failed to read env snapshot: {e}')
+        return data
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
