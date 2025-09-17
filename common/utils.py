@@ -9,9 +9,12 @@ from decimal import *
 import numpy as np
 import pandas as pd
 
-from apscheduler.triggers.cron import CronTrigger
-
-from binance.helpers import date_to_milliseconds, interval_to_milliseconds
+# Optional dependencies: guard imports so basic utilities work without them during tests
+try:
+    from binance.helpers import date_to_milliseconds, interval_to_milliseconds  # type: ignore
+except Exception:  # pragma: no cover - only used when python-binance is missing
+    date_to_milliseconds = None  # noqa: F401
+    interval_to_milliseconds = None  # noqa: F401
 
 from common.gen_features import *
 
@@ -228,6 +231,11 @@ def pandas_interval_length_ms(freq: str):
 #
 
 def freq_to_CronTrigger(freq: str):
+    # Import lazily to avoid hard dependency during test collection
+    try:
+        from apscheduler.triggers.cron import CronTrigger  # type: ignore
+    except Exception as e:  # pragma: no cover - only raised when apscheduler is missing
+        raise ImportError("apscheduler is required for freq_to_CronTrigger; install 'apscheduler' or avoid calling this function.") from e
     # Add small time after interval end to get a complete interval from the server
     if freq.endswith("min"):
         if freq[:-3] == "1":

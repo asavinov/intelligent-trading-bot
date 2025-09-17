@@ -199,7 +199,7 @@ def add_linear_trends(df, is_future: bool, column_name: str, windows: Union[int,
     features = []
     for w in windows:
         if not last_rows:
-            ro = column.rolling(window=w, min_periods=max(1, w // 2))
+            ro = column.rolling(window=w, min_periods=1)
             feature = ro.apply(slope_fn, raw=True)
         else:  # Only for last row
             feature = _aggregate_last_rows(column, w, last_rows, slope_fn)
@@ -227,6 +227,10 @@ def slope_fn(x):
         nans = ~np.isnan(y_array)
         X_array = X_array[nans]
         y_array = y_array[nans]
+
+    # Not enough points to fit a line – define slope as 0.0 for stability
+    if len(y_array) < 2:
+        return 0.0
 
     #X_array = X_array.reshape(-1, 1)  # Make matrix
     #model = linear_model.LinearRegression()

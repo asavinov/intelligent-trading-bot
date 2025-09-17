@@ -4,6 +4,7 @@ import numpy.testing as npt
 from common.utils import *
 from common.utils import add_area_ratio
 from common.gen_signals import *
+from common.depth_processing import discretize, discretize_ask
 
 
 def test_decimal():
