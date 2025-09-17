@@ -211,6 +211,10 @@ def add_linear_trends(
             mp = max(1, w // 2) if min_periods is None else min_periods
             ro = column.rolling(window=w, min_periods=mp)
             feature = ro.apply(slope_fn, raw=True)
+            # For default behavior, keep NaN when fewer than 2 points available in the window
+            if min_periods is None:
+                counts = ro.count()
+                feature = feature.where(counts >= 2, np.nan)
         else:  # Only for last row
             feature = _aggregate_last_rows(column, w, last_rows, slope_fn)
 
