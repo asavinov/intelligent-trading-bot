@@ -1,7 +1,7 @@
 import dateparser
 import pytz
 from datetime import datetime, timezone, timedelta
-from typing import Union, List
+from typing import Union, List, Optional
 import json
 from decimal import *
 
@@ -181,7 +181,15 @@ def area_fn(x, is_future):
     return ratio
 
 
-def add_linear_trends(df, is_future: bool, column_name: str, windows: Union[int, List[int]], suffix=None, last_rows: int = 0):
+def add_linear_trends(
+    df,
+    is_future: bool,
+    column_name: str,
+    windows: Union[int, List[int]],
+    suffix=None,
+    last_rows: int = 0,
+    min_periods: Optional[int] = None,
+):
     """
     Use a series of points to compute slope of the fitted line and return it.
     For past, we use previous series.
@@ -199,7 +207,9 @@ def add_linear_trends(df, is_future: bool, column_name: str, windows: Union[int,
     features = []
     for w in windows:
         if not last_rows:
-            ro = column.rolling(window=w, min_periods=1)
+            # Default preserves previous behavior: at least half-window of points
+            mp = max(1, w // 2) if min_periods is None else min_periods
+            ro = column.rolling(window=w, min_periods=mp)
             feature = ro.apply(slope_fn, raw=True)
         else:  # Only for last row
             feature = _aggregate_last_rows(column, w, last_rows, slope_fn)
