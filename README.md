@@ -157,3 +157,13 @@ External integrations
 - https://github.com/ccxt/ccxt A JavaScript / Python / PHP cryptocurrency trading API with support for more than 100 bitcoin/altcoin exchanges
 - https://github.com/aiogram/aiogram Is a pretty simple and fully asynchronous framework for Telegram Bot API
 - https://github.com/sammchardy/python-binance
+
+## Testing and CI notes
+
+To keep CI runs deterministic and fast, some optional components are disabled by default and can be enabled locally via environment variables:
+
+- RUN_PLAYWRIGHT_UI_TESTS: Set to 1 to enable the Playwright UI test under dashboard/tests. By default it is skipped in CI to avoid heavy/flaky UI E2E.
+- ITB_USE_TF_NN: Set to 1 to enable the TensorFlow/Keras backend for neural networks in common/classifiers.py. By default, tests and CI use a lightweight scikit-learn fallback to avoid TF runtime overhead and platform-specific issues.
+- DASHBOARD_PIPELINE_ENABLED: Set to 1 to enable the new dashboard pipeline endpoints and UI. When unset/0, the pipeline remains gated (disabled) server-side and the client reflects it in the UI.
+
+These gates let contributors opt into heavier dependencies and features locally without impacting CI reliability.

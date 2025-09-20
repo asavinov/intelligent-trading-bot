@@ -33,6 +33,18 @@ window.enablePipelineFeature = function () {
 document.addEventListener('DOMContentLoaded', function () {
     initializeDashboard();
     setupEventListeners();
+    // Initialize feature flags from server settings
+    (async () => {
+        try {
+            const resp = await fetch('/api/system/settings');
+            if (resp.ok) {
+                const data = await resp.json();
+                if (typeof data.pipeline_enabled === 'boolean') {
+                    PIPELINE_FEATURE_ENABLED = data.pipeline_enabled;
+                }
+            }
+        } catch (_) { /* ignore */ }
+    })();
 });
 
 // Main initialization function

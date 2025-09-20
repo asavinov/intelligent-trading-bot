@@ -29,7 +29,8 @@ def test_extremum_labels():
     extr_y = [sr[x] for x in extr_x]
     extr_df = pd.DataFrame({'x': extr_x, 'y': extr_y})
 
-    import seaborn as sns
+    # Plotting is only for manual inspection; skip if seaborn is not available
+    sns = pytest.importorskip("seaborn")
     # https://matplotlib.org/stable/api/markers_api.html
     # '-', '--', '-.', ':', 'None', ' ', '', 'solid', 'dashed', 'dashdot', 'dotted'
     sns.lineplot(data=sr)

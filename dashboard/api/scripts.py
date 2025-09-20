@@ -334,6 +334,9 @@ async def run_script(request: ScriptRunRequest):
         stdout_path = str(logs_dir / f"{job_id}.stdout.log")
         stderr_path = str(logs_dir / f"{job_id}.stderr.log")
 
+        # Determine the normalized config value we'll record everywhere (UI/API consistency)
+        actual_config_record = config_file_arg or (config_to_use or "")
+
         # Write a compact environment snapshot for this job
         try:
             env_snapshot_path = str(logs_dir / f"{job_id}.env.json")
@@ -363,7 +366,6 @@ async def run_script(request: ScriptRunRequest):
             print(f"env snapshot failed for {job_id}: {e}")
 
         # Store process info - record the normalized config argument we passed to the script
-        actual_config_record = config_file_arg or (config_to_use or "")
         active_processes[job_id] = {
             "process": process,
             "script": request.script_name,

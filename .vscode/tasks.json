@@ -1,0 +1,93 @@
+{
+	"version": "2.0.0",
+	"tasks": [
+		{
+			"label": "Run tests (pytest) locally - quick",
+			"type": "shell",
+			"command": "${workspaceFolder}/.venv/Scripts/python.exe -m pytest -q",
+			"isBackground": false,
+			"problemMatcher": [
+				"$python"
+			],
+			"group": "build"
+		},
+		{
+			"label": "Start Dashboard (uvicorn, background)",
+			"type": "shell",
+			"command": "${workspaceFolder}/.venv/Scripts/python.exe -m uvicorn dashboard.main:app --host 127.0.0.1 --port 8000",
+			"isBackground": true,
+			"options": {
+				"env": {
+					"DASHBOARD_PIPELINE_ENABLED": "1",
+					"PYTHONUNBUFFERED": "1",
+					"PYTHONPATH": "${workspaceFolder}"
+				}
+			},
+			"problemMatcher": [
+				{
+					"owner": "python",
+					"pattern": [
+						{
+							"regexp": ".*"
+						}
+					],
+					"background": {
+						"activeOnStart": true,
+						"beginsPattern": ".*(Application startup complete|Uvicorn running on).*",
+						"endsPattern": ".*(Shutting down|Finished server process).*"
+					}
+				}
+			],
+			"presentation": {
+				"reveal": "always",
+				"panel": "dedicated",
+				"group": "server",
+				"clear": false
+			},
+			"group": "build"
+		},
+		{
+			"label": "Run pipeline smoke (local)",
+			"type": "shell",
+			"command": "${workspaceFolder}/.venv/Scripts/python.exe -m tools.pipeline_smoke_local --server http://127.0.0.1:8000 --config configs/config-quick-1d-ci.jsonc --steps download,merge",
+			"isBackground": false,
+			"presentation": {
+				"reveal": "always",
+				"panel": "shared",
+				"group": "smoke",
+				"clear": false
+			},
+			"dependsOn": []
+		},
+		{
+			"label": "Create Python venv (.venv)",
+			"type": "shell",
+			"command": "python -m venv .venv",
+			"isBackground": false,
+			"presentation": {
+				"reveal": "always",
+				"panel": "shared",
+				"clear": false
+			},
+			"group": "build"
+		},
+		{
+			"label": "Install Python requirements (venv)",
+			"type": "shell",
+			"command": "${workspaceFolder}/.venv/Scripts/python.exe -m pip install -r requirements.txt; ${workspaceFolder}/.venv/Scripts/python.exe -m pip install -r dashboard/requirements.txt",
+			"isBackground": false,
+			"presentation": {
+				"reveal": "always",
+				"panel": "shared",
+				"clear": false
+			},
+			"group": "build"
+		},
+		{
+			"label": "Run pipeline smoke (local)",
+			"type": "shell",
+			"command": "${workspaceFolder}/.venv/Scripts/python.exe -m tools.pipeline_smoke_local --server http://127.0.0.1:8000 --config configs/config-quick-1d-ci.jsonc --steps download,merge",
+			"isBackground": false
+		}
+	]
+}

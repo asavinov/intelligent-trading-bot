@@ -11,6 +11,7 @@ import uvicorn
 from pathlib import Path
 import sys
 from contextlib import asynccontextmanager
+import os
 
 # Add project root to Python path
 project_root = Path(__file__).parent.parent
@@ -87,7 +88,12 @@ app.include_router(pipeline_router, prefix="/api")
 @app.get("/", response_class=HTMLResponse)
 async def dashboard_home(request: Request):
     """صفحه اصلی داشبورد"""
-    return templates.TemplateResponse("index.html", {"request": request})
+    # Server-side Feature Gate: Pipeline UI
+    # Read from environment variable DASHBOARD_PIPELINE_ENABLED (default: false)
+    # Accept values: '1', 'true', 'yes' (case-insensitive) => True, otherwise False
+    raw = os.getenv("DASHBOARD_PIPELINE_ENABLED", "false")
+    pipeline_enabled = str(raw).strip().lower() in {"1", "true", "yes", "on"}
+    return templates.TemplateResponse("index.html", {"request": request, "pipeline_enabled": pipeline_enabled})
 
 @app.get("/setup", response_class=HTMLResponse)
 async def setup_wizard(request: Request):
