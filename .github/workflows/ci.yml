@@ -7,20 +7,22 @@ on:
 jobs:
   test:
     runs-on: ubuntu-latest
+    env:
+      RUN_PLAYWRIGHT_UI_TESTS: "0"
+      ITB_USE_TF_NN: "0"
+      DASHBOARD_PIPELINE_ENABLED: "0"
     steps:
       - uses: actions/checkout@v4
       - name: Setup Python
         uses: actions/setup-python@v4
         with:
           python-version: '3.11'
-      - name: Install dependencies
+      - name: Install minimal test dependencies
         run: |
           python -m pip install --upgrade pip
-          pip install -r requirements.txt
-      - name: Install test dependencies
-        run: |
-          python -m pip install --upgrade pytest pytest-asyncio
-          if [ -f dashboard/tests/requirements-test.txt ]; then pip install -r dashboard/tests/requirements-test.txt; fi
+          pip install pytest pytest-asyncio
+          # Minimal deps needed for unit tests (avoid heavy/native deps like tensorflow, ta-lib)
+          pip install "numpy==2.1.*" "pandas==2.*" "scikit-learn==1.6.*" "lightgbm==4.*" "jsonc-parser>=1.1.5"
       - name: Run lint
         run: |
           echo "Run lint (placeholder). Add black/flake8 commands here."
