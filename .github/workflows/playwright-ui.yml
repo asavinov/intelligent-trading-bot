@@ -103,7 +103,7 @@ jobs:
         run: |
           cd tools
           npm install
-          npx playwright install --with-deps
+          npx playwright install chromium --with-deps
 
       - name: Run Playwright UI test
         run: |
