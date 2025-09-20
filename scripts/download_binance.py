@@ -14,6 +14,7 @@ from binance import Client
 
 from common.utils import klines_to_df, binance_freq_from_pandas
 from service.App import *
+from pathlib import Path
 
 """
 Download from binance
@@ -43,7 +44,22 @@ def main(config_file):
 
     save = True
 
-    App.client = Client(api_key=App.config["api_key"], api_secret=App.config["api_secret"])
+    # Use public endpoints for klines when keys are placeholder/empty (no auth required for historical klines)
+    api_key = App.config.get("api_key")
+    api_secret = App.config.get("api_secret")
+    def _is_placeholder(x: str | None) -> bool:
+        if not x:
+            return True
+        ux = str(x).strip().upper()
+        # Treat common placeholders as empty to avoid sending invalid headers to public endpoints
+        return ux in {"DEMO_API_KEY_FOR_TESTING", "DEMO_SECRET_FOR_TESTING", "TEST", "PLACEHOLDER", "NONE", "NULL", ""}
+
+    if _is_placeholder(api_key):
+        api_key = None
+    if _is_placeholder(api_secret):
+        api_secret = None
+
+    App.client = Client(api_key=api_key, api_secret=api_secret)
 
     futures = False
     if futures:
@@ -73,10 +89,22 @@ def main(config_file):
         if file_name.is_file():
             # Load the existing data in order to append newly downloaded data
             df = pd.read_csv(file_name)
-            df[time_column] = pd.to_datetime(df[time_column], format='ISO8601')
+            # ensure time column is parsed as datetime (tolerant parse)
+            try:
+                df[time_column] = pd.to_datetime(df[time_column], errors='coerce')
+            except Exception:
+                df[time_column] = pd.to_datetime(df[time_column].astype(str), errors='coerce')
 
-            # oldest_point = parser.parse(data["timestamp"].iloc[-1])
-            oldest_point = df["timestamp"].iloc[-5]  # Use an older point so that new data will overwrite old data
+            # Choose an older existing point to allow some overlap when fetching new data.
+            # If the dataframe is small, fall back to the earliest timestamp or a default start date.
+            if not df.empty:
+                if len(df) >= 5:
+                    oldest_point = df[time_column].iloc[-5]
+                else:
+                    # use the first available timestamp in the file
+                    oldest_point = df[time_column].iloc[0]
+            else:
+                oldest_point = datetime(2017, 1, 1)
 
             print(f"File found. Downloaded data for {quote} and {freq} since {str(latest_ts)} will be appended to the existing file {file_name}")
         else:

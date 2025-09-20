@@ -1,0 +1,35 @@
+name: CI
+
+on:
+  pull_request:
+    branches: [ master, dashboard ]
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    env:
+      RUN_PLAYWRIGHT_UI_TESTS: "1"
+      ITB_USE_TF_NN: "0"
+      DASHBOARD_PIPELINE_ENABLED: "0"
+    steps:
+      - uses: actions/checkout@v4
+      - name: Setup Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.11'
+          cache: 'pip'
+          cache-dependency-path: |
+            requirements.txt
+            dashboard/requirements.txt
+      - name: Install minimal test dependencies
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install pytest pytest-asyncio
+          # Minimal deps needed for unit tests (avoid heavy/native deps like tensorflow, ta-lib)
+          python -m pip install "numpy==2.1.*" "pandas==2.*" "scikit-learn==1.6.*" "lightgbm==4.*" "jsonc-parser>=1.1.5"
+      - name: Run lint
+        run: |
+          echo "Run lint (placeholder). Add black/flake8 commands here."
+      - name: Run tests
+        run: |
+          pytest -q

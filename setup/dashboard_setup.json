@@ -1,0 +1,41 @@
+{
+  "setup_completed": true,
+  "setup_date": "2025-09-09T22:35:33.663Z",
+  "system_health": {
+    "python_version": "3.13.5",
+    "memory_gb": 31.9,
+    "disk_free_gb": 141,
+    "cpu_count": 4,
+    "dependencies_status": {
+      "pandas": {
+        "status": "installed",
+        "version": "unknown"
+      },
+      "numpy": {
+        "status": "installed",
+        "version": "unknown"
+      },
+      "requests": {
+        "status": "installed",
+        "version": "unknown"
+      },
+      "fastapi": {
+        "status": "installed",
+        "version": "unknown"
+      },
+      "uvicorn": {
+        "status": "installed",
+        "version": "unknown"
+      },
+      "psutil": {
+        "status": "installed",
+        "version": "unknown"
+      }
+    },
+    "overall_health": true
+  },
+  "binance_configured": true,
+  "telegram_configured": true,
+  "selected_config": "C:\\intelligent-trading-bot-master\\configs\\config-sample-1h.jsonc",
+  "dashboard_version": "1.0.0"
+}

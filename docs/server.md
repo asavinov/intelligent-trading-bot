@@ -12,134 +12,57 @@
 
 https://www.digitalocean.com/community/tutorials/how-to-set-up-time-synchronization-on-ubuntu-16-04
 
-Check synchronization status:
-```
-$ timedatectl
-```
+````markdown
+# Dashboard Server notes (updated)
 
-"Network time on: yes" means synchronization is enabled. "NTP synchronized: yes" means time has been synchronized.
+This document summarizes the dashboard server endpoints and feature gates that are relevant for local development and safe enablement in production.
 
-If timesyncd isn’t enabled, turn it on with timedatectl:
-```
-$ sudo timedatectl set-ntp on
-```
+## Feature gates (ENV)
 
-Using chrony:
+- DASHBOARD_PIPELINE_ENABLED: When set to 1/true, enables the pipeline API/UI. The server enforces this gate defensively. The client reads it via /api/system/settings.
+- RUN_PLAYWRIGHT_UI_TESTS: When set to 1, enables running the UI E2E test locally; defaults to off in CI to remain deterministic.
+- ITB_USE_TF_NN: When set to 1, enables TensorFlow/Keras backend for NN models in tests; otherwise uses a lightweight sklearn fallback.
 
-https://www.fosslinux.com/4059/how-to-sync-date-and-time-from-the-command-line-in-ubuntu.htm
+## System settings endpoint
 
-```
-$ sudo apt install chrony
-chronyd  # One-shot time check without setting the time
-chronyd -q  # One-shot sync
-```
+- GET /api/system/settings → { pipeline_enabled: boolean }
+  - The frontend reads this to decide whether to show/enable Pipeline UI controls.
 
-#### Create virtual environment
+## Pipeline API (feature-gated)
 
-```
-$ python3.7 -m pip install --user pip --upgrade
-$ python3.7 -m pip install --user virtualenv --upgrade
-```
+Prefix: /api/pipeline
 
-```
-$ python3.7 -m virtualenv --version
-virtualenv 20.0.13
-$ python3.7 -m virtualenv venv
-```
+- POST /api/pipeline/run
+  - Body: { steps?: string[], config_file?: string, timeout_per_step?: number, extra_args?: { [step]: string[] } }
+  - Returns: { pipeline_id, status, steps, config }
+  - Requires DASHBOARD_PIPELINE_ENABLED=1.
 
-#### Start from Linux
+- GET /api/pipeline/status/{pipeline_id}
+  - Returns pipeline meta including per-step status, job_ids, and timing.
 
-Modify start.py by entering data collection command. Alternatively, pass the desired command as an argument.
-See the file for additional comments. For example:
-* `collect_data` is used to collect depth data by making the corresponding requests.
-  * It is possible to specify frequency 1m, 5s etc.
-  * It is possible to specify depth (high depth will decrease weight of the request)
-* `collect_data_ws` is used to collect stream data like klines 1m and depth.
-  * klines will get update every 1 or 2 seconds for the current 1m kline
-  * Depth stream will send new depth information (limited depth) every 1 second
-  * Other streams could be added to the app configuration
+- GET /api/pipeline/stream/{pipeline_id}
+  - SSE stream of pipeline log lines, finishing with a [FINISHED] marker.
 
-```
-switch to the project root dir
-$ source venv/bin/activate OR source ../trade/venv/bin/activate
-(venv) $ python3.7 --version
-Python 3.7.3
-(venv) $ nohup python3.7 start.py &
-(venv) $ nohup python3.7 start.py collect_data_ws &
-<Enter>
-$ logout
-```
-End:
-```
-login
-ps -ef | grep python3.7
-kill pid_no
-```
-#### Compress and download collected data files
+- GET /api/pipeline/artifacts/{pipeline_id}
+  - Returns a ZIP containing pipeline log/meta and each step job's stdout/stderr/meta/env when available.
 
-Zip into multiple files with low priority one file:
-```
-nice -n 20 zip -s 10m -7 dest.zip source.txt
-```
+### Local smoke test
 
-Information about zip and nice (priority):
-```
-zip -s 100m archivename.zip filename1.txt
-zip -s 100m -r archivename.zip my_folder  # folder and all files recursively
-nice -10 perl test.pl - run with niceness 10 (lower priority) (- is hyphen - not negative).
-nice --10 perl test.pl - start with high priority (negative niceness)
-nice -n -5 perl test.pl - increase priority
-nice -n 5 perl test.pl - decrease priority
-nice -n 10 apt-get upgrade - start with lower priority (lower values of niceness mean higher priority, so we need higher values)
-```
+1) Start the dashboard server with DASHBOARD_PIPELINE_ENABLED=1
+2) Run the local smoke helper:
 
-#### Sudden reboots
+   python -m tools.pipeline_smoke_local --server http://127.0.0.1:8000 --config configs/config-quick-1d-ci.jsonc --steps download,merge
 
-Information about last reboot:
-```
-last reboot
+You should see the pipeline progress to completed; logs and meta are written under logs/pipelines/.
 
-tail /var/log/syslog or less /var/log/syslog
-```
+To download all artifacts for a run:
 
-System wide logger:
-```
-tail /var/log/syslog
-less /var/log/syslog
-```
-Kernel log:
-```
-tail /var/log/kern.log
-```
+  Open: http://127.0.0.1:8000/api/pipeline/artifacts/{pipeline_id}
 
-Example automatic reboot:
+```diff
+Note:
+- The CI intentionally avoids exercising the full pipeline to keep runs deterministic and fast.
+- Use the smoke script locally or add a manual (workflow_dispatch) GitHub Actions workflow if needed.
+```
+````
 
-```
-last reboot
-reboot   system boot  4.15.0           Thu Apr 30 08:55   still running
-reboot   system boot  4.15.0           Thu Apr 30 08:21   still running
-```
-
-```
-syslog
-Apr 30 06:03:01 linux CRON[23790]: (root) CMD (cd / && run-parts --report /etc/cron.hourly)
-Apr 30 06:40:33 linux systemd[1]: Starting Daily apt upgrade and clean activities...
-Apr 30 06:40:34 linux systemd[1]: Started Daily apt upgrade and clean activities.
-Apr 30 06:55:06 linux systemd[1]: getty@tty2.service: Service has no hold-off time, scheduling restart.
-Apr 30 06:55:06 linux systemd[1]: getty@tty2.service: Scheduled restart job, restart counter is at 876.
-```
-
-Check available timers, particularly, daily upgrade timer:
-```
-sudo systemctl list-timers
-Fri 2020-05-01 06:14:53 UTC  19h left      Thu 2020-04-30 06:40:33 UTC  3h 58min ago apt-daily-upgrade.timer      apt
-```
-Solutions (https://superuser.com/questions/1327884/how-to-disable-daily-upgrade-and-clean-on-ubuntu-16-04):
-* simply remove package unattended-upgrades: apt-get remove unattended-upgrades (but it might be insufficient)
-* disable:
-```
-systemctl stop apt-daily-upgrade.timer
-systemctl disable apt-daily-upgrade.timer
-(systemctl disable apt-daily.service) - not clear if necessary
-systemctl daemon-reload
-```

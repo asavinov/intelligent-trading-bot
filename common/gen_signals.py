@@ -388,6 +388,32 @@ def find_interval_precision(df: pd.DataFrame, label_column: str, score_column: s
     return interval_df
 
 
+def aggregate_scores(df: pd.DataFrame, out_column: str, score_columns: list, window: int | None, min_periods: int = 1):
+    """
+    Minimal helper used by tests to aggregate one or more score columns into a single column.
+    If multiple columns provided, average them row-wise first, then apply an optional rolling mean.
+
+    Args:
+      df: input dataframe (modified in place by adding out_column)
+      out_column: name of the resulting aggregated score column
+      score_columns: list of column names to aggregate
+      window: if provided and >1, apply rolling mean with this window size; if None or <=1, just assign the mean
+      min_periods: min periods for rolling aggregation
+
+    Returns: None (df mutated)
+    """
+    import numpy as np
+    if not score_columns:
+        df[out_column] = np.nan
+        return
+    # Row-wise mean across provided columns
+    base = df[score_columns].mean(axis=1)
+    if window and isinstance(window, int) and window > 1:
+        df[out_column] = base.rolling(window=window, min_periods=min_periods).mean()
+    else:
+        df[out_column] = base
+
+
 # NOT USED
 def generate_signals(df, models: dict):
     """
