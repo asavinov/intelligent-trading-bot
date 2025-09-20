@@ -18,10 +18,11 @@ jobs:
         with:
           python-version: '3.11'
 
-      - name: Install Python dependencies
+      - name: Install Python dependencies (dashboard + minimal script deps)
         run: |
           python -m pip install --upgrade pip
-          pip install -r requirements.txt
+          pip install -r dashboard/requirements.txt
+          pip install requests pandas click "python-binance==1.0.*"
 
       - name: Start server (uvicorn)
         run: |
@@ -62,6 +63,16 @@ jobs:
           curl --silent --fail http://127.0.0.1:8000/api/system/resources -o tools/ci_artifacts/api_system_resources.json || true
         shell: bash
 
+      - name: Run UI jobs helper (test_print and quick binance)
+        run: |
+          set -e
+          mkdir -p DATA_ITB/BTCUSDT
+          # Quick deterministic job
+          python tools/run_ui_jobs.py --host 127.0.0.1 --port 8000 --script test_print --runs 1 --timeout 60 --poll-interval 0.5 --max-wait 120 || true
+          # Lightweight real download (public klines, no API key required)
+          python tools/run_ui_jobs.py --host 127.0.0.1 --port 8000 --script download_binance --config configs/config-quick-1d-ci.jsonc --runs 1 --timeout 180 --poll-interval 1 --max-wait 600 || true
+        shell: bash
+
       - name: Run lightweight CI dummy job
         run: |
           mkdir -p tools/ci_artifacts
@@ -79,6 +90,7 @@ jobs:
             server.pid
             tools/ci_artifacts/
             logs/jobs/
+            DATA_ITB/
 
       - name: UI tests disabled
         run: |

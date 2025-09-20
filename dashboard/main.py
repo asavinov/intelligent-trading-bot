@@ -23,6 +23,7 @@ from dashboard.api.scripts import router as scripts_router
 from dashboard.api.system import router as system_router
 from dashboard.api.configs import router as configs_router
 from dashboard.api.signals import router as signals_router
+from dashboard.api.pipeline import router as pipeline_router
 
 # Import database initialization
 from dashboard.models.database import init_database
@@ -81,6 +82,7 @@ app.include_router(scripts_router, prefix="/api")
 app.include_router(system_router, prefix="/api")
 app.include_router(configs_router, prefix="/api")
 app.include_router(signals_router, prefix="/api")
+app.include_router(pipeline_router, prefix="/api")
 
 @app.get("/", response_class=HTMLResponse)
 async def dashboard_home(request: Request):

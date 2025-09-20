@@ -9,6 +9,26 @@ let jobsHistoryState = {
     lastQuery: {}
 };
 
+// Pipeline feature gate (frontend safeguard)
+// Default: disabled. Flip to true ONLY after RFC approval and backend readiness.
+let PIPELINE_FEATURE_ENABLED = false;
+
+function isPipelineFeatureEnabled() {
+    return !!PIPELINE_FEATURE_ENABLED;
+}
+
+// Optional helper to programmatically enable the gate (e.g., via console or future config)
+window.enablePipelineFeature = function () {
+    PIPELINE_FEATURE_ENABLED = true;
+    try {
+        const banner = document.getElementById('pipeline-gate-banner');
+        if (banner) banner.classList.add('hidden');
+        const btn = document.getElementById('pipeline-start-btn');
+        if (btn) btn.disabled = false;
+    } catch (_) { }
+    addLogMessage('Feature Gate: Pipeline UI فعال شد (session-local)', 'warning');
+};
+
 // Initialize dashboard when DOM is loaded
 document.addEventListener('DOMContentLoaded', function () {
     initializeDashboard();
@@ -59,7 +79,7 @@ function setupEventListeners() {
 
     const analysisBtn = document.getElementById('run-analysis-btn');
     if (analysisBtn) {
-        analysisBtn.addEventListener('click', runFullAnalysis);
+        analysisBtn.addEventListener('click', openPipelineModal);
     }
 
     // System status refresh button
@@ -554,18 +574,26 @@ function getStatusBadge(status) {
 
 // Core Script Runner Functions - HEART OF THE SYSTEM
 async function runFullAnalysis() {
-    addLogMessage('🔍 شروع تحلیل کامل سیستم...', 'info');
+    addLogMessage('🔍 شروع پایپلاین ساده (download → merge → features → labels)...', 'info');
 
     try {
-        const response = await fetch('/api/scripts/run', {
+        // Try to pick a default config if setup has one
+        let configToUse = null;
+        try {
+            const sresp = await fetch('/api/setup/selected-config');
+            if (sresp.ok) {
+                const sdata = await sresp.json();
+                configToUse = sdata.selected_config || null;
+            }
+        } catch (e) { /* ignore */ }
+
+        const response = await fetch('/api/pipeline/run', {
             method: 'POST',
-            headers: {
-                'Content-Type': 'application/json'
-            },
+            headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
-                script_name: 'features',
-                config_file: 'config-test.json',
-                timeout: 300
+                steps: ['download', 'merge', 'features', 'labels'],
+                config_file: configToUse || 'config-test.json',
+                timeout_per_step: 300
             })
         });
 
@@ -574,17 +602,272 @@ async function runFullAnalysis() {
         }
 
         const result = await response.json();
+        const pipelineId = result.pipeline_id;
+        addLogMessage(`✅ پایپلاین شروع شد - Pipeline ID: ${pipelineId}`, 'success');
 
-        addLogMessage(`✅ تحلیل کامل شروع شد - Job ID: ${result.job_id}`, 'success');
+        // Live pipeline logs via SSE
+        let es = null;
+        try {
+            es = new EventSource(`/api/pipeline/stream/${pipelineId}`);
+            es.onmessage = (e) => {
+                const text = e.data || '';
+                if (text.startsWith('[FINISHED]') || text.startsWith('[ERROR]')) {
+                    const level = text.startsWith('[ERROR]') ? 'error' : 'info';
+                    addLogMessage(text, level);
+                } else {
+                    text.split('\n').forEach(line => { if (line && line.trim()) addLogMessage(line, 'stdout'); });
+                }
+            };
+            es.onerror = () => { try { es.close(); } catch (_) { } es = null; };
+        } catch (e) { es = null; }
 
-        // Start monitoring the script execution
-        monitorScriptExecution(result.job_id);
-
-        // Refresh active scripts list
-        await loadActiveScripts();
+        // Poll pipeline status until finished
+        const poll = async () => {
+            try {
+                const s = await fetch(`/api/pipeline/status/${pipelineId}`);
+                if (!s.ok) { setTimeout(poll, 2000); return; }
+                const data = await s.json();
+                const st = (data.status || '').toLowerCase();
+                if (['completed', 'failed', 'error'].includes(st)) {
+                    addLogMessage(`📋 وضعیت پایپلاین: ${st}`, st === 'completed' ? 'success' : 'error');
+                    if (es) { try { es.close(); } catch (_) { } es = null; }
+                    return;
+                }
+                setTimeout(poll, 2000);
+            } catch (e) {
+                setTimeout(poll, 2000);
+            }
+        };
+        setTimeout(poll, 1500);
     } catch (error) {
-        console.error('Error running full analysis:', error);
-        addLogMessage(`❌ خطا در اجرای تحلیل کامل: ${error.message}`, 'error');
+        console.error('Error running pipeline:', error);
+        addLogMessage(`❌ خطا در اجرای پایپلاین: ${error.message}`, 'error');
+    }
+}
+
+// ---------------- Pipeline Modal & Runner ----------------
+let pipelineEventSource = null;
+
+function openPipelineModal() {
+    // Feature gate check: show modal in read-only with banner; block actions
+    const modal = document.getElementById('pipeline-modal');
+    if (!modal) return;
+    modal.classList.remove('hidden');
+    modal.classList.add('flex');
+
+    const gateBanner = document.getElementById('pipeline-gate-banner');
+    const startBtn = document.getElementById('pipeline-start-btn');
+    if (!isPipelineFeatureEnabled()) {
+        if (gateBanner) gateBanner.classList.remove('hidden');
+        if (startBtn) startBtn.disabled = true;
+        appendPipelineLog('Feature Gate فعال است: اجرای پایپلاین تا زمان تأیید غیرفعال است.', 'error');
+    } else {
+        if (gateBanner) gateBanner.classList.add('hidden');
+        if (startBtn) startBtn.disabled = false;
+    }
+
+    // Inject default steps if not present
+    const stepsContainer = document.getElementById('pipeline-steps');
+    if (stepsContainer && stepsContainer.children.length === 0) {
+        const defaultSteps = [
+            { key: 'download', label: 'دانلود' },
+            { key: 'merge', label: 'ادغام' },
+            { key: 'features', label: 'ویژگی‌ها' },
+            { key: 'labels', label: 'برچسب‌ها' },
+            { key: 'train', label: 'آموزش' },
+            { key: 'signals', label: 'سیگنال' },
+            { key: 'predict', label: 'پیش‌بینی' },
+            { key: 'predict_rolling', label: 'پیش‌بینی رولینگ' },
+            { key: 'output', label: 'خروجی' },
+            { key: 'simulate', label: 'شبیه‌سازی' }
+        ];
+        stepsContainer.innerHTML = defaultSteps.map(s => `
+            <label class="flex items-center space-x-2 space-x-reverse">
+                <input type="checkbox" class="pipeline-step" value="${s.key}" ${['download', 'merge', 'features', 'labels'].includes(s.key) ? 'checked' : ''}>
+                <span>${s.label}</span>
+            </label>
+        `).join('');
+    }
+
+    // Populate configs
+    populatePipelineConfigs();
+
+    // Reset UI
+    document.getElementById('pipeline-steps-status').innerHTML = '<div class="text-gray-400">پس از شروع، وضعیت هر گام نمایش داده می‌شود.</div>';
+    document.getElementById('pipeline-overall-status').textContent = 'در انتظار شروع…';
+    clearPipelineLogs();
+}
+
+function closePipelineModal() {
+    const modal = document.getElementById('pipeline-modal');
+    if (!modal) return;
+    try { if (pipelineEventSource) { pipelineEventSource.close(); } } catch (_) { }
+    pipelineEventSource = null;
+    modal.classList.add('hidden');
+    modal.classList.remove('flex');
+}
+
+async function populatePipelineConfigs() {
+    const select = document.getElementById('pipeline-config-select');
+    if (!select) return;
+    select.innerHTML = '<option value="">در حال بارگذاری...</option>';
+    try {
+        // Prefer setup selected-config
+        let selected = null;
+        try {
+            const sresp = await fetch('/api/setup/selected-config');
+            if (sresp.ok) { const sdata = await sresp.json(); selected = sdata.selected_config || null; }
+        } catch (e) { }
+
+        const resp = await fetch('/api/configs/list');
+        if (!resp.ok) { select.innerHTML = '<option value="">خطا در خواندن کانفیگ‌ها</option>'; return; }
+        const list = await resp.json();
+        const opts = ['<option value="">— انتخاب کانفیگ —</option>'];
+        list.sort((a, b) => (a.name || '').localeCompare(b.name || ''));
+        for (const c of list) {
+            // Prefer relative path under configs/
+            const rel = c.path.includes('/configs/') || c.path.includes('\\configs\\') ?
+                c.path.split(/configs[\\/]/).pop() : (c.name + '.json');
+            opts.push(`<option value="${rel}">${c.name} (${c.frequency || c.freq || '?'})</option>`);
+        }
+        select.innerHTML = opts.join('');
+        if (selected) {
+            // normalize selection to relative under configs if possible
+            for (const opt of select.options) {
+                if (opt.value && (selected.endsWith(opt.value) || selected.includes(opt.value))) { select.value = opt.value; break; }
+            }
+        }
+    } catch (e) {
+        select.innerHTML = '<option value="">خطای شبکه</option>';
+    }
+}
+
+function clearPipelineLogs() {
+    const el = document.getElementById('pipeline-logs');
+    if (el) el.textContent = '';
+}
+
+function appendPipelineLog(line, level = 'stdout') {
+    const el = document.getElementById('pipeline-logs');
+    if (!el) return;
+    const prefix = level === 'error' ? '[ERROR] ' : '';
+    el.textContent += prefix + line + (line.endsWith('\n') ? '' : '\n');
+    el.scrollTop = el.scrollHeight;
+}
+
+function renderPipelineStepsStatus(meta) {
+    const container = document.getElementById('pipeline-steps-status');
+    const overall = document.getElementById('pipeline-overall-status');
+    if (!container || !meta) return;
+    const steps = meta.steps || [];
+    const badges = {
+        'pending': '<span class="px-2 py-0.5 bg-gray-100 text-gray-800 rounded text-xs">منتظر</span>',
+        'starting': '<span class="px-2 py-0.5 bg-yellow-100 text-yellow-800 rounded text-xs">شروع</span>',
+        'running': '<span class="px-2 py-0.5 bg-blue-100 text-blue-800 rounded text-xs">در حال اجرا</span>',
+        'completed': '<span class="px-2 py-0.5 bg-green-100 text-green-800 rounded text-xs">کامل</span>',
+        'failed': '<span class="px-2 py-0.5 bg-red-100 text-red-800 rounded text-xs">ناموفق</span>',
+        'error': '<span class="px-2 py-0.5 bg-red-100 text-red-800 rounded text-xs">خطا</span>'
+    };
+    const items = steps.map((s, idx) => {
+        const start = s.start_time ? new Date(s.start_time * 1000).toLocaleTimeString('fa-IR') : '-';
+        const end = s.end_time ? new Date(s.end_time * 1000).toLocaleTimeString('fa-IR') : '-';
+        const jobLink = s.job_id ? `<a class=\"px-2 py-0.5 bg-gray-100 rounded text-xs\" href=\"/api/scripts/logs/${s.job_id}/download\" target=\"_blank\">دانلود لاگ</a>` : '';
+        return `
+        <div class="p-2 border rounded bg-white">
+            <div class="flex items-center justify-between">
+                <div class="font-medium text-sm">${idx + 1}. ${s.name} → <span class="text-gray-500">${s.script}</span></div>
+                <div>${badges[s.status] || badges['pending']}</div>
+            </div>
+            <div class="text-xs text-gray-500 mt-1">شروع: ${start} — پایان: ${end} — کد: ${s.returncode ?? '-'}</div>
+            <div class="mt-1">${jobLink}</div>
+        </div>`;
+    });
+    container.innerHTML = items.join('') || '<div class="text-gray-400">بدون گام</div>';
+    if (overall) overall.textContent = `وضعیت: ${meta.status || '-'}`;
+}
+
+async function startPipelineFromModal() {
+    // Block action if gate is off
+    if (!isPipelineFeatureEnabled()) {
+        appendPipelineLog('نمی‌توان پایپلاین را شروع کرد: Feature Gate غیرفعال است.', 'error');
+        return;
+    }
+    const btn = document.getElementById('pipeline-start-btn');
+    if (btn) { btn.disabled = true; btn.textContent = 'در حال شروع...'; }
+    clearPipelineLogs();
+    document.getElementById('pipeline-overall-status').textContent = 'در حال شروع...';
+
+    // Collect steps
+    const stepEls = Array.from(document.querySelectorAll('.pipeline-step'));
+    const steps = stepEls.filter(e => e.checked).map(e => e.value);
+    if (!steps.length) steps.push('download', 'merge', 'features', 'labels');
+
+    // Config
+    const configSel = document.getElementById('pipeline-config-select');
+    let configValue = configSel ? (configSel.value || null) : null;
+    if (!configValue) {
+        try {
+            const sresp = await fetch('/api/setup/selected-config');
+            if (sresp.ok) { const sdata = await sresp.json(); configValue = sdata.selected_config || null; }
+        } catch (e) { }
+    }
+
+    const timeoutEl = document.getElementById('pipeline-timeout');
+    const timeoutSec = timeoutEl ? parseInt(timeoutEl.value || '0', 10) || null : null;
+
+    try {
+        const resp = await fetch('/api/pipeline/run', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                steps: steps,
+                config_file: configValue,
+                timeout_per_step: timeoutSec
+            })
+        });
+        if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
+        const data = await resp.json();
+        const pipelineId = data.pipeline_id;
+        appendPipelineLog(`Pipeline started: ${pipelineId}`);
+
+        // Start SSE stream
+        try { if (pipelineEventSource) { pipelineEventSource.close(); } } catch (_) { }
+        pipelineEventSource = null;
+        try {
+            pipelineEventSource = new EventSource(`/api/pipeline/stream/${pipelineId}`);
+            pipelineEventSource.onmessage = (e) => {
+                const t = e.data || '';
+                if (t.startsWith('[FINISHED]') || t.startsWith('[ERROR]')) {
+                    appendPipelineLog(t, t.startsWith('[ERROR]') ? 'error' : 'stdout');
+                } else {
+                    t.split('\n').forEach(line => { if (line && line.trim()) appendPipelineLog(line); });
+                }
+            };
+            pipelineEventSource.onerror = () => { try { pipelineEventSource.close(); } catch (_) { } pipelineEventSource = null; };
+        } catch (e) { /* ignore SSE issues */ }
+
+        // Poll status until done
+        const poll = async () => {
+            try {
+                const s = await fetch(`/api/pipeline/status/${pipelineId}`);
+                if (!s.ok) { setTimeout(poll, 1500); return; }
+                const meta = await s.json();
+                renderPipelineStepsStatus(meta);
+                const st = (meta.status || '').toLowerCase();
+                if (['completed', 'failed', 'error'].includes(st)) {
+                    appendPipelineLog(`Pipeline finished with status=${st}`);
+                    if (btn) { btn.disabled = false; btn.textContent = '🚀 شروع پایپلاین'; }
+                    return;
+                }
+                setTimeout(poll, 1500);
+            } catch (e) {
+                setTimeout(poll, 1500);
+            }
+        };
+        setTimeout(poll, 1000);
+    } catch (e) {
+        appendPipelineLog(`خطا در شروع پایپلاین: ${e?.message || e}`, 'error');
+        if (btn) { btn.disabled = false; btn.textContent = '🚀 شروع پایپلاین'; }
     }
 }
 

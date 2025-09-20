@@ -164,7 +164,7 @@
 
                     <div class="quick-action-card">
                         <h3 class="text-lg font-semibold mb-2">اجرای تحلیل</h3>
-                        <button class="btn-primary" onclick="runFullAnalysis()">
+                        <button class="btn-primary" onclick="openPipelineModal()">
                             🔍 تحلیل کامل
                         </button>
                     </div>
@@ -365,7 +365,70 @@
     </main>
     </div>
 
-    <script src="/static/js/dashboard-v2.js?v=7"></script>
+    <!-- Pipeline Modal -->
+    <div id="pipeline-modal" class="fixed inset-0 bg-black bg-opacity-40 hidden items-center justify-center z-50">
+        <div class="bg-white rounded-lg shadow-xl w-11/12 md:w-4/5 lg:w-3/5 max-h-[90vh] overflow-hidden">
+            <div class="flex items-center justify-between p-4 border-b">
+                <h3 class="text-lg font-semibold">اجرای پایپلاین کامل</h3>
+                <button class="px-3 py-1 text-sm bg-gray-200 rounded" onclick="closePipelineModal()">بستن</button>
+            </div>
+            <!-- Feature gate banner (hidden by default; toggled via JS) -->
+            <div id="pipeline-gate-banner" class="mx-4 mt-3 mb-0 hidden">
+                <div class="p-3 rounded border border-yellow-300 bg-yellow-50 text-yellow-800 text-sm">
+                    🔒 این قابلیت به صورت پیش‌فرض غیرفعال است و تا زمان تأیید نهایی فعال نخواهد شد. لطفاً قبل از
+                    استفاده، پیش‌نیازها و RFC مربوط را بررسی و تأیید کنید.
+                </div>
+            </div>
+            <div class="grid grid-cols-1 lg:grid-cols-3 gap-0 lg:gap-4">
+                <!-- Left: Config and steps -->
+                <div class="p-4 border-b lg:border-b-0 lg:border-l">
+                    <div class="mb-4">
+                        <label class="block text-sm font-medium mb-1">انتخاب کانفیگ</label>
+                        <select id="pipeline-config-select" class="w-full px-3 py-2 border rounded text-sm"></select>
+                        <div class="text-xs text-gray-500 mt-1">در صورت خالی بودن، از مقدار پیش‌فرض setup استفاده می‌شود
+                        </div>
+                    </div>
+                    <div class="mb-4">
+                        <label class="block text-sm font-medium mb-1">گام‌ها</label>
+                        <div id="pipeline-steps" class="grid grid-cols-2 gap-2 text-sm">
+                            <!-- Steps checkboxes injected by JS -->
+                        </div>
+                    </div>
+                    <div class="mb-4">
+                        <label class="block text-sm font-medium mb-1">Timeout هر گام (ثانیه)</label>
+                        <input id="pipeline-timeout" type="number" min="10" value="300"
+                            class="w-32 px-3 py-2 border rounded text-sm">
+                    </div>
+                    <div class="flex items-center space-x-2 space-x-reverse">
+                        <button id="pipeline-start-btn" class="btn-primary" onclick="startPipelineFromModal()">🚀 شروع
+                            پایپلاین</button>
+                    </div>
+                </div>
+                <!-- Middle: Step progress -->
+                <div class="p-4 lg:col-span-1 border-b lg:border-b-0 lg:border-l">
+                    <div class="flex items-center justify-between mb-2">
+                        <h4 class="font-semibold">پیشرفت گام‌ها</h4>
+                        <div id="pipeline-overall-status" class="text-sm text-gray-500">در انتظار شروع…</div>
+                    </div>
+                    <div id="pipeline-steps-status" class="space-y-2 text-sm">
+                        <div class="text-gray-400">پس از شروع، وضعیت هر گام نمایش داده می‌شود.</div>
+                    </div>
+                </div>
+                <!-- Right: Live logs -->
+                <div class="p-4 lg:col-span-1">
+                    <div class="flex items-center justify-between mb-2">
+                        <h4 class="font-semibold">لاگ‌های پایپلاین</h4>
+                        <button class="px-2 py-1 text-xs bg-gray-200 rounded" onclick="clearPipelineLogs()">پاک
+                            کردن</button>
+                    </div>
+                    <pre id="pipeline-logs"
+                        class="bg-gray-900 text-green-400 p-3 rounded h-64 overflow-y-auto text-xs"></pre>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="/static/js/dashboard-v2.js?v=8"></script>
 </body>
 
 </html>
