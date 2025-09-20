@@ -16,6 +16,7 @@ from typing import Dict, Any
 import asyncio
 from fastapi.responses import StreamingResponse
 from ..core.config_validator import ConfigValidator
+import os
 
 router = APIRouter(prefix="/system", tags=["system"])
 
@@ -249,6 +250,15 @@ async def stream_system_resources():
             "Content-Type": "text/event-stream"
         }
     )
+
+@router.get("/settings")
+async def get_system_settings():
+    """تنظیمات سمت سرور برای داشبورد (قابل‌گسترش در آینده)
+    فعلاً فقط وضعیت فعال بودن پایپلاین را بر اساس ENV برمی‌گرداند.
+    """
+    raw = os.getenv("DASHBOARD_PIPELINE_ENABLED", "false")
+    pipeline_enabled = str(raw).strip().lower() in {"1", "true", "yes", "on"}
+    return {"pipeline_enabled": pipeline_enabled}
 
 @router.get("/diagnostics")
 async def run_system_diagnostics():

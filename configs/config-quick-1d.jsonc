@@ -1,0 +1,27 @@
+{
+    "venue": "binance",
+    "api_key": "",
+    "api_secret": "",
+    "data_folder": "C:/DATA_ITB",
+    "symbol": "BTCUSDT",
+    "description": "BTCUSDT quick 1d download",
+    "freq": "1d",
+    "label_horizon": 0,
+    "features_horizon": 0,
+    "train_length": 0,
+    "predict_length": 0,
+    "append_overlap_records": 2,
+    "data_sources": [
+        {
+            "folder": "BTCUSDT",
+            "file": "klines",
+            "column_prefix": ""
+        }
+    ],
+    "feature_sets": [],
+    "label_sets": [],
+    "train_features": [],
+    "algorithms": [],
+    "signal_sets": [],
+    "output_sets": []
+}
