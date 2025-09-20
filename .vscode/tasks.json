@@ -1,0 +1,15 @@
+{
+	"version": "2.0.0",
+	"tasks": [
+		{
+			"label": "Run tests (pytest) locally - quick",
+			"type": "shell",
+			"command": "pytest -q",
+			"isBackground": false,
+			"problemMatcher": [
+				"$pytest-stylish"
+			],
+			"group": "build"
+		}
+	]
+}

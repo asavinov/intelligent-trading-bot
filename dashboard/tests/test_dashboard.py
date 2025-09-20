@@ -2,6 +2,7 @@
 Test script for the Dashboard using Playwright
 """
 import asyncio
+import pytest
 import time
 import json
 import os
@@ -27,6 +28,7 @@ async def take_screenshot(page, name):
     await page.screenshot(path=path)
     print(f"Screenshot saved: {path}")
 
+@pytest.mark.skipif(os.getenv('RUN_PLAYWRIGHT_UI_TESTS', '0').lower() not in ('1','true','yes','on'), reason='Playwright UI tests disabled by default')
 async def test_dashboard():
     # Feature gate for CI: skip this UI test unless explicitly enabled
     if os.getenv('RUN_PLAYWRIGHT_UI_TESTS', '0').lower() not in ('1', 'true', 'yes', 'on'):
