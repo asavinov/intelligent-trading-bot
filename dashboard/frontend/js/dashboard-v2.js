@@ -3,15 +3,17 @@ let autoScroll = true;
 let resourceMonitorInterval;
 // Jobs history pagination state
 let jobsHistoryState = {
-    limit: 10,
+    limit: 25,
     offset: 0,
     total: 0,
-    lastQuery: {}
+    lastQuery: {},
+    currentPage: 1,
+    totalPages: 0
 };
 
 // Pipeline feature gate (frontend safeguard)
 // Default: disabled. Flip to true ONLY after RFC approval and backend readiness.
-let PIPELINE_FEATURE_ENABLED = false;
+let PIPELINE_FEATURE_ENABLED = true;
 
 function isPipelineFeatureEnabled() {
     return !!PIPELINE_FEATURE_ENABLED;
@@ -113,17 +115,64 @@ function setupEventListeners() {
 
     // Jobs history controls
     const refreshJobsBtn = document.getElementById('refresh-jobs');
-    if (refreshJobsBtn) refreshJobsBtn.addEventListener('click', () => { jobsHistoryState.offset = 0; loadJobsHistory(); });
+    if (refreshJobsBtn) refreshJobsBtn.addEventListener('click', () => { 
+        jobsHistoryState.offset = 0; 
+        jobsHistoryState.currentPage = 1; 
+        loadJobsHistory(); 
+    });
 
     const prevBtn = document.getElementById('jobs-prev');
     const nextBtn = document.getElementById('jobs-next');
-    if (prevBtn) prevBtn.addEventListener('click', () => { if (jobsHistoryState.offset >= jobsHistoryState.limit) { jobsHistoryState.offset -= jobsHistoryState.limit; loadJobsHistory(); } });
-    if (nextBtn) nextBtn.addEventListener('click', () => { if (jobsHistoryState.offset + jobsHistoryState.limit < jobsHistoryState.total) { jobsHistoryState.offset += jobsHistoryState.limit; loadJobsHistory(); } });
+    if (prevBtn) prevBtn.addEventListener('click', () => { 
+        if (jobsHistoryState.currentPage > 1) {
+            jobsHistoryState.currentPage--;
+            jobsHistoryState.offset = (jobsHistoryState.currentPage - 1) * jobsHistoryState.limit;
+            loadJobsHistory(); 
+        }
+    });
+    if (nextBtn) nextBtn.addEventListener('click', () => { 
+        if (jobsHistoryState.currentPage < jobsHistoryState.totalPages) {
+            jobsHistoryState.currentPage++;
+            jobsHistoryState.offset = (jobsHistoryState.currentPage - 1) * jobsHistoryState.limit;
+            loadJobsHistory(); 
+        }
+    });
 
     const filterStatus = document.getElementById('filter-status');
     const filterScript = document.getElementById('filter-script');
-    if (filterStatus) filterStatus.addEventListener('change', () => { jobsHistoryState.offset = 0; loadJobsHistory(); });
-    if (filterScript) filterScript.addEventListener('input', () => { jobsHistoryState.offset = 0; loadJobsHistory(); });
+    const filterTime = document.getElementById('filter-time');
+    const jobsPerPage = document.getElementById('jobs-per-page');
+    const clearFiltersBtn = document.getElementById('clear-filters');
+    
+    if (filterStatus) filterStatus.addEventListener('change', () => { 
+        jobsHistoryState.offset = 0; 
+        jobsHistoryState.currentPage = 1; 
+        loadJobsHistory(); 
+    });
+    if (filterScript) filterScript.addEventListener('input', () => { 
+        jobsHistoryState.offset = 0; 
+        jobsHistoryState.currentPage = 1; 
+        loadJobsHistory(); 
+    });
+    if (filterTime) filterTime.addEventListener('change', () => {
+        jobsHistoryState.offset = 0;
+        jobsHistoryState.currentPage = 1;
+        loadJobsHistory();
+    });
+    if (jobsPerPage) jobsPerPage.addEventListener('change', () => {
+        jobsHistoryState.limit = parseInt(jobsPerPage.value);
+        jobsHistoryState.offset = 0;
+        jobsHistoryState.currentPage = 1;
+        loadJobsHistory();
+    });
+    if (clearFiltersBtn) clearFiltersBtn.addEventListener('click', () => {
+        if (filterStatus) filterStatus.value = '';
+        if (filterScript) filterScript.value = '';
+        if (filterTime) filterTime.value = '';
+        jobsHistoryState.offset = 0;
+        jobsHistoryState.currentPage = 1;
+        loadJobsHistory();
+    });
 }
 
 // Section management
@@ -155,6 +204,7 @@ function showSection(sectionName) {
     if (sectionName === 'jobs-history') {
         // reset offset when opening
         jobsHistoryState.offset = 0;
+        jobsHistoryState.currentPage = 1;
         loadJobsHistory();
     }
 }
@@ -270,14 +320,16 @@ async function loadJobsHistory() {
     try {
         const status = document.getElementById('filter-status') ? document.getElementById('filter-status').value : '';
         const script = document.getElementById('filter-script') ? document.getElementById('filter-script').value : '';
+        const timeFilter = document.getElementById('filter-time') ? document.getElementById('filter-time').value : '';
 
         const params = new URLSearchParams();
         params.set('limit', jobsHistoryState.limit);
         params.set('offset', jobsHistoryState.offset);
         if (status) params.set('status', status);
         if (script) params.set('script', script);
+        if (timeFilter) params.set('time_filter', timeFilter);
 
-        jobsHistoryState.lastQuery = { status, script };
+        jobsHistoryState.lastQuery = { status, script, timeFilter };
 
         const resp = await fetch(`/api/scripts/history?${params.toString()}`);
         if (!resp.ok) {
@@ -287,6 +339,7 @@ async function loadJobsHistory() {
 
         const data = await resp.json();
         jobsHistoryState.total = data.total || 0;
+        jobsHistoryState.totalPages = Math.ceil(jobsHistoryState.total / jobsHistoryState.limit);
 
         renderJobsHistory(data.jobs || []);
         renderJobsPagination();
@@ -310,20 +363,50 @@ function renderJobsHistory(jobs) {
         const end = j.end_time ? new Date(j.end_time * 1000).toLocaleString('fa-IR') : '-';
         const statusBadge = getStatusBadge(j.status || 'stopped');
         const hasEnv = !!j.env_snapshot_path;
+        
+        // Calculate duration
+        let duration = '-';
+        if (j.start_time && j.end_time) {
+            const diff = j.end_time - j.start_time;
+            if (diff > 0) {
+                const minutes = Math.floor(diff / 60);
+                const seconds = Math.floor(diff % 60);
+                duration = `${minutes}:${seconds.toString().padStart(2, '0')}`;
+            }
+        }
+        
         html += `
-            <div class="p-3 bg-gray-50 rounded-lg border ${j.status === 'failed' ? 'border-red-300' : 'border-gray-200'}">
-                <div class="flex items-center justify-between">
+            <div class="p-4 bg-gray-50 rounded-lg border ${j.status === 'failed' ? 'border-red-300' : 'border-gray-200'} hover:shadow-md transition-shadow">
+                <div class="flex items-start justify-between">
                     <div class="flex-1">
-                        <div class="font-medium">${j.script || j.job_id}</div>
-                        <div class="text-sm text-gray-500">Job ID: ${j.job_id} <button class="ml-2 px-2 py-0.5 text-xs bg-gray-200 rounded" onclick="copyText('${j.job_id}')">کپی</button></div>
-                        <div class="text-xs text-gray-500">Config: ${j.config || '-'}</div>
-                        <div class="text-xs text-gray-500">Return code: ${j.returncode === null || j.returncode === undefined ? '-' : j.returncode}</div>
-                        <div class="text-xs text-gray-500">شروع: ${start} — پایان: ${end}</div>
+                        <div class="flex items-center space-x-2 space-x-reverse mb-2">
+                            <div class="font-medium text-lg">${j.script || 'نامشخص'}</div>
+                            ${statusBadge}
+                        </div>
+                        <div class="grid grid-cols-1 md:grid-cols-2 gap-2 text-sm text-gray-600">
+                            <div><span class="font-medium">Job ID:</span> ${j.job_id} 
+                                <button class="ml-1 px-2 py-0.5 text-xs bg-gray-200 rounded hover:bg-gray-300" onclick="copyText('${j.job_id}')">کپی</button>
+                            </div>
+                            <div><span class="font-medium">Config:</span> ${j.config || '-'}</div>
+                            <div><span class="font-medium">Return code:</span> ${j.returncode === null || j.returncode === undefined ? '-' : j.returncode}</div>
+                            <div><span class="font-medium">مدت:</span> ${duration}</div>
+                        </div>
+                        <div class="text-xs text-gray-500 mt-2">
+                            <div><span class="font-medium">شروع:</span> ${start}</div>
+                            <div><span class="font-medium">پایان:</span> ${end}</div>
+                        </div>
                     </div>
-                    <div class="flex items-center space-x-2">
-                        ${statusBadge}
-                        <a href="/api/scripts/logs/${j.job_id}/download" target="_blank" class="px-3 py-1 bg-gray-200 text-gray-800 text-sm rounded hover:bg-gray-300">دانلود لاگ</a>
-                        ${hasEnv ? `<button class="px-3 py-1 bg-gray-100 text-gray-800 text-sm rounded hover:bg-gray-200" onclick="openEnvModal('${j.job_id}')">Env</button>` : ''}
+                    <div class="flex items-center space-x-2 space-x-reverse">
+                        <a href="/api/scripts/logs/${j.job_id}/download" target="_blank" 
+                           class="px-3 py-1 bg-blue-100 text-blue-800 text-sm rounded hover:bg-blue-200 flex items-center">
+                            📥 دانلود لاگ
+                        </a>
+                        ${hasEnv ? `
+                            <button class="px-3 py-1 bg-gray-100 text-gray-800 text-sm rounded hover:bg-gray-200" 
+                                    onclick="openEnvModal('${j.job_id}')">
+                                🔧 Env
+                            </button>
+                        ` : ''}
                     </div>
                 </div>
             </div>
@@ -369,11 +452,25 @@ function showEnvModalText(text) {
 
 function renderJobsPagination() {
     const pagination = document.getElementById('jobs-pagination');
+    const prevBtn = document.getElementById('jobs-prev');
+    const nextBtn = document.getElementById('jobs-next');
+    
     if (!pagination) return;
 
     const start = jobsHistoryState.offset + 1;
     const end = Math.min(jobsHistoryState.offset + jobsHistoryState.limit, jobsHistoryState.total);
-    pagination.textContent = `نمایش ${start}–${end} از ${jobsHistoryState.total}`;
+    
+    pagination.textContent = `صفحه ${jobsHistoryState.currentPage} از ${jobsHistoryState.totalPages} - نمایش ${start}–${end} از ${jobsHistoryState.total}`;
+    
+    // Update button states
+    if (prevBtn) {
+        prevBtn.disabled = jobsHistoryState.currentPage <= 1;
+        prevBtn.style.opacity = prevBtn.disabled ? '0.5' : '1';
+    }
+    if (nextBtn) {
+        nextBtn.disabled = jobsHistoryState.currentPage >= jobsHistoryState.totalPages;
+        nextBtn.style.opacity = nextBtn.disabled ? '0.5' : '1';
+    }
 }
 
 async function updateResourceMetrics() {

@@ -8,6 +8,8 @@ from fastapi.responses import StreamingResponse
 from pydantic import BaseModel, Field
 from pathlib import Path
 from typing import List, Optional, Dict, Any
+import io
+import zipfile
 import asyncio
 import json
 import os
@@ -296,3 +298,70 @@ async def stream_pipeline_logs(pipeline_id: str):
             await asyncio.sleep(0.3)
 
     return StreamingResponse(generate(), media_type='text/event-stream')
+
+
+@router.get('/artifacts/{pipeline_id}')
+async def download_pipeline_artifacts(pipeline_id: str):
+    """Bundle pipeline and per-step job artifacts into a single ZIP.
+
+    Contents:
+      - pipeline/{pipeline_id}.log
+      - pipeline/{pipeline_id}.meta.json
+      - jobs/{job_id}/stdout.log, stderr.log, meta.json, env.json (when available)
+    """
+    project_root = Path(__file__).parent.parent.parent
+    paths = _pipeline_paths(project_root, pipeline_id)
+    if not paths['meta'].exists():
+        raise HTTPException(status_code=404, detail='Pipeline not found')
+
+    # Read meta to discover step job_ids
+    try:
+        with open(paths['meta'], 'r', encoding='utf-8') as f:
+            meta = json.load(f)
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f'Failed to read pipeline meta: {e}')
+
+    buf = io.BytesIO()
+    with zipfile.ZipFile(buf, mode='w', compression=zipfile.ZIP_DEFLATED) as zf:
+        # Add pipeline-level files
+        try:
+            if paths['log'].exists():
+                zf.write(paths['log'], arcname=f"pipeline/{paths['log'].name}")
+        except Exception:
+            pass
+        try:
+            if paths['meta'].exists():
+                zf.write(paths['meta'], arcname=f"pipeline/{paths['meta'].name}")
+        except Exception:
+            pass
+
+        # Add per-step job artifacts when available
+        try:
+            steps = meta.get('steps') or []
+            jobs_dir = project_root / 'logs' / 'jobs'
+            for step in steps:
+                jid = step.get('job_id')
+                if not jid:
+                    continue
+                # Expected files
+                files = {
+                    f"jobs/{jid}/stdout.log": jobs_dir / f"{jid}.stdout.log",
+                    f"jobs/{jid}/stderr.log": jobs_dir / f"{jid}.stderr.log",
+                    f"jobs/{jid}/meta.json": jobs_dir / f"{jid}.meta.json",
+                    f"jobs/{jid}/env.json": jobs_dir / f"{jid}.env.json",
+                }
+                for arc, p in files.items():
+                    try:
+                        if p.exists():
+                            zf.write(p, arcname=arc)
+                    except Exception:
+                        # Best-effort; skip missing/inaccessible files
+                        pass
+        except Exception:
+            pass
+
+    buf.seek(0)
+    headers = {
+        'Content-Disposition': f'attachment; filename="pipeline-{pipeline_id}.zip"'
+    }
+    return StreamingResponse(buf, media_type='application/zip', headers=headers)

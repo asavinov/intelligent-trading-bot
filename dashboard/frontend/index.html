@@ -164,9 +164,14 @@
 
                     <div class="quick-action-card">
                         <h3 class="text-lg font-semibold mb-2">اجرای تحلیل</h3>
-                        <button class="btn-primary" onclick="openPipelineModal()">
-                            🔍 تحلیل کامل
-                        </button>
+                        <div class="space-y-2">
+                            <button class="btn-primary w-full" onclick="openPipelineModal()">
+                                🔍 تحلیل کامل
+                            </button>
+                            <button class="btn-primary w-full" onclick="runFullAnalysis()">
+                                🚀 اجرای سریع
+                            </button>
+                        </div>
                     </div>
 
                     <div class="quick-action-card">
@@ -294,17 +299,26 @@
 
         <div class="bg-white rounded-lg shadow-md p-6 mb-6">
             <div class="flex items-center justify-between mb-4">
-                <div class="flex items-center space-x-2">
+                <div class="flex items-center space-x-2 flex-wrap">
                     <select id="filter-status" class="px-3 py-2 border rounded text-sm">
-                        <option value="">همه</option>
+                        <option value="">همه وضعیت‌ها</option>
                         <option value="running">در حال اجرا</option>
                         <option value="completed">تکمیل شده</option>
                         <option value="failed">ناموفق</option>
+                        <option value="stopped">متوقف شده</option>
+                    </select>
+                    <select id="filter-time" class="px-3 py-2 border rounded text-sm">
+                        <option value="">همه زمان‌ها</option>
+                        <option value="today">امروز</option>
+                        <option value="yesterday">دیروز</option>
+                        <option value="week">این هفته</option>
+                        <option value="month">این ماه</option>
                     </select>
                     <input id="filter-script" placeholder="جستجوی اسکریپت..."
                         class="px-3 py-2 border rounded text-sm" />
                 </div>
-                <div>
+                <div class="flex items-center space-x-2">
+                    <button class="btn-secondary" id="clear-filters">پاک کردن فیلترها</button>
                     <button class="btn-primary" id="refresh-jobs">بروزرسانی</button>
                 </div>
             </div>
@@ -315,8 +329,14 @@
 
             <div class="flex justify-between items-center mt-4">
                 <div id="jobs-pagination" class="text-sm text-gray-600"></div>
-                <div>
-                    <button id="jobs-prev" class="btn-secondary text-sm px-3 py-1 mr-2">قبلی</button>
+                <div class="flex items-center space-x-2">
+                    <select id="jobs-per-page" class="px-2 py-1 border rounded text-sm">
+                        <option value="10">10 در صفحه</option>
+                        <option value="25" selected>25 در صفحه</option>
+                        <option value="50">50 در صفحه</option>
+                        <option value="100">100 در صفحه</option>
+                    </select>
+                    <button id="jobs-prev" class="btn-secondary text-sm px-3 py-1">قبلی</button>
                     <button id="jobs-next" class="btn-secondary text-sm px-3 py-1">بعدی</button>
                 </div>
             </div>
@@ -372,7 +392,7 @@
                 <h3 class="text-lg font-semibold">اجرای پایپلاین کامل</h3>
                 <button class="px-3 py-1 text-sm bg-gray-200 rounded" onclick="closePipelineModal()">بستن</button>
             </div>
-            <!-- Feature gate banner (hidden by default; toggled via JS) -->
+            <!-- Feature gate banner (hidden when pipeline is enabled) -->
             <div id="pipeline-gate-banner" class="mx-4 mt-3 mb-0 hidden">
                 <div class="p-3 rounded border border-yellow-300 bg-yellow-50 text-yellow-800 text-sm">
                     🔒 این قابلیت به صورت پیش‌فرض غیرفعال است و تا زمان تأیید نهایی فعال نخواهد شد. لطفاً قبل از

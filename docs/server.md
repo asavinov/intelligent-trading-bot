@@ -43,6 +43,9 @@ Prefix: /api/pipeline
 - GET /api/pipeline/stream/{pipeline_id}
   - SSE stream of pipeline log lines, finishing with a [FINISHED] marker.
 
+- GET /api/pipeline/artifacts/{pipeline_id}
+  - Returns a ZIP containing pipeline log/meta and each step job's stdout/stderr/meta/env when available.
+
 ### Local smoke test
 
 1) Start the dashboard server with DASHBOARD_PIPELINE_ENABLED=1
@@ -51,6 +54,10 @@ Prefix: /api/pipeline
    python -m tools.pipeline_smoke_local --server http://127.0.0.1:8000 --config configs/config-quick-1d-ci.jsonc --steps download,merge
 
 You should see the pipeline progress to completed; logs and meta are written under logs/pipelines/.
+
+To download all artifacts for a run:
+
+  Open: http://127.0.0.1:8000/api/pipeline/artifacts/{pipeline_id}
 
 ```diff
 Note:

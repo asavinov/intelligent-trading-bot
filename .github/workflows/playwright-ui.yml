@@ -92,11 +92,34 @@ jobs:
             logs/jobs/
             DATA_ITB/
 
-      - name: UI tests disabled
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '18'
+          cache: 'npm'
+          cache-dependency-path: tools/package-lock.json
+
+      - name: Install Playwright dependencies
         run: |
-          echo "Playwright UI tests are disabled for now by project decision."
-          echo "If you want to re-enable, restore the Playwright steps in the workflow." 
-        shell: bash
+          cd tools
+          npm install
+          npx playwright install --with-deps
+
+      - name: Run Playwright UI test
+        run: |
+          cd tools
+          node ui_playwright_test.js
+        env:
+          RUN_PLAYWRIGHT_UI_TESTS: "1"
+
+      - name: Upload Playwright artifacts
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: playwright-artifacts
+          path: |
+            tools/ui_playwright_result.json
+            tools/ui_playwright_screenshot.png
 
       - name: Stop server (cleanup)
         if: always()

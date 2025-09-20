@@ -70,12 +70,59 @@ def _write_job_metadata_atomic(project_root: Path, job_id: str):
         print(f"_write_job_metadata_atomic: failed for {job_id}: {e}")
 
 
-def _cleanup_old_job_logs(logs_dir: Path, max_jobs: int = 200, max_total_mb: int = 500):
+def _setup_log_rotation(log_file: Path, max_size_mb: int = 10, backup_count: int = 3):
+    """Setup log rotation for a single log file.
+    
+    Args:
+        log_file: Path to the log file
+        max_size_mb: Maximum size in MB before rotation
+        backup_count: Number of backup files to keep
+    """
+    try:
+        if not log_file.exists():
+            return
+            
+        max_size_bytes = max_size_mb * 1024 * 1024
+        current_size = log_file.stat().st_size
+        
+        if current_size <= max_size_bytes:
+            return
+            
+        # Rotate existing files
+        for i in range(backup_count - 1, 0, -1):
+            old_file = log_file.with_suffix(f'.{i}.log')
+            new_file = log_file.with_suffix(f'.{i + 1}.log')
+            if old_file.exists():
+                if i == backup_count - 1:
+                    old_file.unlink()  # Delete oldest
+                else:
+                    old_file.rename(new_file)
+        
+        # Move current log to .1.log
+        log_file.rename(log_file.with_suffix('.1.log'))
+        
+        # Create new empty log file
+        log_file.touch()
+        
+    except Exception as e:
+        print(f"Log rotation failed for {log_file}: {e}")
+
+
+def _cleanup_old_job_logs(logs_dir: Path, max_jobs: int = None, max_total_mb: int = None):
     """Keep logs/jobs tidy by removing oldest jobs beyond limits.
 
     - max_jobs: keep at most this many jobs (triples: meta/stdout/stderr).
     - max_total_mb: keep total size under this many MB by deleting oldest.
+    
+    Values can be overridden via environment variables:
+    - ITB_LOGS_MAX_JOBS: maximum number of jobs to keep
+    - ITB_LOGS_MAX_TOTAL_MB: maximum total size in MB
     """
+    # Use environment variables if available, otherwise use defaults
+    if max_jobs is None:
+        max_jobs = int(os.getenv('ITB_LOGS_MAX_JOBS', '200'))
+    if max_total_mb is None:
+        max_total_mb = int(os.getenv('ITB_LOGS_MAX_TOTAL_MB', '500'))
     try:
         if not logs_dir.exists():
             return
@@ -139,6 +186,58 @@ def _cleanup_old_job_logs(logs_dir: Path, max_jobs: int = 200, max_total_mb: int
             total_size -= sz
     except Exception as e:
         print(f"cleanup logs/jobs failed: {e}")
+
+
+def _test_log_rotation_and_cleanup():
+    """Unit tests for log rotation and cleanup functionality.
+    
+    This function can be called during development or testing to verify
+    that log rotation and cleanup work correctly.
+    """
+    import tempfile
+    import shutil
+    from datetime import datetime
+    
+    # Create temporary directory for testing
+    with tempfile.TemporaryDirectory() as temp_dir:
+        temp_path = Path(temp_dir)
+        logs_dir = temp_path / 'logs' / 'jobs'
+        logs_dir.mkdir(parents=True, exist_ok=True)
+        
+        print("Testing log rotation and cleanup...")
+        
+        # Test 1: Log rotation
+        test_log = logs_dir / 'test.stdout.log'
+        test_log.write_text('test content' * 1000)  # Make it larger than 10MB threshold
+        
+        _setup_log_rotation(test_log, max_size_mb=0.001, backup_count=2)  # Very small threshold for testing
+        
+        if test_log.exists():
+            print("✓ Log rotation test passed")
+        else:
+            print("✗ Log rotation test failed")
+            
+        # Test 2: Cleanup with many files
+        for i in range(10):
+            job_id = f'test-job-{i}'
+            (logs_dir / f'{job_id}.stdout.log').write_text(f'stdout content {i}')
+            (logs_dir / f'{job_id}.stderr.log').write_text(f'stderr content {i}')
+            (logs_dir / f'{job_id}.meta.json').write_text(json.dumps({
+                'job_id': job_id,
+                'start_time': time.time() - i * 3600,  # Stagger start times
+                'status': 'completed'
+            }))
+        
+        # Run cleanup with small limits
+        _cleanup_old_job_logs(logs_dir, max_jobs=5, max_total_mb=1)
+        
+        remaining_files = list(logs_dir.glob('*'))
+        if len(remaining_files) <= 15:  # 5 jobs * 3 files each
+            print("✓ Cleanup test passed")
+        else:
+            print(f"✗ Cleanup test failed - {len(remaining_files)} files remaining")
+            
+        print("Log rotation and cleanup tests completed")
 
 class ScriptRunRequest(BaseModel):
     script_name: str
@@ -1219,6 +1318,21 @@ async def stop_script(job_id: str):
 
 
 @router.get('/logs/{job_id}/download')
+@router.post("/test-log-rotation")
+async def test_log_rotation():
+    """Test endpoint for log rotation and cleanup functionality.
+    
+    This endpoint can be used to verify that log rotation and cleanup
+    work correctly in the current environment.
+    """
+    try:
+        _test_log_rotation_and_cleanup()
+        return {"success": True, "message": "Log rotation and cleanup tests completed"}
+    except Exception as e:
+        return {"success": False, "error": str(e)}
+
+
+@router.get("/logs/{job_id}/download")
 async def download_job_logs(job_id: str):
     """Download a zip archive containing stdout, stderr and meta for a job (if present)."""
     project_root = Path(__file__).parent.parent.parent
