@@ -769,10 +769,12 @@ function openPipelineModal() {
     if (!isPipelineFeatureEnabled()) {
         if (gateBanner) gateBanner.classList.remove('hidden');
         if (startBtn) startBtn.disabled = true;
-        appendPipelineLog('Feature Gate فعال است: اجرای پایپلاین تا زمان تأیید غیرفعال است.', 'error');
+        appendPipelineLog('🔒 Feature Gate فعال است: اجرای پایپلاین تا زمان تأیید غیرفعال است.', 'error');
+        appendPipelineLog('💡 برای فعال‌سازی: سرور را با گزینه "Start Server (pipeline ON)" اجرا کنید', 'info');
     } else {
         if (gateBanner) gateBanner.classList.add('hidden');
         if (startBtn) startBtn.disabled = false;
+        appendPipelineLog('✅ Pipeline فعال است - آماده برای اجرا', 'success');
     }
 
     // Inject default steps if not present
@@ -856,11 +858,73 @@ function clearPipelineLogs() {
     if (el) el.textContent = '';
 }
 
+async function runFullAnalysis() {
+    // Quick pipeline execution with default settings
+    if (!isPipelineFeatureEnabled()) {
+        addLogMessage('Pipeline feature is disabled. Please enable it first.', 'error');
+        return;
+    }
+    
+    addLogMessage('🚀 شروع تحلیل سریع...', 'info');
+    
+    try {
+        const resp = await fetch('/api/pipeline/run', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                steps: ['download', 'merge', 'features', 'labels'],
+                config_file: 'configs/config-quick-1d-ci.jsonc',
+                timeout_per_step: 300
+            })
+        });
+        
+        if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
+        const data = await resp.json();
+        const pipelineId = data.pipeline_id;
+        
+        addLogMessage(`✅ Pipeline started: ${pipelineId}`, 'success');
+        addLogMessage('📊 برای مشاهده جزئیات، از دکمه "تحلیل کامل" استفاده کنید', 'info');
+        
+        // Optionally open modal to show progress
+        setTimeout(() => {
+            openPipelineModal();
+            // Try to show this pipeline's status
+            document.getElementById('pipeline-overall-status').textContent = `Pipeline ${pipelineId} در حال اجرا...`;
+        }, 1000);
+        
+    } catch (e) {
+        addLogMessage(`❌ خطا در شروع تحلیل: ${e.message}`, 'error');
+    }
+}
+
+async function viewPipelineHistory() {
+    // Switch to Jobs History section to view pipeline jobs
+    showSection('jobs-history');
+    addLogMessage('📋 نمایش تاریخچه Jobs - فیلتر "pipeline" را برای مشاهده پایپلاین‌ها اعمال کنید', 'info');
+    
+    // Optionally auto-filter for pipeline jobs
+    setTimeout(() => {
+        const filterScript = document.getElementById('filter-script');
+        if (filterScript) {
+            filterScript.value = 'pipeline';
+            loadJobsHistory();
+        }
+    }, 500);
+}
+
 function appendPipelineLog(line, level = 'stdout') {
     const el = document.getElementById('pipeline-logs');
     if (!el) return;
-    const prefix = level === 'error' ? '[ERROR] ' : '';
-    el.textContent += prefix + line + (line.endsWith('\n') ? '' : '\n');
+    
+    // Check if line contains HTML (like download links)
+    if (line.includes('<a href=')) {
+        // For HTML content, use innerHTML
+        el.innerHTML += line + '<br>';
+    } else {
+        // For plain text, use textContent with appropriate styling
+        const prefix = level === 'error' ? '[ERROR] ' : (level === 'info' ? '[INFO] ' : (level === 'success' ? '[SUCCESS] ' : ''));
+        el.textContent += prefix + line + (line.endsWith('\n') ? '' : '\n');
+    }
     el.scrollTop = el.scrollHeight;
 }
 
@@ -880,7 +944,7 @@ function renderPipelineStepsStatus(meta) {
     const items = steps.map((s, idx) => {
         const start = s.start_time ? new Date(s.start_time * 1000).toLocaleTimeString('fa-IR') : '-';
         const end = s.end_time ? new Date(s.end_time * 1000).toLocaleTimeString('fa-IR') : '-';
-        const jobLink = s.job_id ? `<a class=\"px-2 py-0.5 bg-gray-100 rounded text-xs\" href=\"/api/scripts/logs/${s.job_id}/download\" target=\"_blank\">دانلود لاگ</a>` : '';
+        const jobLink = s.job_id ? `<a class=\"px-2 py-0.5 bg-blue-100 text-blue-800 rounded text-xs hover:bg-blue-200\" href=\"/api/scripts/logs/${s.job_id}/download\" target=\"_blank\">📥 دانلود لاگ</a>` : '';
         return `
         <div class="p-2 border rounded bg-white">
             <div class="flex items-center justify-between">
@@ -966,6 +1030,12 @@ async function startPipelineFromModal() {
                 if (['completed', 'failed', 'error'].includes(st)) {
                     appendPipelineLog(`Pipeline finished with status=${st}`);
                     if (btn) { btn.disabled = false; btn.textContent = '🚀 شروع پایپلاین'; }
+                    
+                    // Add download artifacts link for completed pipelines
+                    if (st === 'completed' || st === 'failed') {
+                        const downloadLink = `<a href="/api/pipeline/artifacts/${pipelineId}" target="_blank" class="inline-block mt-2 px-3 py-1 bg-green-100 text-green-800 rounded text-sm hover:bg-green-200">📦 دانلود آرتیفکت‌های کامل</a>`;
+                        appendPipelineLog(downloadLink);
+                    }
                     return;
                 }
                 setTimeout(poll, 1500);
