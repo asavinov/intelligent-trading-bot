@@ -1,0 +1,38 @@
+[
+  {
+    "job_id": "0d2c54df-f57a-45bb-ac40-28a2cf5df517",
+    "status": "completed",
+    "returncode": 0,
+    "stdout_snippet": "---JOB START 0d2c54df-f57a-45bb-ac40-28a2cf5df517 STDOUT---\nPandas frequency: 1h\nBinance frequency: 1h\nStart downloading 'BTCUSDT' ...\nFile found. Downloaded data for BTCUSDT and 1h since 2025-09-16 18:00:00 will be appended to the existing file C:\\DATA_ITB\\BTCUSDT\\klines.csv"
+  },
+  {
+    "job_id": "108a245d-28db-4743-98a9-ce95cdde17ca",
+    "status": "completed",
+    "returncode": 0,
+    "stdout_snippet": "---JOB START 108a245d-28db-4743-98a9-ce95cdde17ca STDOUT---\nPandas frequency: 1h\nBinance frequency: 1h\nStart downloading 'BTCUSDT' ...\nFile found. Downloaded data for BTCUSDT and 1h since 2025-09-16 18:00:00 will be appended to the existing file C:\\DATA_ITB\\BTCUSDT\\klines.csv"
+  },
+  {
+    "job_id": "1b8b4140-d320-4b17-8a8e-f1452507102d",
+    "status": "completed",
+    "returncode": 0,
+    "stdout_snippet": "---JOB START 1b8b4140-d320-4b17-8a8e-f1452507102d STDOUT---\nPandas frequency: 1h\nBinance frequency: 1h\nStart downloading 'BTCUSDT' ...\nFile found. Downloaded data for BTCUSDT and 1h since 2025-09-16 18:00:00 will be appended to the existing file C:\\DATA_ITB\\BTCUSDT\\klines.csv"
+  },
+  {
+    "job_id": "ci_dummy_1",
+    "status": "completed",
+    "returncode": 0,
+    "stdout_snippet": "CI dummy run\njob_id=ci_dummy_1\ntimestamp=2025-09-17T07:23:24.361408Z\nexit_code=0"
+  },
+  {
+    "job_id": "ci_dummy_2",
+    "status": "completed",
+    "returncode": 0,
+    "stdout_snippet": "CI dummy run\njob_id=ci_dummy_2\ntimestamp=2025-09-17T07:23:24.463388Z\nexit_code=0"
+  },
+  {
+    "job_id": "ci_dummy_3",
+    "status": "failed",
+    "returncode": 1,
+    "stdout_snippet": "CI dummy run\njob_id=ci_dummy_3\ntimestamp=2025-09-17T07:23:24.553696Z\nexit_code=1"
+  }
+]

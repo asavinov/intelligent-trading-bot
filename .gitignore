@@ -253,3 +253,6 @@ config.json
 /config*.json  # Configs may have credentials
 /MODELS/
 /DATA/
+
+# Local logs and job artifacts (kept as CI artifacts, not in git)
+logs/

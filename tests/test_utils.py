@@ -4,6 +4,7 @@ import numpy.testing as npt
 from common.utils import *
 from common.utils import add_area_ratio
 from common.gen_signals import *
+from common.depth_processing import discretize, discretize_ask
 
 
 def test_decimal():
@@ -153,13 +154,13 @@ def test_linear_trends():
 	price = [10, 20, 40, 40, 30, 10]
 	df = pd.DataFrame(data={"price": price})
 
-	features = add_linear_trends(df, is_future=False, column_name="price", windows=2)
+	features = add_linear_trends(df, is_future=False, column_name="price", windows=2, min_periods=1)
 	npt.assert_almost_equal(df["price_trend_2"].values, np.array([0, 10, 20, 0, -10, -20]))
 
-	features = add_linear_trends(df, is_future=True, column_name="price", windows=2)
+	features = add_linear_trends(df, is_future=True, column_name="price", windows=2, min_periods=1)
 	npt.assert_almost_equal(df["price_trend_2"].values, np.array([10, 20, 0, -10, -20, np.nan]))
 
-	features = add_linear_trends(df, is_future=False, column_name="price", windows=6)
+	features = add_linear_trends(df, is_future=False, column_name="price", windows=6, min_periods=1)
 	npt.assert_almost_equal(df["price_trend_6"].values, np.array([0, 10, 15, 11, 6, 0.857143]))
 
 	pass
