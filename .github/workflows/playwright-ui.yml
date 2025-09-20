@@ -103,6 +103,7 @@ jobs:
         run: |
           cd tools
           npm install
+          chmod +x ./node_modules/.bin/playwright
           ./node_modules/.bin/playwright install chromium --with-deps
 
       - name: Run Playwright UI test
