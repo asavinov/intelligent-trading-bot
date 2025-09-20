@@ -17,6 +17,10 @@ jobs:
         run: |
           python -m pip install --upgrade pip
           pip install -r requirements.txt
+      - name: Install test dependencies
+        run: |
+          python -m pip install --upgrade pytest pytest-asyncio
+          if [ -f dashboard/tests/requirements-test.txt ]; then pip install -r dashboard/tests/requirements-test.txt; fi
       - name: Run lint
         run: |
           echo "Run lint (placeholder). Add black/flake8 commands here."
