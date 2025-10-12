@@ -3,6 +3,7 @@
 
     "venue": "binance",
     
+    //"client_args": {"tld": "us"},
     "api_key": "<binance-key>",
     "api_secret": "<binance-secret>",
 

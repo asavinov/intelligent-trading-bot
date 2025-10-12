@@ -43,7 +43,12 @@ def main(config_file):
 
     save = True
 
-    App.client = Client(api_key=App.config["api_key"], api_secret=App.config["api_secret"])
+    client_args = App.config.get("client_args", {})
+    if App.config.get("api_key"):
+        client_args["api_key"] = App.config.get("api_key")
+    if App.config.get("api_secret"):
+        client_args["api_secret"] = App.config.get("api_secret")
+    App.client = Client(**client_args)
 
     futures = False
     if futures:

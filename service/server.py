@@ -122,8 +122,13 @@ def start_server(config_file):
     # Connect to the server and update/initialize the system state
     #
     if venue == Venue.BINANCE:
-        App.client = Client(api_key=App.config["api_key"], api_secret=App.config["api_secret"])
-    
+        client_args = App.config.get("client_args", {})
+        if App.config.get("api_key"):
+            client_args["api_key"] = App.config.get("api_key")
+        if App.config.get("api_secret"):
+            client_args["api_secret"] = App.config.get("api_secret")
+        App.client = Client(**client_args)
+
     if venue == Venue.MT5:
         from service.mt5 import connect_mt5
         authorized = connect_mt5(mt5_account_id=int(App.config.get("mt5_account_id")), mt5_password=str(App.config.get("mt5_password")), mt5_server=str(App.config.get("mt5_server")))
