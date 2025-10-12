@@ -1,17 +1,20 @@
 from pathlib import Path
 from datetime import datetime, timezone, timedelta
-from concurrent.futures import ProcessPoolExecutor
+import time
 import click
+from concurrent.futures import ProcessPoolExecutor
+from joblib import Parallel, delayed
+import multiprocessing as mp
 
 import numpy as np
 import pandas as pd
-from pandas.api.types import is_float_dtype, is_numeric_dtype, is_integer_dtype, is_string_dtype
+import pandas.api.types as ptypes
 
 from service.App import *
-from common.utils import *
-from common.gen_features import *
-from common.classifiers import *
 from common.model_store import *
+from common.gen_features import *
+from common.classifiers import compute_scores_regression, compute_scores
+from common.generators import train_feature_set, predict_feature_set
 
 """
 Generate label predictions for the whole input feature matrix by iteratively training models using historic data and predicting labels for some future horizon.
@@ -22,13 +25,6 @@ This file is intended for training signal models (by simulating trade process an
 The output predicted labels will cover shorter period of time because we need some relatively long history to train the very first model.
 """
 
-
-#
-# Parameters
-#
-class P:
-    in_nrows = 100_000_000
-
 #
 # Main
 #
@@ -37,26 +33,22 @@ class P:
 @click.option('--config_file', '-c', type=click.Path(), default='', help='Configuration file name')
 def main(config_file):
     load_config(config_file)
+    config = App.config
 
-    App.model_store = ModelStore(App.config)
+    App.model_store = ModelStore(config)
     App.model_store.load_models()
 
-    time_column = App.config["time_column"]
+    time_column = config["time_column"]
 
     now = datetime.now()
 
-    rp_config = App.config["rolling_predict"]
-
-    use_multiprocessing = rp_config.get("use_multiprocessing", False)
-    max_workers = rp_config.get("max_workers", None)
+    symbol = config["symbol"]
+    data_path = Path(config["data_folder"]) / symbol
 
     #
-    # Load feature matrix
+    # Load matrix data with regular time series
     #
-    symbol = App.config["symbol"]
-    data_path = Path(App.config["data_folder"]) / symbol
-
-    file_path = data_path / App.config.get("matrix_file_name")
+    file_path = data_path / config.get("matrix_file_name")
     if not file_path.is_file():
         print(f"ERROR: Input file does not exist: {file_path}")
         return
@@ -65,24 +57,33 @@ def main(config_file):
     if file_path.suffix == ".parquet":
         df = pd.read_parquet(file_path)
     elif file_path.suffix == ".csv":
-        df = pd.read_csv(file_path, parse_dates=[time_column], date_format="ISO8601", nrows=P.in_nrows)
+        df = pd.read_csv(file_path, parse_dates=[time_column], date_format="ISO8601")
     else:
         print(f"ERROR: Unknown extension of the input file '{file_path.suffix}'. Only 'csv' and 'parquet' are supported")
         return
+
     print(f"Finished loading {len(df)} records with {len(df.columns)} columns.")
 
     #
     # Limit the source data
     #
+    rp_config = config["rolling_predict"]
 
-    data_start = rp_config.get("data_start", 0)
-    if isinstance(data_start, str):
-        data_start = find_index(df, data_start)
+    data_start = rp_config.get("data_start", None)
     data_end = rp_config.get("data_end", None)
-    if isinstance(data_end, str):
-        data_end = find_index(df, data_end)
 
-    df = df.iloc[data_start:data_end]
+    if data_start:
+        if isinstance(data_start, str):
+            df = df[ df[time_column] >= data_start ]
+        elif isinstance(data_start, int):
+            df = df.iloc[data_start:]
+
+    if data_end:
+        if isinstance(data_end, str):
+            df = df[ df[time_column] < data_end ]
+        elif isinstance(data_end, int):
+            df = df.iloc[:-data_end]
+
     df = df.reset_index(drop=True)
 
     print(f"Input data size {len(df)} records. Range: [{df.iloc[0][time_column]}, {df.iloc[-1][time_column]}]")
@@ -121,23 +122,20 @@ def main(config_file):
     #
     # Prepare data by selecting columns and rows
     #
-    label_horizon = App.config["label_horizon"]  # Labels are generated from future data and hence we might want to explicitly remove some tail rows
-    train_length = App.config.get("train_length")
-    train_features = App.config.get("train_features")
-    labels = App.config["labels"]
-    algorithms = App.config.get("algorithms")
+    train_features_all = config.get("train_features")
+    labels_all = config.get("labels")
 
     # Select necessary features and label
     out_columns = [time_column, 'open', 'high', 'low', 'close', 'volume', 'close_time']
     out_columns = [x for x in out_columns if x in df.columns]
-    labels_present = set(labels).issubset(df.columns)
+    labels_present = set(labels_all).issubset(df.columns)
     if labels_present:
-        all_features = train_features + labels
+        all_features = train_features_all + labels_all
     else:
-        all_features = train_features
+        all_features = train_features_all
     df = df[out_columns + [x for x in all_features if x not in out_columns]]
 
-    for label in labels:
+    for label in labels_all:
         if np.issubdtype(df[label].dtype, bool):
             df[label] = df[label].astype(int)  # For classification tasks we want to use integers
 
@@ -145,11 +143,33 @@ def main(config_file):
     #in_df = in_df.dropna(subset=labels)
     df = df.reset_index(drop=True)  # We must reset index after removing rows to remove gaps
 
-    # Result rows. Here store only rows for which we make predictions
-    labels_hat_df = pd.DataFrame()
-
     print(f"Start index: {prediction_start}. Number of steps: {prediction_steps}. Step size: {prediction_size}")
+
+    #
+    # Rolling/moving train-predict sequence
+    #
+
+    train_feature_sets = config.get("train_feature_sets", [])
+    if not train_feature_sets:
+        print(f"ERROR: no train feature sets defined. Nothing to process.")
+        return
+
+    # TODO: It will be removed because we do not use directly a list of algorithms (it can be empty)
+    label_horizon = config["label_horizon"]  # Labels are generated from future data and hence we might want to explicitly remove some tail rows
+    train_length = config.get("train_length")
+
+    labels_hat_df = pd.DataFrame()  # Result rows. Here store only rows for which we make predictions
+
     print(f"Starting rolling predict loop...")
+
+    use_multiprocessing = rp_config.get("use_multiprocessing", False)
+    max_workers = rp_config.get("max_workers", None)
+    if use_multiprocessing:
+        parallel = Parallel(n_jobs=max_workers, backend="loky", verbose=13)  # ['loky', 'multiprocessing', 'sequential', 'threading']
+        #parallel = mp.Pool(processes=max_workers)
+        #parallel = ProcessPoolExecutor(max_workers=max_workers)
+    else:
+        parallel = None
 
     for step in range(prediction_steps):
 
@@ -158,16 +178,8 @@ def main(config_file):
         predict_start = prediction_start + (step * prediction_size)
         predict_end = predict_start + prediction_size
 
-        predict_df = df.iloc[predict_start:predict_end]  # We assume that iloc is equal to index
-        # predict_df = predict_df.dropna(subset=features)  # Nans will be droped by the algorithms themselves
-
-        # Here we will collect predicted columns
-        predict_labels_df = pd.DataFrame(index=predict_df.index)
-
-        # Predict data
-
-        df_X_test = predict_df[train_features]
-        #df_y_test = predict_df[predict_label]  # It will be set in the loop over labels
+        predict_df = df.iloc[predict_start:predict_end]  # Assume iloc equal to index
+        df_X_test = predict_df[train_features_all]
 
         # Train data
 
@@ -180,92 +192,22 @@ def main(config_file):
             train_start = 0
 
         train_df = df.iloc[train_start:train_end]  # We assume that iloc is equal to index
-        train_df = train_df.dropna(subset=train_features)
+        train_df = train_df.dropna(subset=train_features_all)
 
-        print(f"\n===>>> Start step {step}/{prediction_steps}. Train range: [{train_start}, {train_end}]={train_end-train_start}. Prediction range: [{predict_start}, {predict_end}]={predict_end-predict_start}. Jobs/scores: {len(labels)*len(algorithms)}. {use_multiprocessing=} ")
+        print(f"\n===>>> Start step {step}/{prediction_steps}. Train range: [{train_start}, {train_end}]={train_end-train_start}. Prediction range: [{predict_start}, {predict_end}]={predict_end-predict_start}")
 
         step_start_time = datetime.now()
 
-        if use_multiprocessing:
-
-            execution_results = dict()
-            with ProcessPoolExecutor(max_workers=max_workers) as executor:
-                # Submit train-predict label-algorithms jobs to the pool
-                for label in labels:  # Train-predict different labels (and algorithms) using same X
-                    for model_config in algorithms:
-                        algo_name = model_config.get("name")
-                        algo_type = model_config.get("algo")
-                        algo_train_length = model_config.get("train", {}).get("length")
-                        score_column_name = label + label_algo_separator + algo_name
-
-                        # Limit length according to algorith parameters
-                        if algo_train_length:
-                            train_df_2 = train_df.tail(algo_train_length)
-                        else:
-                            train_df_2 = train_df
-                        df_X = train_df_2[train_features]
-                        df_y = train_df_2[label]
-                        df_y_test = predict_df[label]
-
-                        if algo_type == "gb":
-                            execution_results[score_column_name] = executor.submit(train_predict_gb, df_X, df_y, df_X_test, model_config)
-                        elif algo_type == "nn":
-                            execution_results[score_column_name] = executor.submit(train_predict_nn, df_X, df_y, df_X_test, model_config)
-                        elif algo_type == "lc":
-                            execution_results[score_column_name] = executor.submit(train_predict_lc, df_X, df_y, df_X_test, model_config)
-                        elif algo_type == "svc":
-                            execution_results[score_column_name] = executor.submit(train_predict_svc, df_X, df_y, df_X_test, model_config)
-                        else:
-                            print(f"ERROR: Unknown algorithm type {algo_type}. Check algorithm list.")
-                            return
-
-                # Wait for the job finish and collect their results
-                for score_column_name, future in execution_results.items():
-                    predict_labels_df[score_column_name] = future.result()
-                    if future.exception():
-                        print(f"Exception while train-predict {score_column_name}.")
-                        return
-
-        else:  # No multiprocessing - sequential execution
-
-            for label in labels:  # Train-predict different labels (and algorithms) using same X
-                for model_config in algorithms:
-                    algo_name = model_config.get("name")
-                    algo_type = model_config.get("algo")
-                    algo_train_length = model_config.get("train", {}).get("length")
-                    score_column_name = label + label_algo_separator + algo_name
-
-                    # Limit length according to algorith parameters
-                    if algo_train_length:
-                        train_df_2 = train_df.tail(algo_train_length)
-                    else:
-                        train_df_2 = train_df
-                    df_X = train_df_2[train_features]
-                    df_y = train_df_2[label]
-                    df_y_test = predict_df[label]
-
-                    if algo_type == "gb":
-                        predict_labels_df[score_column_name] = train_predict_gb(df_X, df_y, df_X_test, model_config)
-                    elif algo_type == "nn":
-                        predict_labels_df[score_column_name] = train_predict_nn(df_X, df_y, df_X_test, model_config)
-                    elif algo_type == "lc":
-                        predict_labels_df[score_column_name] = train_predict_lc(df_X, df_y, df_X_test, model_config)
-                    elif algo_type == "svc":
-                        predict_labels_df[score_column_name] = train_predict_svc(df_X, df_y, df_X_test, model_config)
-                    else:
-                        print(f"ERROR: Unknown algorithm type {algo_type}. Check algorithm list.")
-                        return
-
         #
-        # Append predicted *rows* to the end of previous predicted rows
+        # Real execution of one step
         #
+        predict_labels_df = execute_train_predict_step(config, train_df, predict_df, parallel)
 
-        # Predictions for all labels and histories (and algorithms) have been generated for the iteration
+        # Append predicted rows to the end of previous predicted rows
         labels_hat_df = pd.concat([labels_hat_df, predict_labels_df])
 
         elapsed = datetime.now() - step_start_time
         print(f"End step {step}/{prediction_steps}. Scores predicted: {len(predict_labels_df.columns)}. Time elapsed: {str(elapsed).split('.')[0]}")
-
 
     # End of loop over prediction steps
     print("")
@@ -277,9 +219,9 @@ def main(config_file):
     # Store data
     #
     # We do not store features. Only selected original data, labels, and their predictions
-    out_df = labels_hat_df.join(df[out_columns + labels])
+    out_df = labels_hat_df.join(df[out_columns + labels_all])
 
-    out_path = data_path / App.config.get("predict_file_name")
+    out_path = data_path / config.get("predict_file_name")
 
     print(f"Storing predictions with {len(out_df)} records and {len(out_df.columns)} columns in output file {out_path}...")
     if out_path.suffix == ".parquet":
@@ -293,10 +235,10 @@ def main(config_file):
     print(f"Predictions stored in file: {out_path}. Length: {len(out_df)}. Columns: {len(out_df.columns)}")
 
     #
-    # Compute accuracy for the whole data set (all segments)
+    # Compute and store scores
     #
-
     score_lines = []
+    # For each predicted column, find the corresponding true label column and then compare them
     for score_column_name in labels_hat_df.columns:
         label_column, _ = score_to_label_algo_pair(score_column_name)
 
@@ -304,27 +246,115 @@ def main(config_file):
         df_scores = pd.DataFrame({"y_true": out_df[label_column], "y_predicted": out_df[score_column_name]})
         df_scores = df_scores.dropna()
 
-        y_true = df_scores["y_true"].astype(int)
+        y_true = df_scores["y_true"]
         y_predicted = df_scores["y_predicted"]
         y_predicted_class = np.where(y_predicted.values > 0.5, 1, 0)
 
-        print(f"Using {len(df_scores)} non-nan rows for scoring.")
-
-        if is_float_dtype(y_true) and is_float_dtype(y_predicted):
+        if ptypes.is_float_dtype(y_true) and ptypes.is_float_dtype(y_predicted):
             score = compute_scores_regression(y_true, y_predicted)  # Regression stores
         else:
-            score = compute_scores(y_true, y_predicted)  # Classification stores
+            score = compute_scores(y_true.astype(int), y_predicted)  # Classification stores
 
-        score_lines.append(f"{score_column_name}, {score.get('auc'):.3f}, {score.get('ap'):.3f}, {score.get('f1'):.3f}, {score.get('precision'):.3f}, {score.get('recall'):.3f}")
+        score_lines.append(f"{score_column_name}: {score}")
 
     #
-    # Store hyper-parameters and scores
+    # Store scores
     #
-    with open(out_path.with_suffix('.txt'), "a+") as f:
+    score_path = out_path.with_suffix('.txt')
+    with open(score_path, "a+") as f:
         f.write("\n".join([str(x) for x in score_lines]) + "\n\n")
 
+    print(f"Prediction scores stored in path: {score_path.absolute()}")
+
+    #
+    # End
+    #
     elapsed = datetime.now() - now
     print(f"Finished rolling prediction in {str(elapsed).split('.')[0]}")
+
+
+def execute_train_predict_step(config: dict, train_df: pd.DataFrame, predict_df: pd.DataFrame, parallel):
+    """
+    This function is supposed to be used in one step of rolling prediction.
+    It gets train data (which is supposed to move along larger data set) and data to be used for predictions.
+    The predict data set is supposed to be selected from future data relative to the train data.
+
+    :param config: global config
+    :param train_df: data to be used for training with all features and all true labels
+    :param predict_df: data to be used for prediction with all features and true labels used for computing score
+    :return: predictions for all labels for objects in predict_df
+    """
+    rp_config = config["rolling_predict"]
+
+    train_feature_sets = config.get("train_feature_sets", [])
+
+    #
+    # 1 Execute only training (copy from train script)
+    #
+
+    fs_now = datetime.now()
+    print(f"Start train all models from {len(train_feature_sets)} feature sets {"sequentially" if not parallel else "in parallel"}. Train set size:  {len(train_df)} ")
+
+    models = dict()
+    if isinstance(parallel, Parallel):
+        results = parallel(delayed(train_feature_set)(train_df, fs, config) for fs in train_feature_sets)
+        for fs_models in results:
+            models.update(fs_models)
+    elif isinstance(parallel, mp.pool.Pool):
+        #results = parallel.starmap(train_feature_set, [(train_df, fs, config) for fs in train_feature_sets])
+        results = [parallel.apply(train_feature_set, args=(train_df, fs, config)) for fs in train_feature_sets]
+    elif isinstance(parallel, ProcessPoolExecutor):
+        # Submit all in a loop
+        execution_results = dict()  # Futures for each label
+        for i, fs in enumerate(train_feature_sets):
+            score_column_name = f"label_{i}"
+            execution_results[score_column_name] = parallel.submit(train_feature_set, train_df, fs, config)
+
+        results = dict()
+        for score_column_name, future in execution_results.items():
+            results[score_column_name] = future.result()
+            if future.exception():
+                print(f"Exception while train-predict {score_column_name}.")
+                return
+
+    else:  # No multiprocessing - sequential execution
+        for i, fs in enumerate(train_feature_sets):  #  Execute sequentially
+            fs_models = train_feature_set(train_df, fs, config)
+            models.update(fs_models)
+
+    fs_elapsed = datetime.now() - fs_now
+    print(f"Finished train all. Time: {str(fs_elapsed).split('.')[0]}")
+
+    #
+    # 2 Store all collected models in files
+    #
+
+    # NOTE: train generator does NOT store models in model store but only returns them
+    #   yet, predict generator, expects the models to be in model store - it constructs the necessary model name and extracts it from model store
+    #   so we need to put the trained models in the model store (they will be stored automatically and overwrite previously trained models which is ok)
+    for score_column_name, model_pair in models.items():
+        App.model_store.put_model_pair(score_column_name, model_pair)
+
+    print(f"Models stored in path: {App.model_store.model_path.absolute()}")
+
+    # 3 Execute only predict where df for the generator is a different predict df
+    # (Copy from predict script)
+
+    fs_now = datetime.now()
+    print(f"Start predictions for {len(predict_df)} input records.")
+
+    out_df = pd.DataFrame()  # Collect predictions
+    features = []
+
+    for i, fs in enumerate(train_feature_sets):
+        fs_out_df, fs_features = predict_feature_set(predict_df, fs, config, App.model_store)
+        out_df = pd.concat([out_df, fs_out_df], axis=1)
+        features.extend(fs_features)
+
+    fs_elapsed = datetime.now() - fs_now
+    print(f"Finished predictions. Time: {str(fs_elapsed).split('.')[0]}")
+
+    return out_df
 
 
 if __name__ == '__main__':
