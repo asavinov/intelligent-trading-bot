@@ -45,10 +45,6 @@ async def main_task():
     #
     # 1. Execute input adapters to receive new data from data source(s)
     #
-    venue = App.config.get("venue")
-    venue = Venue(venue)
-    main_collector_task, _, _ = get_collector_functions(venue)
-
     try:
         res = await main_collector_task()
     except Exception as e:
@@ -89,6 +85,55 @@ async def main_task():
     return
 
 
+async def main_collector_task():
+    """
+    It is a highest level task which is added to the event loop and executed normally every 1 minute and then it calls other tasks.
+
+    # 1) Get missing count from Analyzer
+    # 2) Call (async) venue-specific retrieval function and get the raw data (with structure)
+    # 3) Append the standard raw data with structure to Analyzer (or convert before)
+    """
+    venue = App.config.get("venue")
+    venue = Venue(venue)
+    sync_data_collector_task, data_provider_health_check = get_collector_functions(venue)
+
+    symbol = App.config["symbol"]
+    freq = App.config["freq"]
+    start_ts, end_ts = pandas_get_interval(freq)
+    now_ts = now_timestamp()
+
+    log.info(f"===> Start collector task. Timestamp {now_ts}. Interval [{start_ts},{end_ts}].")
+
+    #
+    # 1. Check server state (if necessary)
+    #
+    if data_provider_problems_exist():
+        await data_provider_health_check()
+        if data_provider_problems_exist():
+            log.error(f"Problems with the data provider server found. No signaling, no trade. Will try next time.")
+            return 1
+
+    #
+    # 2. Get how much data is missing and request it
+    #
+    results = await sync_data_collector_task(App.config)
+    if results is None:
+        log.error(f"Problem getting data from the server. No signaling, no trade. Will try next time.")
+        return 1
+
+    #
+    # 3. Push data to the analyzer for further processing
+    #
+    try:
+        App.analyzer.append_klines(results)
+    except Exception as e:
+        log.error(f"Error storing kline result in the database. Exception: {e}")
+        return 1
+
+    log.info(f"<=== End collector task.")
+    return 0
+
+
 @click.command()
 @click.option('--config_file', '-c', type=click.Path(), default='', help='Configuration file name')
 def start_server(config_file):
@@ -107,7 +152,7 @@ def start_server(config_file):
         log.error(f"Invalid venue specified in config: {venue}. Error: {e}. Currently these values are supported: {[e.value for e in Venue]}")
         return
     
-    _, data_provider_health_check, sync_data_collector_task = get_collector_functions(venue)
+    sync_data_collector_task, data_provider_health_check = get_collector_functions(venue)
     trader_funcs = get_trader_functions(venue)
     
     log.info(f"Initializing server. Venue: {venue.value}. Trade pair: {symbol}. Frequency: {freq}")
@@ -161,11 +206,11 @@ def start_server(config_file):
 
     # Cold start: load initial data, do complete analysis
     try:
-        App.loop.run_until_complete(sync_data_collector_task())
+        App.loop.run_until_complete(main_collector_task())
         # The very first call (cold start) may take some time because of big initial size and hence we make the second call to get the (possible) newest klines
-        App.loop.run_until_complete(sync_data_collector_task())
+        App.loop.run_until_complete(main_collector_task())
 
-        # Analyze all received data (and not only last few rows) so that we have full history
+        # Analyze all received data (not only last few rows) so that we have full history
         App.analyzer.analyze()
     except Exception as e:
         log.error(f"Problems during initial data collection. {e}")

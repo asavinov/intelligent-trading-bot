@@ -6,6 +6,7 @@ and storing it in the database. It also includes health checks for the MT5 conne
 
 import time
 from datetime import datetime, timedelta
+from typing import Any, Coroutine
 
 import pandas as pd
 import asyncio
@@ -22,57 +23,18 @@ import logging
 
 log = logging.getLogger('collector')
 
-
-async def main_collector_task() -> int:
-    """
-    The main collector task that is executed periodically.
-    It checks the MT5 connection, synchronizes data, and handles any errors.
-
-    Returns:
-        int: 0 if the task completed successfully, 1 otherwise.
-    """
-
-    symbol = App.config["symbol"]
-    pandas_freq = App.config["freq"]
-    start_ts, end_ts = pandas_get_interval(pandas_freq)
-    now_ts = now_timestamp()
-
-    log.info(f"===> Start collector task. Timestamp {now_ts}. Interval [{start_ts},{end_ts}].")
-
-    #
-    # 0. Check MT5 connection
-    #
-    if data_provider_problems_exist():
-        await data_provider_health_check()
-        if data_provider_problems_exist():
-            log.error(f"Problems with the data provider server found. No signaling, no trade. Will try next time.")
-            return 1
-
-    #
-    # 1. Ensure that we are up-to-date with klines
-    #
-    res = await sync_data_collector_task()
-
-    if res > 0:
-        log.error(f"Problem getting data from the server. No signaling, no trade. Will try next time.")
-        return 1
-
-    log.info(f"<=== End collector task.")
-    return 0
-
-
 #
 # Request/update market data
 #
 
-async def sync_data_collector_task() -> int:
+async def sync_data_collector_task(config: dict) -> dict[Any, Any] | None:
     """
     Synchronizes the local data state with the latest data from MT5.
     This task retrieves the most recent kline data for specified symbols and
     stores it in the database.
 
     Returns:
-        int: 0 if the data was synchronized successfully, 1 otherwise.
+        dict: For each symbol (key of the dict), list of records with data (list of lists)
 
     Raises:
         TimeoutError: If the data request times out.
@@ -82,24 +44,23 @@ async def sync_data_collector_task() -> int:
     CHUNK_SIZE = 10000  # How many bars worth of duration to request in each chunk
     RATE_LIMIT_DELAY = 0.1  # Small delay between requests (seconds)
 
-    data_sources = App.config.get("data_sources", [])
+    data_sources = config.get("data_sources", [])
     symbols = [x.get("folder") for x in data_sources]
-    pandas_freq = App.config["freq"]
+    pandas_freq = config["freq"]
     mt5_timeframe = mt5_freq_from_pandas(pandas_freq)
 
     if not symbols:
-        symbols = [App.config["symbol"]]
+        symbols = [config["symbol"]]
 
     # Connect to trading account (same as before)
-    mt5_account_id = App.config.get("mt5_account_id")
-    mt5_password = App.config.get("mt5_password")
-    mt5_server = App.config.get("mt5_server")
+    mt5_account_id = config.get("mt5_account_id")
+    mt5_password = config.get("mt5_password")
+    mt5_server = config.get("mt5_server")
     if mt5_account_id and mt5_password and mt5_server:
         authorized = connect_mt5(int(mt5_account_id), password=str(mt5_password), server=str(mt5_server))
         if not authorized:
             log.error(f"MT5 Login failed for account #{mt5_account_id}, error code: {mt5.last_error()}")
-            return 1
-
+            return None
 
     # How many records are missing (and to be requested) for each symbol (not used here)
     # missing_klines_counts = [App.analyzer.get_missing_klines_count(sym) for sym in symbols]
@@ -118,33 +79,23 @@ async def sync_data_collector_task() -> int:
             res = await fut
         except TimeoutError as te:
             log.warning(f"Timeout {timeout} seconds when requesting kline data.")
-            return 1
+            return None
         except Exception as e:
             log.warning(f"Exception when requesting kline data.")
-            return 1
+            return None
 
         # Add to the database (will overwrite existing klines if any)
         if res and res.keys():
-            # res is dict for symbol, which is a list of record lists of 12 fields
-            # ==============================
-            # TODO: We need to check these fields for validity (presence, non-null)
-            # TODO: We can load maximum 999 latest klines, so if more 1600, then some other method
-            # TODO: Print somewhere diagnostics about how many lines are in history buffer of db, and if nans are found
             results.update(res)
-            try:
-                added_count = App.analyzer.append_klines(res)
-            except Exception as e:
-                log.error(f"Error storing kline result in the database. Exception: {e}")
-                return 1
         else:
             log.error("Received empty or wrong result from klines request.")
-            return 1
+            return None
 
     # --- Shutdown MT5 (same as before) ---
     log.info("\nShutting down MetaTrader 5 connection...")
     mt5.shutdown()
 
-    return 0
+    return results
 
 
 async def request_klines(symbol: str, pandas_freq: str, mt5_timeframe: int, CHUNK_SIZE: int, RATE_LIMIT_DELAY: float) -> dict:
@@ -253,7 +204,6 @@ async def request_klines(symbol: str, pandas_freq: str, mt5_timeframe: int, CHUN
 # Server and account info
 #
 
-
 async def data_provider_health_check() -> int:
     """
     Performs a health check on the MT5 connection.
@@ -263,7 +213,6 @@ async def data_provider_health_check() -> int:
         int: 0 if the MT5 connection is healthy, 1 otherwise.
 
     """
-
     # Check MT5 connection
     if not mt5.terminal_info():
         log.error(f"MT5 terminal not found.")

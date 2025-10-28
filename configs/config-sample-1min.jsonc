@@ -19,7 +19,7 @@
     "freq": "1min", // pandas frequency
 
     "label_horizon": 120,  // Batch/offline: do not use these last rows because their labels might not be correct
-    "features_horizon": 120, // Online/stream: Minimum data length for computing features. Take it from feature generator parameters
+    "features_horizon": 120, // Online/stream: Minimum data length for computing features (lookback). Take it from feature generator parameters
     "train_length": 525600,  // Batch/offline: Uses this number of rows for training (if not additionally limited by the algorithm)
     "predict_length": 288,  // These records must be kept up-to-date (in contrast to those in feature horizon)
     "append_overlap_records": 5,  // Online/stream: These records will be requested and then re-computed on each iteration

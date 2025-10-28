@@ -4,6 +4,7 @@ import argparse
 import math, time
 from datetime import datetime
 from decimal import *
+from typing import Any, Coroutine
 
 import pandas as pd
 import asyncio
@@ -20,62 +21,26 @@ from service.analyzer import *
 import logging
 log = logging.getLogger('collector')
 
-
-async def main_collector_task():
-    """
-    It is a highest level task which is added to the event loop and executed normally every 1 minute and then it calls other tasks.
-    """
-    symbol = App.config["symbol"]
-    freq = App.config["freq"]
-    start_ts, end_ts = pandas_get_interval(freq)
-    now_ts = now_timestamp()
-
-    log.info(f"===> Start collector task. Timestamp {now_ts}. Interval [{start_ts},{end_ts}].")
-
-    #
-    # 0. Check server state (if necessary)
-    #
-    if data_provider_problems_exist():
-        await data_provider_health_check()
-        if data_provider_problems_exist():
-            log.error(f"Problems with the data provider server found. No signaling, no trade. Will try next time.")
-            return 1
-
-    #
-    # 1. Ensure that we are up-to-date with klines
-    #
-    res = await sync_data_collector_task()
-
-    if res > 0:
-        log.error(f"Problem getting data from the server. No signaling, no trade. Will try next time.")
-        return 1
-
-    log.info(f"<=== End collector task.")
-    return 0
-
-
 #
 # Request/update market data
 #
 
-async def sync_data_collector_task():
+async def sync_data_collector_task(config: dict) -> dict[Any, Any] | None:
     """
-    Collect latest data.
-    After executing this task our local (in-memory) data state is up-to-date.
-    Hence, we can do something useful like data analysis and trading.
+    Retrieve and return latest data from binance client.
 
-    Limitations and notes:
-    - Currently, we can work only with one symbol
-    - We update only local state by loading latest data. If it is necessary to initialize the db then another function should be used.
+    Limitation: maximum 999 latest klines can be retrieved. If more is needed then some other function has to be used
+
+    :return: For each symbol (key of the dict), list of lists with values
     """
 
-    data_sources = App.config.get("data_sources", [])
+    data_sources = config.get("data_sources", [])
     symbols = [x.get("folder") for x in data_sources]
-    freq = App.config["freq"]
+    freq = config["freq"]
     binance_freq = binance_freq_from_pandas(freq)
 
     if not symbols:
-        symbols = [App.config["symbol"]]
+        symbols = [config["symbol"]]
 
     # How many records are missing (and to be requested) for each symbol
     missing_klines_counts = [App.analyzer.get_missing_klines_count(sym) for sym in symbols]
@@ -92,32 +57,22 @@ async def sync_data_collector_task():
         # Get the results
         res = None
         try:
-            res = await fut
+            res = await fut  # res is dict for symbol, which is a list of record lists of 12 fields
         except TimeoutError as te:
             log.warning(f"Timeout {timeout} seconds when requesting kline data.")
-            return 1
+            return None
         except Exception as e:
             log.warning(f"Exception when requesting kline data.")
-            return 1
+            return None
 
         # Add to the database (will overwrite existing klines if any)
         if res and res.keys():
-            # res is dict for symbol, which is a list of record lists of 12 fields
-            # ==============================
-            # TODO: We need to check these fields for validity (presence, non-null)
-            # TODO: We can load maximum 999 latest klines, so if more 1600, then some other method
-            # TODO: Print somewhere diagnostics about how many lines are in history buffer of db, and if nans are found
             results.update(res)
-            try:
-                added_count = App.analyzer.append_klines(res)
-            except Exception as e:
-                log.error(f"Error storing kline result in the database. Exception: {e}")
-                return 1
         else:
             log.error("Received empty or wrong result from klines request.")
-            return 1
+            return None
 
-    return 0
+    return results
 
 
 async def request_klines(symbol, freq, limit):
@@ -184,13 +139,10 @@ async def request_klines(symbol, freq, limit):
 # Server and account info
 #
 
-
 async def data_provider_health_check():
     """
     Request information about the data provider server state.
     """
-    symbol = App.config["symbol"]
-
     # Get server state (ping) and trade status (e.g., trade can be suspended on some symbol)
     system_status = App.client.get_system_status()
     #{
