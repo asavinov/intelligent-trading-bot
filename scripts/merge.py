@@ -87,7 +87,7 @@ def main(config_file):
     out_path = data_path / symbol / config.get("merge_file_name")
 
     print(f"Storing output file...")
-    df_out = df_out.reset_index()
+    df_out = df_out.reset_index(drop=(df_out.index.name in df_out.columns))
     if out_path.suffix == ".parquet":
         df_out.to_parquet(out_path, index=False)
     elif out_path.suffix == ".csv":
@@ -144,6 +144,7 @@ def merge_data_sources(data_sources: list):
 
     df_out = pd.DataFrame(index=index)
     df_out.index.name = time_column
+    df_out.insert(0, time_column, df_out.index)  # Repeat index as a new column
 
     for ds in data_sources:
         # Note that timestamps must have the same semantics, for example, start of kline (and not end of kline)

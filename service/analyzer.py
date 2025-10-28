@@ -9,6 +9,7 @@ import numpy as np
 import pandas as pd
 
 from common.utils import *
+from inputs.collector_binance import klines_to_df
 from common.classifiers import *
 from common.model_store import *
 from common.generators import generate_feature_set
@@ -199,10 +200,9 @@ class Analyzer:
             if ds.get("file") == "klines":
                 try:
                     klines = self.klines.get(ds.get("folder"))
-                    df = binance_klines_to_df(klines)
+                    df = klines_to_df(klines)
 
                     # Validate
-                    source_columns = ['open', 'high', 'low', 'close', 'volume', 'close_time', 'quote_av', 'trades', 'tb_base_av', 'tb_quote_av']
                     if df.isnull().any().any():
                         null_columns = {k: v for k, v in df.isnull().any().to_dict().items() if v}
                         log.warning(f"Null in source data found. Columns with Null: {null_columns}")

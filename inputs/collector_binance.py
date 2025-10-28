@@ -16,7 +16,6 @@ from binance.enums import *
 
 from service.App import *
 from common.utils import *
-from service.analyzer import *
 
 import logging
 log = logging.getLogger('collector')
@@ -162,3 +161,53 @@ async def data_provider_health_check():
     # TODO: Log large time differences (or better trigger time synchronization procedure)
 
     return 0
+
+
+column_names = [
+    'timestamp',
+    'open', 'high', 'low', 'close', 'volume',
+    'close_time',
+    'quote_av', 'trades', 'tb_base_av', 'tb_quote_av',
+    'ignore'
+]
+column_types = {
+    'timestamp': 'datetime64[ns]',  # datetime64[ns, UTC] datetime64[ns]
+    'open': 'float64', 'high': 'float64', 'low': 'float64', 'close': 'float64', 'volume': 'float64',
+    'close_time': 'int64',
+    'quote_av': 'float64', 'trades': 'int64', 'tb_base_av': 'float64', 'tb_quote_av': 'float64',
+    'ignore': 'float64',
+}
+
+def klines_to_df(klines: list):
+    """
+    Convert a list of klines (for one symbol) to a data frame by using the binance-specific convention for (a sequence of) column names and their types.
+    """
+    time_column = 'timestamp'
+
+    df = pd.DataFrame(klines, columns=column_names)
+    df[time_column] = pd.to_datetime(df[time_column], unit='ms')
+    df = df.astype(column_types)
+
+    # Explicitly assign or convert time zone
+    #if df[time_column].dt.tz is None:
+    #    df[time_column] = df[time_column].dt.tz_localize('UTC')
+    #else:
+    #    df[time_column] = df[time_column].dt.tz_convert('UTC')
+
+    #df['close_time'] = pd.to_datetime(df['close_time'], unit='ms')
+
+    #df["open"] = pd.to_numeric(df["open"])
+    #df["high"] = pd.to_numeric(df["high"])
+    #df["low"] = pd.to_numeric(df["low"])
+    #df["close"] = pd.to_numeric(df["close"])
+    #df["volume"] = pd.to_numeric(df["volume"])
+
+    #df["quote_av"] = pd.to_numeric(df["quote_av"])
+    #df["trades"] = pd.to_numeric(df["trades"])
+    #df["tb_base_av"] = pd.to_numeric(df["tb_base_av"])
+    #df["tb_quote_av"] = pd.to_numeric(df["tb_quote_av"])
+
+    if "timestamp" in df.columns:
+        df.set_index('timestamp', inplace=True, drop=False)
+
+    return df

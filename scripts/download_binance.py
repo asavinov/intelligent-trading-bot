@@ -12,7 +12,8 @@ import click
 
 from binance import Client
 
-from common.utils import klines_to_df, binance_freq_from_pandas
+from common.utils import binance_freq_from_pandas
+from inputs.collector_binance import klines_to_df, column_types
 from service.App import *
 
 """
@@ -79,6 +80,8 @@ def main(config_file):
             # Load the existing data in order to append newly downloaded data
             df = pd.read_csv(file_name)
             df[time_column] = pd.to_datetime(df[time_column], format='ISO8601')
+            df = df.astype(column_types)
+            df = df.set_index('timestamp', inplace=False, drop=False)
 
             # oldest_point = parser.parse(data["timestamp"].iloc[-1])
             oldest_point = df["timestamp"].iloc[-5]  # Use an older point so that new data will overwrite old data
@@ -86,7 +89,7 @@ def main(config_file):
             print(f"File found. Downloaded data for {quote} and {freq} since {str(latest_ts)} will be appended to the existing file {file_name}")
         else:
             # No existing data so we will download all available data and store as a new file
-            df = pd.DataFrame()
+            df = None
 
             oldest_point = datetime(2017, 1, 1)
 
@@ -104,7 +107,16 @@ def main(config_file):
             #end_str=latest_ts.isoformat()  # fetch everything up to now
         )
 
-        df = klines_to_df(klines, df)
+        df_new = klines_to_df(klines)
+
+        if df is None:
+            df = df_new
+        else:
+            df = pd.concat([df, df_new])
+
+            # Drop duplicates
+            df = df.drop_duplicates(subset=["timestamp"], keep="last")
+            # df = df[~df.index.duplicated(keep='last')]  # alternatively, drop duplicates in index
 
         # Remove last row because it represents a non-complete kline (the interval not finished yet)
         df = df.iloc[:-1]
@@ -114,7 +126,7 @@ def main(config_file):
             df = df.tail(download_max_rows)
 
         if save:
-            df.to_csv(file_name)
+            df.to_csv(file_name, index=False)
 
         print(f"Finished downloading '{quote}'. Stored {len(df)} rows in '{file_name}'")
 

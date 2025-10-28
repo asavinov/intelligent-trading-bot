@@ -48,69 +48,6 @@ def round_down_str(value, digits):
 # Binance specific
 #
 
-def klines_to_df(klines, df):
-
-    data = pd.DataFrame(klines, columns=['timestamp', 'open', 'high', 'low', 'close', 'volume', 'close_time', 'quote_av', 'trades', 'tb_base_av', 'tb_quote_av', 'ignore'])
-    data['timestamp'] = pd.to_datetime(data['timestamp'], unit='ms')
-    dtypes = {
-        'open': 'float64', 'high': 'float64', 'low': 'float64', 'close': 'float64', 'volume': 'float64',
-        'close_time': 'int64',
-        'quote_av': 'float64',
-        'trades': 'int64',
-        'tb_base_av': 'float64',
-        'tb_quote_av': 'float64',
-        'ignore': 'float64',
-    }
-    data = data.astype(dtypes)
-
-    if df is None or len(df) == 0:
-        df = data
-    else:
-        df = pd.concat([df, data])
-
-    # Drop duplicates
-    df = df.drop_duplicates(subset=["timestamp"], keep="last")
-    #df = df[~df.index.duplicated(keep='last')]  # alternatively, drop duplicates in index
-
-    df.set_index('timestamp', inplace=True)
-
-    return df
-
-
-def binance_klines_to_df(klines: list):
-    """
-    Convert a list of klines to a data frame.
-    """
-    columns = [
-        'timestamp',
-        'open', 'high', 'low', 'close', 'volume',
-        'close_time',
-        'quote_av', 'trades', 'tb_base_av', 'tb_quote_av',
-        'ignore'
-    ]
-
-    df = pd.DataFrame(klines, columns=columns)
-
-    df['timestamp'] = pd.to_datetime(df['timestamp'], unit='ms')
-    df['close_time'] = pd.to_datetime(df['close_time'], unit='ms')
-
-    df["open"] = pd.to_numeric(df["open"])
-    df["high"] = pd.to_numeric(df["high"])
-    df["low"] = pd.to_numeric(df["low"])
-    df["close"] = pd.to_numeric(df["close"])
-    df["volume"] = pd.to_numeric(df["volume"])
-
-    df["quote_av"] = pd.to_numeric(df["quote_av"])
-    df["trades"] = pd.to_numeric(df["trades"])
-    df["tb_base_av"] = pd.to_numeric(df["tb_base_av"])
-    df["tb_quote_av"] = pd.to_numeric(df["tb_quote_av"])
-
-    if "timestamp" in df.columns:
-        df.set_index('timestamp', inplace=True)
-
-    return df
-
-
 def binance_freq_from_pandas(freq: str) -> str:
     """
     Map pandas frequency to binance API frequency
