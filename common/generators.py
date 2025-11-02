@@ -33,7 +33,7 @@ def generate_feature_set(df: pd.DataFrame, fs: dict, config: dict, model_store: 
         # Remove prefix because feature generators are generic (a prefix will be then added to derived features before adding them back to the main frame)
         f_df = f_df.rename(columns=lambda x: x[len(cp):] if x.startswith(cp) else x)  # Alternatively: f_df.columns = f_df.columns.str.replace(cp, "")
     else:
-        f_df = df[df.columns.to_list()]  # We want to have a different data frame object to add derived featuers and then join them back to the main frame with prefix
+        f_df = df[df.columns.to_list()]  # We want to have a different data frame object to add derived features and then join them back to the main frame with prefix
 
     #
     # Resolve and apply feature generator functions from the configuration

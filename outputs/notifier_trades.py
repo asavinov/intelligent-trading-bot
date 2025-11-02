@@ -187,7 +187,7 @@ def get_signal(df, buy_signal_column, sell_signal_column):
 
     interval_length = pd.Timedelta(freq).to_pytimedelta()
 
-    if not ptypes.is_datetime64_dtype(df.index):  # Alternatively df.index.inferred_type == "datetime64"
+    if not ptypes.is_datetime64_any_dtype(df.index):  # Alternatively df.index.inferred_type == "datetime64"
         raise ValueError(f"Index of the data frame must be of datetime type.")
     close_time = row.name + interval_length  # Add interval length because timestamp is start of the interval
 
@@ -221,6 +221,7 @@ def load_last_transaction():
                 pass
         if line:
             t_dict = dict(zip("timestamp,price,profit,status".split(","), line.strip().split(",")))
+            t_dict["timestamp"] = pd.to_datetime(t_dict["timestamp"], utc=True)
             t_dict["price"] = float(t_dict["price"])
             t_dict["profit"] = float(t_dict["profit"])
             #t_dict = json.loads(line)
@@ -234,7 +235,8 @@ def load_last_transaction():
 def load_all_transactions():
     transaction_path = get_transaction_path()
     df = pd.read_csv(transaction_path, names="timestamp,price,profit,status".split(","), header=None)
-    df['timestamp'] = pd.to_datetime(df['timestamp'], format='ISO8601')
+    df['timestamp'] = pd.to_datetime(df['timestamp'], format='ISO8601', utc=True)
+    df = df.astype({'timestamp': 'datetime64[ns, UTC]', 'price': 'float64', 'profit': 'float64', 'status': 'str'})
     return df
 
 

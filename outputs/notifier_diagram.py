@@ -30,7 +30,7 @@ async def send_diagram(df, model: dict, config: dict, model_store: ModelStore):
     time_column = config["time_column"]
 
     # Ensure that timestamp is in index. It is needed for visualization
-    if not ptypes.is_datetime64_dtype(df.index):  # Alternatively df.index.inferred_type == "datetime64"
+    if not ptypes.is_datetime64_any_dtype(df.index):  # Alternatively df.index.inferred_type == "datetime64"
         if time_column in df.columns:
             df = df.set_index('timestamp', inplace=False)
         else:
@@ -64,7 +64,7 @@ async def send_diagram(df, model: dict, config: dict, model_store: ModelStore):
     vis_columns.append(score_col)
 
     # Generate MAs if necessary
-    score_mas = model.get("score_ma")
+    score_mas = model.get("score_ma", [])
     if not isinstance(score_mas, list):
         score_mas = [score_mas]
     for ma in score_mas:

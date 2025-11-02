@@ -30,9 +30,9 @@ async def send_score_notification(df, model: dict, config: dict, model_store: Mo
 
     interval_length = pd.Timedelta(freq).to_pytimedelta()
 
-    if ptypes.is_datetime64_dtype(df.index):  # Alternatively df.index.inferred_type == "datetime64"
+    if ptypes.is_datetime64_any_dtype(df.index):  # Alternatively df.index.inferred_type == "datetime64"
         close_time = row.name
-    elif time_column in df.columns and ptypes.is_datetime64_dtype(df[time_column]):
+    elif time_column in df.columns and ptypes.is_datetime64_any_dtype(df[time_column]):
         close_time = row[time_column]
     else:
         raise ValueError(f"Neither index nor time columns '{time_column}' are of datetime type")
