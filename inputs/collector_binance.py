@@ -42,7 +42,8 @@ async def sync_data_collector_task(config: dict) -> dict[Any, Any] | None:
         symbols = [config["symbol"]]
 
     # How many records are missing (and to be requested) for each symbol
-    missing_klines_counts = [App.analyzer.get_missing_klines_count(sym) for sym in symbols]
+    missing_data = App.analyzer.get_missing_klines_count()
+    missing_klines_counts = [missing_data for sym in symbols]
 
     # Create a list of tasks for retrieving data
     #coros = [request_klines(sym, "1m", 5) for sym in symbols]
@@ -171,7 +172,7 @@ column_names = [
     'ignore'
 ]
 column_types = {
-    'timestamp': 'datetime64[ns]',  # datetime64[ns, UTC] datetime64[ns]
+    'timestamp': 'datetime64[ns, UTC]',  # datetime64[ns, UTC] datetime64[ns]
     'open': 'float64', 'high': 'float64', 'low': 'float64', 'close': 'float64', 'volume': 'float64',
     'close_time': 'int64',
     'quote_av': 'float64', 'trades': 'int64', 'tb_base_av': 'float64', 'tb_quote_av': 'float64',
@@ -185,16 +186,16 @@ def klines_to_df(klines: list):
     time_column = 'timestamp'
 
     df = pd.DataFrame(klines, columns=column_names)
-    df[time_column] = pd.to_datetime(df[time_column], unit='ms')
+    df[time_column] = pd.to_datetime(df[time_column], unit='ms', utc=True)
     df = df.astype(column_types)
 
-    # Explicitly assign or convert time zone
+    # Explicitly assign or convert time zone not needed because we convert millis directly to UTC
     #if df[time_column].dt.tz is None:
     #    df[time_column] = df[time_column].dt.tz_localize('UTC')
     #else:
     #    df[time_column] = df[time_column].dt.tz_convert('UTC')
 
-    #df['close_time'] = pd.to_datetime(df['close_time'], unit='ms')
+    #df['close_time'] = pd.to_datetime(df['close_time'], unit='ms', utc=True)
 
     #df["open"] = pd.to_numeric(df["open"])
     #df["high"] = pd.to_numeric(df["high"])

@@ -62,7 +62,7 @@ def main(config_file):
             new_df = yf.download(quote, period=f"{days}d", auto_adjust=True, multi_level_index=False, session=session)
 
             new_df = new_df.reset_index()
-            new_df['Date'] = pd.to_datetime(new_df['Date'], format="ISO8601").dt.date
+            new_df['Date'] = pd.to_datetime(new_df['Date'], format="ISO8601", utc=True).dt.date
             #del new_df['Close']
             #new_df.rename({'Adj Close': 'Close'}, axis=1, inplace=True)
             new_df.rename({'Date': time_column}, axis=1, inplace=True)
@@ -79,7 +79,7 @@ def main(config_file):
             df = yf.download(quote, period="max", auto_adjust=True, multi_level_index=False, session=session)
 
             df = df.reset_index()
-            df['Date'] = pd.to_datetime(df['Date'], format="ISO8601").dt.date
+            df['Date'] = pd.to_datetime(df['Date'], format="ISO8601", utc=True).dt.date
             #del df['Close']
             #df.rename({'Adj Close': 'Close'}, axis=1, inplace=True)
             df.rename({'Date': time_column}, axis=1, inplace=True)

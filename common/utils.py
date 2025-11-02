@@ -86,9 +86,9 @@ def binance_get_interval(freq: str, timestamp: int=None):
     :rtype: (int, int)
     """
     if not timestamp:
-        timestamp = datetime.utcnow()  # datetime.now(timezone.utc)
+        timestamp = datetime.now(timezone.utc)
     elif isinstance(timestamp, int):
-        timestamp = pd.to_datetime(timestamp, unit='ms').to_pydatetime()
+        timestamp = pd.to_datetime(timestamp, unit='ms', utc=True).to_pydatetime()
 
     # Although in 3.6 (at least), datetime.timestamp() assumes a timezone naive (tzinfo=None) datetime is in UTC
     timestamp = timestamp.replace(microsecond=0, tzinfo=timezone.utc)
@@ -139,7 +139,7 @@ def pandas_get_interval(freq: str, timestamp: int=None):
     :return: triple (start, end)
     """
     if not timestamp:
-        timestamp = int(datetime.now(pytz.utc).timestamp())  # seconds (10 digits)
+        timestamp = int(datetime.now(timezone.utc).timestamp())  # seconds (10 digits)
         # Alternatively: timestamp = int(datetime.utcnow().replace(tzinfo=pytz.utc).timestamp())
     elif isinstance(timestamp, datetime):
         timestamp = int(timestamp.replace(tzinfo=pytz.utc).timestamp())
@@ -199,14 +199,8 @@ def freq_to_CronTrigger(freq: str):
 
 def now_timestamp():
     """
-    INFO:
-    https://github.com/sammchardy/python-binance/blob/master/binance/helpers.py
-    date_to_milliseconds(date_str) - UTC date string to millis
-
-    :return: timestamp in millis
-    :rtype: int
     """
-    return int(datetime.utcnow().replace(tzinfo=timezone.utc).timestamp() * 1000)
+    return int(datetime.now(timezone.utc).timestamp() * 1000)
 
 
 def find_index(df: pd.DataFrame, date_str: str, column_name: str = "timestamp"):
@@ -301,3 +295,45 @@ def double_columns(df, shifts: List[int]):
     df_out = pd.concat(df_list, axis=1)  # keys=('A', 'B')
 
     return df_out
+
+
+def append_rows(df, new_df):
+    """
+    Append all rows from the second new data frame to the first old data frame by overwriting existing rows if any.
+
+    Notes:
+    - The rows are appended individually (row-by-row in the loop). If the second (new) data frame is large then this operation might be inefficient.
+    - No validity check are performed like column overlaps or resulting index gaps.
+    - If it is necessary to retain continuous index then additional validations have to be done (before or after this operation).
+    """
+    for idx, row in new_df.iterrows():
+        df.loc[idx] = row
+    return df
+
+
+def append_df_drop_concat(df, new_df):
+
+    # Drop explicitly last rows in the overlap range
+    #df_wo_overlap = df.drop(new_df.index[:], errors="ignore")  # ignore errors in case of missing indexes (for new rows). Set in_place if necessary
+
+    # Drop explicitly last rows in the overlap range
+    df_wo_overlap = df[:new_df.index[0]]  # Select only records till the first index in the new frame. Assume the rows in the new frame are ordered
+    df_wo_overlap = df_wo_overlap.iloc[:-1]  # Remove last element because slicing above includes the range right side
+
+    # Drop explicitly last rows in the overlap range
+    #last_idx = df.index.get_loc(new_df.index[0])
+    #df_wo_overlap = df.iloc[:last_idx]
+
+    df3 = pd.concat([df_wo_overlap, new_df])  # Append new rows with overlap removed above
+
+    return df3
+
+
+def append_df_combine_update(df, new_df):
+    # The first old frame has priority and its values will be always retained if available (non-null).
+    # Only if an old value is null or a new row was appended, the new values from new frame is used.
+    # Update null (and only null) elements with values in the same location in other (if any, that is, null is not used for overwriting).
+    df2 = df.combine_first(new_df)
+    # Yet, we want to have new values overwrite even old non-null values so enforce complete overwriting (inplace)
+    df2.update(new_df)
+    return df2

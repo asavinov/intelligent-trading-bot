@@ -46,7 +46,7 @@ async def main_task():
     # 1. Execute input adapters to receive new data from data source(s)
     #
     try:
-        res = await main_collector_task()
+        res = await main_collector_task()  # Retrieve raw data, merge, convert to data frame and append
     except Exception as e:
         log.error(f"Error in main_collector_task function: {e}")
         return
@@ -60,9 +60,8 @@ async def main_task():
     #    log.error(f"Problem during analysis. Last kline end ts {last_kline_ts + 60_000} not equal to start of current interval {startTime}.")
 
     #
-    # 2. Apply transformations (merge, features, prediction scores, signals) and generate new data columns
+    # 2. Apply transformations and generate derived columns for the appended data
     #
-
     try:
         analyze_task = await App.loop.run_in_executor(None, App.analyzer.analyze)
     except Exception as e:
@@ -72,8 +71,6 @@ async def main_task():
     #
     # 3. Execute output adapter which send the results of analysis to consumers
     #
-
-    # Execute all output set entries
     output_sets = App.config.get("output_sets", [])
     for os in output_sets:
         try:
@@ -87,11 +84,7 @@ async def main_task():
 
 async def main_collector_task():
     """
-    It is a highest level task which is added to the event loop and executed normally every 1 minute and then it calls other tasks.
-
-    # 1) Get missing count from Analyzer
-    # 2) Call (async) venue-specific retrieval function and get the raw data (with structure)
-    # 3) Append the standard raw data with structure to Analyzer (or convert before)
+    Retrieve raw data from venue-specific data sources and append to the main data frame
     """
     venue = App.config.get("venue")
     venue = Venue(venue)

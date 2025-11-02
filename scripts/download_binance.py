@@ -74,12 +74,12 @@ def main(config_file):
 
         # Get a few latest klines to determine the latest available timestamp
         latest_klines = App.client.get_klines(symbol=quote, interval=freq, limit=5)
-        latest_ts = pd.to_datetime(latest_klines[-1][0], unit='ms')
+        latest_ts = pd.to_datetime(latest_klines[-1][0], unit='ms', utc=True)
 
         if file_name.is_file():
             # Load the existing data in order to append newly downloaded data
             df = pd.read_csv(file_name)
-            df[time_column] = pd.to_datetime(df[time_column], format='ISO8601')
+            df[time_column] = pd.to_datetime(df[time_column], format='ISO8601', utc=True)
             df = df.astype(column_types)
             df = df.set_index('timestamp', inplace=False, drop=False)
 
