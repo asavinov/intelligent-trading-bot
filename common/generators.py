@@ -136,13 +136,13 @@ def predict_feature_set(df, fs, config, model_store: ModelStore) -> Tuple[pd.Dat
                 from common.classifier_gb import predict_gb
                 df_y_hat = predict_gb(model_pair, train_df, model_config)
             elif algo_type == "nn":
-                from common.classifier_gb import predict_nn
+                from common.classifier_nn import predict_nn
                 df_y_hat = predict_nn(model_pair, train_df, model_config)
             elif algo_type == "lc":
-                from common.classifier_gb import predict_lc
+                from common.classifier_lc import predict_lc
                 df_y_hat = predict_lc(model_pair, train_df, model_config)
             elif algo_type == "svc":
-                from common.classifier_gb import predict_svc
+                from common.classifier_svc import predict_svc
                 df_y_hat = predict_svc(model_pair, train_df, model_config)
             else:
                 raise ValueError(f"Unknown algorithm type {algo_type}. Check algorithm list.")
@@ -190,15 +190,15 @@ def train_feature_set(df, fs, config) -> dict:
                 model_pair = train_gb(df_X, df_y, model_config)
                 models[score_column_name] = model_pair
             elif algo_type == "nn":
-                from common.classifier_gb import train_nn
+                from common.classifier_nn import train_nn
                 model_pair = train_nn(df_X, df_y, model_config)
                 models[score_column_name] = model_pair
             elif algo_type == "lc":
-                from common.classifier_gb import train_lc
+                from common.classifier_lc import train_lc
                 model_pair = train_lc(df_X, df_y, model_config)
                 models[score_column_name] = model_pair
             elif algo_type == "svc":
-                from common.classifier_gb import train_svc
+                from common.classifier_svc import train_svc
                 model_pair = train_svc(df_X, df_y, model_config)
                 models[score_column_name] = model_pair
             else:
