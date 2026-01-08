@@ -1,8 +1,9 @@
 import pytest
 
 from common.utils import *
-from common.classifiers import *
-
+from common.classifier_gb import train_predict_gb
+from common.classifier_nn import train_predict_nn
+from common.classifier_lc import train_predict_lc
 
 def test_nan_handling_predict():
 	"""Predicted input has nans. These nans rows have to be removed before prediction but the output has to contain all rows including these nan rows."""

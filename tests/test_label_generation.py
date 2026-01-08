@@ -5,7 +5,6 @@ from common.utils import *
 from common.gen_signals import *
 from common.gen_labels_topbot import *
 
-
 def test_extremum_labels():
     data = [10, 30, 50, 70, 90, 70, 50, 30, 9]
     data = [10, 40, 30, 70, 90, 50, 60, 30, 9]
@@ -36,7 +35,6 @@ def test_extremum_labels():
     sns.lineplot(data=extr_df, x="x", y="y", marker="o", markersize=10, linestyle='dotted')  # "^" 'v'
 
     pass
-
 
 def test_interval_and_aggregation():
     data = [10, 40, 30, 70, 90, 50, 60, 30, 9]

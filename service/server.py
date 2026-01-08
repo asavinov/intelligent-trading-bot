@@ -1,4 +1,3 @@
-
 from decimal import *
 import asyncio
 
@@ -20,7 +19,6 @@ from outputs.notifier_trades import *
 from outputs.notifier_scores import *
 from outputs.notifier_diagram import *
 from outputs import get_trader_functions
-
 
 import logging
 

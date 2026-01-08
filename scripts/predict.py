@@ -9,7 +9,7 @@ import pandas.api.types as ptypes
 
 from service.App import *
 from common.model_store import *
-from common.classifiers import compute_scores_regression, compute_scores
+from common.utils import compute_scores_regression, compute_scores
 from common.generators import predict_feature_set
 
 """

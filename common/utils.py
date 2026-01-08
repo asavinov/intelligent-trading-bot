@@ -9,12 +9,13 @@ from decimal import *
 import numpy as np
 import pandas as pd
 
+from sklearn import metrics
+
 from apscheduler.triggers.cron import CronTrigger
 
 from binance.helpers import date_to_milliseconds, interval_to_milliseconds
 
 from common.gen_features import *
-
 
 #
 # Decimals
@@ -31,18 +32,15 @@ def to_decimal(value):
     ret = Decimal(str(value)).quantize(rr, rounding=ROUND_DOWN)
     return ret
 
-
 def round_str(value, digits):
     rr = Decimal(1) / (Decimal(10) ** digits)  # Result for 8 digits: 0.00000001
     ret = Decimal(str(value)).quantize(rr, rounding=ROUND_HALF_UP)
     return f"{ret:.{digits}f}"
 
-
 def round_down_str(value, digits):
     rr = Decimal(1) / (Decimal(10) ** digits)  # Result for 8 digits: 0.00000001
     ret = Decimal(str(value)).quantize(rr, rounding=ROUND_DOWN)
     return f"{ret:.{digits}f}"
-
 
 #
 # Binance specific
@@ -71,7 +69,6 @@ def binance_freq_from_pandas(freq: str) -> str:
         raise ValueError(f"Not supported Binance frequency {freq}. It should be one or two digits followed by a character.")
 
     return freq
-
 
 def binance_get_interval(freq: str, timestamp: int=None):
     """
@@ -129,7 +126,6 @@ def binance_get_interval(freq: str, timestamp: int=None):
 
     return int(start * 1000), int(end * 1000)
 
-
 def pandas_get_interval(freq: str, timestamp: int=None):
     """
     Find a discrete interval for the given timestamp and return its start and end.
@@ -155,7 +151,6 @@ def pandas_get_interval(freq: str, timestamp: int=None):
     end = start + interval_length_sec
 
     return int(start*1000), int(end*1000)
-
 
 def pandas_interval_length_ms(freq: str):
     return int(pd.Timedelta(freq).to_pytimedelta().total_seconds() * 1000)
@@ -196,12 +191,10 @@ def freq_to_CronTrigger(freq: str):
 
     return trigger
 
-
 def now_timestamp():
     """
     """
     return int(datetime.now(timezone.utc).timestamp() * 1000)
-
 
 def find_index(df: pd.DataFrame, date_str: str, column_name: str = "timestamp"):
     """
@@ -229,7 +222,6 @@ def find_index(df: pd.DataFrame, date_str: str, column_name: str = "timestamp"):
     id = res.index[0]
 
     return id
-
 
 def notnull_tail_rows(df):
     """Maximum number of tail rows without nulls."""
@@ -279,7 +271,6 @@ def resolve_generator_name(gen_name: str):
 
     return func
 
-
 def double_columns(df, shifts: List[int]):
     """
     Use previous rows as features appended to this row. This allows us to move history to the current time.
@@ -296,7 +287,6 @@ def double_columns(df, shifts: List[int]):
 
     return df_out
 
-
 def append_rows(df, new_df):
     """
     Append all rows from the second new data frame to the first old data frame by overwriting existing rows if any.
@@ -309,7 +299,6 @@ def append_rows(df, new_df):
     for idx, row in new_df.iterrows():
         df.loc[idx] = row
     return df
-
 
 def append_df_drop_concat(df, new_df):
 
@@ -328,7 +317,6 @@ def append_df_drop_concat(df, new_df):
 
     return df3
 
-
 def append_df_combine_update(df, new_df):
     # The first old frame has priority and its values will be always retained if available (non-null).
     # Only if an old value is null or a new row was appended, the new values from new frame is used.
@@ -337,3 +325,80 @@ def append_df_combine_update(df, new_df):
     # Yet, we want to have new values overwrite even old non-null values so enforce complete overwriting (inplace)
     df2.update(new_df)
     return df2
+
+#
+# Analysis
+#
+
+def compute_scores(y_true, y_hat):
+    """Compute several scores and return them as dict."""
+    y_true = y_true.astype(int)
+    y_hat_class = np.where(y_hat.values > 0.5, 1, 0)
+
+    try:
+        auc = metrics.roc_auc_score(y_true, y_hat.fillna(value=0))
+    except ValueError:
+        auc = 0.0  # Only one class is present (if dataset is too small, e.g,. when debugging) or Nulls in predictions
+
+    try:
+        ap = metrics.average_precision_score(y_true, y_hat.fillna(value=0))
+    except ValueError:
+        ap = 0.0  # Only one class is present (if dataset is too small, e.g,. when debugging) or Nulls in predictions
+
+    f1 = metrics.f1_score(y_true, y_hat_class)
+    precision = metrics.precision_score(y_true, y_hat_class)
+    recall = metrics.recall_score(y_true, y_hat_class)
+
+    scores = dict(auc=auc, ap=ap, f1=f1, precision=precision, recall=recall,)
+
+    scores = {key: round(float(value), 3) for (key, value) in scores.items()}
+
+    return scores
+
+def compute_scores_regression(y_true, y_hat):
+    """Compute regression scores. Input columns must have numeric data type."""
+
+    try:
+        mae = metrics.mean_absolute_error(y_true, y_hat)
+    except ValueError:
+        mae = np.nan
+
+    try:
+        mape = metrics.mean_absolute_percentage_error(y_true, y_hat)
+    except ValueError:
+        mape = np.nan
+
+    try:
+        r2 = metrics.r2_score(y_true, y_hat)
+    except ValueError:
+        r2 = np.nan
+
+    #
+    # How good it is in predicting the sign (increase of decrease)
+    #
+
+    y_true_class = np.where(y_true.values > 0.0, +1, -1)
+    y_hat_class = np.where(y_hat.values > 0.0, +1, -1)
+
+    try:
+        auc = metrics.roc_auc_score(y_true_class, y_hat_class)
+    except ValueError:
+        auc = 0.0  # Only one class is present (if dataset is too small, e.g,. when debugging) or Nulls in predictions
+
+    try:
+        ap = metrics.average_precision_score(y_true_class, y_hat_class)
+    except ValueError:
+        ap = 0.0  # Only one class is present (if dataset is too small, e.g,. when debugging) or Nulls in predictions
+
+    f1 = metrics.f1_score(y_true_class, y_hat_class)
+    precision = metrics.precision_score(y_true_class, y_hat_class)
+    recall = metrics.recall_score(y_true_class, y_hat_class)
+
+    scores = dict(
+        mae=mae, mape=mape, r2=r2,
+        auc=auc, ap=ap, f1=f1, precision=precision, recall=recall,
+    )
+
+    scores = {key: round(float(value), 3) for (key, value) in scores.items()}
+
+    return scores

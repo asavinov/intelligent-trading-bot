@@ -10,7 +10,6 @@ import pandas as pd
 
 from common.utils import *
 from inputs.collector_binance import klines_to_df, column_types
-from common.classifiers import *
 from common.model_store import *
 from common.generators import generate_feature_set
 from common.generators import predict_feature_set
