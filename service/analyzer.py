@@ -9,13 +9,12 @@ import numpy as np
 import pandas as pd
 
 from common.utils import *
-from inputs.collector_binance import klines_to_df, column_types
 from common.model_store import *
+from inputs.collector_binance import klines_to_df, column_types
 from common.generators import generate_feature_set
 from common.generators import predict_feature_set
 
 from scripts.merge import *
-from scripts.features import *
 
 import logging
 log = logging.getLogger('analyzer')
@@ -126,6 +125,7 @@ class Analyzer:
             Example: { 'BTCUSDT': [ [], [], [] ] }
         :type dict:
         """
+        time_column = self.config["time_column"]
         freq = self.config["freq"]
         interval_length_ms = pandas_interval_length_ms(freq)
         interval_length_td = pd.Timedelta(freq).to_pytimedelta()
@@ -158,7 +158,8 @@ class Analyzer:
         #
         # Merge multiple dfs in one df with prefixes and common regular time index
         #
-        df = merge_data_sources(data_sources)
+        merge_interpolate = self.config.get("merge_interpolate", False)
+        df = merge_data_sources(data_sources, time_column, freq, merge_interpolate)
 
         #
         # Append to the main data frame (by overwriting existing overlap)

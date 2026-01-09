@@ -6,6 +6,7 @@ import numpy as np
 
 import click
 
+from common.utils import merge_data_sources
 from service.App import *
 
 """
@@ -79,7 +80,9 @@ def main(config_file):
         ds["df"] = df
 
     # Merge in one df with prefixes and common regular time index
-    df_out = merge_data_sources(data_sources)
+    freq = App.config["freq"]
+    merge_interpolate = App.config.get("merge_interpolate", False)
+    df_out = merge_data_sources(data_sources, time_column, freq, merge_interpolate)
 
     #
     # Store file with features
@@ -102,63 +105,6 @@ def main(config_file):
 
     elapsed = datetime.now() - now
     print(f"Finished merging data in {str(elapsed).split('.')[0]}")
-
-
-def merge_data_sources(data_sources: list):
-
-    time_column = App.config["time_column"]
-    freq = App.config["freq"]
-
-    for ds in data_sources:
-        df = ds.get("df")
-
-        if time_column in df.columns:
-            df = df.set_index(time_column)
-        elif df.index.name == time_column:
-            pass
-        else:
-            print(f"ERROR: Timestamp column is absent.")
-            return
-
-        # Add prefix if not already there
-        if ds['column_prefix']:
-            #df = df.add_prefix(ds['column_prefix']+"_")
-            df.columns = [
-                ds['column_prefix']+"_"+col if not col.startswith(ds['column_prefix']+"_") else col
-                for col in df.columns
-            ]
-
-        ds["start"] = df.first_valid_index()  # df.index[0]
-        ds["end"] = df.last_valid_index()  # df.index[-1]
-
-        ds["df"] = df
-
-    #
-    # Create common (main) index and empty data frame
-    #
-    range_start = min([ds["start"] for ds in data_sources])
-    range_end = min([ds["end"] for ds in data_sources])
-
-    # Generate a discrete time raster according to the (pandas) frequency parameter
-    index = pd.date_range(range_start, range_end, freq=freq)
-
-    df_out = pd.DataFrame(index=index)
-    df_out.index.name = time_column
-    df_out.insert(0, time_column, df_out.index)  # Repeat index as a new column
-
-    for ds in data_sources:
-        # Note that timestamps must have the same semantics, for example, start of kline (and not end of kline)
-        # If different data sets have different semantics for timestamps, then data must be shifted accordingly
-        df_out = df_out.join(ds["df"])
-
-    # Interpolate numeric columns
-    merge_interpolate = App.config.get("merge_interpolate", False)
-    if merge_interpolate:
-        num_columns = df_out.select_dtypes((float, int)).columns.tolist()
-        for col in num_columns:
-            df_out[col] = df_out[col].interpolate()
-
-    return df_out
 
 
 if __name__ == '__main__':

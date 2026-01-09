@@ -271,6 +271,10 @@ def resolve_generator_name(gen_name: str):
 
     return func
 
+#
+# Data processing
+#
+
 def double_columns(df, shifts: List[int]):
     """
     Use previous rows as features appended to this row. This allows us to move history to the current time.
@@ -325,6 +329,66 @@ def append_df_combine_update(df, new_df):
     # Yet, we want to have new values overwrite even old non-null values so enforce complete overwriting (inplace)
     df2.update(new_df)
     return df2
+
+def merge_data_sources(data_sources: list, time_column: str, freq: str, merge_interpolate: bool):
+    """
+    Create one data frame by merging multiple source data frames on the specified time column by generating a common time raster.
+
+    :param data_sources: list of dicts where each dict describes one data source and stores its data in df
+    :param time_column: column name with timestamps
+    :param freq: pandas frequency for the common time raster like 1min, 1h etc.
+    :param merge_interpolate: if True then the missing values will be interpolated
+    :return: data frame with all data merged on timestamps
+    """
+    for ds in data_sources:
+        df = ds.get("df")
+
+        if time_column in df.columns:
+            df = df.set_index(time_column)
+        elif df.index.name == time_column:
+            pass
+        else:
+            print(f"ERROR: Timestamp column is absent.")
+            return
+
+        # Add prefix if not already there
+        if ds['column_prefix']:
+            #df = df.add_prefix(ds['column_prefix']+"_")
+            df.columns = [
+                ds['column_prefix']+"_"+col if not col.startswith(ds['column_prefix']+"_") else col
+                for col in df.columns
+            ]
+
+        ds["start"] = df.first_valid_index()  # df.index[0]
+        ds["end"] = df.last_valid_index()  # df.index[-1]
+
+        ds["df"] = df
+
+    #
+    # Create common (main) index and empty data frame
+    #
+    range_start = min([ds["start"] for ds in data_sources])
+    range_end = min([ds["end"] for ds in data_sources])
+
+    # Generate a discrete time raster according to the (pandas) frequency parameter
+    index = pd.date_range(range_start, range_end, freq=freq)
+
+    df_out = pd.DataFrame(index=index)
+    df_out.index.name = time_column
+    df_out.insert(0, time_column, df_out.index)  # Repeat index as a new column
+
+    for ds in data_sources:
+        # Note that timestamps must have the same semantics, for example, start of kline (and not end of kline)
+        # If different data sets have different semantics for timestamps, then data must be shifted accordingly
+        df_out = df_out.join(ds["df"])
+
+    # Interpolate numeric columns
+    if merge_interpolate:
+        num_columns = df_out.select_dtypes((float, int)).columns.tolist()
+        for col in num_columns:
+            df_out[col] = df_out[col].interpolate()
+
+    return df_out
 
 #
 # Analysis
