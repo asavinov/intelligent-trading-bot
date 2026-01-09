@@ -10,11 +10,9 @@ import pandas as pd
 
 from common.utils import *
 from common.model_store import *
-from inputs.collector_binance import klines_to_df, column_types
 from common.generators import generate_feature_set
 from common.generators import predict_feature_set
-
-from scripts.merge import *
+from inputs.collector_binance import klines_to_df, column_types
 
 import logging
 log = logging.getLogger('analyzer')
