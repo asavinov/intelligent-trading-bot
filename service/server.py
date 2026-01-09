@@ -1,6 +1,3 @@
-from decimal import *
-import asyncio
-
 import click
 
 from apscheduler.schedulers.asyncio import AsyncIOScheduler
@@ -8,10 +5,8 @@ from apscheduler.schedulers.asyncio import AsyncIOScheduler
 from binance import Client
 
 from common.types import Venue
-from service.App import *
-from common.utils import *
 from common.generators import output_feature_set
-from service.analyzer import *
+from common.analyzer import Analyzer
 
 from inputs import get_collector_functions
 

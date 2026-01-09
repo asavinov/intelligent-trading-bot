@@ -5,18 +5,15 @@ and storing it in the database. It also includes health checks for the MT5 conne
 """
 
 import time
-from datetime import datetime, timedelta
-from typing import Any, Coroutine
-
-import pandas as pd
-import asyncio
-import MetaTrader5 as mt5
+from typing import Any
 import pytz
 
-from common.utils_mt5 import mt5_freq_from_pandas, get_timedelta_for_mt5_timeframe
+import asyncio
+
+import MetaTrader5 as mt5
+
 from service.App import *
-from common.utils import *
-from service.analyzer import *
+from common.utils_mt5 import mt5_freq_from_pandas, get_timedelta_for_mt5_timeframe
 from service.mt5 import connect_mt5
 
 import logging

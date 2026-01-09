@@ -3,7 +3,6 @@ from typing import Union
 import json
 import pickle
 from datetime import datetime, date, timedelta
-import queue
 
 import numpy as np
 import pandas as pd
