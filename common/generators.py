@@ -5,7 +5,6 @@ import numpy as np
 import pandas as pd
 import pandas.api.types as ptypes
 
-import common.classifier_gb
 from common.types import Venue
 from common.utils import *
 from common.model_store import *
@@ -110,7 +109,6 @@ def generate_feature_set(df: pd.DataFrame, fs: dict, config: dict, model_store: 
 
     return df, new_features
 
-
 def predict_feature_set(df, fs, config, model_store: ModelStore) -> Tuple[pd.DataFrame, list]:
 
     train_features, labels, algorithms = get_features_labels_algorithms(fs, config)
@@ -151,7 +149,6 @@ def predict_feature_set(df, fs, config, model_store: ModelStore) -> Tuple[pd.Dat
             features.append(score_column_name)
 
     return out_df, features
-
 
 def train_feature_set(df, fs, config) -> dict:
 
@@ -206,7 +203,6 @@ def train_feature_set(df, fs, config) -> dict:
 
     return models
 
-
 def get_features_labels_algorithms(fs, config) -> Tuple[list, list, list]:
     """
     Get three lists by combining the entries from default lists in the config file
@@ -242,7 +238,6 @@ def get_features_labels_algorithms(fs, config) -> Tuple[list, list, list]:
         algorithms = algorithms_all
 
     return train_features, labels, algorithms
-
 
 async def output_feature_set(df, fs: dict, config: dict, model_store: ModelStore) -> None:
     from outputs.notifier_scores import send_score_notification
