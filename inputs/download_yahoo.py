@@ -1,34 +1,29 @@
 from datetime import datetime, date, timedelta
+from pathlib import Path
+
+import pandas as pd
 
 import click
 
 import yfinance as yf
 from curl_cffi import requests  # Without its Session object, yahoo will reject requests with YFRateLimitError
 
-from service.App import *
-
 """
 Download quotes from Yahoo
 """
 
-@click.command()
-@click.option('--config_file', '-c', type=click.Path(), default='', help='Configuration file name')
-def main(config_file):
+def download_yahoo(config, data_sources):
     """
     """
-    load_config(config_file)
-
-    time_column = App.config["time_column"]
-    data_path = Path(App.config["data_folder"])
-
-    download_max_rows = App.config.get("download_max_rows", 0)
+    time_column = config["time_column"]
+    data_path = Path(config["data_folder"])
+    download_max_rows = config.get("download_max_rows", 0)
 
     now = datetime.now()
 
     # This session will be used in all requests to avoid YFRateLimitError
     session = requests.Session(impersonate="chrome")
 
-    data_sources = App.config["data_sources"]
     for ds in data_sources:
         # Assumption: folder name is equal to the symbol name we want to download
         quote = ds.get("folder")
@@ -94,13 +89,5 @@ def main(config_file):
             df = df.tail(download_max_rows)
 
         df.to_csv(file_name, index=False)
+
         print(f"Finished downloading '{quote}'. Stored {len(df)} rows in '{file_name}'")
-
-    elapsed = datetime.now() - now
-    print(f"Finished downloading data in {str(elapsed).split('.')[0]}")
-
-    return df
-
-
-if __name__ == '__main__':
-    main()

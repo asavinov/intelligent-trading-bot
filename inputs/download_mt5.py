@@ -10,9 +10,7 @@ import pytz
 import MetaTrader5 as mt5
 
 from common.utils_mt5 import mt5_freq_from_pandas, get_timedelta_for_mt5_timeframe
-from service.App import App, load_config
 from service.mt5 import connect_mt5
-
 
 print("MetaTrader5 package author: ", mt5.__author__)
 print("MetaTrader5 package version: ", mt5.__version__)
@@ -26,27 +24,21 @@ RATE_LIMIT_DELAY = 0.1 # Small delay between requests (seconds)
 
 # -------------------------------------------------
 
-@click.command()
-@click.option('--config_file', '-c', type=click.Path(), default='', help='Configuration file name')
-def main(config_file):
+def download_mt5(config, data_sources):
     """
     Retrieving historic klines from MetaTrader5 server incrementally using copy_rates_range
     with calculated chunk durations. Downloads data from the last record in the existing file
     (or a historical start date) up to the current time, fetching in duration-based chunks.
     """
-    load_config(config_file)
+    time_column = config["time_column"]
+    data_path = Path(config["data_folder"])
+    download_max_rows = config.get("download_max_rows", 0)
 
-    data_sources = App.config["data_sources"]
-    time_column = App.config["time_column"]
-    data_path = Path(App.config["data_folder"])
-    download_max_rows = App.config.get("download_max_rows", 0)
-    mt5_account_id = App.config.get("mt5_account_id")
-    mt5_password = App.config.get("mt5_password")
-    mt5_server = App.config.get("mt5_server")
+    mt5_account_id = config.get("mt5_account_id")
+    mt5_password = config.get("mt5_password")
+    mt5_server = config.get("mt5_server")
 
-    script_start_time = datetime.now()
-
-    pandas_freq = App.config["freq"]
+    pandas_freq = config["freq"]
     print(f"Pandas frequency: {pandas_freq}")
 
     mt5_timeframe = mt5_freq_from_pandas(pandas_freq)
@@ -344,11 +336,4 @@ def main(config_file):
     # --- Shutdown MT5 (same as before) ---
     print("\nShutting down MetaTrader 5 connection...")
     mt5.shutdown()
-
-    elapsed = datetime.now() - script_start_time
     print(f"\nFinished downloading data for symbols: {', '.join(processed_symbols) if processed_symbols else 'None'}")
-    print(f"Total time: {str(elapsed).split('.')[0]}")
-
-
-if __name__ == '__main__':
-    main()
