@@ -4,6 +4,7 @@ from pathlib import Path
 import click
 
 from common.types import Venue
+from inputs import get_download_fn
 from service.App import *
 
 """
@@ -34,23 +35,10 @@ def main(config_file):
 
     data_sources = App.config["data_sources"]
 
-    if venue == Venue.BINANCE:
-        from inputs.download_binance import download_binance
-        download_binance(App.config, data_sources)
+    download_fn = get_download_fn(venue)
 
-    elif venue == Venue.YAHOO:
-        from inputs.download_yahoo import download_yahoo
-        download_yahoo(App.config, data_sources)
-
-    elif venue == Venue.MT5:
-        from inputs.download_mt5 import download_mt5
-        download_mt5(App.config, data_sources)
-
-    else:
-        if not venue:
-            print(f"ERROR. Venue is not specified.")
-        else:
-            print(f"ERROR. Unknown venue {venue} or downloader for the venue not implemented.")
+    # Call venue-specific downloader
+    download_fn(App.config, data_sources)
 
     elapsed = datetime.now() - now
     print(f"")
