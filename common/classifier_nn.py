@@ -10,7 +10,6 @@ from keras.models import Sequential
 from keras.layers import Dense, Dropout
 from keras.regularizers import *
 from keras.callbacks import *
-from torch.optim import Adam
 
 
 def train_predict_nn(df_X, df_y, df_X_test, model_config: dict):
@@ -125,7 +124,6 @@ def train_nn(df_X, df_y, model_config: dict):
     )
 
     return (model, scaler)
-
 
 def predict_nn(models: tuple, df_X_test, model_config: dict):
     """

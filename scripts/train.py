@@ -7,7 +7,6 @@ import numpy as np
 import pandas as pd
 
 from service.App import *
-from common.gen_features import *
 from common.model_store import *
 from common.generators import train_feature_set
 
