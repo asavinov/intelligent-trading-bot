@@ -1,0 +1,33 @@
+[project]
+name = "intelligent-trading-bot"
+version = "0.7.0"
+description = "Automatically generating signals and trading based on machine learning and feature engineering"
+readme = "README.md"
+requires-python = ">=3.11"
+dependencies = [
+    "apscheduler>=3.11.0",
+    "click>=8.2.1",
+    "numba>=0.61.2",
+    "numpy==2.1.*",
+    "pandas==2.*",
+    "pyarrow>=20.0.0",
+    "tqdm>=4.67.1",
+    "ta-lib>=0.6.4",
+    "lightgbm==4.*",
+    "scikit-learn==1.6.*",
+    "seaborn>=0.13.2",
+    "tensorflow-io-gcs-filesystem==0.31.0; sys_platform == 'win32'",
+    "tensorflow-io-gcs-filesystem; sys_platform != 'win32'",
+    "tensorflow==2.19.*",
+]
+
+[dependency-groups]
+connectors = [
+    "python-binance==1.0.*",
+    "yfinance>=0.2.63",
+    "metatrader5>=5.0.4874; sys_platform == \"win32\"",
+]
+
+features = [
+    "tsfresh>=0.21.0",
+]
