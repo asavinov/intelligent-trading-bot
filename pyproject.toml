@@ -1,0 +1,72 @@
+[build-system]
+requires = ["setuptools >= 80.0"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "intelligent-trading-bot"
+version = "0.8.dev"
+description = "Intelligent Trading Bot - Core library, scripts and a simple server"
+readme = "README.md"
+requires-python = ">=3.12"
+license = "MIT"
+license-files = ["LICENSE"]
+authors = [
+    {name = "Alexandr Savinov", email = "savinov@conceptoriented.org"}
+]
+keywords = ["machine-learning", "crypto", "bitcoin", "trading", "artificial-intelligence", "cryptocurrency", "feature-engineering", "algorithmic-trading", "crypto-trading", "trading-bots"]
+classifiers = [
+    "Development Status :: 4 - Beta",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3 :: Only",
+    "Programming Language :: Python :: 3.9",
+    "Operating System :: OS Independent",
+    "Intended Audience :: Developers",
+    "Intended Audience :: Science/Research",
+    "Topic :: Scientific/Engineering",
+    "Topic :: Software Development",
+]
+
+dependencies = [
+    "apscheduler",
+    "click",
+    "tqdm",
+
+    "numpy==2.*",
+    "pandas==2.*",
+    "pyarrow",
+
+    "python-binance==1.0.*",
+
+    "numba",
+    "ta-lib",
+
+    "scikit-learn==1.8.*",
+    "lightgbm==4.*",
+    "tensorflow==2.20.*",
+    "tensorflow==3.13.*",
+]
+
+[project.optional-dependencies]
+dev = [
+    #"pytest >= 7.4",
+    #"ruff >= 0.2",
+    #"mypy >= 1.8",
+]
+
+[project.urls]
+Homepage = "https://github.com/asavinov/intelligent-trading-bot"
+Documentation = "https://github.com/asavinov/intelligent-trading-bot"
+Repository = "https://github.com/asavinov/intelligent-trading-bot"
+"Bug Tracker" = "https://github.com/asavinov/intelligent-trading-bot/issues"
+
+[tool.setuptools]
+packages = ["common", "inputs", "outputs", "scripts", "service"]
+include-package-data = false
+
+#[tool.setuptools.packages.find]
+#include = ["common", "inputs", "outputs", "scripts", "service"]
+#exclude = ["tests", "tests.*"]
+
+# Optional: dynamic version from __version__ or git tag (needs setuptools-scm)
+# [tool.setuptools.dynamic]
+# version = {attr = "my_awesome_package.__version__"}

@@ -1,25 +1,26 @@
-numpy==2.1.*  # version limited by tensorflow and numba
-pandas==2.*  # version might be important for parsing timestamps
-numba  # For highlow label generator
-pyarrow  # If parquet is used. Alternatively fastparquet
-
 apscheduler
 click
 tqdm
 
-# Downloaders
+numpy==2.*  # version limited by tensorflow and numba
+pandas==2.*  # version might be important for parsing timestamps
+pyarrow  # If parquet is used. Alternatively fastparquet
+
+# Downloaders/connectors
 python-binance==1.0.*
-#MetaTrader5>=5.0.4874; sys_platform == 'win32'  # If mt5 venue is used
 #yfinance
 #curl-cffi  # Used in yahoo downloder
+#MetaTrader5>=5.0.4874; sys_platform == 'win32'  # If mt5 venue is used
 
 # Features/label generation
-# tsfresh  # if tsfresh feature generator is used. It depends on matrixprofile with binary (in pip) only for Python 3.8
+numba  # For highlow label generator
 ta-lib  # Python wrapper for TA-lib (native) library
+# tsfresh  # if tsfresh feature generator is used. It depends on matrixprofile with binary (in pip) only for Python 3.8
 
 # Algorithms
-scikit-learn==1.6.*
+scikit-learn==1.8.*
 lightgbm==4.*
-tensorflow==2.19.*
+tensorflow==2.20.*
+keras==3.13.*
 
 # seaborn  # if outputs with diagrams are used

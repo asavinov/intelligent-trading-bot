@@ -53,7 +53,7 @@ Here three arrows mean buy signal for bitcoin at the current price 74,896 and th
 For the signaler service to work, a number of ML models must be trained and the model files available for the service. All scripts run in batch mode by loading some input data and storing some output files. The batch scripts are located in the `scripts` module.
 
 If everything is configured, then the following scripts have to be executed:
-* `python -m scripts.download_binance -c config.json`
+* `python -m scripts.download -c config.json`
 * `python -m scripts.merge -c config.json`
 * `python -m scripts.features -c config.json`
 * `python -m scripts.labels -c config.json`
