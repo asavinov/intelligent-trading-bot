@@ -43,7 +43,7 @@ dependencies = [
     "scikit-learn==1.8.*",
     "lightgbm==4.*",
     "tensorflow==2.20.*",
-    "tensorflow==3.13.*",
+    "keras==3.13.*",
 ]
 
 [project.optional-dependencies]
