@@ -7,7 +7,6 @@ from common.utils import *
 from common.model_store import *
 from common.generators import generate_feature_set
 from common.generators import predict_feature_set
-from inputs.collector_binance import column_types
 
 import logging
 log = logging.getLogger('analyzer')
@@ -23,8 +22,8 @@ class Analyzer:
         Create a new operation object using its definition.
 
         :param config: Initialization parameters defining what is in the database including its persistent parameters and schema
+        :param model_store: Model store object which provides access to (trainable) algorithm parameters as opposed to fixed by-value parameters in the configuration object
         """
-
         self.config = config
         self.model_store = model_store
 
@@ -63,12 +62,15 @@ class Analyzer:
         labels_dtypes = {k: 'float64' for k in labels}  # Same data type
 
         # Combine all raw columns, derived features and (if train mode) label columns
-        all_columns_dtypes = column_types | train_features_dtypes
+        time_column = self.config["time_column"]
+        freq = self.config["freq"]
+        all_columns_dtypes = {time_column: 'datetime64[ns, UTC]'} | train_features_dtypes
         if self.is_train:
             all_columns_dtypes = all_columns_dtypes | labels_dtypes
 
         self.df = pd.DataFrame(columns=all_columns_dtypes).astype(all_columns_dtypes)
-        self.df = self.df.set_index('timestamp', inplace=False, drop=False)  # timestamp column in the index and also as a column for convenience
+        self.df = self.df.set_index(time_column, inplace=False, drop=False)  # timestamp column in the index and also as a column for convenience
+        self.df = self.df.asfreq(freq)
         # Now the data frame is initialized and regular updates will append rows to it followed by analysis (computation of derived features)
 
         self.previous_df = None  # For validation
