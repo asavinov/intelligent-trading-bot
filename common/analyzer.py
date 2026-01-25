@@ -1,7 +1,3 @@
-from pathlib import Path
-from typing import Union
-import json
-import pickle
 from datetime import datetime, date, timedelta
 
 import numpy as np
@@ -11,7 +7,7 @@ from common.utils import *
 from common.model_store import *
 from common.generators import generate_feature_set
 from common.generators import predict_feature_set
-from inputs.collector_binance import klines_to_df, column_types
+from inputs.collector_binance import column_types
 
 import logging
 log = logging.getLogger('analyzer')
@@ -19,7 +15,7 @@ log = logging.getLogger('analyzer')
 
 class Analyzer:
     """
-    In-memory database which represents the current state of the (trading) environment including its history.
+    In-memory database which represents the current state of the data context (all trading data) including its history.
     """
 
     def __init__(self, config: dict, model_store: ModelStore):
@@ -114,55 +110,35 @@ class Analyzer:
 
         return intervals_count + self.append_overlap_records
 
-    def append_klines(self, data: dict):
+    def append_data(self, dfs: dict):
         """
-        Convert the input klines to data frames, merge them and append to the main data frame by overwriting existing klines in case of overlap.
+        Merge individual data frames by creating a common index and append to the main data frame in this class.
+        The values in the overlapped range (if any) will be overwritten.
+        """
+        #
+        # Merge multiple dfs in one df by adding columns prefixes and creating a common regular time index
+        #
 
-        :param data: Dict of lists with symbol as a key, and list of klines for this symbol as a value.
-            Example: { 'BTCUSDT': [ [], [], [] ] }
-        :type dict:
-        """
+        # The merge function works with data_source structure so we fill it with data before calling
+        data_sources = self.config.get("data_sources", [])
+        if len(dfs) != len(data_sources):
+            log.warning(f"The number of symbols retrieved {len(dfs)} is not equal to the number of data sources{len(data_sources)}")
+        for ds in data_sources:
+            ds_symbol = ds.get("folder")
+            ds["df"] = dfs.get(ds_symbol)
+
+        # Really merge and get one data frame (regular index will be created and column prefixes added)
         time_column = self.config["time_column"]
         freq = self.config["freq"]
-        interval_length_ms = pandas_interval_length_ms(freq)
-        interval_length_td = pd.Timedelta(freq).to_pytimedelta()
-
-        #
-        # Convert source data (klines) into data frames for each data source
-        #
-        data_sources = self.config.get("data_sources", [])
-        for ds in data_sources:
-            if ds.get("file") == "klines":
-                try:
-                    ds_symbol = ds.get("folder")
-                    klines = data.get(ds_symbol)
-                    df = klines_to_df(klines)
-
-                    # Validate
-                    if df.isnull().any().any():
-                        null_columns = {k: v for k, v in df.isnull().any().to_dict().items() if v}
-                        log.warning(f"Null in source data found. Columns with Null: {null_columns}")
-                    # TODO: We might receive empty strings or 0s in numeric data - how can we detect them?
-                    # TODO: Check that timestamps in 'close_time' are strictly consecutive
-                except Exception as e:
-                    log.error(f"Error in klines_to_df method: {e}. Length klines: {len(klines)}")
-                    return
-            else:
-                log.error("Unknown data sources. Currently only 'klines' is supported. Check 'data_sources' in config, key 'file'")
-                return
-            ds["df"] = df
-
-        #
-        # Merge multiple dfs in one df with prefixes and common regular time index
-        #
         merge_interpolate = self.config.get("merge_interpolate", False)
         df = merge_data_sources(data_sources, time_column, freq, merge_interpolate)
 
-        #
-        # Append to the main data frame (by overwriting existing overlap)
-        #
+        # Store part of the previous state for validation etc. purposes before it is overwritten
         self.previous_df = self.df.tail(10).copy()
 
+        #
+        # Append new records by overwritting the overlap area
+        #
         initial_df_len = len(self.df)
         appended_df_len = len(df)
         self.df = append_df_drop_concat(self.df, df)
@@ -170,7 +146,9 @@ class Analyzer:
         overwritten_rows_len = (initial_df_len + appended_df_len) - result_df_len  # 0 if exact concatenation, positive if overlap, negative if gap (error)
 
         #
-        # Compute and set new dirty count (how many to re-evaluate, the current number might be more than 0, e.g., if we append without evaluation)
+        # Compute and set new dirty count
+        # It is how many records must be (re-)evaluated
+        # The current (old) number might be more than 0, e.g., if we append several times without evaluation)
         #
         if self.dirty_records < 0:
             pass  # No change: still all records have to be re-computed
@@ -291,7 +269,6 @@ class Analyzer:
         # Remove too old rows
         if len(self.df) > self.max_window_length:
             self.df = self.df.tail(self.max_window_length)
-
 
 if __name__ == "__main__":
     pass

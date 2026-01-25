@@ -163,7 +163,13 @@ async def data_provider_health_check():
 
     return 0
 
+#
+# Raw data format and conversion
+# A raw record is represented as lists of values [ val1, val2,... ] with implicitly assumed column names
+# A table is returned as a list of lists
+#
 
+# Columns names corresoinding to the values returned from API
 column_names = [
     'timestamp',
     'open', 'high', 'low', 'close', 'volume',
@@ -210,5 +216,12 @@ def klines_to_df(klines: list):
 
     if "timestamp" in df.columns:
         df.set_index('timestamp', inplace=True, drop=False)
+
+    # Validate
+    if df.isnull().any().any():
+        null_columns = {k: v for k, v in df.isnull().any().to_dict().items() if v}
+        print(f"WARNING: Null in raw data found during conversion. Columns with Nulls: {null_columns}")
+    # TODO: We might receive empty strings or 0s in numeric data - how can we detect them?
+    # TODO: Check that timestamps in 'close_time' are strictly consecutive. It is warning - not error
 
     return df

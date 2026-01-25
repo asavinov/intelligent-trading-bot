@@ -108,12 +108,20 @@ async def main_collector_task():
         return 1
 
     #
-    # 3. Push data to the analyzer for further processing
+    # 3. Convert raw data to data frames
+    #
+    from inputs.collector_binance import klines_to_df  # Currently only for Binance
+    for symbol, klines in results.items():
+        df = klines_to_df(klines)
+        results[symbol] = df
+
+    #
+    # 4. Append data to the analyzer for further processing (my also creating a common index and merging)
     #
     try:
-        App.analyzer.append_klines(results)
+        App.analyzer.append_data(results)
     except Exception as e:
-        log.error(f"Error storing kline result in the database. Exception: {e}")
+        log.error(f"Error appending data to the analyzer. Exception: {e}")
         return 1
 
     log.info(f"<=== End collector task.")
