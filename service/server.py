@@ -170,9 +170,8 @@ def start_server(config_file):
         collector_binance.client = Client(**client_args)
 
     if venue == Venue.MT5:
-        from service.mt5 import connect_mt5
         from inputs import collector_mt5
-        authorized = connect_mt5(mt5_account_id=int(App.config.get("mt5_account_id")), mt5_password=str(App.config.get("mt5_password")), mt5_server=str(App.config.get("mt5_server")))
+        authorized = collector_mt5.connect_mt5(mt5_account_id=int(App.config.get("mt5_account_id")), mt5_password=str(App.config.get("mt5_password")), mt5_server=str(App.config.get("mt5_server")))
         if not authorized:
             log.error(f"Failed to connect to MT5. Check credentials and server details.")
             return

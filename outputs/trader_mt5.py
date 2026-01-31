@@ -10,7 +10,8 @@ from service.App import *
 from common.utils import *
 from common.model_store import *
 from outputs.notifier_trades import get_signal
-from service.mt5 import connect_mt5
+
+from inputs.collector_mt5 import connect_mt5
 
 import logging
 

@@ -18,7 +18,7 @@ from service.App import *
 from common.utils import *
 
 import logging
-log = logging.getLogger('collector')
+log = logging.getLogger('binance.base_client')
 
 client = None
 
