@@ -161,20 +161,22 @@ def start_server(config_file):
     # Connect to the server and update/initialize the system state
     #
     if venue == Venue.BINANCE:
+        from inputs import collector_binance
         client_args = App.config.get("client_args", {})
         if App.config.get("api_key"):
             client_args["api_key"] = App.config.get("api_key")
         if App.config.get("api_secret"):
             client_args["api_secret"] = App.config.get("api_secret")
-        App.client = Client(**client_args)
+        collector_binance.client = Client(**client_args)
 
     if venue == Venue.MT5:
         from service.mt5 import connect_mt5
+        from inputs import collector_mt5
         authorized = connect_mt5(mt5_account_id=int(App.config.get("mt5_account_id")), mt5_password=str(App.config.get("mt5_password")), mt5_server=str(App.config.get("mt5_server")))
         if not authorized:
             log.error(f"Failed to connect to MT5. Check credentials and server details.")
             return
-        App.client = mt5  
+        collector_mt5.client = mt5
 
     App.model_store = ModelStore(App.config)
     App.model_store.load_models()
@@ -275,7 +277,9 @@ def start_server(config_file):
         # if loop.stop() doesn't immediately halt everything.
         App.loop.close()
         log.info(f"Event loop closed.")
-        # Shutdown MT5 connection if it was initialized
+        if venue == venue.BINANCE:
+            from inputs import collector_binance
+            collector_binance.client.close_connection()
         if venue == Venue.MT5:
             mt5.shutdown()
             log.info("MT5 connection shutdown.")

@@ -25,13 +25,6 @@ class App:
 
     analyzer = None  # Store and analyze data
 
-    # Connector client
-    client = None
-
-    # WebSocket for push notifications
-    bm = None
-    conn_key = None  # Socket
-
     #
     # State of the server (updated after each interval)
     #

@@ -20,9 +20,7 @@ import logging
 
 log = logging.getLogger('collector')
 
-#
-# Request/update market data
-#
+client = None
 
 async def sync_data_collector_task(config: dict) -> dict[Any, Any] | None:
     """
@@ -93,7 +91,6 @@ async def sync_data_collector_task(config: dict) -> dict[Any, Any] | None:
     mt5.shutdown()
 
     return results
-
 
 async def request_klines(symbol: str, pandas_freq: str, mt5_timeframe: int, CHUNK_SIZE: int, RATE_LIMIT_DELAY: float) -> dict:
     """
@@ -196,10 +193,6 @@ async def request_klines(symbol: str, pandas_freq: str, mt5_timeframe: int, CHUN
 
     # Return all received klines with the symbol as a key
     return {symbol: all_klines_list}
-
-#
-# Server and account info
-#
 
 async def data_provider_health_check() -> int:
     """

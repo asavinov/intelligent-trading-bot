@@ -20,9 +20,7 @@ from common.utils import *
 import logging
 log = logging.getLogger('collector')
 
-#
-# Request/update market data
-#
+client = None
 
 async def sync_data_collector_task(config: dict) -> dict[Any, Any] | None:
     """
@@ -74,7 +72,6 @@ async def sync_data_collector_task(config: dict) -> dict[Any, Any] | None:
 
     return results
 
-
 async def request_klines(symbol, freq, limit):
     """
     Request klines data from the service for one symbol.
@@ -85,6 +82,8 @@ async def request_klines(symbol, freq, limit):
     :param limit: desired and maximum number of klines
     :return: Dict with the symbol as a key and a list of klines as a value. One kline is also a list.
     """
+    global client
+
     klines_per_request = 400  # Limitation of API
 
     now_ts = now_timestamp()
@@ -99,14 +98,14 @@ async def request_klines(symbol, freq, limit):
             # - startTime: include all intervals (ids) with same or greater id: if within interval then excluding this interval; if is equal to open time then include this interval
             # - endTime: include all intervals (ids) with same or smaller id: if equal to left border then return this interval, if within interval then return this interval
             # - It will return also incomplete current interval (in particular, we could collect approximate klines for higher frequencies by requesting incomplete intervals)
-            klines = App.client.get_klines(symbol=symbol, interval=binance_freq, limit=limit, endTime=now_ts)
+            klines = client.get_klines(symbol=symbol, interval=binance_freq, limit=limit, endTime=now_ts)
             # Return: list of lists, that is, one kline is a list (not dict) with items ordered: timestamp, open, high, low, close etc.
         else:
             # https://sammchardy.github.io/binance/2018/01/08/historical-data-download-binance.html
             # get_historical_klines(symbol, interval, start_str, end_str=None, limit=500)
             # Find start from the number of records and frequency (interval length in milliseconds)
             request_start_ts = now_ts - interval_length_ms * (limit+1)
-            klines = App.client.get_historical_klines(symbol=symbol, interval=binance_freq, start_str=request_start_ts, end_str=now_ts)
+            klines = client.get_historical_klines(symbol=symbol, interval=binance_freq, start_str=request_start_ts, end_str=now_ts)
     except BinanceRequestException as bre:
         # {"code": 1103, "msg": "An unknown parameter was sent"}
         log.error(f"BinanceRequestException while requesting klines: {bre}")
@@ -135,16 +134,14 @@ async def request_klines(symbol, freq, limit):
     # Return all received klines with the symbol as a key
     return {symbol: klines_full}
 
-#
-# Server and account info
-#
-
 async def data_provider_health_check():
     """
     Request information about the data provider server state.
     """
+    global client
+
     # Get server state (ping) and trade status (e.g., trade can be suspended on some symbol)
-    system_status = App.client.get_system_status()
+    system_status = client.get_system_status()
     #{
     #    "status": 0,  # 0: normal，1：system maintenance
     #    "msg": "normal"  # normal or System maintenance.
@@ -157,7 +154,7 @@ async def data_provider_health_check():
     # Ping the server
 
     # Check time synchronization
-    #server_time = App.client.get_server_time()
+    #server_time = client.get_server_time()
     #time_diff = int(time.time() * 1000) - server_time['serverTime']
     # TODO: Log large time differences (or better trigger time synchronization procedure)
 
@@ -169,7 +166,7 @@ async def data_provider_health_check():
 # A table is returned as a list of lists
 #
 
-# Columns names corresoinding to the values returned from API
+# Columns names corresponding to the values returned from API
 column_names = [
     'timestamp',
     'open', 'high', 'low', 'close', 'volume',
