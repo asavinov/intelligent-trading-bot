@@ -74,7 +74,6 @@ async def main_task():
 
     return
 
-
 async def main_collector_task():
     """
     Retrieve raw data from venue-specific data sources and append to the main data frame
@@ -102,24 +101,16 @@ async def main_collector_task():
     #
     # 2. Get how much data is missing and request it
     #
-    results = await sync_data_collector_task(App.config)
-    if results is None:
-        log.error(f"Problem getting data from the server. No signaling, no trade. Will try next time.")
+    dfs = await sync_data_collector_task(App.config)
+    if dfs is None:
+        log.error(f"Problem getting data from the server. Will try next time.")
         return 1
 
     #
-    # 3. Convert raw data to data frames
-    #
-    from inputs.collector_binance import klines_to_df  # Currently only for Binance
-    for symbol, klines in results.items():
-        df = klines_to_df(klines)
-        results[symbol] = df
-
-    #
-    # 4. Append data to the analyzer for further processing (my also creating a common index and merging)
+    # 3. Append data to the analyzer for further processing (my also creating a common index and merging)
     #
     try:
-        App.analyzer.append_data(results)
+        App.analyzer.append_data(dfs)
     except Exception as e:
         log.error(f"Error appending data to the analyzer. Exception: {e}")
         return 1

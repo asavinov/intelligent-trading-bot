@@ -6,6 +6,8 @@ and storing it in the database. It also includes health checks for the MT5 conne
 
 import time
 from typing import Any, Optional
+
+import pandas as pd
 import pytz
 
 import asyncio
@@ -20,7 +22,7 @@ log = logging.getLogger('mt5')
 
 client = None
 
-async def sync_data_collector_task(config: dict) -> dict[Any, Any] | None:
+async def sync_data_collector_task(config: dict) -> dict[str, pd.DataFrame] | None:
     """
     Synchronizes the local data state with the latest data from MT5.
     This task retrieves the most recent kline data for specified symbols and
@@ -104,8 +106,7 @@ async def request_klines(symbol: str, pandas_freq: str, mt5_timeframe: int, CHUN
         RATE_LIMIT_DELAY (float): The delay in seconds between requests.
 
     Returns:
-        dict: A dictionary with the symbol as the key and a list of klines as the value.
-              Each kline is a list of data points.
+        dict: A dictionary with the symbol as the key and a data frame with klines
 
     Raises:
         ValueError: If an invalid MT5 timeframe is provided.
@@ -189,8 +190,13 @@ async def request_klines(symbol: str, pandas_freq: str, mt5_timeframe: int, CHUN
         log.error(f"Exception while requesting klines: {e}")
         return {}
 
+    df = pd.concat(all_klines_list, axis=0, ignore_index=False)
+    df = df.drop_duplicates(subset=time_column)
+    df = df.set_index(time_column, inplace=False, drop=False)
+    df.name = symbol
+
     # Return all received klines with the symbol as a key
-    return {symbol: all_klines_list}
+    return {symbol: df}
 
 async def data_provider_health_check() -> int:
     """

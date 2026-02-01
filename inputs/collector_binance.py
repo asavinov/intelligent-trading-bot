@@ -22,13 +22,13 @@ log = logging.getLogger('binance.base_client')
 
 client = None
 
-async def sync_data_collector_task(config: dict) -> dict[Any, Any] | None:
+async def sync_data_collector_task(config: dict) -> dict[str, pd.DataFrame] | None:
     """
     Retrieve and return latest data from binance client.
 
     Limitation: maximum 999 latest klines can be retrieved. If more is needed then some other function has to be used
 
-    :return: For each symbol (key of the dict), list of lists with values
+    :return: For each symbol (key of the dict), data frame with data and binance-specific columns
     """
 
     data_sources = config.get("data_sources", [])
@@ -69,6 +69,11 @@ async def sync_data_collector_task(config: dict) -> dict[Any, Any] | None:
         else:
             log.error("Received empty or wrong result from klines request.")
             return None
+
+    for symbol, klines in results.items():
+        df = klines_to_df(klines)
+        df.name = symbol
+        results[symbol] = df
 
     return results
 
@@ -181,13 +186,12 @@ column_types = {
     'quote_av': 'float64', 'trades': 'int64', 'tb_base_av': 'float64', 'tb_quote_av': 'float64',
     'ignore': 'float64',
 }
+time_column = 'timestamp'
 
 def klines_to_df(klines: list):
     """
     Convert a list of klines (for one symbol) to a data frame by using the binance-specific convention for (a sequence of) column names and their types.
     """
-    time_column = 'timestamp'
-
     df = pd.DataFrame(klines, columns=column_names)
     df[time_column] = pd.to_datetime(df[time_column], unit='ms', utc=True)
     df = df.astype(column_types)
@@ -211,8 +215,8 @@ def klines_to_df(klines: list):
     #df["tb_base_av"] = pd.to_numeric(df["tb_base_av"])
     #df["tb_quote_av"] = pd.to_numeric(df["tb_quote_av"])
 
-    if "timestamp" in df.columns:
-        df.set_index('timestamp', inplace=True, drop=False)
+    # Set index by retaining the time column
+    df.set_index(time_column, inplace=True, drop=False)
 
     # Validate
     if df.isnull().any().any():
