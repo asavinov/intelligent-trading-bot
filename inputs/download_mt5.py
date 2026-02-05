@@ -4,13 +4,12 @@ from pathlib import Path
 import os
 
 import pandas as pd
-import click
 import pytz
 
 import MetaTrader5 as mt5
 
 from inputs.collector_mt5 import connect_mt5
-from common.utils_mt5 import mt5_freq_from_pandas, get_timedelta_for_mt5_timeframe
+from inputs.utils_mt5 import mt5_freq_from_pandas, get_timedelta_for_mt5_timeframe
 
 print("MetaTrader5 package author: ", mt5.__author__)
 print("MetaTrader5 package version: ", mt5.__version__)

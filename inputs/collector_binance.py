@@ -16,6 +16,7 @@ from binance.enums import *
 
 from service.App import *
 from common.utils import *
+from inputs.utils_binance import *
 
 import logging
 log = logging.getLogger('binance.base_client')

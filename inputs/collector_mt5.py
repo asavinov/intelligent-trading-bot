@@ -5,9 +5,8 @@ and storing it in the database. It also includes health checks for the MT5 conne
 """
 
 import time
-from typing import Any, Optional
+from typing import Optional
 
-import pandas as pd
 import pytz
 
 import asyncio
@@ -15,7 +14,7 @@ import asyncio
 import MetaTrader5 as mt5
 
 from service.App import *
-from common.utils_mt5 import mt5_freq_from_pandas, get_timedelta_for_mt5_timeframe
+from inputs.utils_mt5 import mt5_freq_from_pandas, get_timedelta_for_mt5_timeframe
 
 import logging
 log = logging.getLogger('mt5')
