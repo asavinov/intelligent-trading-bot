@@ -73,6 +73,21 @@ def pandas_get_interval(freq: str, timestamp: int=None):
 def pandas_interval_length_ms(freq: str):
     return int(pd.Timedelta(freq).to_pytimedelta().total_seconds() * 1000)
 
+def get_interval_count_from_start_dt(freq: str, start_dt):
+    """How many whole intervals are from the specified start datetime and now."""
+    interval_length_td = pd.Timedelta(freq).to_pytimedelta()
+    now = datetime.now(timezone.utc)
+    interval_count = (now - start_dt) // interval_length_td  # How many whole intervals
+    return interval_count + 2
+
+def get_start_dt_for_interval_count(freq: str, interval_count: int):
+    """Start datetime for the specified number of whole intervals back. Result is not aligned with the reaster."""
+    interval_length_td = pd.Timedelta(freq).to_pytimedelta()
+    period_length_td = interval_length_td * (interval_count + 1)
+    now = datetime.now(timezone.utc)
+    start_dt = (now - period_length_td)
+    return start_dt
+
 #
 # Date and time
 #

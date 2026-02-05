@@ -92,13 +92,8 @@ class Analyzer:
         else:
             # Compute it from the maximum history self.min_window_length
             freq = self.config["freq"]
-            interval_length_td = pd.Timedelta(freq).to_pytimedelta()
-            min_window_length_td = interval_length_td * (self.min_window_length+1)
-
-            now = datetime.now(timezone.utc)
-            last_kline_td = (now - min_window_length_td)
-
-            return last_kline_td
+            last_kline_dt = get_start_dt_for_interval_count(freq, self.min_window_length)
+            return last_kline_dt
 
     def get_missing_klines_count(self):
         """
@@ -110,11 +105,7 @@ class Analyzer:
             return self.min_window_length
 
         freq = self.config["freq"]
-        interval_length_td = pd.Timedelta(freq).to_pytimedelta()
-
-        now = datetime.now(timezone.utc)
-        intervals_count = (now-last_kline_dt) // interval_length_td  # How many whole intervals
-
+        intervals_count = get_interval_count_from_start_dt(freq, last_kline_dt)
         return intervals_count
 
     def append_data(self, dfs: dict):
