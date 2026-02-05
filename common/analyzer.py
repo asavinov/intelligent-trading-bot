@@ -90,7 +90,15 @@ class Analyzer:
         if len(self.df) > 0:
             return self.df.index[-1]
         else:
-            return None
+            # Compute it from the maximum history self.min_window_length
+            freq = self.config["freq"]
+            interval_length_td = pd.Timedelta(freq).to_pytimedelta()
+            min_window_length_td = interval_length_td * (self.min_window_length+1)
+
+            now = datetime.now(timezone.utc)
+            last_kline_td = (now - min_window_length_td)
+
+            return last_kline_td
 
     def get_missing_klines_count(self):
         """

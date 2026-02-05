@@ -64,7 +64,7 @@ async def sync_data_collector_task(config: dict, start_from_dt) -> dict[str, pd.
     # Compute how many records need to be fetched from the specified start timestamp
     interval_length_td = pd.Timedelta(freq).to_pytimedelta()
     now = datetime.now(timezone.utc)
-    intervals_count = (now - last_kline_dt) // interval_length_td  # How many whole intervals
+    intervals_count = (now - start_from_dt) // interval_length_td  # How many whole intervals
     request_count = intervals_count + append_overlap_records
 
     # Create a list of tasks for retrieving data
