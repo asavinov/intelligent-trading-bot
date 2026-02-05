@@ -22,23 +22,29 @@ log = logging.getLogger('mt5')
 
 client = None
 
-async def sync_data_collector_task(config: dict) -> dict[str, pd.DataFrame] | None:
+#
+# Parameters
+#
+CHUNK_SIZE = 10000  # (int): The number of bars to request in each chunk. How many bars worth of duration to request in each chunk
+RATE_LIMIT_DELAY = 0.1  # (float): The delay in seconds between requests. Small delay between requests (seconds)
+default_start_dt = datetime(2014, 1, 1, tzinfo=timezone)  # Or get from config if needed
+
+time_column = 'timestamp'
+timezone = pytz.timezone("Etc/UTC")
+
+async def sync_data_collector_task(config: dict, start_from_dt) -> dict[str, pd.DataFrame] | None:
     """
     Synchronizes the local data state with the latest data from MT5.
     This task retrieves the most recent kline data for specified symbols and
     stores it in the database.
 
     Returns:
-        dict: For each symbol (key of the dict), list of records with data (list of lists)
+        dict: For each symbol (key of the dict), a data frame with the new data
 
     Raises:
         TimeoutError: If the data request times out.
         Exception: If any other error occurs during data retrieval.
     """
-
-    CHUNK_SIZE = 10000  # How many bars worth of duration to request in each chunk
-    RATE_LIMIT_DELAY = 0.1  # Small delay between requests (seconds)
-
     data_sources = config.get("data_sources", [])
     symbols = [x.get("folder") for x in data_sources]
     pandas_freq = config["freq"]
@@ -61,7 +67,7 @@ async def sync_data_collector_task(config: dict) -> dict[str, pd.DataFrame] | No
     # missing_klines_counts = [App.analyzer.get_missing_klines_count(sym) for sym in symbols]
 
     # Create a list of tasks for retrieving data
-    tasks = [asyncio.create_task(request_klines(s, pandas_freq, mt5_timeframe, CHUNK_SIZE, RATE_LIMIT_DELAY)) for s in symbols]
+    tasks = [asyncio.create_task(request_klines(s, mt5_timeframe, start_from_dt)) for s in symbols]
 
     results = {}
     timeout = 10  # Seconds to wait for the result
@@ -92,7 +98,7 @@ async def sync_data_collector_task(config: dict) -> dict[str, pd.DataFrame] | No
 
     return results
 
-async def request_klines(symbol: str, pandas_freq: str, mt5_timeframe: int, CHUNK_SIZE: int, RATE_LIMIT_DELAY: float) -> dict:
+async def request_klines(symbol: str, mt5_timeframe: int, start_from_dt) -> dict:
     """
     Requests kline data from MT5 for a given symbol.
     It fetches data in chunks to avoid overloading the server and handles
@@ -100,10 +106,7 @@ async def request_klines(symbol: str, pandas_freq: str, mt5_timeframe: int, CHUN
 
     Args:
         symbol (str): The trading symbol (e.g., "EURUSD").
-        pandas_freq (str): The pandas frequency string (e.g., "1min", "5min").
         mt5_timeframe (int): The MT5 timeframe constant (e.g., mt5.TIMEFRAME_M1).
-        CHUNK_SIZE (int): The number of bars to request in each chunk.
-        RATE_LIMIT_DELAY (float): The delay in seconds between requests.
 
     Returns:
         dict: A dictionary with the symbol as the key and a data frame with klines
@@ -112,21 +115,15 @@ async def request_klines(symbol: str, pandas_freq: str, mt5_timeframe: int, CHUN
         ValueError: If an invalid MT5 timeframe is provided.
         Exception: If any other error occurs during data retrieval.
     """
-
-    time_column = App.config["time_column"]
-    timezone = pytz.timezone("Etc/UTC")
-
     # Define end point for download (now)
     end_dt = datetime.now(timezone)
 
-    # Get the last kline from the database
-    last_kline_dt = App.analyzer.get_last_kline_time(symbol)
-    if last_kline_dt:
-        current_start_dt = last_kline_dt
+    if start_from_dt:
+        current_start_dt = start_from_dt
         log.info(f"Existing data found. Will download data starting from {current_start_dt.strftime('%Y-%m-%d %H:%M:%S %Z')}")
     else:
         # Define a default historical start if no file exists | 2017 | 2024
-        current_start_dt = datetime(2014, 1, 1, tzinfo=timezone)  # Or get from config if needed
+        current_start_dt = default_start_dt
         log.info(f"No existing data found. Starting download from {current_start_dt.strftime('%Y-%m-%d %H:%M:%S %Z')}.")
 
     all_klines_list = []

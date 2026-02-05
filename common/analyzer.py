@@ -36,9 +36,6 @@ class Analyzer:
         # After growing larger than maximum the array will be truncated (back to the minimum required size) by removing older records
         self.max_window_length = self.min_window_length + 15
 
-        # How many records to request in addition to the necessary missing records
-        self.append_overlap_records = self.config.get("append_overlap_records", 5)
-
         # How many tail records store empty/wrong values and must be recomputed.
         # Initially it is equal to the data size (all records have to be recomputed). -1 (or too large) means that all records will be re-computed in batch mode (rather than stream mode).
         # After each analysis it is set to 0 which means that all features were evaluated and data is up-to-date.
@@ -110,7 +107,7 @@ class Analyzer:
         now = datetime.now(timezone.utc)
         intervals_count = (now-last_kline_dt) // interval_length_td  # How many whole intervals
 
-        return intervals_count + self.append_overlap_records
+        return intervals_count
 
     def append_data(self, dfs: dict):
         """

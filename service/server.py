@@ -101,7 +101,11 @@ async def main_collector_task():
     #
     # 2. Get how much data is missing and request it
     #
-    dfs = await sync_data_collector_task(App.config)
+    # Ask analyzer what is the timestamp of its last available row
+    last_kline_dt = App.analyzer.get_last_kline_dt()
+
+    # Request data starting from this time (with certain overlap)
+    dfs = await sync_data_collector_task(App.config, last_kline_dt)
     if dfs is None:
         log.error(f"Problem getting data from the server. Will try next time.")
         return 1
@@ -125,7 +129,7 @@ def start_server(config_file):
 
     load_config(config_file)
 
-    App.config["train"] = False  # Server does not train - it only predicts therefore disable train mode
+    App.config["train"] = False  # Server does not train - it only predicts therefore explicitly disable train mode
 
     symbol = App.config["symbol"]
     freq = App.config["freq"]

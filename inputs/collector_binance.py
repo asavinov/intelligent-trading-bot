@@ -22,7 +22,29 @@ log = logging.getLogger('binance.base_client')
 
 client = None
 
-async def sync_data_collector_task(config: dict) -> dict[str, pd.DataFrame] | None:
+#
+# Parameters
+#
+append_overlap_records = 5  # How many records to request in addition to the missing data (overlap length)
+
+# Binance-specific columns name corresponding to the values returned from API
+column_names = [
+    'timestamp',
+    'open', 'high', 'low', 'close', 'volume',
+    'close_time',
+    'quote_av', 'trades', 'tb_base_av', 'tb_quote_av',
+    'ignore'
+]
+column_types = {
+    'timestamp': 'datetime64[ns, UTC]',  # datetime64[ns, UTC] datetime64[ns]
+    'open': 'float64', 'high': 'float64', 'low': 'float64', 'close': 'float64', 'volume': 'float64',
+    'close_time': 'int64',
+    'quote_av': 'float64', 'trades': 'int64', 'tb_base_av': 'float64', 'tb_quote_av': 'float64',
+    'ignore': 'float64',
+}
+time_column = 'timestamp'
+
+async def sync_data_collector_task(config: dict, start_from_dt) -> dict[str, pd.DataFrame] | None:
     """
     Retrieve and return latest data from binance client.
 
@@ -39,11 +61,14 @@ async def sync_data_collector_task(config: dict) -> dict[str, pd.DataFrame] | No
     if not symbols:
         symbols = [config["symbol"]]
 
-    # How many records are missing (and to be requested) for each symbol
-    missing_data = App.analyzer.get_missing_klines_count()
-    missing_klines_counts = [missing_data for sym in symbols]
+    # Compute how many records need to be fetched from the specified start timestamp
+    interval_length_td = pd.Timedelta(freq).to_pytimedelta()
+    now = datetime.now(timezone.utc)
+    intervals_count = (now - last_kline_dt) // interval_length_td  # How many whole intervals
+    request_count = intervals_count + append_overlap_records
 
     # Create a list of tasks for retrieving data
+    missing_klines_counts = [request_count for sym in symbols]
     #coros = [request_klines(sym, "1m", 5) for sym in symbols]
     tasks = [asyncio.create_task(request_klines(s, freq, c)) for c, s in zip(missing_klines_counts, symbols)]
 
@@ -77,7 +102,7 @@ async def sync_data_collector_task(config: dict) -> dict[str, pd.DataFrame] | No
 
     return results
 
-async def request_klines(symbol, freq, limit):
+async def request_klines(symbol, freq, limit: int):
     """
     Request klines data from the service for one symbol.
     Maximum the specified number of klines will be returned.
@@ -164,29 +189,6 @@ async def data_provider_health_check():
     # TODO: Log large time differences (or better trigger time synchronization procedure)
 
     return 0
-
-#
-# Raw data format and conversion
-# A raw record is represented as lists of values [ val1, val2,... ] with implicitly assumed column names
-# A table is returned as a list of lists
-#
-
-# Columns names corresponding to the values returned from API
-column_names = [
-    'timestamp',
-    'open', 'high', 'low', 'close', 'volume',
-    'close_time',
-    'quote_av', 'trades', 'tb_base_av', 'tb_quote_av',
-    'ignore'
-]
-column_types = {
-    'timestamp': 'datetime64[ns, UTC]',  # datetime64[ns, UTC] datetime64[ns]
-    'open': 'float64', 'high': 'float64', 'low': 'float64', 'close': 'float64', 'volume': 'float64',
-    'close_time': 'int64',
-    'quote_av': 'float64', 'trades': 'int64', 'tb_base_av': 'float64', 'tb_quote_av': 'float64',
-    'ignore': 'float64',
-}
-time_column = 'timestamp'
 
 def klines_to_df(klines: list):
     """
