@@ -162,6 +162,8 @@ def start_server(config_file):
             client_args["api_key"] = App.config.get("api_key")
         if App.config.get("api_secret"):
             client_args["api_secret"] = App.config.get("api_secret")
+        if App.config["append_overlap_records"]:
+            collector_binance.append_overlap_records = App.config["append_overlap_records"]
         collector_binance.client = Client(**client_args)
 
     if venue == Venue.MT5:

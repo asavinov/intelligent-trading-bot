@@ -8,7 +8,6 @@ import click
 
 from binance import Client
 
-from common.utils import binance_freq_from_pandas
 from inputs.collector_binance import klines_to_df, column_types
 from inputs.utils_binance import *
 
