@@ -12,7 +12,7 @@ from curl_cffi import requests  # Without its Session object, yahoo will reject 
 Download quotes from Yahoo
 """
 
-def download_yahoo(config, data_sources):
+def download_klines(config, data_sources):
     """
     """
     time_column = config["time_column"]

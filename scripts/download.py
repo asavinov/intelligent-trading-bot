@@ -35,10 +35,10 @@ def main(config_file):
 
     data_sources = App.config["data_sources"]
 
-    download_fn = get_download_functions(venue)
+    download_klines_fn = get_download_functions(venue)
 
     # Call venue-specific downloader
-    download_fn(App.config, data_sources)
+    download_klines_fn(App.config, data_sources)
 
     elapsed = datetime.now() - now
     print(f"")
