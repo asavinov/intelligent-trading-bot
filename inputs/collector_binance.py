@@ -45,7 +45,7 @@ column_types = {
 }
 time_column = 'timestamp'
 
-async def sync_data_collector_task(config: dict, start_from_dt) -> dict[str, pd.DataFrame] | None:
+async def fetch_klines(config: dict, start_from_dt) -> dict[str, pd.DataFrame] | None:
     """
     Retrieve and return latest data from binance client.
 
@@ -68,8 +68,8 @@ async def sync_data_collector_task(config: dict, start_from_dt) -> dict[str, pd.
 
     # Create a list of tasks for retrieving data
     missing_klines_counts = [request_count for sym in symbols]
-    #coros = [request_klines(sym, "1m", 5) for sym in symbols]
-    tasks = [asyncio.create_task(request_klines(s, freq, c)) for c, s in zip(missing_klines_counts, symbols)]
+    #coros = [request_symbol_klines(sym, "1m", 5) for sym in symbols]
+    tasks = [asyncio.create_task(request_symbol_klines(s, freq, c)) for c, s in zip(missing_klines_counts, symbols)]
 
     results = {}
     timeout = 10  # Seconds to wait for the result
@@ -101,7 +101,7 @@ async def sync_data_collector_task(config: dict, start_from_dt) -> dict[str, pd.
 
     return results
 
-async def request_klines(symbol, freq, limit: int):
+async def request_symbol_klines(symbol, freq, limit: int):
     """
     Request klines data from the service for one symbol.
     Maximum the specified number of klines will be returned.
@@ -111,8 +111,6 @@ async def request_klines(symbol, freq, limit: int):
     :param limit: desired and maximum number of klines
     :return: Dict with the symbol as a key and a list of klines as a value. One kline is also a list.
     """
-    global client
-
     klines_per_request = 400  # Limitation of API
 
     now_ts = now_timestamp()
@@ -163,26 +161,24 @@ async def request_klines(symbol, freq, limit: int):
     # Return all received klines with the symbol as a key
     return {symbol: klines_full}
 
-async def data_provider_health_check():
+async def health_check():
     """
     Request information about the data provider server state.
     """
-    global client
-
     # Get server state (ping) and trade status (e.g., trade can be suspended on some symbol)
     system_status = client.get_system_status()
     #{
     #    "status": 0,  # 0: normal，1：system maintenance
     #    "msg": "normal"  # normal or System maintenance.
     #}
-    if not system_status or system_status.get("status") != 0:
-        App.server_status = 1
+    if not system_status:
+        log.error(f"Error connecting to Binance server. No status information.")
         return 1
-    App.server_status = 0
+    if system_status.get("status") != 0:
+        log.error(f"Error connecting to Binance server. Bad status: {system_status.get("status")}")
+        return 1
 
-    # Ping the server
-
-    # Check time synchronization
+    # Check time synchronization (difference betweeen server and local time)
     #server_time = client.get_server_time()
     #time_diff = int(time.time() * 1000) - server_time['serverTime']
     # TODO: Log large time differences (or better trigger time synchronization procedure)

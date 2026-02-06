@@ -4,7 +4,7 @@ from pathlib import Path
 import click
 
 from common.types import Venue
-from inputs import get_download_fn
+from inputs import get_download_functions
 from service.App import *
 
 """
@@ -35,7 +35,7 @@ def main(config_file):
 
     data_sources = App.config["data_sources"]
 
-    download_fn = get_download_fn(venue)
+    download_fn = get_download_functions(venue)
 
     # Call venue-specific downloader
     download_fn(App.config, data_sources)

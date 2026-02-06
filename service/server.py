@@ -80,7 +80,7 @@ async def main_collector_task():
     """
     venue = App.config.get("venue")
     venue = Venue(venue)
-    sync_data_collector_task, data_provider_health_check = get_collector_functions(venue)
+    fetch_klines_fn, health_check_fn = get_collector_functions(venue)
 
     symbol = App.config["symbol"]
     freq = App.config["freq"]
@@ -93,7 +93,7 @@ async def main_collector_task():
     # 1. Check server state (if necessary)
     #
     if data_provider_problems_exist():
-        await data_provider_health_check()
+        await health_check()
         if data_provider_problems_exist():
             log.error(f"Problems with the data provider server found. No signaling, no trade. Will try next time.")
             return 1
@@ -105,7 +105,7 @@ async def main_collector_task():
     last_kline_dt = App.analyzer.get_last_kline_dt()
 
     # Request data starting from this time (with certain overlap)
-    dfs = await sync_data_collector_task(App.config, last_kline_dt)
+    dfs = await fetch_klines_fn(App.config, last_kline_dt)
     if dfs is None:
         log.error(f"Problem getting data from the server. Will try next time.")
         return 1
@@ -141,7 +141,7 @@ def start_server(config_file):
         log.error(f"Invalid venue specified in config: {venue}. Error: {e}. Currently these values are supported: {[e.value for e in Venue]}")
         return
     
-    sync_data_collector_task, data_provider_health_check = get_collector_functions(venue)
+    fetch_klines_fn, health_check_fn = get_collector_functions(venue)
     trader_funcs = get_trader_functions(venue)
     
     log.info(f"Initializing server. Venue: {venue.value}. Trade pair: {symbol}. Frequency: {freq}")
@@ -186,7 +186,7 @@ def start_server(config_file):
 
     # Do one time server check and state update
     try:
-        App.loop.run_until_complete(data_provider_health_check())
+        App.loop.run_until_complete(health_check())
     except Exception as e:
         log.error(f"Problems during health check (connectivity, server etc.) {e}")
 

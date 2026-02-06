@@ -2,15 +2,15 @@ from common.types import Venue
 
 def get_collector_functions(venue: Venue):
     if venue == venue.BINANCE:
-        from inputs.collector_binance import sync_data_collector_task, data_provider_health_check
-        return sync_data_collector_task, data_provider_health_check
+        from inputs.collector_binance import fetch_klines, health_check
+        return fetch_klines, health_check
     elif venue == venue.MT5:
-        from inputs.collector_mt5 import sync_data_collector_task, data_provider_health_check
-        return sync_data_collector_task, data_provider_health_check
+        from inputs.collector_mt5 import fetch_klines, health_check
+        return fetch_klines, health_check
     else:
         raise ValueError(f"Unknown collector type: {venue}")
 
-def get_download_fn(venue: Venue):
+def get_download_functions(venue: Venue):
     if venue == venue.BINANCE:
         from inputs.download_binance import download_binance
         return download_binance

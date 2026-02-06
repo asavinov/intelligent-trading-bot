@@ -31,7 +31,7 @@ default_start_dt = datetime(2014, 1, 1, tzinfo=timezone)  # Or get from config i
 time_column = 'timestamp'
 timezone = pytz.timezone("Etc/UTC")
 
-async def sync_data_collector_task(config: dict, start_from_dt) -> dict[str, pd.DataFrame] | None:
+async def fetch_klines(config: dict, start_from_dt) -> dict[str, pd.DataFrame] | None:
     """
     Synchronizes the local data state with the latest data from MT5.
     This task retrieves the most recent kline data for specified symbols and
@@ -66,7 +66,7 @@ async def sync_data_collector_task(config: dict, start_from_dt) -> dict[str, pd.
     # missing_klines_counts = [App.analyzer.get_missing_klines_count(sym) for sym in symbols]
 
     # Create a list of tasks for retrieving data
-    tasks = [asyncio.create_task(request_klines(s, mt5_timeframe, start_from_dt)) for s in symbols]
+    tasks = [asyncio.create_task(request_symbol_klines(s, mt5_timeframe, start_from_dt)) for s in symbols]
 
     results = {}
     timeout = 10  # Seconds to wait for the result
@@ -97,7 +97,7 @@ async def sync_data_collector_task(config: dict, start_from_dt) -> dict[str, pd.
 
     return results
 
-async def request_klines(symbol: str, mt5_timeframe: int, start_from_dt) -> dict:
+async def request_symbol_klines(symbol: str, mt5_timeframe: int, start_from_dt) -> dict:
     """
     Requests kline data from MT5 for a given symbol.
     It fetches data in chunks to avoid overloading the server and handles
@@ -194,7 +194,7 @@ async def request_klines(symbol: str, mt5_timeframe: int, start_from_dt) -> dict
     # Return all received klines with the symbol as a key
     return {symbol: df}
 
-async def data_provider_health_check() -> int:
+async def health_check() -> int:
     """
     Performs a health check on the MT5 connection.
     It verifies if the MT5 terminal is accessible and returns the status.
