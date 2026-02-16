@@ -47,6 +47,18 @@ column_types = {
 }
 time_column = 'timestamp'
 
+
+def init_client(parameters, client_args):
+    global client, append_overlap_records
+    append_overlap_records = parameters.get("append_overlap_records", 5)
+    client = Client(**client_args)
+
+def get_client():
+    return client
+
+def close_client():
+    client.close_connection()
+
 async def fetch_klines(config: dict, start_from_dt) -> dict[str, pd.DataFrame] | None:
     """
     Retrieve and return latest data from binance client.

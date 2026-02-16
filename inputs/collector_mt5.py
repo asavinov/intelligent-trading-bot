@@ -38,6 +38,20 @@ default_start_dt = datetime(2014, 1, 1, tzinfo=timezone)  # Or get from config i
 time_column = 'timestamp'
 timezone = pytz.timezone("Etc/UTC")
 
+def init_client(parameters, client_args):
+    global client
+    authorized = collector_mt5.connect_mt5(**client_args)
+    if not authorized:
+        log.error(f"Failed to connect to MT5. Check credentials and server details.")
+        raise ConnectionError("Failed to connect to MT5. Check credentials and server details.")
+    collector_mt5.client = mt5
+
+def get_client():
+    return client
+
+def close_client():
+    client.shutdown()
+
 async def fetch_klines(config: dict, start_from_dt) -> dict[str, pd.DataFrame] | None:
     """
     Synchronizes the local data state with the latest data from MT5.
