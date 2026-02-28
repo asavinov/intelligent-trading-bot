@@ -93,7 +93,7 @@ async def main_collector_task():
     # 1. Check server state (if necessary)
     #
     if data_provider_problems_exist():
-        await health_check()
+        await health_check_fn()
         if data_provider_problems_exist():
             log.error(f"Problems with the data provider server found. No signaling, no trade. Will try next time.")
             return 1
@@ -193,18 +193,6 @@ def start_server(config_file):
 
     #App.loop = asyncio.get_event_loop()  # In Python 3.12: DeprecationWarning: There is no current event loop
     App.loop = asyncio.new_event_loop()
-
-    # Do one time server check and state update
-    try:
-        App.loop.run_until_complete(health_check())
-    except Exception as e:
-        log.error(f"Problems during health check (connectivity, server etc.) {e}")
-
-    if data_provider_problems_exist():
-        log.error(f"Problems during health check (connectivity, server etc.)")
-        return
-
-    log.info(f"Finished health check (connection, server status etc.)")
 
     # Cold start: load initial data, do complete analysis
     try:
