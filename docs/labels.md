@@ -64,7 +64,7 @@ The input column name is specified in the `columns` attributes, for example: `co
 This label generator returns either true or false depending on whether the current value is a maximum relative to its neighbors or a minimum *relative* to its neigbors. The choise of whether it a return all maxima (as true values) or all minima (also as true values) is done via `function` attribute which is equal either `top` (for finding all maxima) or `bot` (for finding all minima). For example, if `function: "top"`, then the computed label column will be true if the price takes *relative* maximum in this time row. 
 
 Relative maximum (top) means that the value is greater than its left and right minimums by certain value.
-For the algorithm, it is important to find all mimuma and maxima. However, not all of them are selected. 
+For the algorithm, it is important to find all minima and maxima. However, not all of them are selected.
 The algorithm selects only maxima, which are surrounded by two minima (from left and right) and the both differences
 are big enough. The minimum required difference between two adjacent extremums is specified in the `level` attribute.
 For example (for finding all tops), if `level: 0.02`, and the algorithm labels the current moment as true in the output, 
@@ -89,15 +89,15 @@ Here is an example which find two binary label columns:
 ```jsonc
 "label_sets": [
   {
+    "generator": "topbot2", 
     "column_prefix": "", 
     "feature_prefix": "", 
-    "generator": "topbot2", 
     "config":  {"columns": "close", "function": "top", "level": 0.02, "tolerances": [0.1], "names": ["top_2"]}
   },
   {
+    "generator": "topbot2", 
     "column_prefix": "", 
     "feature_prefix": "", 
-    "generator": "topbot2", 
     "config":  {"columns": "close", "function": "bot", "level": 0.02, "tolerances": [0.1], "names": ["bot_2"]}
   }
 ]
@@ -114,4 +114,64 @@ or, for the second label, it is a local minimum (bottom) and will increase in th
 
 ## `highlow2` label generator
 
-TBD
+This label generator returns true or false values by checking whether the price increases (or decreases)
+significantly enough during the specified future time horizon.
+
+The generator has the following parameters specified in its configuration:
+- `function` is either `high` or `low`:
+  - `high` value will return true if price increases significantly and false otherwise
+  - `low` value will return true if price decreases significantly and false otherwise
+- `columns` is a list of 3 column names with the role depending on their index (position in the list):
+  - The first column is used to determine the current (reference) price. Frequently (but not necessarily) it is close price
+  - The second column is used to determine the price increase and whether the (reference) price changed significantly.
+    Frequently (but not necessarily) it is high price
+  - The third column is used to determine the price decrease and whether the (reference) price falls significantly.
+    Frequently (but not necessarily) it is low price
+- `thresholds` is a list of percentage values which determine how much the price has to increase (or decrease) in order for the generator to return true. For each value, one output column is returned
+- `tolerance` is a factor relative to the thresholds which then used to determine price change relative to the reference (close) price. For example, if it is 1.0 then it is equal to the threshold. If it is 0.5 then it is 50% of the threshold.
+It determines the price move in the opposite direction than the expected one.
+If the price moves in this (opposite) direction move than the specified tolerance (earlier than the expected move),
+then the generator return false. 
+- `horizon` is the number of future rows for which the analysis is performed. 
+If the price does not reach the required level during this period then the generator return false.
+
+Here is an example of two label definitions which generate four binary output columns:
+```jsonc
+"label_sets": [
+  {
+    "generator": "highlow2", 
+    "column_prefix": "", 
+    "feature_prefix": "", 
+    "config":  {
+      "columns": ["close", "high", "low"], 
+      "function": "high", 
+      "thresholds": [2.0, 4.0], "tolerance": 0.5, "horizon": 10, 
+      "names": ["high_2", "high_3"]
+    }
+  },
+  {
+    "column_prefix": "", 
+    "generator": "highlow2", 
+    "feature_prefix": "", 
+    "config":  {
+      "columns": ["close", "high", "low"], 
+      "function": "low", 
+      "thresholds": [2.0, 4.0], "tolerance": 0.5, "horizon": 10, 
+      "names": ["low_2", "low_3"]
+    }
+  }
+]
+```
+
+The first generator detects significantly enough increases of the close price during next 10 time intervals. 
+More specifically, it return two columns: the first column determines 2% price increases (relative to close price and usign the high price) and the second column detects stronger increases by 4% (all other parameters are equal).
+What is important, if the price drops by 1% (tolerance 0.5) or 2% (for the second output) *before* it reaches its
+threshold, then the generator returns false.
+
+The pair of `thresholds` and `tolerance` work similar to TP and SL levels in trading which determine opposite price
+movements. It is important which of these levels is reached first. If the threshold (TP) is reached before tolerance (SL) then true is returned (and if this happens within the horizon).
+
+If tolerance is 0.0 then the label will return true only if the price never falls below the current value 
+before the threshold is reached. This happens rarely and actually we do not care if the price falls slightly 
+before increasing significantly. Therefore the tolerance parameter should specify some value which we consider a 
+*small random movement* or fluctuation which should be ignored when searching for significant changes.
