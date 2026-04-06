@@ -55,7 +55,62 @@ But it is possible to define a custom label generator in exactly the same way as
 
 ## `topbot2` label generator
 
-TBD
+`topbot2` is a label generator which produces binary values by processing future and past values of one input column. 
+This input column is normally price but it could be any other numeric column. 
+For example, it could be a technical indicator like moving average. 
+The goal is to predict some binary event based on the future and past behavior of this input column.
+The input column name is specified in the `columns` attributes, for example: `columns: "price"`.
+
+This label generator returns either true or false depending on whether the current value is a maximum relative to its neighbors or a minimum *relative* to its neigbors. The choise of whether it a return all maxima (as true values) or all minima (also as true values) is done via `function` attribute which is equal either `top` (for finding all maxima) or `bot` (for finding all minima). For example, if `function: "top"`, then the computed label column will be true if the price takes *relative* maximum in this time row. 
+
+Relative maximum (top) means that the value is greater than its left and right minimums by certain value.
+For the algorithm, it is important to find all mimuma and maxima. However, not all of them are selected. 
+The algorithm selects only maxima, which are surrounded by two minima (from left and right) and the both differences
+are big enough. The minimum required difference between two adjacent extremums is specified in the `level` attribute.
+For example (for finding all tops), if `level: 0.02`, and the algorithm labels the current moment as true in the output, 
+then this means that there exists a past *minimum* (bottom) with the price lower by 2% and a future minimum also lower by 2%.
+Note that the existence of these two minima also means that they both have their adjacent maxima, which are higher by 2%.
+Note also that the minimum level between adjacent minimum and maximum is specified as a factor or portion (not as percent).
+This value is always positive.
+
+Once all maximum and minimum values with the required distance between adjacent values are found, they are marked as true.
+However, sometimes the direct neighbors are almost equal to the maximum or minimum. 
+For example, the maximum price could be 45,678 but the previous or next price is 45,679 so it is only slightly lower.
+In this case, we might want to also treat such points as top or bottom in the price development.
+Therefore, the generator provides `tolerances` attribute which is a list of numbers.
+
+One tolerance is interpreted as a fraction of the level (and level is a fraction of the price).
+For example, if level is 0.1 (10% of the price change) and the tolerance is 0.2 (20% of the level),
+then the price difference for the tolerance is 0.02 (2%). If top price found is 100.0 then its direct neigbors
+with price between 98.0 and 100.0 are also marked as top (return value is true).
+Note that the left and right minimums must have price 90.0 or lower because level is 0.1 (10% of the price).
+
+Here is an example which find two binary label columns:
+```jsonc
+"label_sets": [
+  {
+    "column_prefix": "", 
+    "feature_prefix": "", 
+    "generator": "topbot2", 
+    "config":  {"columns": "close", "function": "top", "level": 0.02, "tolerances": [0.1], "names": ["top_2"]}
+  },
+  {
+    "column_prefix": "", 
+    "feature_prefix": "", 
+    "generator": "topbot2", 
+    "config":  {"columns": "close", "function": "bot", "level": 0.02, "tolerances": [0.1], "names": ["bot_2"]}
+  }
+]
+```
+The first level definition (in train mode) will generate a binary column 
+which is true if the close price is a maximum relative to left and right minima 
+with the minimum price change 2% with 0.2% tolerance.
+The second label definition will find all bottom values with the same level and tolerance.
+The desired output column names are specified in the `names` attribute.
+
+These labels can be used to train a classification ML-algorithm. The algorithm (in predict mode) will
+predict the probability that the current price is a local maximum (top) and hence will drop significantly in the nearest future
+or, for the second label, it is a local minimum (bottom) and will increase in the nearest future.
 
 ## `highlow2` label generator
 
