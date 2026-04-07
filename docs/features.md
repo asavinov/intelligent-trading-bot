@@ -21,9 +21,9 @@ For example, we could define a feature equal to the difference between high and 
 It depends on only this row and only two other features (high and low) which must be set before this difference can be computed.
 A feature which computes moving average will depend on one feature (like close price) and certain number of previous values.
 
-## Representing features
+## Defining features
 
-All features are represented as a list where one item is a feature definition represented as a dictionary:
+All features are represented as a list where one item is a dictionary with one feature definition:
 ```jsonc
 "feature_sets": [
   {...}, // First feature

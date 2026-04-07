@@ -91,5 +91,61 @@ The same names are used for the trained models which are stored as files.
 
 ## Custom trainable features
 
-TBD
+A new way to define traiable features is compatible with how normal features are defined.
+It is necessary to provide a custom generator function but this function has to be aware of two modes: train and predict.
+It has to check whether it runs in train mode via the global binary `train` attribute. If it is true then 
+it has to train its model using the available data and then perform feature evaluation using this newly trained model.
+If it runs in predict mode (train attribute is false), then it re-uses the previously trained model.
 
+Here is an example how such a trainable feature is defined if we want to train a model which finds average value
+which will be then used for finding deviation of current values from it.
+```jsonc
+{
+  "generator": "myextensions.stats:deviation_feature",
+  "config": { // This is passed to the generator function
+    "columns": "close", // for which column find average
+    "function": "mean", // Other functions could be supported like median
+    "names": "deviation", // Predicted column name
+    "parameters": {} // Whatever other parameters we might need
+  }
+}
+```
+
+This generator function can be implemented as follows:
+```python
+def deviation_feature(df, config: dict, global_config: dict, model_store: ModelStore):
+    column_name = config.get('columns')
+    function = config.get('function')
+    names = config.get('names')  # Output feature name
+    if not names:
+        names = f"{column_name}_{function}"
+
+    # Load model
+    model_name = config.get('model_name', f"{names}")
+    model = None
+    model = model_store.get_model(model_name)
+
+    # Determine if train is needed before predict
+    is_train = global_config.get('train')
+    # If in train mode, then find the scale parameters from data, store in the model (to be used below for prediction)
+    if is_train:
+        mean = df[column_name].mean()  # Find mean value
+        model = dict(mean=mean)  # Create model as a dict
+        model_store.put_model(model_name, model)  # Submit and store model persistently
+
+    # Now, we have a model: either loaded from the store or trained. Do normal evaluation
+    if function == 'mean':
+        out_column = df[column_name] - model.get("mean")
+
+    df[names] = out_column
+
+    return df, [names]
+
+```
+
+What makes this code specific is the train section which is executed if train mode is detected.
+In train mode, data in the specified column is used to find mean value which is the only parameter of the model.
+After that, the column is really transformed by subtracting this mean value and this transformed column is returned as a 
+new generated feature.
+
+If the feature is executed in predict mode, then it works just like other normal features but its model (mean value) will be loaded from the model store.
