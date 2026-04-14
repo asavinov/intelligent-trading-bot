@@ -96,14 +96,6 @@ The merge procedure has two major goals:
 - Generate continuous time raster according to the frequency in order to avoid gaps in the source data
 - Append all source data (columns) to this table by aligning their rows with this raster
 
-The result of merge is stored as a file by the script or maintained as a datafrme by the analyzer.
-
-
-
-
-The result is a dataframe with all source columns as retrieved from the data sources and named accordingly.
-These columns can be then referenced from feature definitions (see feature definitions).
-
 The merge script is executed as follows:
 ```console
 python -m scripts.merge -c config.json
@@ -115,7 +107,14 @@ For example, if we want to store the merged data in `parquet` format then we use
 
 The server in online mode will merge data for each new request (for example, every minute)
 after retrieving chunks from all the data sources, and then append this merged data to the main dataframe of the analyzer.
+The columns from the merged table can be referenced from [feature definitions](features.md).
 
 ## Implementing a custom data collector
 
-TBD
+In order to implement a new custom data collector for certain data provider the following steps have to be performed:
+- Add a new data provider in the `Venue` enumerator
+- Implement the provider-specific functions which really retrieve the data: `fetch_klines`, `health_check`, `download_klines`
+- Return these functions from the dispatcher functions `get_collector_functions` and `get_download_functions`
+
+The server will dynamically find these functions depending on the venue specified in the configuration
+and use them to incrementally retrieve the data, merge data, append to the main dataframe and analyze.

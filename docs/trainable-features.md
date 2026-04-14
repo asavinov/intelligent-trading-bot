@@ -91,7 +91,10 @@ The same names are used for the trained models which are stored as files.
 
 ## Custom trainable features
 
-A new way to define traiable features is compatible with how normal features are defined.
+A new way to define trainable features is compatible with how normal [features](features.md) are defined.
+Such feature definitions are placed in `feature_sets` or `train_features` sections
+but not in `train_feature_sets` section of the configuration.
+
 It is necessary to provide a custom generator function but this function has to be aware of two modes: train and predict.
 It has to check whether it runs in train mode via the global binary `train` attribute. If it is true then 
 it has to train its model using the available data and then perform feature evaluation using this newly trained model.

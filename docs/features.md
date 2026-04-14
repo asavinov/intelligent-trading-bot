@@ -32,6 +32,8 @@ All features are represented as a list where one item is a dictionary with one f
 ]
 ```
 
+Features can be also defined in `signal_sets` section which is evaluated after trainable features.
+
 One feature definition is a dictionary with the following attributes:
 ```jsonc
 {
