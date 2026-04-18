@@ -40,52 +40,13 @@ def train_gb(df_X, df_y, model_config: dict):
     #
     train_conf = model_config.get("train", {})
 
-    objective = train_conf.get("objective")
-
-    max_depth = train_conf.get("max_depth")
-    learning_rate = train_conf.get("learning_rate")
-    num_boost_round = train_conf.get("num_boost_round")
-
-    lambda_l1 = train_conf.get("lambda_l1")
-    lambda_l2 = train_conf.get("lambda_l2")
-
-    lgbm_params = {
-        'learning_rate': learning_rate,
-        'max_depth': max_depth,  # Can be -1
-        #"n_estimators": 10000,
-
-        #"min_split_gain": params['min_split_gain'],
-        "min_data_in_leaf": int(0.01*len(df_X)),  # Best: ~0.02 * len() - 2% of size
-        #'subsample': 0.8,
-        #'colsample_bytree': 0.8,
-        'num_leaves': 32,  # or (2 * 2**max_depth)
-        #"bagging_freq": 5,
-        #"bagging_fraction": 0.4,
-        #"feature_fraction": 0.05,
-
-        # gamma=0.1 ???
-        "lambda_l1": lambda_l1,
-        "lambda_l2": lambda_l2,
-
-        'is_unbalance': 'true',
-        # 'scale_pos_weight': scale_pos_weight,  # is_unbalance must be false
-
-        'boosting_type': 'gbdt',  # dart (slow but best, worse than gbdt), goss, gbdt
-
-        'objective': objective,  # binary cross_entropy cross_entropy_lambda
-
-        'metric': {'cross_entropy'},  # auc auc_mu map (mean_average_precision) cross_entropy binary_logloss cross_entropy_lambda binary_error
-
-        'verbose': 0,
-    }
+    # See parameters here: https://lightgbm.readthedocs.io/en/latest/Parameters.html
+    args = train_conf.copy()
 
     model = lgbm.train(
-        lgbm_params,
+        args,
         train_set=lgbm.Dataset(X_train, y_train),
-        num_boost_round=num_boost_round,
         #valid_sets=[lgbm.Dataset(X_validate, y_validate)],
-        #early_stopping_rounds=int(num_boost_round / 5),
-        #verbose_eval=100,
     )
 
     return (model, scaler)

@@ -3,7 +3,7 @@ import pandas as pd
 
 from sklearn.preprocessing import StandardScaler
 
-from sklearn.linear_model import LogisticRegression, SGDClassifier
+from sklearn.linear_model import LogisticRegression
 
 def train_predict_lc(df_X, df_y, df_X_test, model_config: dict):
     """
