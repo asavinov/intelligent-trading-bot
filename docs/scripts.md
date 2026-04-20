@@ -1,136 +1,170 @@
-(OUTDATED)
-
 # Scripts
 
-Scripts are used for retrieving data, computing derived features, training ML models, hyper-parameter search, training signal models.
+Batch scripts are intended for analyzing data in files as opposed to incremental analysis of data in-memory.
+One script has one purpose.
+It typically loads data from one input file, processes the data, and stores the result in an output file.
+Having multiple scripts simplifies the development of complex data processing pipelines consisting of several steps.
 
-Most scripts rely on the `App` class and its configuration parameters. They also load a configuration file with credentials and some other parameters which overwrite those in the `App.config`. Many more specific parameters or parameters used for debugging are defined in code itself.
+There are the following major purposes of scripts:
+- Data retrieval (data collectors) and merge of different data sources
+- Evaluation of features and producing new derived columns
+- Training machine learning models
+- Executing output adapters
+- Simulation and backtesting
 
-## Download the latest historic data
+File names can be specified in these attributes of the configuration:
+- `merge_file_name`: "data.csv",
+- `feature_file_name`: "features.csv",
+- `matrix_file_name`: "matrix.csv",
+- `predict_file_name`: "predictions.csv",
+- `signal_file_name`: "signals.csv",
+- `signal_models_file_name`: "signal_models",
+The file extension is used to determine the format: CSV or parquet.
 
-Execute: `python -m scripts.download -c config.json`
+## Download and merge
 
-Parameters:
-* `symbol` pair to load
-* `data_folder` data folder
+The `download` script retrievs data the data sources listed in the `data_sources` section:
+```console
+python -m scripts.download -c config.json
+```
 
-Purpose: Download raw data in format used for both training and prediction. Kline format is used and two types of data can be downloaded: spot and futures.
+Quote name (also subfolder) and file name ("klines" by default) are specified in the entries of the data source.
+If a source file already exists, then the script will retrieve only latest missing data and append these rows to the file.
+Otherwise, all available data will be retrieved and stored in a new file.
 
-Notes:
-* Edit main in binance-data.py by setting necessary symbol and function arguments
-* Script can be started from local folder and will store result in this folder.
-* The script will check if the previous file in the current folder and append it with new data. If not found, then new file is created and all data will be retrieved
-* Currently we use 2 separate sources stored in 2 separate files:
-  * klines (spot market), its history is quite long
-  * futures (also klines but from futures market), its history is relative short
+The `merge` script is used to combine all source files specified in the `data_sources` section and store the result in one output file:
+```console
+python -m scripts.merge -c config.json
+```
+The output file name and format is specified in the `merge_file_name` attribute.
+The file is stored in the `symbol` subfolder.
+Columns will get a prefix (if specified in the data source entry) and all rows will be aligned according to the data frequency.
+Accordintly, gaps can appear in case of missing data in some data source.
 
-## Merge several historic datasets into one dataset
+## Feature engineering
 
-Execute: `python -m scripts.merge -c config.json`
+These scripts are intended for applying feature definitions and generating new columns.
+Currently features can be defined in several ways and hence there are several groups of feature definitions.
+There is one script for each such group of features.
 
-Parameters:
-* `symbol` pair to load
-* `data_folder` data folder
+### Features
 
-Purpose: Merge spot and futures data as well as align to regular time raster
+Features defined in the `feature_sets` section are evaluated using the `features` script:
+```console
+python -m scripts.features -c config.json
+```
+It reads data from its input file specified in the `feature_sets` parameter ("data" by default),
+generates features defined in the `feature_sets` section, and stores the result in the output file
+specified in the `feature_file_name` parameter ("features" by default).
 
-Notes:
-* Merge historic data into one dataset. We analyse data using one common time raster and different column names. Also, we fix problems with gaps by producing a uniform time raster. Note that columns from different source files will have different history length so short files will have Nones in the long file.
-* If necessary, edit input data file locations as absolute paths
+### Labels
 
-## Generate feature matrix
+Features defined in the `label_sets` section are evaluated using the `labels` script:
+```console
+python -m scripts.labels -c config.json
+```
+It reads its input data from the output of the `features` script.
+The result table with appended label columns is stored in the `matrix_file_name` file ("matrix" by default).
 
-Execute: `python -m scripts.features -c config.json`
+### Predict
 
-Parameters:
-* `symbol` pair to load
-* `data_folder` data folder
-* Input: data file with raw values
-* Output: feature matrix
+The `predict` script evaluates features defined in the `train_feature_sets` section:
+```console
+python -m scripts.predict -c config.json
+```
+It evaluates these trainable features in predict mode by using existing models (previously trained by the `train` script).
+The data is loaded from the output of the `labels` script.
+The result is stored in the `predict_file_name` file ("predictions" by default).
 
-Purpose: Compute derived features and derived labels by attaching them as new columns and producing a feature matrix
+### Signals
 
-Here we compute derived features (also using window-functions) and produce a feature matrix. We also compute target features (labels). Note that we compute many possible features and labels but not all of them have to be used. In parameters, we define past history length (windows) and future horizon for labels. Currently, we generate 3 kinds of features independently: klines features (source 1), future features (source 2), and label features (our possible predictions targets).
+This script evaluates features defined in the `signal_sets` section:
+```console
+python -m scripts.signals -c config.json
+```
+Input data is loaded from the `predict_file_name` file (output of the `predict` script).
+The result is stored in the `signal_file_name` file.
 
-Notes:
-* Ensure that latest source data has been downloaded from binance server (previous step)
-* The goal s to load source (kline) data, generate derived features and labels, and store the result in output file. The output is supposed to be used for other procedures like training prediction models.
-* Max past window and max future horizon are currently not used (None will be stored)
-* Future horizon for labels is hard-coded. Change if necessary
-* If necessary, uncomment line with storing to parquet (install the packages)
-* Output file will store features and labels as they are implemented in the trade module
-* Same number of lines in output as in input file
+## Train machine learning models
 
-## Train prediction models
+The `train` script runs feature definitions from `train_feature_sets` section in train mode
+```console
+python -m scripts.train -c config.json
+```
+Running in train mode means that these features use the data to find optimal parameters of the features (models) but do not apply these parameters.
+The results of the script are model files stored in the `MODELS` subfoler.
+These model files will be used by the `predict` script to generate feature output columns.
 
-Execute: `python -m scripts.train -c config.json`
+## Outputs
 
-Parameters:
-* `symbol` pair to load
-* `data_folder` data folder
-* Hyper-parameters: currently specified in code in `train.py`
-* Input: feature matrix
-* Output: train model files
+The `output` script runs the definitions from the `output_sets` section:
+```console
+python -m scripts.output -c config.json
+```
+They do not produce new features but rather use the existing data to send notifications, visualizations, do trding etc.
 
-Purpose: Train models using the latest data (feature matrix) so that these models can be used for prediction in the service
+## Other scripts
 
-Notes:
-* There can be many predicted features and models, for example, for spot and future markets or based on different prediction algorithms or historic horizons
-* The procedure will consume feature matrix and hence the following files should be updated: source data, merge files, generate features (no need to generate rolling features).
-* The generated models have to be copied to the folder where they are found by the signal/trade server
+### Generate rolling predictions
 
-## Generate rolling predictions
+In real trading, we use machine learning models trained on previous data in order to predict future behavior.
+The `predict_rolling` is intended for repeating this sequence:
+- train models using available historic data
+- apply these models to predict future behavior
+- append (small) new data chunk and repeat the train-predict analysis
+The result is a table with predictions which are generated in small chunks using the models trained on the previous data (which also gradueally grows).
+Thus we simulate the train-predict steps by moving in time as if we ware doing it in real context.
+For example, for daily data, we could use monthly data chunks in order to keep our models up-to-date.
+The script will start from some initial date, say, 1 year ago, and then do 12 iterations by training and predicting for each new month.
+The result has 1 year of predictions but these predictions are done in a "fair" manner closely to real environment.
 
-Execute: `python -m scripts.predict_rolling -c config.json`
+The script is executed like other scripts:
+```console
+python -m scripts.predict_rolling -c config.json
+```
+It loads data from the `matrix_file_name` file ("matrix" by default).
+The result is stored in the `predict_file_name` file ("predictions" by default).
 
-Parameters:
-* `symbol` pair to load
-* `data_folder` data folder
-* Hyper-parameters: currently specified in code in `predict_rolling.py`
-* Input data: feature matrix
-* Output: data file with rolling predictions
+The parameters for iterations are specified in the `rolling_predict` section:
+- `data_start` (default 0) Trancate input data from start
+- `data_end` (default null) Trancate input data from end
+- `prediction_start` First row for starting iterations (end of the first training data), for example, "2020-01-02"
+- `prediction_size` New data chunk size in rows and the size of each prediction
+- `prediction_steps` How many iterations to perform, for example, 12 if we want to do 12 train-predict iterations.
+If None or 0, then from prediction start till the data end
+- `use_multiprocessing` Whether to use multiprocessing (true or false)
+- `max_workers` How many workers in case of multiprocessing
 
-Purpose: Simulate train-predict step by moving in time as if we ware doing it in real service, that is, add a new data batch, use the available data for training a new model, use this model for predictions, save these predictions, add new data batch and so on
+### Simulation and backtesting
 
-Generate rolling predictions. Here we train a model using previous data less frequently, say, once per day or week, but use much more previous data than in typical window-based features. We apply then one constant model to predict values for the future time until it is re-trained again using the newest data. (If the re-train frequency is equal to sample rate, that is, we do it for each new row, then we get normal window-based derived feature with large window sizes.) Each feature is based on some algorithm with some hyper-parameters and some history length. This procedure does not choose best hyper-parameters - for that purpose we need some other procedure, which will optimize the predicted values with the real ones. Normally, the target values of these features are directly related to what we really want to predict, that is, to some label. Output of this procedure is same file (feature matrix) with additional predicted features (scores). This file however will be much shorter because we need some quite long history for some features (say, 1 year). Note that for applying rolling predictions, we have to know hyper-parameters which can be found by a simpler procedure.
+Data analysis in ITB is based on generating new features including features based on machine learning algorithms.
+This allows us to know more about the future behavior like probablity that the price will be 2% higher during the next week.
+However, this knowledge by itself cannot be used *directly* for trading and says almost nothing about trade performance.
+The main reason is that there can be many possible trade strategies based on the knowledge of future behavior.
+These trade strategies produce buy and sell signals depending on the current situation on the market as well as
+the current state of the available assets. The simulation script is intended for filling this gap by evaluating
+trade performance based on the chosen trade strategy and its parameters.
 
-Notes:
-* Many train-predict cycles are executed and hence it takes significant time
-* Prerequisite: We already have to know the best prediction model(s) and its best parameters
-* There can be several models used for rolling predictions
-* Essentially, the predicting models are treated here as (more complex) feature definitions
-* Choose the best model and its parameters using grid search (below)
-* The results of this step are consumed by signal generator and backtesting
+The simulation (backtesting) parameters are specified in the `simulate_model` section of the configuration file:
+```console
+python -m scripts.simulate -c config.json
+```
 
-## Train signal models
+The script consumes predictions from the `predict_file_name` file.
+This file includes all derived features and should be produced by the `predict_rolling` script.
 
-Execute: `python -m scripts.simulate -c config.json`
+Note that the script does not find performance for one set of parameters.
+Rather, it evaluates a (large) set of parameters with the goal to find best performing trade model.
 
-Parameters:
-* `symbol` pair to load
-* `data_folder` data folder
-* Hyper-parameters: currently specified in code in `predict_rolling.py`
-* Input data: rolling predictions
-* Output: table with signal generation parameters and the corresponding performance
-
-Purpose: Find the best parameters for signal generation like score thresholds by analyzing the results of rolling predictions
-
-The input is a feature matrix with all scores (predicted features). Our goal is to define a feature the output of which will be directly used for buy/sell decisions. We need search for the best hyper-parameters starting from simple score threshold and ending with some data mining algorithm.
-
-Notes:
-* Important: we use a procedure for final score computation which must be the same as in the service during online signal generation
-* We consume the results of rolling predictions
-* We assume that rolling prediction produce many highly informative features
-* The grid search (brute force) of this step has to test our trading strategy using back testing as (direct) metric. In other words, trading performance on historic data is our metric for brute force or simple ML 
-* Normally the result is some thresholds or some simple ML model
-* Important: The results of this step are consumed in the production service to generate signals 
-
-## (Grid) search for best parameters of and/or best prediction models
-
-Execute: `python -m scripts.grid_search`
-
-Purpose: It is a conventional procedure for hyper-parameter optimization by searching in the space of hyper-parameters. It can be any other procedure. The best hyper-parameters found are copied then to the scripts where they are used like train models or rolling predictions.
-
-Notes:
-* The results are consumed by the rolling prediction step
-* There can be many algorithms and many historic horizons or input feature set
+The `simulate_model` section describes a set of trade models and has the following attributes:
+- `data_start` Start simulation from this date, for example, "1998-01-05"
+- `data_end` End simulation with this date. If empty then all data will be used
+- `direction` "long" or "short"
+- `topn_to_store` How many best performing trade models (their parameters) to store in the output file
+- `signal_generator`: Name of the generator which produces the column used to make buy/sell decisions
+- `buy_sell_equal` true or false. Whether the threshold parameters for buy and sell signals are symmetric
+- `grid` dictionary with lists. Each combination of values from these lists is considered one model
+// Attributes are ists or evaluated to lists if string
+  - `buy_signal_threshold` It is a list of values interpreted as buy thresholds to test like [0.1, 0.2, 0.3]
+If it is a string then it is evaluated as Python code and the result is expected to be a list of values, for example, "np.arange(0.0, 0.5, 0.1).tolist()"
+  - `sell_signal_threshold` Same as the previous parameter but used to find sell signals
