@@ -16,7 +16,6 @@ In forecasting, they are typically computed from future values as
 opposed to normal features computed from past values.
 """
 
-
 def generate_labels_highlow(df, horizon):
     """
     Generate (compute) a number of labels similar to other derived features but using future data.
@@ -75,7 +74,6 @@ def generate_labels_highlow(df, horizon):
 
     return labels
 
-
 def generate_labels_highlow2(df, config: dict):
     """
     Generate multiple increase/decrease labels which are typically used for training.
@@ -125,75 +123,6 @@ def generate_labels_highlow2(df, config: dict):
 
     return df, labels
 
-
-def _first_location_of_crossing_threshold(df, horizon, threshold, close_column_name, price_column_name):
-    """
-    First location of crossing the threshold.
-    For each point, take its close price, and then find the distance (location, index)
-    to the _first_ future point with high or low price higher or lower, respectively
-    than the close price.
-
-    If the location (index) is 0 then it is the next point. If location (index) is NaN,
-    then the price does not cross the specified threshold during the horizon
-    (or there is not enough data, e.g., at the end of the series). Therefore, this
-    function can be used to find whether the price will cross the threshold at all
-    during the specified horizon.
-
-    The function is somewhat similar to the tsfresh function first_location_of_maximum
-    or minimum. The difference is that this function does not search for maximum but rather
-    first cross of the threshold.
-
-    Horizon specifies how many points are considered after this point and without this point.
-
-    Threshold is increase or decrease coefficient, say, 50.0 means 50% increase with respect to
-    the current close price.
-    """
-
-    def fn_high(x):
-        if len(x) < 2:
-            return np.nan
-        p = x[0, 0]  # Reference price
-        p_threshold = p*(1+(threshold/100.0))  # Cross line
-        idx = np.argmax(x[1:, 1] > p_threshold)  # First index where price crosses the threshold
-
-        # If all False, then index is 0 (first element of constant series) and we are not able to distinguish it from first element being True
-        # If index is 0 and first element False (under threshold) then NaN (not exceeds)
-        if idx == 0 and x[1, 1] <= p_threshold:
-            return np.nan
-        return idx
-
-    def fn_low(x):
-        if len(x) < 2:
-            return np.nan
-        p = x[0, 0]  # Reference price
-        p_threshold = p*(1+(threshold/100.0))  # Cross line
-        idx = np.argmax(x[1:, 1] < p_threshold)  # First index where price crosses the threshold
-
-        # If all False, then index is 0 (first element of constant series) and we are not able to distinguish it from first element being True
-        # If index is 0 and first element False (under threshold) then NaN (not exceeds)
-        if idx == 0 and x[1, 1] >= p_threshold:
-            return np.nan
-        return idx
-
-    # Window df will include the current row as well as horizon of past rows with 0 index starting from the oldest row and last index with the current row
-    rl = df[[close_column_name, price_column_name]].rolling(horizon + 1, min_periods=(horizon // 2), method='table')
-
-    if threshold > 0:
-        df_out = rl.apply(fn_high, raw=True, engine='numba')
-    elif threshold < 0:
-        df_out = rl.apply(fn_low, raw=True, engine='numba')
-    else:
-        raise ValueError(f"Threshold cannot be zero.")
-
-    # Because rolling apply processes past records while we need future records
-    df_out = df_out.shift(-horizon)
-
-    # For some unknown reason (bug?), rolling apply (with table and numba) returns several columns rather than one column
-    out_column = df_out.iloc[:, 0]
-
-    return out_column
-
-
 def first_cross_labels(df, horizon, thresholds, close_column, price_columns, out_column):
     """
     Produce one boolean column which is true if the price crosses the first threshold
@@ -207,10 +136,10 @@ def first_cross_labels(df, horizon, thresholds, close_column, price_columns, out
     """
 
     # High label - find first (forward) index like +5 of the value exceeds the threshold. Or 0/nan if not found within window
-    df["first_idx_column"] = _first_location_of_crossing_threshold(df, horizon, thresholds[0], close_column, price_columns[0])
+    df["first_idx_column"] = first_location_of_crossing_threshold(df, horizon, thresholds[0], close_column, price_columns[0])
 
     # Low label - find first (forward) index like +6 of the value lower than threshold. Or 0/nan if not found within window
-    df["second_idx_column"] = _first_location_of_crossing_threshold(df, horizon, thresholds[1], close_column, price_columns[1])
+    df["second_idx_column"] = first_location_of_crossing_threshold(df, horizon, thresholds[1], close_column, price_columns[1])
 
     # The final value is chosen from these two whichever is smaller (as absolute value), that is, closer to this point
     def is_high_true(x):

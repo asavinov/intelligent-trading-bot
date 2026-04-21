@@ -399,3 +399,84 @@ def compute_scores_regression(y_true, y_hat):
     scores = {key: round(float(value), 3) for (key, value) in scores.items()}
 
     return scores
+
+def first_location_of_crossing_threshold(df, horizon, threshold, close_column_name, price_column_name):
+    """
+    For each point, take its close price as a reference, and then find the distance
+    (relative offset, index) to the _first_ future point with the price higher (or lower)
+    than the reference price by the specified level.
+
+    If the location (relative index) is 0 then it is the next point. If location (index) is NaN,
+    then the price does not cross the specified threshold within the horizon
+    (or there is not enough data, e.g., at the end of the series). Therefore, this
+    function can be used to find whether the price will cross the threshold at all
+    during the specified horizon.
+
+    The function is somewhat similar to the tsfresh function first_location_of_maximum
+    or minimum. The difference is that this function does not search for local maximum
+    (which can vary) but rather finds the first point with the fixed specified increase
+    (or decrease).
+
+    Horizon specifies how many future points are considered (excluding the current point).
+
+    If the specified threshold is positive then the function is searching for increase.
+    Otherwise, if it is negative, then the functions will search for decrease.
+    The threshold is specified as percentage. For example, 2% means that the function
+    will find relative offset (distance from this point) where the price increases by 2%
+    relative to the current price. This will be done for all point.
+
+    :param df: dataframe with the specified columns
+    :param horizon: how many future data rows to consider when searching for the specified price increase or decrease
+    :param threshold: percentage of increase (if positive) or decrease (if negative)
+    :param close_column_name: column for reference (initial) prices
+    :param price_column_name: columns to search for the specified increase or decrease.
+      Frequently, it is high column for price increase and low column for price decrease.
+      But it can be also the reference column (for example, close price) for both cases if we ignore high and low peaks..
+    :return: A series with integer (or None) values. One integer value represent the offset from the current value
+      where the price increases (or decreases) by the specified percentage. None means that the price does not reach
+      the specified level within the horizon.
+    """
+
+    def fn_high(x):
+        if len(x) < 2:
+            return np.nan
+        p = x[0, 0]  # Reference price
+        p_threshold = p*(1+(threshold/100.0))  # Cross line
+        idx = np.argmax(x[1:, 1] > p_threshold)  # First index where price crosses the threshold
+
+        # If all False, then index is 0 (first element of constant series) and we are not able to distinguish it from first element being True
+        # If index is 0 and first element False (under threshold) then NaN (not exceeds)
+        if idx == 0 and x[1, 1] <= p_threshold:
+            return np.nan
+        return idx
+
+    def fn_low(x):
+        if len(x) < 2:
+            return np.nan
+        p = x[0, 0]  # Reference price
+        p_threshold = p*(1+(threshold/100.0))  # Cross line
+        idx = np.argmax(x[1:, 1] < p_threshold)  # First index where price crosses the threshold
+
+        # If all False, then index is 0 (first element of constant series) and we are not able to distinguish it from first element being True
+        # If index is 0 and first element False (under threshold) then NaN (not exceeds)
+        if idx == 0 and x[1, 1] >= p_threshold:
+            return np.nan
+        return idx
+
+    # Window df will include the current row as well as horizon of past rows with 0 index starting from the oldest row and last index with the current row
+    rl = df[[close_column_name, price_column_name]].rolling(horizon + 1, min_periods=(horizon // 2), method='table')
+
+    if threshold > 0:
+        df_out = rl.apply(fn_high, raw=True, engine='numba')
+    elif threshold < 0:
+        df_out = rl.apply(fn_low, raw=True, engine='numba')
+    else:
+        raise ValueError(f"Threshold cannot be zero.")
+
+    # Because rolling apply processes past records while we need future records
+    df_out = df_out.shift(-horizon)
+
+    # For some unknown reason (bug?), rolling apply (with table and numba) returns several columns rather than one column
+    out_column = df_out.iloc[:, 0]
+
+    return out_column
