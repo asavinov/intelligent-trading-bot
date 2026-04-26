@@ -70,7 +70,7 @@ async def generate_trader_transaction(df, model: dict, config: dict):
     # Save this transaction
     App.transaction = t_dict
     with open(transaction_path, 'a+') as f:
-        f.write(",".join([f"{v:.2f}" if isinstance(v, float) else str(v) for v in t_dict.values()]) + "\n")
+        f.write(",".join([f"{v:.6f}" if isinstance(v, float) else str(v) for v in t_dict.values()]) + "\n")
 
     log.info(f"Trade simulator transaction: {t_dict}")
 
@@ -88,7 +88,7 @@ async def send_transaction_message(transaction, config):
     else:
         log.error(f"ERROR: Should not happen")
 
-    message += f" Profit: {profit_percent:.2f}% {profit:.2f}₮*"
+    message += f" Profit: {profit_percent:.2f}% {profit:.4f}₮*"
 
     bot_token = config["telegram_bot_token"]
     chat_id = config["telegram_chat_id"]
@@ -112,8 +112,8 @@ async def send_transaction_message(transaction, config):
         log.error(f"ERROR: Should not happen")
 
     message += f"🔸sum={profit_percent_descr['count'] * profit_percent_descr['mean']:.2f}% 🔸count={int(profit_percent_descr['count'])}\n"
-    message += f"🔸mean={profit_percent_descr['mean']:.2f}% 🔸std={profit_percent_descr['std']:.2f}%\n"
-    message += f"🔸min={profit_percent_descr['min']:.2f}% 🔸median={profit_percent_descr['50%']:.2f}% 🔸max={profit_percent_descr['max']:.2f}%\n"
+    message += f"🔸mean={profit_percent_descr['mean']:.4f}% 🔸std={profit_percent_descr['std']:.4f}%\n"
+    message += f"🔸min={profit_percent_descr['min']:.4f}% 🔸median={profit_percent_descr['50%']:.4f}% 🔸max={profit_percent_descr['max']:.4f}%\n"
 
     try:
         url = 'https://api.telegram.org/bot' + bot_token + '/sendMessage?chat_id=' + chat_id + '&parse_mode=markdown&text=' + message

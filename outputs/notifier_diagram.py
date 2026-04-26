@@ -250,7 +250,9 @@ def generate_chart(df, title, buy_signal_column, sell_signal_column, score_colum
     # Transactions (optional): buy or sell triangles over price curve
     #
 
-    triangle_adj = 15
+    # Slightly move the buy/sell triangles so that they exactly point to the price by their corner
+    # Yet, it depends on the price scale (varies for different assets), so set to 0 before a better solution is found
+    triangle_adj = 0
     df["close_buy_adj"] = df["close"] - triangle_adj
     df["close_sell_adj"] = df["close"] + triangle_adj
 
