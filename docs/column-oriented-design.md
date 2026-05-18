@@ -9,8 +9,8 @@ In other words, the column-oriented approach treats columns as first-class eleme
 
 In column-oriented approach, a new column is defined in terms of other columns.
 Mathematically, this means defining a new function (a mapping from one set to another set) in terms of other functions.
-For comparison, in the relational data model, a new collection (mathematical set) of rows is defined in terms of other collections.
-In spreadsheets (like Excel), a new cell value is defined in terms of other cells.
+For comparison, in the relational data model, a new collection (mathematical set) of rows is defined in terms of other collections where a row is suuposed to identify itself by its unique combination of attributes. 
+In spreadsheets (like Excel), a new cell value is defined in terms of other cells where cells have two coordinates.
 
 In the general case, columns belong to different tables and we need
 operations for both defining columns (functions) and populating tables (sets). However, for the purposes
@@ -18,6 +18,13 @@ of this project, it is enough to have one table which is populated manually by a
 operations with data are reduced to defining columns.
 For example, if we want to define a new column C which is a sum of two existing columns A and B, then we
 could express this as a formula: C=A+B.
+
+An example of a column-oriented approach to deriving new data from existing data is shown in the figure below.
+
+![Column-orientations](images/column-orientation.svg)
+
+Here the table has source columns (in green) which are set explicitly when new rows are appended. After the values of source rows are set, two derived columns (in blue) can be evaluated to compute their values. Each derived columns for each row is evaluated separately.
+Any derived value (for one row and one column) can depend from the values in this row as well as previous rows. New derived values can use source columns as well as columns which have been evaluated before. In this example, the first derived column `span` computes the difference between `high` and `low` prices (for the same row). For the last row, it is equal to 7 - the difference between 334 and 327. The second derived column `span_MA_3` finds moving average of the previously computed `span` values. For the last row, it is equal to 10.3 - the average of 3 values (7+13+11)/3 taken from the `span` column for the last 3 rows (including the current one).
 
 ## Why column-orientation?
 
@@ -76,3 +83,8 @@ After this step, all derived columns have valid values. Note that these columns 
 - Data output. This steps uses the latest data in derived columns in order to send them to external consuming services.
 This step may include sending notifications with visualizations, performing trades, adujsting existing orders or writing
 results in a database for further analysis.
+
+## Links to related projects
+
+- https://github.com/asavinov/prosto Prosto is a data processing toolkit radically changing how data is processed by heavily relying on functions and operations with functions - an alternative to map-reduce and join-groupby
+- https://github.com/asavinov/lambdo Feature engineering and machine learning: together at last!
