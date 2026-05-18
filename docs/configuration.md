@@ -43,7 +43,7 @@ It is a maximum value for all ML-features but individual features can set their 
 Since their values must be valid, these rows must have at least `features_horizon` before.
 - `append_overlap_records` In online mode, the server will request more records than strictly required (missing).
 This additional number is specified in this parameter.
-The received new records will be (again) evaluated and overwrite previuos values.
+The received new records will be (again) evaluated and overwrite previous values.
 It is desirable in case of connection errors or in case last rows have small deviations and differ from what is provided later.
 
 ## Parameter sections
