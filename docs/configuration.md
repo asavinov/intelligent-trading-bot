@@ -19,10 +19,12 @@ If it is true, then all trainable features will train their models based on hist
 If false, then the existing models will be used for prediction.
 - Persistence:
   - `data_folder` Location of all the data files for this analysis
+  - `model_folder` Location of ML-models produced in train mode
 - Data providers:
   - `venue` Name of the data provider and the corresponding connector. Currently these values are supported: `binance`, `yahoo`, `mt5`.
   - `api_key` and `api_secret` Credentials for the selected venue (data provider). They will be passed to the connector.
   - `client_args` Dictionary with arbitrary arguments passed to the data connector
+  - `time_column` Column name for timestamps ("timestamp" by default)
 - Output:
   - `telegram_bot_token` and `telegram_chat_id` Used to send notifications to Telegram bot by the corresponding output adapters
 

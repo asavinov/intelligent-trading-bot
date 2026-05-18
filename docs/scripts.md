@@ -108,10 +108,10 @@ They do not produce new features but rather use the existing data to send notifi
 ### Generate rolling predictions
 
 In real trading, we use machine learning models trained on previous data in order to predict future behavior.
-The `predict_rolling` is intended for repeating this sequence:
-- train models using available historic data
-- apply these models to predict future behavior
-- append (small) new data chunk and repeat the train-predict analysis
+The `predict_rolling` is intended for simulating walk-forward prediction:
+- train models using available historic data, for example, all data till 01.01.2026
+- apply these models to predict future behavior starting from the end of the training data and for some relatively short interval, for example, from 01.01.2026 till 01.02.2026 (1 month)
+- append (small) new data chunk and repeat the train-predict analysis, for example, using all data till 01.02.2026
 The result is a table with predictions which are generated in small chunks using the models trained on the previous data (which also gradueally grows).
 Thus we simulate the train-predict steps by moving in time as if we ware doing it in real context.
 For example, for daily data, we could use monthly data chunks in order to keep our models up-to-date.
