@@ -2,28 +2,28 @@
 
 ## Column-oriented design
 
-A *feature* in a column-oriented design can be viewed as one column.
-In this project, it is assumed that all data is stored in one table and hence all features exist as columns of this main table.
-This main data table is represented as a `pandas` `DataFrame` object and all features are columns of this data frame while rows correspond to timestamps in a time raster of certain frequency.
+In a column-oriented design, a *feature* can be viewed as a single column.
+In this project, all data is assumed to be stored in one table; therefore, all features exist as columns within this main table.
+This primary data table is represented as a `pandas` `DataFrame`, where features correspond to columns and rows correspond to timestamps at a specific frequency.
 
-Most of the logic of data analysis of the system is represented in how its features are computed.
-The main idea is that for each new data rows appended to the main dataframe, it is necessary to compute all (initially empty) feature values.
-Once these new data values are computed, it is possible to make trade decisions.
+Most of the system's data analysis logic is embodied in how its features are computed.
+The core concept is that for each new row appended to the main DataFrame, all (initially empty) feature values must be computed.
+Once these new values are calculated, trade decisions can be made.
 
 ## Feature dependencies
 
-How a feature computes its value depending on already existing (current and past) feature values is specified in a `feature definition`.
-In general, any feature definition uses and hence depends on some other features. Accordingly, its value will be used in other features.
-In this sense, all features define a graph of computations.
+How a feature computes its value based on existing (current and past) feature values is specified in a `feature definition`.
+Generally, any feature definition uses—and thus depends on—other features, and its value may subsequently be used by other features.
+In this sense, all features collectively define a computation graph.
 
-A feature also depends on a certain number of previous rows. In the simplest case, a feature depends on only the current row.
-For example, we could define a feature equal to the difference between high and low price for this current day.
-It depends on only this row and only two other features (high and low) which must be set before this difference can be computed.
-A feature which computes moving average will depend on one feature (like close price) and certain number of previous values.
+A feature also depends on a specific number of previous rows. In the simplest case, a feature depends only on the current row.
+For example, we could define a feature equal to the difference between the high and low prices for the current day.
+This depends only on the current row and two other features (high and low), which must be set before this difference can be computed.
+Conversely, a feature that computes a moving average will depend on one feature (such as close price) and a certain number of previous values.
 
 ## Defining features
 
-All features are represented as a list where one item is a dictionary with one feature definition:
+All features are represented as a list in which each item is a dictionary containing a single feature definition:
 ```jsonc
 "feature_sets": [
   {...}, // First feature
@@ -32,71 +32,69 @@ All features are represented as a list where one item is a dictionary with one f
 ]
 ```
 
-Features can be also defined in `signal_sets` section which is evaluated after trainable features.
+Features can also be defined in the `signal_sets` section, which is evaluated after trainable features.
 
-One feature definition is a dictionary with the following attributes:
+A single feature definition is a dictionary with the following attributes:
 ```jsonc
 {
-  "generator": "talib", // Name of the generator (pluggable) which will process and execute this feature
-  "column_prefix": "", // This prefix will be removed from column names before the data is passed to the generator
-  "feature_prefix": "", // Appended to new features after they have been generated
-  "config":  {} // Parameters of this feature
+  "generator": "talib", // Name of the generator (pluggable) that processes and executes this feature
+  "column_prefix": "", // Prefix removed from column names before data is passed to the generator
+  "feature_prefix": "", // Appended to new features after generation
+  "config":  {} // Parameters specific to this feature
  }
 ```
 
 The attributes of the feature definition have the following interpretations:
-- `generator`: This string is either a pre-defined name of a built-in generator or a user-defined Python function which implements a custom feature generator
-- `column_prefix`: Before the data is passed to the generator, this prefix will be removed from its columns.
-For example, if we analyze data of BTC and ETH together then there will be columns like `btc_close` and `eth_close`.
-Yet, we want to have a generator which processes only `open` column. This can be done by providing `column_prefix: btc` or `column_prefix: eth` for two features
-with the same configuration parameters. Alternatively, it is possible to specify input column in the `config` parameters of the generator.
-- `feature_prefix`: This prefix (with underscore symbol) will be automatically appended to all features returned by the generator.
-It could be the same prefix as in `column_prefix`. Here again, it is possible to use the `config` section to provide a desired output name of the generated feature.
-- `config`: It is a dictionary with the feature configuration parameters which are specific to each generator
+- `generator`: A string representing either a predefined built-in generator name or a user-defined Python function implementing a custom feature generator.
+- `column_prefix`: This prefix is removed from column names before data is passed to the generator.
+For example, if analyzing BTC and ETH data simultaneously, columns might include `btc_close` and `eth_close`.
+However, if a generator should process only the `open` column, this can be achieved by specifying `column_prefix: btc` or `column_prefix: eth` for two features sharing the same configuration. Alternatively, the input column can be specified directly in the generator's `config` parameters.
+- `feature_prefix`: This prefix (followed by an underscore) is automatically appended to all features returned by the generator.
+It may match the `column_prefix`. Again, the `config` section can be used to provide a desired output name for the generated feature.
+- `config`: A dictionary containing feature configuration parameters specific to each generator.
 
 ## Currently available generators and their features
 
-ITB provides a collection of ready to use feature generators which allow for defining standard technical indicators as well as some original features.A
+ITB provides a collection of ready-to-use feature generators that allow for the definition of standard technical indicators as well as some original features.
 
 ### Features based on TA-Lib
 
-[TA-Lib](https://ta-lib.org/) is a native library written in C/C++ which implements about 200 indicators for financial analysis and trading applications.
-It has a [Python wrapper](https://github.com/ta-lib/ta-lib-python) which is used by ITB to expose these indicators as feature definitions.
+[TA-Lib](https://ta-lib.org/) is a native C/C++ library implementing approximately 200 indicators for financial analysis and trading applications.
+It includes a [Python wrapper](https://github.com/ta-lib/ta-lib-python), which ITB uses to expose these indicators as feature definitions.
 
-Note that to use this feature generator, you need already TA-Lib native library (binary) already installed.
-This can be done in several ways:
-- Install TA-Lib as a Linux package
-- Build and install TA-Lib from source code and make sure that the library is accessible from Python
-- Install TA-Lib native library via some Python package manager. For example: `$ conda install -c conda-forge libta-lib`
-- Install Python wrapper via a Python package manager which supports platform-specific libraries.
-For example, this can be done by Conda for some platforms and Python versions: `conda install -c conda-forge ta-lib`
-- In some cases it might be also possible to simply find somewhere the library and copy it to the location where it is accessible from Python
+Note that using this feature generator requires the native TA-Lib binary library to be installed.
+This can be accomplished in several ways:
+- Install TA-Lib as a Linux package.
+- Build and install TA-Lib from source, ensuring the library is accessible from Python.
+- Install the native TA-Lib library via a Python package manager. For example: `$ conda install -c conda-forge libta-lib`.
+- Install the Python wrapper via a package manager that supports platform-specific libraries.
+For example, Conda supports this for certain platforms and Python versions: `conda install -c conda-forge ta-lib`.
+- In some cases, it may be possible to locate the library manually and copy it to a location accessible from Python.
 
-In order to use TA-Lib it is necessary to set the generator name to "talib: `"generator": "talib"`.
-The generator will map attributes of the `config` to arguments of TA-Lib indicators, call TA-Lib functions,
-and return the result as one or more `pandas` columns attached to the main dataframe.
+To use TA-Lib, set the generator name to `"talib"`: `"generator": "talib"`.
+The generator maps `config` attributes to TA-Lib indicator arguments, calls the appropriate TA-Lib functions, and returns the results as one or more `pandas` columns attached to the main DataFrame.
 
-Here is how attributes of the generator `config` are interpreted in terms of TA-Lib (not all are needed for all features):
-- `columns`: A list of column (feature) names to be passed to the TA-Lib function.
-For example, `columns: ["close","high","low"]` means that these three columns with high, low and close prices will be used in computing this feature
-- `functions`: A list of functions as defined in TA-Lib here: https://ta-lib.org/functions/. For each function name, one feature will be generated.
-For example, `functions: [SMA]` means Simple Moving Average, that is, each feature value will be computed as average of several previous values.
-- `windows`: A list of integers which are interpreted as the number of previous rows or window size (including the current time).
-For each window value one feature will be generated.
-For example, `windows: [20]` in case of `SMA` function means computing 20 rows simple moving average. In case of daily data, it is 20 days moving average.
-- `parameters`: A dictionary of parameters for post-processing a series of indicators returned by TA-Lib (not specific for TA-Lib).
-They are applied to a series of time-series resulted from a series of different `windows` parameter. The idea is that we want to compute relative values in this sequence.
-  - `rel_base`: These values are possible:
-    - `next`: relative to the next element in the sequence
-    - `last`: relative to the last element in the sequence
-    - `prev`: relative to the previous element in the sequence
-    - `first`: relative to the first element in the sequence
-  - `rel_func`: How a new value is computed from the original value and the reference value (next, previous, last or first):
-    - `diff`: difference between the original and the reference value: value-reference_value
-    - `rel`: ratio between the original and the reference value: value/reference_value
-    - `rel_diff`: relative difference (value-reference_value)/reference_value
+The generator `config` attributes are interpreted as follows (not all are required for every feature):
+- `columns`: A list of column (feature) names to pass to the TA-Lib function.
+For example, `columns: ["close","high","low"]` indicates that these three price columns will be used to compute the feature.
+- `functions`: A list of functions as defined in the [TA-Lib documentation](https://ta-lib.org/functions/). One feature is generated for each function name.
+For example, `functions: ["SMA"]` specifies Simple Moving Average, meaning each feature value is computed as the average of several previous values.
+- `windows`: A list of integers interpreted as the window size (number of previous rows, including the current time).
+One feature is generated for each window value.
+For example, `windows: [20]` with the `SMA` function computes a 20-row simple moving average. For daily data, this represents a 20-day moving average.
+- `parameters`: A dictionary of parameters for post-processing the series of indicators returned by TA-Lib (not specific to TA-Lib itself).
+These are applied to the time series resulting from different `windows` values, typically to compute relative values within the sequence.
+  - `rel_base`: Possible values include:
+    - `next`: Relative to the next element in the sequence.
+    - `last`: Relative to the last element in the sequence.
+    - `prev`: Relative to the previous element in the sequence.
+    - `first`: Relative to the first element in the sequence.
+  - `rel_func`: Defines how the new value is derived from the original and reference values:
+    - `diff`: Difference between the original and reference value (`value - reference_value`).
+    - `rel`: Ratio of the original to the reference value (`value / reference_value`).
+    - `rel_diff`: Relative difference (`(value - reference_value) / reference_value`).
 
-In this example we compute 3 output features which are 1, 10, 20 moving averages of the close price:
+In this example, three output features are computed: the 1-, 10-, and 20-period moving averages of the close price:
 ```jsonc
 {
   "generator": "talib",
@@ -109,19 +107,18 @@ In this example we compute 3 output features which are 1, 10, 20 moving averages
   }
 }
 ```
-The first output feature is the absolute difference between the close price (1-MA) and its 10-rows moving average.
-The second output feature is the absolute difference between the 10-MA of the close price and 20-MA.
-The last feature is 20-MA without computing relative value just because there is no next element in the series of MAs.
+The first output feature is the absolute difference between the close price (1-period MA) and its 10-period moving average.
+The second output feature is the absolute difference between the 10-period and 20-period MAs of the close price.
+The final feature is the 20-period MA without a relative value calculation, as there is no subsequent element in the MA series.
 
-Note that some functions in TA-Lib are characterized as unstable or having unstable period.
-Such functions may return wrong results and therefore should be used very cautiously.
-Such functions have a note like this in the documentation: `The ADX function has an unstable period.`
+Note that some TA-Lib functions are characterized as having an unstable period.
+Such functions may return incorrect results during this period and should therefore be used with caution.
+These functions include a note in the documentation such as: `The ADX function has an unstable period.`
 
 ## Defining custom (your own) features
 
-Custom feature generators can be specified as a user-defined Python function.
-In this case, the value of the `generator` attribute of the feature definition is a fully qualified Python function name.
-This name consists of the module name and function name separated by colon.
+Custom feature generators can be specified as user-defined Python functions.
+In this case, the `generator` attribute in the feature definition must be a fully qualified Python function name consisting of the module name and function name separated by a colon.
 
 Here is an example of a custom feature definition:
 ```jsonc
@@ -142,9 +139,8 @@ def my_feature_example(df, config: dict, global_config: dict, model_store: Model
         df[names] = df[column_name] * parameter
     return df, [names]
 ```
-This function gets input column name and operation type from config.
-Then depending on the operation name it either adds the constant parameter to the input column or applies multiplication.
-The result column is appended to the input dataframe and returned along with the new feature name.
+This function retrieves the input column name and operation type from the config.
+Depending on the operation name, it either adds a constant parameter to the input column or performs multiplication.
+The resulting column is appended to the input DataFrame and returned alongside the new feature name.
 
-Note that the configuration dictionary may have arbitrary format and attributes.
-However, the feature generator must have this signature.
+Note that while the configuration dictionary may have an arbitrary format and attributes, the feature generator must adhere to this specific signature.

@@ -2,89 +2,45 @@
 
 ## What is column-orientation?
 
-Column-oriented is a view on how data is processed and how the processing steps are described.
-The main idea is that data is represented and processed as columns belonging to tables.
-This is opposed to representing and processing data as rows belonging to tables.
-In other words, the column-oriented approach treats columns as first-class elements of the data processing pipeline.
+Column-orientation is a perspective on how data is processed and how processing steps are described. The core idea is that data is represented and processed as columns belonging to tables, rather than as rows. In other words, the column-oriented approach treats columns as first-class elements of the data processing pipeline.
 
-In column-oriented approach, a new column is defined in terms of other columns.
-Mathematically, this means defining a new function (a mapping from one set to another set) in terms of other functions.
-For comparison, in the relational data model, a new collection (mathematical set) of rows is defined in terms of other collections where a row is suuposed to identify itself by its unique combination of attributes. 
-In spreadsheets (like Excel), a new cell value is defined in terms of other cells where cells have two coordinates.
+In this approach, a new column is defined in terms of existing columns. Mathematically, this means defining a new function (a mapping from one set to another) in terms of other functions. By comparison, in the relational data model, a new collection (mathematical set) of rows is defined in terms of other collections, where a row is identified by its unique combination of attributes. Similarly, in spreadsheets like Excel, a new cell value is defined in terms of other cells using two-dimensional coordinates.
 
-In the general case, columns belong to different tables and we need
-operations for both defining columns (functions) and populating tables (sets). However, for the purposes
-of this project, it is enough to have one table which is populated manually by appending rows and all
-operations with data are reduced to defining columns.
-For example, if we want to define a new column C which is a sum of two existing columns A and B, then we
-could express this as a formula: C=A+B.
+Generally, columns may belong to different tables, requiring operations for both defining columns (functions) and populating tables (sets). However, for the purposes of this project, it is sufficient to use a single table that is populated manually by appending rows; all data operations are then reduced to defining columns. For example, if we want to define a new column `C` as the sum of two existing columns `A` and `B`, we can express this simply as the formula: `C = A + B`.
 
 An example of a column-oriented approach to deriving new data from existing data is shown in the figure below.
 
 ![Column-orientations](images/column-orientation.svg)
 
-Here the table has source columns (in green) which are set explicitly when new rows are appended. After the values of source rows are set, two derived columns (in blue) can be evaluated to compute their values. Each derived columns for each row is evaluated separately.
-Any derived value (for one row and one column) can depend from the values in this row as well as previous rows. New derived values can use source columns as well as columns which have been evaluated before. In this example, the first derived column `span` computes the difference between `high` and `low` prices (for the same row). For the last row, it is equal to 7 - the difference between 334 and 327. The second derived column `span_MA_3` finds moving average of the previously computed `span` values. For the last row, it is equal to 10.3 - the average of 3 values (7+13+11)/3 taken from the `span` column for the last 3 rows (including the current one).
+Here, the table contains source columns (in green) whose values are set explicitly when new rows are appended. Once source values are established, derived columns (in blue) can be evaluated. Each derived value is computed separately for each row. Any derived value can depend on values in the current row as well as previous rows, utilizing both source columns and previously evaluated derived columns. In this example, the first derived column, `span`, computes the difference between `high` and `low` prices within the same row. For the last row, this equals 7 (334 - 327). The second derived column, `span_MA_3`, calculates the moving average of the previously computed `span` values. For the last row, this equals 10.3—the average of the three most recent `span` values: (7 + 13 + 11) / 3.
 
 ## Why column-orientation?
 
-There are several reasons why this approach is suitable for time series analysis and trading.
+There are several reasons why this approach is particularly suitable for time series analysis and trading.
 
-One benefit is that the approach based on defining columns (features) in terms of already existing columns is very simple and natural.
-Once a feature has beed defined, it can be used in defining other features and so on.
-As a result, data processing is represented as a directed acyclic graph (DAG) of feature definitions.
-It is quite easy to maintain this graph by incrementally adding new features,
-adjusting already existing features and validating intermediate results. The nodes of this graph are
-well modularized units which are evaluated independently and can be re-used for different purposes.
-Thus this approach is good basis for feature engineering which is known to be a crucial step in time series analysis
-and forecasting. In many cases, it is the quality of the chosen features that mainly influences the quality of the final forecast.
+First, defining features in terms of existing columns is intuitive and straightforward. Once a feature is defined, it can serve as a building block for subsequent features. Consequently, data processing is represented as a directed acyclic graph (DAG) of feature definitions. This graph is easy to maintain: new features can be added incrementally, existing ones adjusted, and intermediate results validated independently. The nodes of this graph are modular units that can be reused for different purposes. Thus, this approach provides a solid foundation for feature engineering, which is known to be a crucial step in time series analysis and forecasting. Often, the quality of the chosen features has a greater impact on forecast accuracy than the choice of model itself.
 
-The column-oriented approach can be also applied to how new labels used for training machine learning models are defined.
-In many cases, the labels (what we want to predict) are not future values. Instead, we want to have some more aggregated
-information, for example, reachability of certain criteria or identifying certain events.
-The difference of labels from normal features is that labels are generated from future data while
-features are generated from past (and current) data. Apart from that, they are defined in the same way as
-columns depending on the values in other columns.
+The column-oriented approach also applies to defining labels for training machine learning models. Frequently, labels represent aggregated information—such as the reachability of certain criteria or the occurrence of specific events—rather than simple future values. While labels are typically generated from future data and features from past or current data, they are otherwise defined identically: as columns dependent on values in other columns.
 
-It is possible to define some kind of script language for defining new features.
-Its expressions will be either interpreted and translated into the target language (Python in our case).
-However, in this project we use *user-defined functions* which programmatically define how the values of the output column
-are computed from the values of the input columns.
+While it is possible to design a domain-specific scripting language for defining features (which would then be interpreted or translated into Python), this project instead uses *user-defined functions*. These functions programmatically define how output column values are computed from input column values, offering maximum flexibility without introducing a new language.
 
 ## Unifying feature engineering and machine learning
 
-Another advantage which is specific to this project is that column-orientation allows us to unite feature engineering and machine learning.
+A key advantage specific to this project is that column-orientation enables the unification of feature engineering and machine learning.
 
-Any feature can be and normally should be parameterized. These parameters can be set found and set manually.
-It is precisely how traditional features are defined which represent a piece of expert knowledge.
-Another way to define feature parameters is to extract from historic data. It is how machine learning works.
-We process large amount of historic data like stock quotes, apply some machine learning algorithm, and this
-algorithm find optimal values of paramters from the data. Frequently we even do not know what are these values
-because for us it is important only that they will minimize certain loss function which represents what we want to predict.
-Such a feature will use these optimal automatically found parameters to compute its output values (predictions)
-instead of manually set parameters.
+Any feature can—and often should—be parameterized. Parameters can be determined manually, which is how traditional features encode expert knowledge. Alternatively, parameters can be extracted from historical data, which is the essence of machine learning. By processing large volumes of historical data (e.g., stock quotes), an algorithm finds optimal parameter values that minimize a loss function representing the prediction target. The resulting feature uses these automatically optimized parameters to compute outputs instead of relying on manual configuration.
 
-What is new in this project is that it unifies traditional features which specify exactly how to compute output values
-with trainable features which know how to extract its optimal parameters from historic data.
-Such features are referred to as *trainable features*.
-Such trainable feature is a combination of its computational (prediction) part and its trainable (learn) part.
-Normally they are based on some machine learning or statistical algorithm.
+This project unifies traditional features (with explicitly defined computation logic) and trainable features (which learn optimal parameters from data). We refer to these collectively as *trainable features*. A trainable feature combines a computational (prediction) component with a training (learning) component, typically based on machine learning or statistical algorithms.
 
 ## A sequence of analysis
 
 Data analysis consists of the following three steps:
-- Data input. Here it is necessary to retrieve data from external sources and set the values of the source columns.
-The source columns are not computed but rather their values are set from outside.
-Note that normally only a small number of missing records is retrieved, these records are appended and
-after that the source columns have valid values
-- Feature evaluation. Here all feature definitions are evaluated and the values of all derived columns are computed.
-Only missing values which have not be computed before should be computed (for performance reasons).
-After this step, all derived columns have valid values. Note that these columns include also those predicted by ML-algorithms.
-- Data output. This steps uses the latest data in derived columns in order to send them to external consuming services.
-This step may include sending notifications with visualizations, performing trades, adujsting existing orders or writing
-results in a database for further analysis.
+
+-   **Data input.** Data is retrieved from external sources to populate source columns. Unlike derived columns, source columns are not computed; their values are set externally. Typically, only new or missing records are retrieved and appended, ensuring source columns contain valid values.
+-   **Feature evaluation.** All feature definitions are evaluated to compute derived column values. For performance reasons, only values that have not been previously computed are calculated. After this step, all derived columns—including those generated by ML algorithms—contain valid values.
+-   **Data output.** The latest derived column values are sent to external consuming services. This step may include sending notifications with visualizations, executing trades, adjusting existing orders, or writing results to a database for further analysis.
 
 ## Links to related projects
 
-- https://github.com/asavinov/prosto Prosto is a data processing toolkit radically changing how data is processed by heavily relying on functions and operations with functions - an alternative to map-reduce and join-groupby
-- https://github.com/asavinov/lambdo Feature engineering and machine learning: together at last!
+-   [Prosto](https://github.com/asavinov/prosto): Prosto is a data processing toolkit radically changing how data is processed by heavily relying on functions and operations with functions-an alternative to map-reduce and join-groupby
+-   [Lambdo](https://github.com/asavinov/lambdo): Feature engineering and machine learning: together at last!

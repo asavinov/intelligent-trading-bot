@@ -2,16 +2,14 @@
 
 ## Defining data sources
 
-The intelligent trading bot works in two modes:
-- batch or offline mode intended for analyzing large historical data
-- stream or online mode intended for regular predictions applied to small new data
+The intelligent trading bot operates in two modes:
+-   **Batch (offline) mode:** Intended for analyzing large historical datasets.
+-   **Stream (online) mode:** Intended for generating regular predictions on small increments of new data.
 
-In batch mode, the historical data has to be retrieved for analysis.
-In stream mode, only the latest data has to be retrieved and incrementally analyzed.
-In both cases, the structure of data must be the same (except that in train mode, label have to be additionally generated).
+In batch mode, historical data must be retrieved for analysis. In stream mode, only the latest data is retrieved and analyzed incrementally. In both cases, the data structure must remain consistent (except in training mode, where labels must also be generated).
 
-The data sources for the both modes are specified in the `data_sources` section.
-Each entry of this section describes one data source which will be used to retrieve data.
+Data sources for both modes are specified in the `data_sources` section. Each entry in this section describes a single data source used to retrieve data.
+
 ```jsonc
 "data_sources": [
   {...}, // First data source
@@ -20,101 +18,84 @@ Each entry of this section describes one data source which will be used to retri
 ]
 ```
 
-One data source description has the following attributes:
+A data source description includes the following attributes:
+
 ```jsonc
 {
-  "folder": "ETHUSDT", // Quote name as defined by data provider and folder name
-  "file": "klines", // File name for the source data
-  "column_prefix": "etn" // Added to all columns from this data source
- }
+  "folder": "ETHUSDT", // Quote name as defined by the data provider; also serves as the folder name
+  "file": "klines", // Filename for the source data
+  "column_prefix": "etn" // Prefix added to all columns from this data source
+}
 ```
 
-The attributes of a data source have the following interpretations:
-- `folder`: It has two uses: folder name where the data is located and quote name used to request the data.
-In other words, it is equal to symbol name as defined by the data provider. Simultaneously, it is where the retrieved data is located.
-- `file`: It is name of the file with the retrieved data. For example, for candle stick data, it can be `klines`.
-If not specified, it is equal to the symbol name in the `folder` attribute.
-- `column_prefix`: If we retrieve different symbols then they may have the same column names, typically, open, high, low, close.
-To distinguish the origin of these columns after merging into one common dataframe, the attribute `column_prefix` is used.
-It will added to every column name from this data source.
-Note that this prefix will be used only for merging while data in the source file will have the original column names.
+The attributes of a data source are interpreted as follows:
 
-Here is an example of two data sources:
+-   `folder`: This attribute serves two purposes: it specifies the folder where data is stored locally and the quote name (symbol) used to request data from the provider.
+-   `file`: The name of the file containing the retrieved data. For example, candlestick data might use `klines`. If not specified, it defaults to the symbol name defined in the `folder` attribute.
+-   `column_prefix`: When retrieving multiple symbols, column names often overlap (e.g., open, high, low, close). To distinguish the origin of these columns after merging them into a single DataFrame, use the `column_prefix` attribute. This prefix is applied to every column name from this source during the merge process. Note that the prefix is used only for merging; the original column names in the source file remain unchanged.
+
+Below is an example configuration with two data sources:
+
 ```jsonc
 "data_sources": [
   {"folder": "ETHUSDT", "file": "klines", "column_prefix": ""},
   {"folder": "ETHBTC", "file": "klines", "column_prefix": "ethbtc"}
 ]
 ```
-Here the first data source is used to retrieve the quotes for ETH.
-The source data will be stored in the file `klines` (file extensions will be chosen depending on the file format).
-No prefix is specified and hence the columns will have their original name when merged into one dataframe.
-The second data source describes Ethereum to Bitcoin price which we want to use as additional data for analysis.
-Here it is necessary to specify column prefix in order to distinguish its columns from those of the first data source.
 
-We retrieving data it is necessary to know frequency (time raster).
-It is the same for all data sources and is specified in the `freq` attribute of the configuration file.
-The values of this attribute follow `pandas` convention described here: https://pandas.pydata.org/pandas-docs/stable/user_guide/timeseries.html#offset-aliases
-For example, `h` is hourly frequency, `min` is minutely frequency and `D` is calendar day frequency.
-The number before the alias is how many hours, minutes, days etc. is included in one period.
-For example, `15min` means every 15 minutes.
-This frequency string will be then converted to the representation expected by one or another data provider (if supported).
+In this example, the first data source retrieves quotes for ETH. The source data is stored in a file named `klines` (the file extension depends on the chosen format). Because no prefix is specified, the columns retain their original names when merged into the main DataFrame. The second data source provides the Ethereum-to-Bitcoin price, which serves as additional analytical data. A column prefix is required here to distinguish its columns from those of the first data source.
 
-Credentials to access the data provider are loaded by the provider specific component from the configuration file.
-For example, for Binance, these attributes are used: `api_key` and `api_secret`.
-Custom arguments for the client is specified in section of the configuration as a dictionary:
+When retrieving data, you must specify the frequency (time raster). This frequency applies to all data sources and is defined in the `freq` attribute of the configuration file. Values for this attribute follow the `pandas` offset alias convention: https://pandas.pydata.org/pandas-docs/stable/user_guide/timeseries.html#offset-aliases
+
+For example, `h` represents hourly frequency, `min` represents minutely frequency, and `D` represents calendar day frequency. A number preceding the alias indicates the duration of one period (e.g., `15min` means every 15 minutes). This frequency string is subsequently converted to the representation expected by the specific data provider, if supported.
+
+Credentials for accessing the data provider are loaded by the provider-specific component from the configuration file. For Binance, for instance, the `api_key` and `api_secret` attributes are used. Custom arguments for the client are specified in the configuration as a dictionary:
+
 ```jsonc
-  "client_args", {"tld": "us"} // To country-specific Binance API server
+"client_args": {"tld": "us"} // Connects to the country-specific Binance API server
 ```
 
-Data provider is specified in the `venue` attribute. Currently these values are supported:
-- `binance` Binance
-- `mt5` MT5
-- `yahoo` Yahoo
+The data provider is specified in the `venue` attribute. Currently, the following values are supported:
+
+-   `binance`: Binance
+-   `mt5`: MT5
+-   `yahoo`: Yahoo
 
 ## Downloader
 
-The `download` script is intended for downloading data from the data sources and storing them in the corresponding files.
-Currently CSV format is used. If the file already exists then only the latest data will be retrieved and appended
-to the file by overwriting existing rows in case of overlap.
-If the file does not exist, then maximum length will be retrieved.
-The maximum stored size is specified in the `download_max_rows` attribute.
+The `download` script retrieves data from the configured data sources and stores it in the corresponding files. Currently, CSV format is used. If the target file already exists, only the latest data is retrieved and appended; existing rows are overwritten in case of overlap. If the file does not exist, the maximum available history is retrieved. The maximum stored size is controlled by the `download_max_rows` attribute.
 
-The downloader is executed as a script as follows:
+Execute the downloader script as follows:
+
 ```console
 python -m scripts.download -c config.json
 ```
 
-If the configuration file has two data sources and the required attributes then it will download two files
-and store them in the specified folders.
+If the configuration file defines two data sources with the required attributes, the script will download two files and store them in their respective folders.
 
 ## Merging data sources
 
-The downloaded data from different data sources are not used separately.
-Instead, they are merged into one table by the merge procedure implemented as a script and in the server.
-The merge procedure has two major goals:
-- Generate continuous time raster according to the frequency in order to avoid gaps in the source data
-- Append all source data (columns) to this table by aligning their rows with this raster
+Downloaded data from different sources is not used in isolation. Instead, it is merged into a single table via a merge procedure implemented in both the merge script and the server. The merge procedure has two primary goals:
 
-The merge script is executed as follows:
+-   Generate a continuous time raster based on the configured frequency to prevent gaps in the source data.
+-   Append all source data (columns) to this table by aligning rows with the generated raster.
+
+Execute the merge script as follows:
+
 ```console
 python -m scripts.merge -c config.json
 ```
 
-The result is stored as one file with the data from all source files.
-The output file name (and format) is specified in the `merge_file_name` attribute of the configuration file.
-For example, if we want to store the merged data in `parquet` format then we use: `"merge_file_name": "data.parquet"`
+The result is saved as a single file containing data from all sources. The output filename (and format) is specified in the `merge_file_name` attribute of the configuration file. For example, to store the merged data in Parquet format, use: `"merge_file_name": "data.parquet"`.
 
-The server in online mode will merge data for each new request (for example, every minute)
-after retrieving chunks from all the data sources, and then append this merged data to the main dataframe of the analyzer.
-The columns from the merged table can be referenced from [feature definitions](features.md).
+In online mode, the server merges data for each new request (e.g., every minute) after retrieving chunks from all data sources. This merged data is then appended to the analyzer's main DataFrame. Columns from the merged table can be referenced in [feature definitions](features.md).
 
 ## Implementing a custom data collector
 
-In order to implement a new custom data collector for certain data provider the following steps have to be performed:
-- Add a new data provider in the `Venue` enumerator
-- Implement the provider-specific functions which really retrieve the data: `fetch_klines`, `health_check`, `download_klines`
-- Return these functions from the dispatcher functions `get_collector_functions` and `get_download_functions`
+To implement a new custom data collector for a specific data provider, perform the following steps:
 
-The server will dynamically find these functions depending on the venue specified in the configuration
-and use them to incrementally retrieve the data, merge data, append to the main dataframe and analyze.
+-   Add a new entry to the `Venue` enumerator.
+-   Implement the provider-specific functions responsible for data retrieval: `fetch_klines`, `health_check`, and `download_klines`.
+-   Return these functions from the dispatcher functions `get_collector_functions` and `get_download_functions`.
+
+The server dynamically locates these functions based on the venue specified in the configuration. It uses them to incrementally retrieve data, merge it, append it to the main DataFrame, and perform analysis.

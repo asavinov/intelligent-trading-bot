@@ -2,68 +2,68 @@
 
 ## Parameterization
 
-All parameters for scripts, server and some high-level functions are provided as JSON object.
-It is represented as a JSON file with comments or as a Python dictionary object at run time.
-Not all parameters and parameter sections are used by all scripts and functions.
+All parameters for scripts, the server, and high-level functions are provided as a JSON object.
+This configuration is represented either as a JSON file (with comment support) or as a Python dictionary (еt runtime).
+Note that not all parameters and sections are required by every script or function.
 
 ## Global parameters
 
-Here the most important parameters:
+The most important parameters are listed below:
 
 - General parameters:
-  - `symbol` In particular, it is used as a subfolder name for all generated files (within `data_folder`)
-  - `description` Any textual desciprition of this configuraiton. It can be then used by various plugable components, for example, for text or visual output.
-  - `freq` Frequency of data in `pandas` format, for example, `1h` for hourly data or `1min` for minutely data.
-  - `train` Boolean attribute specifying if the analysis has to run in train (if true) or predict (if false) mode.
-If it is true, then all trainable features will train their models based on historic data.
-If false, then the existing models will be used for prediction.
+  - `symbol`: Used primarily as the subfolder name for all generated files within the `data_folder`.
+  - `description`: A textual description of this configuration. It can be consumed by various pluggable components, such as text or visual output adapters.
+  - `freq`: Data frequency in `pandas` format (e.g., `1h` for hourly data or `1min` for minutely data).
+  - `train`: Boolean flag specifying whether the analysis runs in train (`true`) or predict (`false`) mode.
+    If `true`, all trainable features will fit their models using historical data.
+    If `false`, existing models will be loaded for prediction.
 - Persistence:
-  - `data_folder` Location of all the data files for this analysis
-  - `model_folder` Location of ML-models produced in train mode
+  - `data_folder`: Path to the directory containing all data files for this analysis.
+  - `model_folder`: Path to the directory where ML models produced during training are stored.
 - Data providers:
-  - `venue` Name of the data provider and the corresponding connector. Currently these values are supported: `binance`, `yahoo`, `mt5`.
-  - `api_key` and `api_secret` Credentials for the selected venue (data provider). They will be passed to the connector.
-  - `client_args` Dictionary with arbitrary arguments passed to the data connector
-  - `time_column` Column name for timestamps ("timestamp" by default)
+  - `venue`: Name of the data provider and its corresponding connector. Currently supported values: `binance`, `yahoo`, `mt5`.
+  - `api_key` and `api_secret`: Credentials for the selected venue. These are passed directly to the connector.
+  - `client_args`: Dictionary of arbitrary arguments passed to the data connector.
+  - `time_column`: Column name used for timestamps (defaults to `"timestamp"`).
 - Output:
-  - `telegram_bot_token` and `telegram_chat_id` Used to send notifications to Telegram bot by the corresponding output adapters
+  - `telegram_bot_token` and `telegram_chat_id`: Credentials used by the Telegram output adapter to send notifications.
 
-## Analaysis table parameters
+## Analysis table parameters
 
-All data during analysis are represented as a dataframe which has these parameters.
-This dataframe has to have certain shape which is specified via the following parameters which are used mainly by the server:
-- `label_horizon` The minimum number of future rows required to compute a label. It is our prediction horizon.
-It is taken into account in training by ignoring rows which do not have enough future data.
-- `features_horizon` The minimum number of past rows for a feature to be valid. For example, if we want to computing
-moving average for 10 days then the feature requires 10 previous rows.
-Essentially, the very first `features_horizon` rows will be considered invalid and ignored in analysis.
-This value should be taken from the feature defintions.
-- `train_length` Default limit for the train data set size.
-It is a maximum value for all ML-features but individual features can set their own values.
-0 means all available data.
-- `predict_length` This minimum number of rows will be kept up-to-date and valid in online mode.
-Since their values must be valid, these rows must have at least `features_horizon` before.
-- `append_overlap_records` In online mode, the server will request more records than strictly required (missing).
-This additional number is specified in this parameter.
-The received new records will be (again) evaluated and overwrite previous values.
-It is desirable in case of connection errors or in case last rows have small deviations and differ from what is provided later.
+During analysis, all data is represented as a DataFrame configured via the following parameters.
+These parameters define the required shape of the DataFrame and are used primarily by the server:
+
+- `label_horizon`: The minimum number of future rows required to compute a label (i.e., the prediction horizon).
+  During training, rows lacking sufficient future data are excluded.
+- `features_horizon`: The minimum number of past rows required for a feature to be valid. For example, computing a 10-day moving average requires 10 previous rows.
+  Consequently, the first `features_horizon` rows are considered invalid and excluded from analysis.
+  This value should be derived from the feature definitions.
+- `train_length`: Default upper limit for the training dataset size.
+  This serves as a global maximum for all ML features, though individual features may override it.
+  A value of `0` indicates that all available data should be used.
+- `predict_length`: The minimum number of rows kept up-to-date and valid in online mode.
+  To ensure validity, these rows must be preceded by at least `features_horizon` historical rows.
+- `append_overlap_records`: In online mode, the server requests additional records beyond those strictly missing.
+  This parameter specifies the size of that overlap buffer.
+  Overlapping records are re-evaluated and overwrite previous values, which helps mitigate connection errors or minor discrepancies in recently received data.
 
 ## Parameter sections
 
-Model registry is a list `model_registry` with entries consisting of `name` and `file` attributes.
+The model registry is defined as a list named `model_registry`, where each entry contains `name` and `file` attributes.
 
-Feature definitions are specified in four sections:
+Feature definitions are organized into four sections:
 - `feature_sets`
-- `label_sets` labels needed in train mode
-- `train_feature_sets` trainable features
-- `signal_sets` features evaluated after ML-features
-Features use these global parameters:
-- `train_features` a list of all column names which will be by default selected to pass data to train algorithms (in both train and predict modes)
-Algorithms (trainable features) can set their own lists of features they want to use for learning and prediction.
-- `labels` A list of all labels (if not overwritten by individual trainable algorithms)
-- `algorithms` Obsolete. Use either `train_feature_sets` or normal `feature_sets` to define trainable features
+- `label_sets`: Labels required during training.
+- `train_feature_sets`: Trainable features.
+- `signal_sets`: Features evaluated after ML features.
 
-Outputs are defined in the `output_sets` which is a list of dictionaries passed to the output adapters after analysis.
-For example, here a trading or notification adapter can be specified.
+Features rely on the following global parameters:
+- `train_features`: A list of column names selected by default as input for training algorithms (in both train and predict modes).
+  Individual trainable features may override this list with their own specific inputs.
+- `labels`: A list of all labels (unless overridden by individual trainable algorithms).
+- `algorithms`: **Obsolete.** Use either `train_feature_sets` or standard `feature_sets` to define trainable features.
 
-Other sections can describe utilities, for example, `rolling_predict` or `simulate_model`.
+Outputs are defined in `output_sets`, which is a list of dictionaries passed to output adapters after analysis.
+For example, trading or notification adapters can be configured here.
+
+Additional sections may describe utilities such as `rolling_predict` or `simulate_model`.
