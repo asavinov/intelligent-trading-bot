@@ -291,7 +291,7 @@ def generate_features_talib(df, config: dict, last_rows: int = 0):
                 elif isinstance(names, str):
                     out_name = out_name + names + "_" + win_name
                 elif isinstance(names, list):
-                    out_name = out_name + names[j]
+                    out_name = names[j]
 
             fn_out_names.append(out_name)
 
