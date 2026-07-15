@@ -47,6 +47,10 @@ column_types = {
 }
 time_column = 'timestamp'
 
+# Useful functions:
+# Ping the server: https://python-binance.readthedocs.io/en/latest/general.html#id1
+# Get system status: https://python-binance.readthedocs.io/en/latest/general.html#id3
+# Check server time and compare with local time: https://python-binance.readthedocs.io/en/latest/general.html#id2
 
 def init_client(parameters, client_args):
     global client, append_overlap_records

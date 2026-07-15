@@ -101,24 +101,24 @@ def freq_to_CronTrigger(freq: str):
             trigger = CronTrigger(minute="*/" + freq[:-3], second="1", timezone="UTC")
     elif freq.endswith("h"):
         if freq[:-1] == "1":
-            trigger = CronTrigger(hour="*", minute="0", second="2", timezone="UTC")
+            trigger = CronTrigger(hour="*", minute="0", second="20", timezone="UTC")
         else:
-            trigger = CronTrigger(hour="*/" + freq[:-1], minute="0", second="2", timezone="UTC")
+            trigger = CronTrigger(hour="*/" + freq[:-1], minute="0", second="20", timezone="UTC")
     elif freq.endswith("D"):
         if freq[:-1] == "1":
-            trigger = CronTrigger(day="*", second="5", timezone="UTC")
+            trigger = CronTrigger(day="*", hour="0", minute="1", second="0", timezone="UTC")
         else:
-            trigger = CronTrigger(day="*/" + freq[:-1], second="5", timezone="UTC")
+            trigger = CronTrigger(day="*/" + freq[:-1], hour="0", minute="1", second="0", timezone="UTC")
     elif freq.endswith("W"):
         if freq[:-1] == "1":
-            trigger = CronTrigger(week="*", second="10", timezone="UTC")
+            trigger = CronTrigger(week="*", day_of_week="1", hour="1", minute="0", second="0", timezone="UTC")
         else:
-            trigger = CronTrigger(day="*/" + freq[:-1], second="10", timezone="UTC")
+            trigger = CronTrigger(day="*/" + freq[:-1], day_of_week="1", hour="1", minute="0", second="0", timezone="UTC")
     elif freq.endswith("MS"):
         if freq[:-2] == "1":
-            trigger = CronTrigger(month="*", second="30", timezone="UTC")
+            trigger = CronTrigger(month="*", day="1", hour="1", minute="0", second="0", timezone="UTC")
         else:
-            trigger = CronTrigger(month="*/" + freq[:-1], second="30", timezone="UTC")
+            trigger = CronTrigger(month="*/" + freq[:-1], day="1", hour="1", minute="0", second="0", timezone="UTC")
     else:
         raise ValueError(f"Cannot convert frequency '{freq}' to cron.")
 
