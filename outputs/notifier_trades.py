@@ -234,6 +234,9 @@ def load_last_transaction():
 
 def load_all_transactions():
     transaction_path = get_transaction_path()
+    if not transaction_path.is_file():
+        log.warning(f"File with transactions does not exit: {transaction_path}")
+        return None
     df = pd.read_csv(transaction_path, names="timestamp,price,profit,status".split(","), header=None)
     df['timestamp'] = pd.to_datetime(df['timestamp'], format='ISO8601', utc=True)
     df = df.astype({'timestamp': 'datetime64[ns, UTC]', 'price': 'float64', 'profit': 'float64', 'status': 'str'})

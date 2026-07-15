@@ -83,21 +83,21 @@ async def send_diagram(df, model: dict, config: dict, model_store: ModelStore):
 
     # Get transaction data
     df_t = load_all_transactions()  # timestamp,price,profit,status
-    df_t['buy_long'] = df_t['status'].apply(lambda x: True if isinstance(x, str) and x == 'BUY' else False)
-    df_t['sell_long'] = df_t['status'].apply(lambda x: True if isinstance(x, str) and x == 'SELL' else False)
-    df_t = df_t[df_t.timestamp >= df_ohlc.timestamp.min()]  # select only transactions for the last time
-    transactions_exist = len(df_t) > 0
-
-    if transactions_exist:
-        df_t = resample_transaction_data(df_t, resampling_freq, 0, 'buy_long', 'sell_long')
-    else:
+    if df_t is None or len(df_t) == 0:
+        transactions_exist = False
         df_t = None
-
-    # Merge because we need signals along with close price in one df
-    if transactions_exist:
-        df = df_ohlc.merge(df_t, how='left', left_on='timestamp', right_on='timestamp')
-    else:
         df = df_ohlc
+    else:
+        df_t['buy_long'] = df_t['status'].apply(lambda x: True if isinstance(x, str) and x == 'BUY' else False)
+        df_t['sell_long'] = df_t['status'].apply(lambda x: True if isinstance(x, str) and x == 'SELL' else False)
+        df_t = df_t[df_t.timestamp >= df_ohlc.timestamp.min()]  # select only transactions for the last time
+        if len(df_t) > 0:
+            transactions_exist = True
+            df_t = resample_transaction_data(df_t, resampling_freq, 0, 'buy_long', 'sell_long')
+            df = df_ohlc.merge(df_t, how='left', left_on='timestamp', right_on='timestamp')
+        else:
+            transactions_exist = False
+            df_t = None
 
     symbol = config["symbol"]
     title = f"$\\bf{{{symbol}}}$"
@@ -296,17 +296,18 @@ def generate_chart(df, title, buy_signal_column, sell_signal_column, score_colum
         # ax2.set_frame_on(False)
         ax2.xaxis.grid(True)
 
-        # ax2.axhline(0.0, lw=.1, color="black")
+        ax2.axhline(0.0, lw=.1, color="black")
 
         # Draw horizontal threshold lines
         for threshold in thresholds:
             ax2.axhline(threshold, lw=3.0, color="lightgray")
 
         # Draw secondary score columns if any
-        for i, sec_score_col in enumerate(score_column):
+        alphas = list(np.arange(1, 0.2, -0.8/len(score_column)))
+        for i, sec_score_col in reversed(list(enumerate(score_column))):
             if i == 0:
                 continue
-            sns.lineplot(data=df, x="timestamp", y=sec_score_col, drawstyle='default', lw=1.0, color="violet", ax=ax2)  # marker="v" "^" , markersize=12
+            sns.lineplot(data=df, x="timestamp", y=sec_score_col, drawstyle='default', lw=i, color="violet", alpha=alphas[i], ax=ax2)  # marker="v" "^" , markersize=12
 
         # Primary score
         # ax2.plot(x, y1, 'o-', color="red" )
