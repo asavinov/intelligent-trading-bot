@@ -28,7 +28,7 @@ async def send_score_notification(df, model: dict, config: dict, model_store: Mo
 
     row = df.iloc[-1]  # Last row stores the latest values we need
 
-    interval_length = pd.Timedelta(freq).to_pytimedelta()
+    interval_length = freq_to_timedelta(freq)
 
     if ptypes.is_datetime64_any_dtype(df.index):  # Alternatively df.index.inferred_type == "datetime64"
         close_time = row.name

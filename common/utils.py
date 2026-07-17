@@ -8,6 +8,7 @@ from decimal import *
 
 import numpy as np
 import pandas as pd
+from pandas.tseries.frequencies import to_offset
 
 from sklearn import metrics
 
@@ -71,22 +72,37 @@ def pandas_get_interval(freq: str, timestamp: int=None):
     return int(start*1000), int(end*1000)
 
 def pandas_interval_length_ms(freq: str):
-    return int(pd.Timedelta(freq).to_pytimedelta().total_seconds() * 1000)
+    return int(freq_to_timedelta(freq).total_seconds() * 1000)
 
 def get_interval_count_from_start_dt(freq: str, start_dt):
     """How many whole intervals are from the specified start datetime and now."""
-    interval_length_td = pd.Timedelta(freq).to_pytimedelta()
+    interval_length_td = freq_to_timedelta(freq)
     now = datetime.now(timezone.utc)
     interval_count = (now - start_dt) // interval_length_td  # How many whole intervals
     return interval_count + 2
 
 def get_start_dt_for_interval_count(freq: str, interval_count: int):
     """Start datetime for the specified number of whole intervals back. Result is not aligned with the reaster."""
-    interval_length_td = pd.Timedelta(freq).to_pytimedelta()
+    interval_length_td = freq_to_timedelta(freq)
     period_length_td = interval_length_td * (interval_count + 1)
     now = datetime.now(timezone.utc)
     start_dt = (now - period_length_td)
     return start_dt
+
+def freq_to_timedelta(freq: str):
+    """
+    Given pandas freq string, return its duration (timedelta).
+
+    Offsets: https://pandas.pydata.org/pandas-docs/stable/user_guide/timeseries.html#offset-aliases
+
+    to_offset("10min").delta -- works w/o number but does not work with B. delta is deprecated
+    pd.Timedelta(days=1) or pd.Timedelta("h") -- does not work w/o number prefix like "h"
+    datetime.timedelta(minutes=120) -- manually
+    """
+    if freq.endswith("B"):  # Replace by D
+        freq = freq[:-1] + "D"
+
+    return pd.Timedelta(to_offset(freq)).to_pytimedelta()  # or _as_pd_timedelta
 
 #
 # Date and time

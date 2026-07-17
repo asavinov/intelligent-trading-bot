@@ -185,7 +185,7 @@ def get_signal(df, buy_signal_column, sell_signal_column):
 
     row = df.iloc[-1]  # Last row stores the latest values we need
 
-    interval_length = pd.Timedelta(freq).to_pytimedelta()
+    interval_length = freq_to_timedelta(freq)
 
     if not ptypes.is_datetime64_any_dtype(df.index):  # Alternatively df.index.inferred_type == "datetime64"
         raise ValueError(f"Index of the data frame must be of datetime type.")
