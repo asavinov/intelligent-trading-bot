@@ -1,0 +1,257 @@
+{
+  "train": true,
+  "venue": "okx",
+  "api_key": "",
+  "api_secret": "",
+  "telegram_bot_token": "<token>",
+  "telegram_chat_id": "<chat-id-to-publish-messages>",
+  "data_folder": "DATA-OKX",
+  "symbol": "BTCUSDT",
+  "description": "BTCUSDT 1h von OKX (oeffentliche Kerzen) - in-sample-Probe",
+  "freq": "1h",
+  "label_horizon": 24,
+  "features_horizon": 672,
+  "train_length": 8000,
+  "predict_length": 168,
+  "append_overlap_records": 5,
+  "data_sources": [
+    {
+      "folder": "BTCUSDT",
+      "file": "klines",
+      "column_prefix": ""
+    }
+  ],
+  "feature_sets": [
+    {
+      "column_prefix": "",
+      "generator": "talib",
+      "feature_prefix": "",
+      "config": {
+        "columns": [
+          "close"
+        ],
+        "functions": [
+          "SMA"
+        ],
+        "windows": [
+          1,
+          3,
+          6,
+          12,
+          24,
+          168,
+          672
+        ]
+      }
+    },
+    {
+      "column_prefix": "",
+      "generator": "talib",
+      "feature_prefix": "",
+      "config": {
+        "columns": [
+          "close"
+        ],
+        "functions": [
+          "LINEARREG_SLOPE"
+        ],
+        "windows": [
+          3,
+          6,
+          12,
+          24,
+          168,
+          672
+        ]
+      }
+    },
+    {
+      "column_prefix": "",
+      "generator": "talib",
+      "feature_prefix": "",
+      "config": {
+        "columns": [
+          "close"
+        ],
+        "functions": [
+          "STDDEV"
+        ],
+        "windows": [
+          3,
+          6,
+          12,
+          24,
+          168,
+          672
+        ]
+      }
+    }
+  ],
+  "label_sets": [
+    {
+      "column_prefix": "",
+      "generator": "highlow2",
+      "feature_prefix": "",
+      "config": {
+        "columns": [
+          "close",
+          "high",
+          "low"
+        ],
+        "function": "high",
+        "thresholds": [
+          3.0
+        ],
+        "tolerance": 0.2,
+        "horizon": 24,
+        "names": [
+          "high_30"
+        ]
+      }
+    },
+    {
+      "column_prefix": "",
+      "generator": "highlow2",
+      "feature_prefix": "",
+      "config": {
+        "columns": [
+          "close",
+          "high",
+          "low"
+        ],
+        "function": "low",
+        "thresholds": [
+          3.0
+        ],
+        "tolerance": 0.2,
+        "horizon": 24,
+        "names": [
+          "low_30"
+        ]
+      }
+    }
+  ],
+  "train_features": [
+    "close_SMA_1",
+    "close_SMA_3",
+    "close_SMA_6",
+    "close_SMA_12",
+    "close_SMA_24",
+    "close_SMA_168",
+    "close_LINEARREG_SLOPE_3",
+    "close_LINEARREG_SLOPE_6",
+    "close_LINEARREG_SLOPE_12",
+    "close_LINEARREG_SLOPE_24",
+    "close_LINEARREG_SLOPE_168",
+    "close_STDDEV_3",
+    "close_STDDEV_6",
+    "close_STDDEV_12",
+    "close_STDDEV_24",
+    "close_STDDEV_168"
+  ],
+  "labels": [
+    "high_30",
+    "low_30"
+  ],
+  "train_feature_sets": [
+    {
+      "generator": "train_features",
+      "config": {}
+    }
+  ],
+  "algorithms": [
+    {
+      "name": "svc",
+      "algo": "svc",
+      "params": {
+        "is_scale": true,
+        "length": 26280
+      },
+      "train": {
+        "C": 1.0
+      }
+    }
+  ],
+  "signal_sets": [
+    {
+      "generator": "combine",
+      "config": {
+        "columns": [
+          "high_30_svc",
+          "low_30_svc"
+        ],
+        "names": "trade_score",
+        "combine": "difference",
+        "coefficient": 1.0,
+        "constant": 0.0
+      }
+    },
+    {
+      "generator": "threshold_rule",
+      "config": {
+        "columns": "trade_score",
+        "names": [
+          "buy_signal_column",
+          "sell_signal_column"
+        ],
+        "parameters": {
+          "buy_signal_threshold": 0.08,
+          "sell_signal_threshold": -0.08
+        }
+      }
+    }
+  ],
+  "output_sets": [
+    {
+      "generator": "trader_simulation",
+      "config": {
+        "buy_signal_column": "buy_signal_column",
+        "sell_signal_column": "sell_signal_column"
+      }
+    }
+  ],
+  "simulate_model": {
+    "data_start": 0,
+    "data_end": null,
+    "direction": "long",
+    "topn_to_store": 10,
+    "signal_generator": "threshold_rule",
+    "buy_sell_equal": false,
+    "grid": {
+      "buy_signal_threshold": [
+        0.01,
+        0.02,
+        0.03,
+        0.04,
+        0.05,
+        0.06,
+        0.07,
+        0.08,
+        0.09,
+        0.1
+      ],
+      "sell_signal_threshold": [
+        -0.01,
+        -0.02,
+        -0.03,
+        -0.04,
+        -0.05,
+        -0.06,
+        -0.07,
+        -0.08,
+        -0.09,
+        -0.1
+      ]
+    }
+  },
+  "rolling_predict": {
+    "data_start": "2020-02-01 00:00:00",
+    "data_end": null,
+    "prediction_start": null,
+    "prediction_size": 10080,
+    "prediction_steps": 4,
+    "use_multiprocessing": false,
+    "max_workers": 8
+  },
+  "download_max_rows": 3000
+}
