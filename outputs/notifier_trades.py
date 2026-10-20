@@ -36,6 +36,29 @@ async def trader_simulation(df, model: dict, config: dict, model_store: ModelSto
         return
 
 
+def export_signal_csv(signal, config):
+    """Letztes Signal als CSV fuer den Fremd-Signal-Uebersetzer (Handel/itb_uebersetzer.py).
+
+    Eine Zeile je Lauf, ueberschrieben. BOTH und NONE ergeben beide Seiten False,
+    der Uebersetzer verwirft das. Ein Fehler hier stoppt nie die Transaktionen.
+    """
+    try:
+        symbol = config["symbol"]
+        # BTCUSDT -> BTC-USDT, so schreibt das Tor die Instrumente
+        instrument = symbol[:-4] + "-" + symbol[-4:] if symbol.endswith("USDT") else symbol
+        ts = pd.Timestamp(signal["close_time"])
+        if ts.tzinfo is None:
+            ts = ts.tz_localize("UTC")
+        path = Path(App.config["data_folder"]) / symbol / "itb_signale.csv"
+        with open(path, "w", encoding="utf-8", newline="") as f:
+            f.write("instrument,ts_utc,buy,sell\n")
+            f.write("%s,%d,%s,%s\n" % (
+                instrument, int(ts.timestamp()),
+                signal.get("side") == "BUY", signal.get("side") == "SELL"))
+    except Exception as e:
+        log.error(f"Signal-Export fehlgeschlagen: {e}")
+
+
 async def generate_trader_transaction(df, model: dict, config: dict):
     """
     Very simple trade strategy where we only buy and sell using the whole available amount
@@ -47,6 +70,7 @@ async def generate_trader_transaction(df, model: dict, config: dict):
     sell_signal_column = model.get("sell_signal_column")
 
     signal = get_signal(df, buy_signal_column, sell_signal_column)
+    export_signal_csv(signal, config)
     signal_side = signal.get("side")
     close_price = signal.get("close_price")
     close_time = signal.get("close_time")
