@@ -62,7 +62,7 @@ If everything is configured, then the following scripts have to be executed:
 * `python -m scripts.signals -c config.json`
 * `python -m scripts.output -c config.json`
 
-All necessary parameters are provided in the configuration file. The project provides some sample configuration files in the `config` folder.
+All necessary parameters are provided in the configuration file. The project provides some sample configuration files in the `configs` folder.
 
 Some common parameters of the configuration file:
 * `data_folder` - location of data files which are needed only for batch offline mode
