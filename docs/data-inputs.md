@@ -90,6 +90,111 @@ The result is saved as a single file containing data from all sources. The outpu
 
 In online mode, the server merges data for each new request (e.g., every minute) after retrieving chunks from all data sources. This merged data is then appended to the analyzer's main DataFrame. Columns from the merged table can be referenced in [feature definitions](features.md).
 
+## Merge an Adanos crypto snapshot for offline analysis
+
+Use this optional importer to compare local daily prices with Reddit crypto
+sentiment from [Adanos](https://adanos.org/). It supports only the JSON response
+from `GET /reddit/crypto/v1/token/{symbol}`, not the full API, stocks, or X data.
+The Python importer reads a local file and makes no network requests.
+See the [Adanos API documentation](https://api.adanos.com/docs) for the response contract.
+
+Check your account's window, retention, quota, and rate limits before retrieval.
+Free-plan access is limited and does not grant unrestricted historical coverage.
+Free and Hobby plans permit private research and own-capital bots. Commercial
+use requires Professional under the [Adanos terms](https://adanos.com/terms).
+Data redistribution has separate restrictions. Recheck current terms and plan
+limits before use. Keep API keys, downloaded responses, and private CSVs out of Git.
+
+Obtain an authorized response separately. Set `ADANOS_API_KEY` in your environment
+without shell tracing. Choose explicit inclusive UTC `from` and `to` dates within
+your retention allowance. This example passes the header through standard input
+so the key is not a curl command-line argument. Do not enable verbose or trace output.
+HTTP failures return a nonzero status without displaying a provider error body.
+
+```bash
+printf 'X-API-Key: %s\n' "${ADANOS_API_KEY:?Set ADANOS_API_KEY in your environment}" |
+  curl --fail --silent --show-error --header @- --get \
+    --data-urlencode 'from=2026-11-01' \
+    --data-urlencode 'to=2026-11-02' \
+    --output token.json \
+    'https://api.adanos.com/reddit/crypto/v1/token/BTC'
+```
+
+Use a new directory for this merge-only example. Supply an existing local daily
+price file at `DATA_ADANOS_ANALYSIS/BTCUSDT/klines.csv`. Its `timestamp` column must
+contain unique UTC-normalized, timezone-naive midnight timestamps, such as
+`2026-11-01T00:00:00`. Do not mix timezone-aware prices or minute bars into this
+daily example. Convert prices separately if necessary. The importer does not
+resample prices or infer the token from the exchange pair `BTCUSDT`.
+
+```bash
+mkdir -p DATA_ADANOS_ANALYSIS/ADANOS_BTC DATA_ADANOS_ANALYSIS/ANALYSIS
+python -m scripts.export_adanos --input-file token.json \
+  --output-file DATA_ADANOS_ANALYSIS/ADANOS_BTC/daily.csv --symbol BTC
+```
+
+The CSV columns are `timestamp`, `mentions`, `buzz_score`, `sentiment_score`,
+`bullish_pct`, and `bearish_pct`. Only `daily_trend` supplies rows. Window aggregates
+and mention text are ignored. Dates are unique and sorted. The naive midnight
+timestamp denotes a UTC date bucket, not a publication time. Missing or null
+optional values become empty cells, never zero. Absent dates remain absent.
+Malformed values, mismatched identity, `found=false`, and absent or empty history
+fail without creating a CSV. An existing destination is never overwritten.
+
+Save this isolated configuration as `merge-adanos.json` at the repository root.
+It does not change your normal trading configuration.
+
+```json
+{
+  "data_folder": "DATA_ADANOS_ANALYSIS",
+  "symbol": "ANALYSIS",
+  "time_column": "timestamp",
+  "freq": "1D",
+  "merge_interpolate": false,
+  "train": true,
+  "train_length": 0,
+  "features_horizon": 0,
+  "merge_file_name": "merged.csv",
+  "feature_sets": [],
+  "label_sets": [],
+  "train_feature_sets": [],
+  "signal_sets": [],
+  "output_sets": [],
+  "data_sources": [
+    {"folder": "BTCUSDT", "file": "klines.csv", "column_prefix": ""},
+    {"folder": "ADANOS_BTC", "file": "daily.csv", "column_prefix": "adanos"}
+  ]
+}
+```
+
+Run only the merger with this configuration.
+
+```bash
+python -m scripts.merge -c merge-adanos.json
+```
+
+Read `DATA_ADANOS_ANALYSIS/ANALYSIS/merged.csv` for descriptive analysis.
+The merger adds `adanos_` prefixes and leaves gaps empty with interpolation off.
+It starts at the earliest source start and stops at the **earliest source end**.
+For example, prices ending November 3 and sentiment ending November 2 produce
+output only through November 2. Short retention can therefore truncate price
+history. The native merger can overwrite its own output on a later run. Only the
+importer guarantees exclusive output creation.
+
+Here `train=true` and `train_length=0` disable the merger's prediction-window
+truncation. They do not start training. Do not run the downloader, feature or
+label generation, training, prediction, simulation, trader, or server with this
+configuration. Existing feature generators can interpolate values even when this
+merge option is false.
+
+This is **descriptive revised-history analysis only**, not backtest-safe data or
+live input. A daily date is not the time when that value became available.
+Responses have no per-row first-available timestamp or immutable revision history.
+Delayed data and later revisions can change historical values. Shifting rows by
+one day does not repair that gap. Do not forward-fill, backfill, or interpret
+missing values as neutral sentiment. A predictive integration requires a separate
+availability contract and prospective timestamped snapshots.
+
 ## Implementing a custom data collector
 
 To implement a new custom data collector for a specific data provider, perform the following steps:
