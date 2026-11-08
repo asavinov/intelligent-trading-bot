@@ -2,50 +2,56 @@
 
 ## About the project: goals and main properties
 
-The aim of the project is to develop a generic forecasting framework by combining machine learning (ML) and feature engineering (FE). The project provides the following major functionalities:
+The aim of the project is to develop a generic forecasting framework that combines machine learning (ML) and feature engineering (FE). The project provides the following major functionalities:
 
 - Clear and consistent separation between *two modes*:
 
-    - *offline* (or batch) mode for extracting knowledge or parameters from historic data, particularly, training ML models and determining statistical parameters
+    - *Offline* (or batch) mode for extracting knowledge or parameters from historic data, particularly for training ML models and determining statistical parameters
 
-    - *online* (or stream) mode for making forecasts based on the knowledge or parameters extracted from historic data and relying on (expert) knowledge encoded in domain-specific feaures using feature engineering
+    - *Online* (or stream) mode for making forecasts based on the knowledge or parameters extracted from historic data, relying on (expert) knowledge encoded in domain-specific features via feature engineering
 
-- *Extensible design* providing an easy way to define and use *derived features* using (Python) functions including standard technical indicators as well as arbitrary [custom features](features.md). The features can use encode expert knowledge or knowledge extracted from historic data. The feature-engineering part relies on the [column-oriented approach](column-oriented-design.md) where new features are defined in terms of previously defined features so that all features exist in a direct-acyclic graph (DAG) of definitions
+- *Extensible design* that provides an easy way to define and use *derived features* via (Python) functions. This includes both standard technical indicators and arbitrary [custom features](features.md). Features can encode expert knowledge or knowledge extracted from historic data. The feature-engineering layer relies on the [column-oriented approach](column-oriented-design.md), where new features are defined in terms of previously defined features, so that all features form a directed acyclic graph (DAG) of definitions
 
-- Possibility to work with different *trade frequencies* (time rasters or sample rates), for example, 1 minute, 1 hour or 1 day
+- Support for different *trade frequencies* (time rasters or sample rates), for example 1 minute, 1 hour, or 1 day
 
-- Integration with the external environment by means of input and output adapters:
-    - *Input* via custom data collectors for fetching data from data source in online mode or downloading historic data in offline mode
-    - Outputs via custom functions for sending the results of analysis like signals or predictions (in online mode) to external consumers lie Telegram channels, API end-point, databases or executing real transactions
+- Integration with the external environment through input and output adapters:
+    - *Input* via custom data collectors that fetch data from a data source in online mode or download historic data in offline mode
+    - *Output* via custom functions that send analysis results (such as signals or predictions in online mode) to external consumers, for example Telegram channels, API endpoints, databases, or systems that execute real transactions
 
-- [Scripts](scripts.md) for *backtesting* and measuring trade performance on historic data. This requires periodic re-train of the intermediate ML models and perform walk-forward predictions
+- [Scripts](scripts.md) for *backtesting* and measuring trade performance on historic data. This requires periodic re-training of intermediate ML models and walk-forward prediction
 
-- *[Trading service](server.md)* for online mode which uses a [configuration file](configuration.md) to regtularly retrieve data updates, do analysis and send signals or execute trade transactions
+- A *[trading service](server.md)* for online mode that uses a [configuration file](configuration.md) to regularly retrieve data updates, perform analysis, and send signals or execute trade transactions
 
-## Introduction: Combining feature engineering and machine learining
+## Introduction: Combining feature engineering and machine learning
 
 ### Feature engineering: defining features manually
 
-Time series analysis in general and forecasting in particular heavily rely on [derived features](features.md) which are used instead of the original attributes. For example, it is known that comparing the original stock price with its moving average (derived features) or comparing different moving averages is a very good indicator for how the price will behave in future.
+Time-series analysis in general, and forecasting in particular, relies heavily on [derived features](features.md) that are used in place of the original attributes. For example, it is well known that comparing the original stock price with its moving average (a derived feature), or comparing different moving averages, is a strong indicator of how the price is likely to behave in the future.
 
-One major reason why we frequently use custom features is that we want to encode already existing precious expert knowledge. It is especially important in case we do not have enough data in order to explore it automatically or manually. An expert could simply say that for this analysis moving average is a good indicator so we can immediately encode it as a feature and use for forecasting.
+One major reason for using custom features is the desire to encode already existing expert knowledge. This is especially important when there is insufficient data to discover patterns automatically or manually. An expert can simply state that a moving average is a useful indicator for a given analysis; the feature can then be encoded immediately and used for forecasting.
 
-Another reason is that even if we do not know which feature is good we might want to define many features and explore how they influence the results. We know that the original data is a bad predictor and we know that some kind of generic processing might help. But we do not know the best parameters for these custom indicators. Therefore, we define a series of features with different features and measure their performance.
+Another reason is that, even when the best features are unknown, it is often useful to define many candidate features and explore how they influence the results. The original data is typically a weak predictor, and some form of generic processing is known to help, but the optimal parameters of the custom indicators are not known in advance. Therefore a series of features with different parameterizations can be defined and their performance measured.
 
-Therefore having a good design for defining and using custom domain-specific features is a highly important aspect in time series analysis and forecasting. This project provides such a framework where new features can be defined based on already existing features. Our design relies on the [column-oriented approach](column-oriented-design.md) where columns of one table are defined in terms of other columns of this table.
+A well-designed mechanism for defining and using custom domain-specific features is therefore a critical aspect of time-series analysis and forecasting. This project provides such a framework, in which new features can be defined in terms of already existing features. The design follows the [column-oriented approach](column-oriented-design.md), where columns of a table are defined in terms of other columns of the same table.
 
 ### Machine learning: defining features automatically
 
-In addition to manually defining new features, it is very important to have a mechanism for defining new features automatically based on the analysis of historic data. Instead of asking an expert what is a good indicator, we provide large amount of historic data and ask an algorithm to find a good predictor. Typically it is a statistical algorith or a machine learning algorithm. The result is a feature which processes [inputs](data-inputs.md) and computes outputs. The outputs can be immediately interpreted as predictions but it is not necessary and they can be well intermediate values (similar to hidden layers of neural networks). An advantage of having machine learning is that we can find complex features with complex definitions (like Support Vector Machines) which are almost impossible to define manually. Yet, applying ML algorithms requires large amounts of data and higher expertise when defining and evaluating the results. It also can be computationally expensive.
+In addition to manually defining new features, it is important to have a mechanism that can define features automatically from the analysis of historic data. Instead of asking an expert for a good indicator, a large amount of historic data is supplied and an algorithm is asked to find a useful predictor. Typically this is a statistical or machine-learning algorithm. The result is a feature that processes [inputs](data-inputs.md) and produces outputs. These outputs can be interpreted directly as predictions, but they need not be; they may also serve as intermediate values (analogous to the hidden layers of a neural network).
 
-For training ML algorithms and finding best predictors we normally need explicitly defined [labels](labels.md). Labels in our approach are normal features which compute values from other features. One difference of labels is that they are typcially computed from future values while normal predicting features are computed from past values. Another difference is that labels are not needed and will not be computed in online mode where they are not needed and typically cannot be computed just because we do not know future values.
+An advantage of machine learning is that it can discover complex features with complex definitions (for example Support Vector Machines) that would be almost impossible to specify by hand. However, applying ML algorithms requires large amounts of data, greater expertise in defining and evaluating the results, and can be computationally expensive.
 
-## Unifying feature eengineering and machine learning
+Training ML algorithms and finding good predictors normally requires explicitly defined [labels](labels.md). In this approach labels are ordinary features that compute values from other features. One difference is that labels are typically computed from future values, whereas ordinary predictive features are computed from past values. Another difference is that labels are not needed—and will not be computed—in online mode, both because they are unnecessary and because future values are unavailable.
 
-In this project, we unify the usage of the methods of features engineering (manually defining features) and machine learning (automatically defined features) by providing these functions:
+## Unifying feature engineering and machine learning
 
-- A feature is defined as a generic function which converts input values to output value(s) at evaluation time by hiding the way it was defined - manually encoded as a Python function or automatically derived from historic data
-- Features can use already existing features so that they compose a direct acyclic graph (DAG) of definitions
-- A feature can be parameterized either by static (manually defined) parameters or dynamic (automatically derived) parameters. It is where we introduce machine learning. Intelligent indicators (features) use parameters derived from historic data which are referred to as a machine learning model. For example, a feature could use some regression model or a neuron network model
-- Features which are able to derive their parameters from historic data are called [trainable features](trainable-features.md). They provide a function which takes historic data as input and produce a model as output. This model is then used at prediction time. When to use this training function is determined by the mode: offline (batch) or online (stream). All features work in online (stream) mode by means of their evaluation function. Some features can also work in offline (batch) mode by providing a function which produces a machine learning model (and this model is then consumed by this same feature in online mode).
-- In online model, the framework evaluates all features by executing their prediction functions according to their dependencies. In offline mode, the framework will evaluate the features by executing their train functions before the prediction function is evaluated (so that the model is created or updated).
+In this project the methods of feature engineering (manually defined features) and machine learning (automatically defined features) are unified by the following principles:
+
+- A feature is defined as a generic function that converts input values into output value(s) at evaluation time, hiding the way the feature was created—whether it was encoded manually as a Python function or derived automatically from historic data
+
+- Features may depend on already existing features, thereby forming a directed acyclic graph (DAG) of definitions
+
+- A feature can be parameterized either by static (manually defined) parameters or by dynamic (automatically derived) parameters. This is the point at which machine learning is introduced. Intelligent indicators (features) use parameters derived from historic data; these parameters constitute a machine-learning model. For example, a feature may rely on a regression model or a neural-network model
+
+- Features that are able to derive their parameters from historic data are called [trainable features](trainable-features.md). They provide a function that takes historic data as input and produces a model as output. The model is then used at prediction time. When the training function is invoked is determined by the operating mode: offline (batch) or online (stream). All features operate in online (stream) mode via their evaluation function. Some features can also operate in offline (batch) mode by supplying a training function that produces a machine-learning model; that model is subsequently consumed by the same feature in online mode
+
+- In online mode the framework evaluates all features by executing their prediction functions according to their dependency order. In offline mode the framework first executes the training functions of the relevant features (so that models are created or updated) before the prediction functions are evaluated
