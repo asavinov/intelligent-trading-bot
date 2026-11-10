@@ -22,6 +22,7 @@ The functions that are executed after analysis are specified in the `output_sets
   {...}, // Second output adapter
   {...}  // Third output adapter
 ]
+```
 
 The (Python) function executed by an output adapter is defined in the `generator` attribute. It is either a predefined name that the framework resolves to a Python function, or the explicit name of a custom Python function defined in an additional module.
 
@@ -29,7 +30,8 @@ For example, a diagram with a line chart can be sent regularly to a Telegram cha
 
 ```jsonc
 {
-  "generator": "diagram_notification_model", "config": {
+  "generator": "diagram_notification_model",
+  "config": {
     "diagram_notification": true,
     "notification_freq": "1D",
 
@@ -51,10 +53,12 @@ Many trading strategies can be built on the same signals or (intelligent) indica
 
 ```jsonc
 {
-  "generator": "trader_simulation", "config": {
+  "generator": "trader_simulation",
+  "config": {
     "buy_signal_column": "buy_signal_column",
     "sell_signal_column": "sell_signal_column"
-}}
+  }
+}
 ```
 
 It relies on two columns with binary values: `buy_signal_column` and `sell_signal_column`. These columns must be defined as features and computed during analysis. The column definitions include a threshold that determines whether the value is true or false. The output adapter then simulates transactions by buying or selling accordingly.

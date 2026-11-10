@@ -15,6 +15,7 @@ Technically, both features and labels are columns computed from other columns. T
 ## Label definitions
 
 Labels are defined exactly like features; each label has a definition with the same structure as a feature definition. However, because labels serve a special role and are required only in *train* mode, they are defined in a dedicated section:
+
 ```jsonc
 "label_sets": [
   {...}, // First label
@@ -22,6 +23,7 @@ Labels are defined exactly like features; each label has a definition with the s
   {...} // Third label
 ]
 ```
+
 In train mode, when `"train": true` is set in the configuration file, all columns corresponding to the label definitions are generated. Both feature and label columns are then used by ML features to train their models. These trained models are subsequently used to generate output features as predictions.
 
 Label columns are computed by generators, and every label definition includes a `generator` attribute. ITB provides built-in generators such as `topbot2` and `highlow2`, described below. However, custom label generators can also be defined in exactly the same manner as custom features.
@@ -39,6 +41,7 @@ Once all maximum and minimum values meeting the required distance criteria are i
 Each tolerance is interpreted as a fraction of the level (where the level itself is a fraction of the price). For example, if the level is 0.1 (10% price change) and the tolerance is 0.2 (20% of the level), the resulting price tolerance is 0.02 (2%). If the identified top price is 100.0, its immediate neighbors with prices between 98.0 and 100.0 will also be marked as tops (returning true). Note that the left and right minima must still have a price of 90.0 or lower, since the level is 0.1 (10% of the price).
 
 Below is an example that defines two binary label columns:
+
 ```jsonc
 "label_sets": [
   {
@@ -55,6 +58,7 @@ Below is an example that defines two binary label columns:
   }
 ]
 ```
+
 The first label definition (in train mode) generates a binary column that is true when the close price is a maximum relative to left and right minima, requiring a minimum price change of 2% with a 0.2% tolerance. The second label definition identifies all bottom values using the same level and tolerance. The desired output column names are specified in the `names` attribute.
 
 These labels can be used to train a classification ML algorithm. In prediction mode, the algorithm will estimate the probability that the current price is a local maximum (top) and is therefore likely to drop significantly in the near future, or, for the second label, that it is a local minimum (bottom) and is likely to rise in the near future.
@@ -64,18 +68,20 @@ These labels can be used to train a classification ML algorithm. In prediction m
 This label generator returns true or false values by determining whether the price increases (or decreases) significantly within a specified future time horizon.
 
 The generator accepts the following configuration parameters:
--   `function`: Either `high` or `low`.
-    -   `high` returns true if the price increases significantly; otherwise, it returns false.
-    -   `low` returns true if the price decreases significantly; otherwise, it returns false.
--   `columns`: A list of three column names whose roles depend on their position in the list:
-    -   The first column determines the current (reference) price. This is frequently (but not necessarily) the close price.
-    -   The second column determines the price increase and whether the reference price has risen significantly. This is frequently (but not necessarily) the high price.
-    -   The third column determines the price decrease and whether the reference price has fallen significantly. This is frequently (but not necessarily) the low price.
--   `thresholds`: A list of percentage values defining how much the price must increase (or decrease) for the generator to return true. One output column is generated for each threshold value.
--   `tolerance`: A factor relative to the thresholds used to determine acceptable adverse price movement relative to the reference (close) price. For example, a value of 1.0 equals the full threshold, while 0.5 represents 50% of the threshold. This defines the allowable price move in the direction opposite to the expected trend. If the price moves in this adverse direction beyond the specified tolerance before reaching the target threshold, the generator returns false.
--   `horizon`: The number of future rows over which the analysis is performed. If the price fails to reach the required level within this period, the generator returns false.
+
+- `function`: Either `high` or `low`.
+    - `high` returns true if the price increases significantly; otherwise, it returns false.
+    - `low` returns true if the price decreases significantly; otherwise, it returns false.
+- `columns`: A list of three column names whose roles depend on their position in the list:
+    - The first column determines the current (reference) price. This is frequently (but not necessarily) the close price.
+    - The second column determines the price increase and whether the reference price has risen significantly. This is frequently (but not necessarily) the high price.
+    - The third column determines the price decrease and whether the reference price has fallen significantly. This is frequently (but not necessarily) the low price.
+- `thresholds`: A list of percentage values defining how much the price must increase (or decrease) for the generator to return true. One output column is generated for each threshold value.
+- `tolerance`: A factor relative to the thresholds used to determine acceptable adverse price movement relative to the reference (close) price. For example, a value of 1.0 equals the full threshold, while 0.5 represents 50% of the threshold. This defines the allowable price move in the direction opposite to the expected trend. If the price moves in this adverse direction beyond the specified tolerance before reaching the target threshold, the generator returns false.
+- `horizon`: The number of future rows over which the analysis is performed. If the price fails to reach the required level within this period, the generator returns false.
 
 Below is an example of two label definitions that generate four binary output columns:
+
 ```jsonc
 "label_sets": [
   {

@@ -3,8 +3,8 @@
 ## Defining data sources
 
 The intelligent trading bot operates in two modes:
--   **Batch (offline) mode:** Intended for analyzing large historical datasets.
--   **Stream (online) mode:** Intended for generating regular predictions on small increments of new data.
+- **Batch (offline) mode:** Intended for analyzing large historical datasets.
+- **Stream (online) mode:** Intended for generating regular predictions on small increments of new data.
 
 In batch mode, historical data must be retrieved for analysis. In stream mode, only the latest data is retrieved and analyzed incrementally. In both cases, the data structure must remain consistent (except in training mode, where labels must also be generated).
 
@@ -30,9 +30,9 @@ A data source description includes the following attributes:
 
 The attributes of a data source are interpreted as follows:
 
--   `folder`: This attribute serves two purposes: it specifies the folder where data is stored locally and the quote name (symbol) used to request data from the provider.
--   `file`: The name of the file containing the retrieved data. For example, candlestick data might use `klines`. If not specified, it defaults to the symbol name defined in the `folder` attribute.
--   `column_prefix`: When retrieving multiple symbols, column names often overlap (e.g., open, high, low, close). To distinguish the origin of these columns after merging them into a single DataFrame, use the `column_prefix` attribute. This prefix is applied to every column name from this source during the merge process. Note that the prefix is used only for merging; the original column names in the source file remain unchanged.
+- `folder`: This attribute serves two purposes: it specifies the folder where data is stored locally and the quote name (symbol) used to request data from the provider.
+- `file`: The name of the file containing the retrieved data. For example, candlestick data might use `klines`. If not specified, it defaults to the symbol name defined in the `folder` attribute.
+- `column_prefix`: When retrieving multiple symbols, column names often overlap (e.g., open, high, low, close). To distinguish the origin of these columns after merging them into a single DataFrame, use the `column_prefix` attribute. This prefix is applied to every column name from this source during the merge process. Note that the prefix is used only for merging; the original column names in the source file remain unchanged.
 
 Below is an example configuration with two data sources:
 
@@ -57,9 +57,9 @@ Credentials for accessing the data provider are loaded by the provider-specific 
 
 The data provider is specified in the `venue` attribute. Currently, the following values are supported:
 
--   `binance`: Binance
--   `mt5`: MT5
--   `yahoo`: Yahoo
+- `binance`: Binance
+- `mt5`: MT5
+- `yahoo`: Yahoo
 
 ## Downloader
 
@@ -77,8 +77,8 @@ If the configuration file defines two data sources with the required attributes,
 
 Downloaded data from different sources is not used in isolation. Instead, it is merged into a single table via a merge procedure implemented in both the merge script and the server. The merge procedure has two primary goals:
 
--   Generate a continuous time raster based on the configured frequency to prevent gaps in the source data.
--   Append all source data (columns) to this table by aligning rows with the generated raster.
+- Generate a continuous time raster based on the configured frequency to prevent gaps in the source data.
+- Append all source data (columns) to this table by aligning rows with the generated raster.
 
 Execute the merge script as follows:
 
@@ -94,8 +94,8 @@ In online mode, the server merges data for each new request (e.g., every minute)
 
 To implement a new custom data collector for a specific data provider, perform the following steps:
 
--   Add a new entry to the `Venue` enumerator.
--   Implement the provider-specific functions responsible for data retrieval: `fetch_klines`, `health_check`, and `download_klines`.
--   Return these functions from the dispatcher functions `get_collector_functions` and `get_download_functions`.
+- Add a new entry to the `Venue` enumerator.
+- Implement the provider-specific functions responsible for data retrieval: `fetch_klines`, `health_check`, and `download_klines`.
+- Return these functions from the dispatcher functions `get_collector_functions` and `get_download_functions`.
 
 The server dynamically locates these functions based on the venue specified in the configuration. It uses them to incrementally retrieve data, merge it, append it to the main DataFrame, and perform analysis.
