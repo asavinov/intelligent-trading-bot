@@ -1,6 +1,6 @@
 # Intelligent Trading Bot
 
-## About the project: goals and main properties
+## Goals and main properties
 
 The aim of the project is to develop a generic forecasting framework that combines machine learning (ML) and feature engineering (FE). The project provides the following major functionalities:
 
@@ -22,9 +22,7 @@ The aim of the project is to develop a generic forecasting framework that combin
 
 - A *[trading service](server.md)* for online mode that uses a [configuration file](configuration.md) to regularly retrieve data updates, perform analysis, and send signals or execute trade transactions
 
-## Introduction: Combining feature engineering and machine learning
-
-### Feature engineering: defining features manually
+## Feature engineering: defining features manually
 
 Time-series analysis in general, and forecasting in particular, relies heavily on [derived features](features.md) that are used in place of the original attributes. For example, it is well known that comparing the original stock price with its moving average (a derived feature), or comparing different moving averages, is a strong indicator of how the price is likely to behave in the future.
 
@@ -34,9 +32,9 @@ Another reason is that, even when the best features are unknown, it is often use
 
 A well-designed mechanism for defining and using custom domain-specific features is therefore a critical aspect of time-series analysis and forecasting. This project provides such a framework, in which new features can be defined in terms of already existing features. The design follows the [column-oriented approach](column-oriented-design.md), where columns of a table are defined in terms of other columns of the same table.
 
-### Machine learning: defining features automatically
+## Machine learning: defining features automatically
 
-In addition to manually defining new features, it is important to have a mechanism that can define features automatically from the analysis of historic data. Instead of asking an expert for a good indicator, a large amount of historic data is supplied and an algorithm is asked to find a useful predictor. Typically this is a statistical or machine-learning algorithm. The result is a feature that processes [inputs](data-inputs.md) and produces outputs. These outputs can be interpreted directly as predictions, but they need not be; they may also serve as intermediate values (analogous to the hidden layers of a neural network).
+In addition to manually defining new features, it is important to have a mechanism that can [define features automatically](trainable-features.md) from the analysis of historic data. Instead of asking an expert for a good indicator, a large amount of historic data is supplied and an algorithm is asked to find a useful predictor. Typically this is a statistical or machine-learning algorithm. The result is a feature that processes [inputs](data-inputs.md) and produces outputs. These outputs can be interpreted directly as predictions, but they need not be; they may also serve as intermediate values (analogous to the hidden layers of a neural network).
 
 An advantage of machine learning is that it can discover complex features with complex definitions (for example Support Vector Machines) that would be almost impossible to specify by hand. However, applying ML algorithms requires large amounts of data, greater expertise in defining and evaluating the results, and can be computationally expensive.
 

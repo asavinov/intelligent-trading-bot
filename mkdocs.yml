@@ -31,19 +31,25 @@ theme:
   name: material
 
   features:
+    - toc.integrate
     - navigation.tabs                 # Top navigation tabs (Home | Docs | Blog)
     - navigation.tabs.sticky          # Keep tabs visible while scrolling
-    - navigation.indexes              # Allow section landing pages (e.g., docs/index.md)
+    - navigation.sections             # Group pages under sections
+    - navigation.expand               # Expand sections by default
     - navigation.path                 # Show breadcrumb path
+    - navigation.indexes              # Allow section landing pages (e.g., docs/index.md)
     - navigation.top                  # "Back to top" button
-    # - navigation.sections           # Uncomment for collapsible sections instead of tabs
-    # - navigation.expand             # Expand all sidebar items by default
+    #- navigation.hide
+    #- header.autohide                # Hide header on scroll down
+
+    - content.code.copy               # Copy button on code blocks
+    - content.action.edit             # "Edit this page" link
+    - content.code.annotate           # Uncomment for code annotations
+    - content.tabs.link               # Linked content tabs
 
     - search.suggest                  # Search suggestions
     - search.highlight                # Highlight search terms
-    - content.code.copy               # Copy button on code blocks
-    - content.action.edit             # "Edit this page" link
-    # - content.code.annotate         # Uncomment for code annotations
+    - search.share
 
   palette:
     # Light / dark mode (you can add more schemes)
