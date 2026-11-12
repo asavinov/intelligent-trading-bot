@@ -1,0 +1,121 @@
+# ==================== Site Metadata ====================
+site_name: Intelligent Trading Bot
+site_description: Documentation for the Intelligent Trading Bot
+site_url: https://asavinov.github.io/intelligent-trading-bot/
+site_author: Alexandr Savinov
+
+# ==================== Repository Links ====================
+repo_url: https://github.com/asavinov/intelligent-trading-bot
+repo_name: asavinov/intelligent-trading-bot
+#edit_uri: edit/main/docs/                     # Allows "Edit this page" button on GitHub
+
+# ==================== Navigation ====================
+nav:
+  - Home: index.md
+
+  - Column-oriented design: column-oriented-design.md
+  - Features: features.md
+  - Labels: labels.md
+
+  - Trainable features: trainable-features.md
+
+  - Data inputs: data-inputs.md
+  - Outputs and trading: outputs-trader.md
+
+  - Configuration: configuration.md
+  - Server: server.md
+  - Scripts: scripts.md
+
+# ==================== Theme Configuration ====================
+theme:
+  name: material
+
+  features:
+    - navigation.tabs                 # Top navigation tabs (Home | Docs | Blog)
+    - navigation.tabs.sticky          # Keep tabs visible while scrolling
+    - navigation.indexes              # Allow section landing pages (e.g., docs/index.md)
+    - navigation.path                 # Show breadcrumb path
+    - navigation.top                  # "Back to top" button
+    # - navigation.sections           # Uncomment for collapsible sections instead of tabs
+    # - navigation.expand             # Expand all sidebar items by default
+
+    - search.suggest                  # Search suggestions
+    - search.highlight                # Highlight search terms
+    - content.code.copy               # Copy button on code blocks
+    - content.action.edit             # "Edit this page" link
+    # - content.code.annotate         # Uncomment for code annotations
+
+  palette:
+    # Light / dark mode (you can add more schemes)
+    - scheme: default
+      primary: indigo
+      accent: indigo
+      toggle:
+        icon: material/weather-night
+        name: Switch to dark mode
+    - scheme: slate
+      primary: indigo
+      accent: indigo
+      toggle:
+        icon: material/weather-sunny
+        name: Switch to light mode
+
+  icon:
+      repo: fontawesome/brands/github     # GitHub icon in header
+    # favicon and logo (place these in docs/assets/images/)
+    # favicon: assets/images/favicon.png
+    # logo: assets/images/logo.svg
+
+# ==================== Markdown Extensions ====================
+markdown_extensions:
+  - admonition                         # note, warning, tip, etc.
+  - pymdownx.details                   # Collapsible admonitions
+  - pymdownx.superfences               # For Mermaid diagrams, etc.
+  - pymdownx.highlight:               # Better code highlighting
+      anchor_linenums: true
+  - pymdownx.tabbed:                   # Tabbed content
+      alternate_style: true
+  - pymdownx.emoji:
+      emoji_index: !!python/name:material.extensions.emoji.twemoji
+      emoji_generator: !!python/name:material.extensions.emoji.to_svg
+  # - pymdownx.tasklist:               # Uncomment for GitHub-style task lists
+  #     custom_checkbox: true
+
+  - toc:
+      permalink: true
+  - attr_list                          # For custom attributes
+  - md_in_html                         # Markdown inside HTML
+
+# ==================== Plugins ====================
+plugins:
+  - search                            # Built-in fast search
+  # - rss:                            # Uncomment after `pip install mkdocs-rss-plugin`
+  #     match_path: blog/.*\.md
+  #     date_from_meta:
+  #       as_creation: date
+  #       as_update: date.updated
+  #- social:                         # Social cards (OG images for sharing)
+  #    cards_layout_options:
+  #      background_color: "#1E88E5"
+
+# ==================== Extra Configuration ====================
+extra:
+  social:
+    - icon: fontawesome/brands/github
+      link: https://github.com/asavinov
+    - icon: fontawesome/brands/linkedin
+      link: https://linkedin.com/in/alexandrsavinov/
+    - icon: fontawesome/brands/twitter
+      link: https://twitter.com/asavinov
+
+  # analytics:
+  #   provider: google
+  #   property: G-XXXXXXXXXX          # Your Google Analytics ID
+
+# Optional: Versioning (uncomment when you need multiple versions)
+# extra:
+#   version:
+#     provider: mike
+
+# Copyright footer
+copyright: Copyright &copy; 2026 Alexandr Savinov - All rights reserved

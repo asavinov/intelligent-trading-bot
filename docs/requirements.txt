@@ -1,0 +1,5 @@
+mkdocs>=1.6
+mkdocs-material>=9.5   # or whatever theme/plugins you use
+# Add any other plugins you need, e.g.:
+# mkdocs-git-revision-date-localized-plugin
+# mkdocs-awesome-pages-plugin
