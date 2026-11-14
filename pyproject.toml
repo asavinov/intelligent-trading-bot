@@ -5,7 +5,7 @@ build-backend = "setuptools.build_meta"
 [project]
 name = "intelligent-trading-bot"
 version = "0.8.dev"
-description = "Intelligent Trading Bot - Core library, scripts and a simple server"
+description = "Intelligent Trading Bot: Automatically generating signals and trading based on machine learning and feature engineering"
 readme = "README.md"
 requires-python = ">=3.12"
 license = "MIT"
@@ -52,8 +52,8 @@ docs = [
     "mkdocs-material>=9.5",
 ]
 dev = [
-    #"pytest >= 7.4",
-    #"ruff >= 0.2",
+    #"pytest >= 8.0",
+    #"ruff >= 0.6",
     #"mypy >= 1.8",
 ]
 
@@ -63,11 +63,12 @@ Repository = "https://github.com/asavinov/intelligent-trading-bot"
 Documentation = "https://asavinov.github.io/intelligent-trading-bot"
 "Bug Tracker" = "https://github.com/asavinov/intelligent-trading-bot/issues"
 
-[tool.setuptools]
-packages = ["common", "inputs", "outputs", "scripts", "service"]
-include-package-data = false
+#[tool.setuptools]
+#packages = ["common", "inputs", "outputs", "scripts", "service"]
+#include-package-data = false
 
-#[tool.setuptools.packages.find]
+[tool.setuptools.packages.find]
+where = ["src"]
 #include = ["common", "inputs", "outputs", "scripts", "service"]
 #exclude = ["tests", "tests.*"]
 
