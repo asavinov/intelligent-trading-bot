@@ -17,7 +17,7 @@ import asyncio
 
 import MetaTrader5 as mt5
 
-from inputs.utils_mt5 import *
+from itb.inputs.utils_mt5 import *
 
 import logging
 log = logging.getLogger('mt5')
@@ -40,11 +40,11 @@ timezone = pytz.timezone("Etc/UTC")
 
 def init_client(parameters, client_args):
     global client
-    authorized = collector_mt5.connect_mt5(**client_args)
+    authorized = connect_mt5(**client_args)
     if not authorized:
         log.error(f"Failed to connect to MT5. Check credentials and server details.")
         raise ConnectionError("Failed to connect to MT5. Check credentials and server details.")
-    collector_mt5.client = mt5
+    client = mt5
 
 def get_client():
     return client

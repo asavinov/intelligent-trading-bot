@@ -13,11 +13,11 @@ from binance.exceptions import *
 from binance.helpers import date_to_milliseconds, interval_to_milliseconds
 from binance.enums import *
 
-from service.App import *
-from common.utils import *
-from common.model_store import *
-from inputs import collector_binance
-from outputs.notifier_trades import get_signal
+from itb.service.App import *
+from itb.common.utils import *
+from itb.common.model_store import *
+from itb.inputs import collector_binance
+from itb.outputs.notifier_trades import get_signal
 
 import logging
 log = logging.getLogger('trader')

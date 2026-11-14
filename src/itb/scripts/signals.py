@@ -5,9 +5,9 @@ from tqdm import tqdm
 import numpy as np
 import pandas as pd
 
-from service.App import *
-from common.model_store import *
-from common.generators import generate_feature_set
+from itb.service.App import *
+from itb.common.model_store import *
+from itb.common.generators import generate_feature_set
 
 """
 Generate new derived columns according to the signal definitions.

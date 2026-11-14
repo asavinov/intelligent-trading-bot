@@ -9,9 +9,9 @@ import pandas.api.types as ptypes
 
 import requests
 
-from service.App import *
-from common.utils import *
-from common.model_store import *
+from itb.service.App import *
+from itb.common.utils import *
+from itb.common.model_store import *
 
 import logging
 log = logging.getLogger('notifier')

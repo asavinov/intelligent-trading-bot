@@ -4,16 +4,16 @@ from apscheduler.schedulers.asyncio import AsyncIOScheduler
 
 from binance import Client
 
-from common.types import Venue
-from common.generators import output_feature_set
-from common.analyzer import Analyzer
+from itb.common.types import Venue
+from itb.common.generators import output_feature_set
+from itb.common.analyzer import Analyzer
 
-from inputs import get_collector_functions
+from itb.inputs import get_collector_functions
 
-from outputs.notifier_trades import *
-from outputs.notifier_scores import *
-from outputs.notifier_diagram import *
-from outputs import get_trader_functions
+from itb.outputs.notifier_trades import *
+from itb.outputs.notifier_scores import *
+from itb.outputs.notifier_diagram import *
+from itb.outputs import get_trader_functions
 
 import logging
 
@@ -167,7 +167,7 @@ def start_server(config_file):
         )
         client_args = client_args | App.config.get("client_args", {})
         # Initialize client
-        from inputs.collector_binance import init_client
+        from itb.inputs.collector_binance import init_client
         init_client(client_params, client_args)
 
     if venue == Venue.MT5:
@@ -181,7 +181,7 @@ def start_server(config_file):
         )
         client_args = client_args | App.config.get("client_args", {})
         # Initialize client
-        from inputs.collector_mt5 import init_client
+        from itb.inputs.collector_mt5 import init_client
         init_client(client_params, client_args)
 
     App.model_store = ModelStore(App.config)
@@ -272,10 +272,10 @@ def start_server(config_file):
         App.loop.close()
         log.info(f"Event loop closed.")
         if venue == venue.BINANCE:
-            from inputs.collector_binance import close_client
+            from itb.inputs.collector_binance import close_client
             close_client()
         if venue == Venue.MT5:
-            from inputs.collector_mt5 import close_client
+            from itb.inputs.collector_mt5 import close_client
             close_client()
         log.info("Connection closed.")
 

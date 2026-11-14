@@ -10,11 +10,11 @@ import numpy as np
 import pandas as pd
 import pandas.api.types as ptypes
 
-from service.App import *
-from common.model_store import *
-from common.gen_features import *
-from common.utils import compute_scores_regression, compute_scores
-from common.generators import train_feature_set, predict_feature_set
+from itb.service.App import *
+from itb.common.model_store import *
+from itb.common.gen_features import *
+from itb.common.utils import compute_scores_regression, compute_scores
+from itb.common.generators import train_feature_set, predict_feature_set
 
 """
 Generate label predictions for the whole input feature matrix by iteratively training models using historic data and predicting labels for some future horizon.

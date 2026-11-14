@@ -6,9 +6,9 @@ import json
 import numpy as np
 import pandas as pd
 
-from common.utils import *
-from common.gen_features import *
-from common.gen_features_rolling_agg import *
+from itb.common.utils import *
+from itb.common.gen_features import *
+from itb.common.gen_features_rolling_agg import *
 
 """
 Label generation. Labels are features which are used for training.

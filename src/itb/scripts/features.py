@@ -6,9 +6,9 @@ import pandas as pd
 
 import click
 
-from service.App import *
-from common.model_store import *
-from common.generators import generate_feature_set
+from itb.service.App import *
+from itb.common.model_store import *
+from itb.common.generators import generate_feature_set
 
 """
 Apply feature generators

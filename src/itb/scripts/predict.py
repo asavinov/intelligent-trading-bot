@@ -7,10 +7,10 @@ import numpy as np
 import pandas as pd
 import pandas.api.types as ptypes
 
-from service.App import *
-from common.model_store import *
-from common.utils import compute_scores_regression, compute_scores
-from common.generators import predict_feature_set
+from itb.service.App import *
+from itb.common.model_store import *
+from itb.common.utils import compute_scores_regression, compute_scores
+from itb.common.generators import predict_feature_set
 
 """
 Apply models to (previously generated) features and compute prediction scores.

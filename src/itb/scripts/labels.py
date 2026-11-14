@@ -5,9 +5,9 @@ import pandas as pd
 
 import click
 
-from service.App import *
-from common.model_store import *
-from scripts.features import generate_feature_set
+from itb.service.App import *
+from itb.common.model_store import *
+from itb.scripts.features import generate_feature_set
 
 """
 This script will load a feature file (or any file with close price), and add

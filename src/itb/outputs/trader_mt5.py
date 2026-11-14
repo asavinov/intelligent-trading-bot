@@ -6,12 +6,12 @@ import asyncio
 
 import MetaTrader5 as mt5
 
-from service.App import *
-from common.utils import *
-from common.model_store import *
-from outputs.notifier_trades import get_signal
+from itb.service.App import *
+from itb.common.utils import *
+from itb.common.model_store import *
+from itb.outputs.notifier_trades import get_signal
 
-from inputs.collector_mt5 import connect_mt5
+from itb.inputs.collector_mt5 import connect_mt5
 
 import logging
 

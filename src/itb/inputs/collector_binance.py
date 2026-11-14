@@ -16,9 +16,9 @@ from binance.exceptions import *
 from binance.helpers import date_to_milliseconds, interval_to_milliseconds
 from binance.enums import *
 
-from service.App import *
-from common.utils import *
-from inputs.utils_binance import *
+from itb.service.App import *
+from itb.common.utils import *
+from itb.inputs.utils_binance import *
 
 import logging
 log = logging.getLogger('binance.base_client')

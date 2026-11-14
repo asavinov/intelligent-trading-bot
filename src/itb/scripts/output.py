@@ -6,10 +6,10 @@ from tqdm import tqdm
 import numpy as np
 import pandas as pd
 
-from service.App import *
-from common.utils import *
-from common.model_store import *
-from common.generators import output_feature_set
+from itb.service.App import *
+from itb.common.utils import *
+from itb.common.model_store import *
+from itb.common.generators import output_feature_set
 
 """
 Execute outputs based on signal file.

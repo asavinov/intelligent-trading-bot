@@ -1,3 +1,4 @@
+import importlib
 import logging
 import dateparser
 import pytz
@@ -13,8 +14,6 @@ from pandas.tseries.frequencies import to_offset
 from sklearn import metrics
 
 from apscheduler.triggers.cron import CronTrigger
-
-from common.gen_features import *
 
 #
 # Decimals

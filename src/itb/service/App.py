@@ -6,8 +6,8 @@ import re
 
 import pandas as pd
 
-from common.model_store import *
-from common.types import AccountBalances, MT5AccountInfo
+from itb.common.model_store import *
+from itb.common.types import AccountBalances, MT5AccountInfo
 
 PACKAGE_ROOT = Path(__file__).parent.parent
 #PACKAGE_PARENT = '..'

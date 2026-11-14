@@ -11,9 +11,9 @@ import pandas as pd
 
 import scipy.stats as stats
 
-from common.utils import *
-from common.gen_features_rolling_agg import *
-from common.gen_features_rolling_agg import _aggregate_last_rows
+from itb.common.utils import *
+from itb.common.gen_features_rolling_agg import *
+from itb.common.gen_features_rolling_agg import _aggregate_last_rows
 
 """
 Feature generators. 

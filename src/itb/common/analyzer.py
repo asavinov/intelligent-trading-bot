@@ -3,10 +3,10 @@ from datetime import datetime, date, timedelta
 import numpy as np
 import pandas as pd
 
-from common.utils import *
-from common.model_store import *
-from common.generators import generate_feature_set
-from common.generators import predict_feature_set
+from itb.common.utils import *
+from itb.common.model_store import *
+from itb.common.generators import generate_feature_set
+from itb.common.generators import predict_feature_set
 
 import logging
 log = logging.getLogger('analyzer')

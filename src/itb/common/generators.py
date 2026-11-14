@@ -5,13 +5,13 @@ import numpy as np
 import pandas as pd
 import pandas.api.types as ptypes
 
-from common.types import Venue
-from common.utils import *
-from common.model_store import *
-from common.gen_features import *
-from common.gen_labels_highlow import generate_labels_highlow, generate_labels_highlow2
-from common.gen_labels_topbot import generate_labels_topbot, generate_labels_topbot2
-from common.gen_signals import (
+from itb.common.types import Venue
+from itb.common.utils import *
+from itb.common.model_store import *
+from itb.common.gen_features import *
+from itb.common.gen_labels_highlow import generate_labels_highlow, generate_labels_highlow2
+from itb.common.gen_labels_topbot import generate_labels_topbot, generate_labels_topbot2
+from itb.common.gen_signals import (
     generate_smoothen_scores, generate_combine_scores,
     generate_threshold_rule, generate_threshold_rule2
 )
@@ -131,16 +131,16 @@ def predict_feature_set(df, fs, config, model_store: ModelStore) -> Tuple[pd.Dat
             print(f"Predict '{score_column_name}'. Algorithm {algo_name}. Label: {label}. Train length {len(train_df)}. Train columns {len(train_df.columns)}")
 
             if algo_type == "gb":
-                from common.classifier_gb import predict_gb
+                from itb.common.classifier_gb import predict_gb
                 df_y_hat = predict_gb(model_pair, train_df, model_config)
             elif algo_type == "nn":
-                from common.classifier_nn import predict_nn
+                from itb.common.classifier_nn import predict_nn
                 df_y_hat = predict_nn(model_pair, train_df, model_config)
             elif algo_type == "lc":
-                from common.classifier_lc import predict_lc
+                from itb.common.classifier_lc import predict_lc
                 df_y_hat = predict_lc(model_pair, train_df, model_config)
             elif algo_type == "svc":
-                from common.classifier_svc import predict_svc
+                from itb.common.classifier_svc import predict_svc
                 df_y_hat = predict_svc(model_pair, train_df, model_config)
             else:
                 raise ValueError(f"Unknown algorithm type {algo_type}. Check algorithm list.")
@@ -183,19 +183,19 @@ def train_feature_set(df, fs, config) -> dict:
             print(f"Train '{score_column_name}'. Algorithm {algo_name}. Label: {label}. Train length {len(df_X)}. Train columns {len(df_X.columns)}")
 
             if algo_type == "gb":
-                from common.classifier_gb import train_gb
+                from itb.common.classifier_gb import train_gb
                 model_pair = train_gb(df_X, df_y, model_config)
                 models[score_column_name] = model_pair
             elif algo_type == "nn":
-                from common.classifier_nn import train_nn
+                from itb.common.classifier_nn import train_nn
                 model_pair = train_nn(df_X, df_y, model_config)
                 models[score_column_name] = model_pair
             elif algo_type == "lc":
-                from common.classifier_lc import train_lc
+                from itb.common.classifier_lc import train_lc
                 model_pair = train_lc(df_X, df_y, model_config)
                 models[score_column_name] = model_pair
             elif algo_type == "svc":
-                from common.classifier_svc import train_svc
+                from itb.common.classifier_svc import train_svc
                 model_pair = train_svc(df_X, df_y, model_config)
                 models[score_column_name] = model_pair
             else:
@@ -240,10 +240,10 @@ def get_features_labels_algorithms(fs, config) -> Tuple[list, list, list]:
     return train_features, labels, algorithms
 
 async def output_feature_set(df, fs: dict, config: dict, model_store: ModelStore) -> None:
-    from outputs.notifier_scores import send_score_notification
-    from outputs.notifier_diagram import send_diagram
-    from outputs.notifier_trades import trader_simulation
-    from outputs import get_trader_functions
+    from itb.outputs.notifier_scores import send_score_notification
+    from itb.outputs.notifier_diagram import send_diagram
+    from itb.outputs.notifier_trades import trader_simulation
+    from itb.outputs import get_trader_functions
 
     #
     # Resolve and apply feature generator functions from the configuration

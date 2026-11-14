@@ -6,8 +6,8 @@ import numpy as np
 
 import click
 
-from common.utils import merge_data_sources
-from service.App import *
+from itb.common.utils import merge_data_sources
+from itb.service.App import *
 
 """
 Create one output file from multiple input data files. 

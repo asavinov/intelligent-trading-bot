@@ -3,9 +3,9 @@ from pathlib import Path
 
 import click
 
-from common.types import Venue
-from inputs import get_download_functions
-from service.App import *
+from itb.common.types import Venue
+from itb.inputs import get_download_functions
+from itb.service.App import *
 
 """
 Download raw data for the specified venu and store udpates in the corresponding files.

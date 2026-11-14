@@ -1,4 +1,4 @@
-from common.types import Venue
+from itb.common.types import Venue
 
 
 def get_trader_functions(venue: Venue) -> dict[str, callable]:
@@ -11,7 +11,7 @@ def get_trader_functions(venue: Venue) -> dict[str, callable]:
         funcs["update_order_status"](...)
     """
     if venue == venue.BINANCE:
-        from outputs.trader_binance import (
+        from itb.outputs.trader_binance import (
             trader_binance,
             update_account_balance as update_account_balance_binance,
             update_order_status as update_order_status_binance,
@@ -24,7 +24,7 @@ def get_trader_functions(venue: Venue) -> dict[str, callable]:
             "update_trade_status": update_trade_status_binance,
         }
     elif venue == venue.MT5:
-        from outputs.trader_mt5 import (
+        from itb.outputs.trader_mt5 import (
             trader_mt5,
             update_account_balance as update_account_balance_mt5,
             update_order_status as update_order_status_mt5,

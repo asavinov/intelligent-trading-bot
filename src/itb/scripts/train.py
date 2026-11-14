@@ -6,9 +6,9 @@ from tqdm import tqdm
 import numpy as np
 import pandas as pd
 
-from service.App import *
-from common.model_store import *
-from common.generators import train_feature_set
+from itb.service.App import *
+from itb.common.model_store import *
+from itb.common.generators import train_feature_set
 
 """
 Train models for all target labels and all algorithms declared in the configuration using the specified features.

@@ -10,10 +10,10 @@ import pandas.api.types as ptypes
 
 import requests
 
-from service.App import *
-from common.utils import *
-from common.model_store import *
-from outputs.notifier_trades import load_all_transactions
+from itb.service.App import *
+from itb.common.utils import *
+from itb.common.model_store import *
+from itb.outputs.notifier_trades import load_all_transactions
 
 import logging
 log = logging.getLogger('notifier')

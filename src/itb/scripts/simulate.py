@@ -8,11 +8,11 @@ import pandas as pd
 from sklearn.metrics import (precision_recall_curve, PrecisionRecallDisplay, RocCurveDisplay)
 from sklearn.model_selection import ParameterGrid
 
-from service.App import *
-from common.utils import *
-from common.model_store import *
-from common.backtesting import *
-from common.generators import generate_feature_set
+from itb.service.App import *
+from itb.common.utils import *
+from itb.common.model_store import *
+from itb.common.backtesting import *
+from itb.common.generators import generate_feature_set
 
 """
 The script is intended for finding best trade parameters for a certain trade algorithm
