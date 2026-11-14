@@ -5,6 +5,7 @@ class Venue(Enum):
     YAHOO = "yahoo"
     BINANCE = "binance"
     MT5 = "mt5"
+    OKX = "okx"
     
 class AccountBalances:
     """

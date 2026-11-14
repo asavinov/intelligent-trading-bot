@@ -22,5 +22,8 @@ def get_download_functions(venue: Venue):
     elif venue == venue.MT5:
         from inputs.collector_mt5 import download_klines
         return download_klines
+    elif venue == venue.OKX:
+        from inputs.collector_okx import download_klines
+        return download_klines
     else:
         raise ValueError(f"Unknown venue {venue} or downloader for the venue not implemented")
