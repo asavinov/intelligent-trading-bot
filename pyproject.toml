@@ -57,6 +57,18 @@ dev = [
     #"mypy >= 1.8",
 ]
 
+[project.scripts]
+itb-download = "itb.scripts.download:main"
+itb-merge = "itb.scripts.merge:main"
+itb-features = "itb.scripts.features:main"
+itb-labels = "itb.scripts.labels:main"
+itb-train = "itb.scripts.train:main"
+itb-predict = "itb.scripts.predict:main"
+itb-predict_rolling = "itb.scripts.predict:main"
+itb-signals = "itb.scripts.signals:main"
+itb-output = "itb.scripts.output:main"
+itb-simulate = "itb.scripts.simulate:main"
+
 [project.urls]
 Homepage = "https://github.com/asavinov/intelligent-trading-bot"
 Repository = "https://github.com/asavinov/intelligent-trading-bot"
@@ -69,7 +81,7 @@ Documentation = "https://asavinov.github.io/intelligent-trading-bot"
 
 [tool.setuptools.packages.find]
 where = ["src"]
-#include = ["common", "inputs", "outputs", "scripts", "service"]
+include = ["itb*"]
 #exclude = ["tests", "tests.*"]
 
 # Optional: dynamic version from __version__ or git tag (needs setuptools-scm)
