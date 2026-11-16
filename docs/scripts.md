@@ -26,7 +26,7 @@ The file extension determines the format (CSV or Parquet).
 The `download` script retrieves data from the sources listed in the `data_sources` section:
 
 ```console
-python -m scripts.download -c config.json
+python -m itb.scripts.download -c config.json
 ```
 
 The quote name (which also serves as the subfolder name) and file name ("klines" by default) are specified in each data source entry. If a source file already exists, the script retrieves only the latest missing data and appends these rows to the file. Otherwise, all available data is retrieved and stored in a new file.
@@ -34,7 +34,7 @@ The quote name (which also serves as the subfolder name) and file name ("klines"
 The `merge` script combines all source files specified in the `data_sources` section and stores the result in a single output file:
 
 ```console
-python -m scripts.merge -c config.json
+python -m itb.scripts.merge -c config.json
 ```
 The output file name and format are specified in the `merge_file_name` attribute. The file is stored in the `symbol` subfolder. Columns receive a prefix (if specified in the data source entry), and all rows are aligned according to the data frequency. Accordingly, gaps may appear if data is missing from certain sources.
 
@@ -47,7 +47,7 @@ These scripts apply feature definitions and generate new columns. Currently, fea
 Features defined in the `feature_sets` section are evaluated using the `features` script:
 
 ```console
-python -m scripts.features -c config.json
+python -m itb.scripts.features -c config.json
 ```
 
 It reads data from the input file specified in the `feature_sets` parameter ("data" by default), generates the features defined in the `feature_sets` section, and stores the result in the output file specified in the `feature_file_name` parameter ("features" by default).
@@ -57,7 +57,7 @@ It reads data from the input file specified in the `feature_sets` parameter ("da
 Features defined in the `label_sets` section are evaluated using the `labels` script:
 
 ```console
-python -m scripts.labels -c config.json
+python -m itb.scripts.labels -c config.json
 ```
 
 It reads input data from the output of the `features` script. The resulting table, with appended label columns, is stored in the `matrix_file_name` file ("matrix" by default).
@@ -67,7 +67,7 @@ It reads input data from the output of the `features` script. The resulting tabl
 The `predict` script evaluates features defined in the `train_feature_sets` section:
 
 ```console
-python -m scripts.predict -c config.json
+python -m itb.scripts.predict -c config.json
 ```
 
 It evaluates these trainable features in prediction mode using existing models previously trained by the `train` script. Data is loaded from the output of the `labels` script. The result is stored in the `predict_file_name` file ("predictions" by default).
@@ -77,7 +77,7 @@ It evaluates these trainable features in prediction mode using existing models p
 This script evaluates features defined in the `signal_sets` section:
 
 ```console
-python -m scripts.signals -c config.json
+python -m itb.scripts.signals -c config.json
 ```
 
 Input data is loaded from the `predict_file_name` file (the output of the `predict` script). The result is stored in the `signal_file_name` file.
@@ -87,7 +87,7 @@ Input data is loaded from the `predict_file_name` file (the output of the `predi
 The `train` script runs feature definitions from the `train_feature_sets` section in training mode:
 
 ```console
-python -m scripts.train -c config.json
+python -m itb.scripts.train -c config.json
 ```
 
 Running in training mode means that these features use the data to determine optimal parameters but do not apply them. The script outputs model files stored in the `MODELS` subfolder. These model files are subsequently used by the `predict` script to generate feature output columns.
@@ -97,7 +97,7 @@ Running in training mode means that these features use the data to determine opt
 The `output` script executes the definitions from the `output_sets` section:
 
 ```console
-python -m scripts.output -c config.json
+python -m itb.scripts.output -c config.json
 ```
 
 These definitions do not produce new features; rather, they use existing data to send notifications, generate visualizations, execute trades, etc.
@@ -117,7 +117,7 @@ The result is a table of predictions generated in small chunks using models trai
 The script is executed like other scripts:
 
 ```console
-python -m scripts.predict_rolling -c config.json
+python -m itb.scripts.predict_rolling -c config.json
 ```
 
 It loads data from the `matrix_file_name` file ("matrix" by default). The result is stored in the `predict_file_name` file ("predictions" by default).
@@ -139,7 +139,7 @@ Data analysis in ITB focuses on generating new features, including those based o
 Simulation (backtesting) parameters are specified in the `simulate_model` section of the configuration file:
 
 ```console
-python -m scripts.simulate -c config.json
+python -m itb.scripts.simulate -c config.json
 ```
 
 The script consumes predictions from the `predict_file_name` file. This file must include all derived features and should be produced by the `predict_rolling` script.

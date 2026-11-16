@@ -68,7 +68,7 @@ The `download` script retrieves data from the configured data sources and stores
 Execute the downloader script as follows:
 
 ```console
-python -m scripts.download -c config.json
+python -m itb.scripts.download -c config.json
 ```
 
 If the configuration file defines two data sources with the required attributes, the script will download two files and store them in their respective folders.
@@ -83,7 +83,7 @@ Downloaded data from different sources is not used in isolation. Instead, it is 
 Execute the merge script as follows:
 
 ```console
-python -m scripts.merge -c config.json
+python -m itb.scripts.merge -c config.json
 ```
 
 The result is saved as a single file containing data from all sources. The output filename (and format) is specified in the `merge_file_name` attribute of the configuration file. For example, to store the merged data in Parquet format, use: `"merge_file_name": "data.parquet"`.
