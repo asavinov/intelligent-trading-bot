@@ -9,13 +9,6 @@ import pandas as pd
 from itb.common.model_store import *
 from itb.common.types import AccountBalances, MT5AccountInfo
 
-PACKAGE_ROOT = Path(__file__).parent.parent
-#PACKAGE_PARENT = '..'
-#SCRIPT_DIR = os.path.dirname(os.path.realpath(os.path.join(os.getcwd(), os.path.expanduser(__file__))))
-#sys.path.append(os.path.normpath(os.path.join(SCRIPT_DIR, PACKAGE_PARENT)))
-#PACKAGE_ROOT = os.path.dirname(os.path.abspath(__file__))
-
-
 class App:
     """Globally visible variables."""
 
@@ -222,7 +215,10 @@ def problems_exist():
 
 def load_config(config_file):
     if config_file:
-        config_file_path = PACKAGE_ROOT / config_file
+        config_file_path = Path(config_file)
+        if not config_file_path.exists():
+            raise ValueError(f"Config file not found: '{config_file}'. Absolute path: '{config_file_path.absolute()}'")
+
         with open(config_file_path, encoding='utf-8') as json_file:
             #conf_str = json.load(json_file)
             conf_str = json_file.read()
