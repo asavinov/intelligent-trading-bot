@@ -52,7 +52,7 @@ docs = [
     "mkdocs-material>=9.5",
 ]
 dev = [
-    #"pytest >= 8.0",
+    "pytest >= 9.0",
     #"ruff >= 0.6",
     #"mypy >= 1.8",
 ]
