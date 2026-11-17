@@ -1,0 +1,26 @@
+# MANIFEST.in
+
+# Required / strongly recommended
+include pyproject.toml
+include README.md
+include LICENSE*
+include CHANGELOG*
+include MANIFEST.in
+
+# Source code
+graft src
+
+# Optional but commonly included
+graft tests
+
+# Explicitly exclude
+prune docs
+prune notebooks
+prune configs
+prune .github
+prune .venv
+prune dist
+prune build
+prune *.egg-info
+
+global-exclude *.py[cod] __pycache__ *.so .DS_Store
