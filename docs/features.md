@@ -60,6 +60,8 @@ Note that using this feature generator requires the native TA-Lib binary library
 - Install the Python wrapper via a package manager that supports platform-specific libraries. For example, Conda supports this for certain platforms and Python versions: `conda install -c conda-forge ta-lib`.
 - In some cases, it may be possible to locate the library manually and copy it to a location accessible from Python.
 
+If TA-Lib is not installed, the generator computes the most common functions (`SMA`, `EMA`, `WMA`, `DEMA`, `TEMA`, `RSI`, `MOM`, `ROC`, `STDDEV`, `LINEARREG`, `LINEARREG_SLOPE`) with [fin-primitives](https://pypi.org/project/fin-primitives/), which has pre-built wheels and produces the same values. This is enough for the sample configurations. Other functions require TA-Lib (`pip install ta-lib` or the `talib` extra: `pip install ".[talib]"`).
+
 To use TA-Lib, set the generator name to `talib`: `"generator": "talib"`. The generator maps `config` attributes to TA-Lib indicator arguments, calls the appropriate TA-Lib functions, and returns the results as one or more `pandas` columns attached to the main DataFrame.
 
 The generator `config` attributes are interpreted as follows (not all are required for every feature):

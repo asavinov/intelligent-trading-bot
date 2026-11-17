@@ -38,12 +38,17 @@ dependencies = [
     "python-binance",
 
     "numba",
-    "ta-lib",
+    "fin-primitives>=3.2",
 
     "scikit-learn",
     "lightgbm",
     "tensorflow",
     "keras",
+]
+
+[project.optional-dependencies]
+talib = [
+    "ta-lib",  # Native TA-Lib library (all TA functions). Without it, fin-primitives computes the common ones
 ]
 
 [dependency-groups]

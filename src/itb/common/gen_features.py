@@ -145,30 +145,14 @@ def generate_features_talib(df, config: dict, last_rows: int = 0):
 
     #
     # talib module where all ta functions are defined. we use it below to resolve TA function names
+    # If TA-Lib (optional, native library) is not installed, then fin-primitives is used for the functions it supports
     #
-    mod_name = "talib"  # Functions are applied to a (rolling) series of windows
-    talib_mod = sys.modules.get(mod_name)  # Try to load
-    if talib_mod is None:  # If not yet imported
-        try:
-            talib_mod = importlib.import_module(mod_name)  # Try to import
-        except Exception as e:
-            raise ValueError(f"Cannot import module {mod_name}. Check if talib is installed correctly")
-
-    mod_name = "talib.stream"  # Functions which are applied to single window and return one value
-    talib_mod_stream = sys.modules.get(mod_name)  # Try to load
-    if talib_mod_stream is None:  # If not yet imported
-        try:
-            talib_mod_stream = importlib.import_module(mod_name)  # Try to import
-        except Exception as e:
-            raise ValueError(f"Cannot import module {mod_name}. Check if talib is installed correctly")
-
-    mod_name = "talib.abstract"  # We need this to get function annotations, particularly, if they are unstable (support stream mode)
-    talib_mod_abstract = sys.modules.get(mod_name)  # Try to load
-    if talib_mod_abstract is None:  # If not yet imported
-        try:
-            talib_mod_abstract = importlib.import_module(mod_name)  # Try to import
-        except Exception as e:
-            raise ValueError(f"Cannot import module {mod_name}. Check if talib is installed correctly")
+    try:
+        talib_mod = importlib.import_module("talib")  # Functions are applied to a (rolling) series of windows
+        talib_mod_stream = importlib.import_module("talib.stream")  # Functions which are applied to single window and return one value
+        talib_mod_abstract = importlib.import_module("talib.abstract")  # We need this to get function annotations, particularly, if they are unstable (support stream mode)
+    except ImportError:
+        talib_mod = talib_mod_stream = talib_mod_abstract = None
 
     #
     # Process configuration parameters and prepare all needed for feature generation
@@ -212,12 +196,16 @@ def generate_features_talib(df, config: dict, last_rows: int = 0):
         fn_outs = []
         fn_out_names = []
 
+        if talib_mod is None and func_name not in FIN_PRIMITIVES_FUNCTIONS:
+            raise ValueError(f"TA function '{func_name}' requires TA-Lib which is not installed. Install it with 'pip install ta-lib' or use one of: {', '.join(FIN_PRIMITIVES_FUNCTIONS)}")
+
         # Determine if the function support stream mode
-        try:
-            fn = getattr(talib_mod_abstract, func_name)  # Resolve function name
-        except AttributeError as e:
-            raise ValueError(f"Cannot resolve talib function name '{func_name}'. Check the (existence of) name of the function")
-        is_streamable_function = fn.function_flags is None or 'Function has an unstable period' not in fn.function_flags
+        if talib_mod_abstract is not None:
+            try:
+                fn = getattr(talib_mod_abstract, func_name)  # Resolve function name
+            except AttributeError as e:
+                raise ValueError(f"Cannot resolve talib function name '{func_name}'. Check the (existence of) name of the function")
+            is_streamable_function = fn.function_flags is None or 'Function has an unstable period' not in fn.function_flags
 
         # TODO: Currently disable stream functions
         is_streamable_function = False
@@ -230,16 +218,19 @@ def generate_features_talib(df, config: dict, last_rows: int = 0):
             # Only aggregation functions have window argument (arithmetic row-level functions do not have it)
             #
             if not last_rows or not w or not is_streamable_function:
-                try:
-                    fn = getattr(talib_mod, func_name)  # Resolve function name
-                except AttributeError as e:
-                    raise ValueError(f"Cannot resolve talib function name '{func_name}'. Check the (existence of) name of the function")
+                if talib_mod is not None:
+                    try:
+                        fn = getattr(talib_mod, func_name)  # Resolve function name
+                    except AttributeError as e:
+                        raise ValueError(f"Cannot resolve talib function name '{func_name}'. Check the (existence of) name of the function")
 
                 args = columns.copy()
                 if w:
                     args['timeperiod'] = w
                 if w == 1 and len(columns) == 1:  # For window 1 use the original values (because talib fails to do this)
                     out = next(iter(columns.values()))
+                elif talib_mod is None:
+                    out = _fin_primitives_call(func_name, columns, w)
                 else:
                     out = fn(**args)
 
@@ -309,6 +300,39 @@ def generate_features_talib(df, config: dict, last_rows: int = 0):
         df[out.name] = np.log(out) if log else out
 
     return features
+
+
+# TA-Lib function names which are computed by fin-primitives (same values as TA-Lib) if TA-Lib is not installed
+FIN_PRIMITIVES_FUNCTIONS = {
+    "SMA": "sma",
+    "EMA": "ema",
+    "WMA": "wma",
+    "DEMA": "dema",
+    "TEMA": "tema",
+    "RSI": "rsi",
+    "MOM": "momentum",
+    "ROC": "roc",
+    "STDDEV": "std_dev",
+    "LINEARREG": "lsma",
+    "LINEARREG_SLOPE": "lin_reg_slope",
+}
+
+
+def _fin_primitives_call(func_name: str, columns: dict, w: int):
+    """Compute a TA-Lib function with fin-primitives. Like TA-Lib, leading NaNs are skipped and kept in the output."""
+    import fin_primitives
+
+    if len(columns) != 1 or not w:
+        raise ValueError(f"TA function '{func_name}' requires TA-Lib for multiple input columns or no window")
+
+    column = next(iter(columns.values())).astype(float)
+    out = pd.Series(data=np.nan, index=column.index, dtype=float)
+    valid = column.notna().to_numpy()
+    if not valid.any():
+        return out
+    start = int(valid.argmax())
+    out.iloc[start:] = fin_primitives.compute(FIN_PRIMITIVES_FUNCTIONS[func_name], column.iloc[start:], w).to_numpy()
+    return out
 
 
 def _convert_to_relative(fn_outs: list, rel_base, rel_func, percentage):

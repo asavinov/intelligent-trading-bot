@@ -14,7 +14,8 @@ python-binance
 
 # Features/label generation
 numba  # For highlow label generator
-ta-lib  # Python wrapper for TA-Lib (native) library. For examploe, install wheel from github (for your platform and Python)
+fin-primitives>=3.2  # Pre-built wheels. Computes SMA, EMA, RSI, STDDEV, LINEARREG_SLOPE etc. for the talib generator if TA-Lib is not installed
+#ta-lib  # Python wrapper for TA-Lib (native) library. Needed only for other TA functions. For example, install wheel from github (for your platform and Python)
 # tsfresh  # if tsfresh feature generator is used. It depends on matrixprofile with binary (in pip) only for Python 3.8
 
 # Algorithms
