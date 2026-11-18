@@ -28,11 +28,11 @@ def test_extremum_labels():
     extr_y = [sr[x] for x in extr_x]
     extr_df = pd.DataFrame({'x': extr_x, 'y': extr_y})
 
-    import seaborn as sns
+    #import seaborn as sns
     # https://matplotlib.org/stable/api/markers_api.html
     # '-', '--', '-.', ':', 'None', ' ', '', 'solid', 'dashed', 'dashdot', 'dotted'
-    sns.lineplot(data=sr)
-    sns.lineplot(data=extr_df, x="x", y="y", marker="o", markersize=10, linestyle='dotted')  # "^" 'v'
+    #sns.lineplot(data=sr)
+    #sns.lineplot(data=extr_df, x="x", y="y", marker="o", markersize=10, linestyle='dotted')  # "^" 'v'
 
     pass
 
